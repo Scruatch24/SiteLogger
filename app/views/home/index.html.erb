@@ -1,15 +1,17 @@
-<div class="flex flex-col items-center space-y-6 max-w-md mx-auto mt-10">
+<div class="flex flex-col items-center space-y-6 max-w-md mx-auto mt-10 pb-20">
   
   <div class="text-center">
-    <h1 class="text-4xl font-bold text-gray-800 tracking-tight">SiteLogger</h1>
-    <p class="text-gray-500 mt-2">Tap below to log your job</p>
+    <h1 class="text-4xl font-bold text-gray-800 tracking-tight italic">SiteLogger</h1>
+    <p class="text-gray-500 mt-2 font-light">Tap below to log your job</p>
     <div class="mt-4">
-      <%= link_to "View History", history_path, class: "text-blue-600 hover:text-blue-800 font-medium underline" %>
+      <%# This is the standard Rails way to link to the history page %>
+      <%= link_to "View History", "/history", class: "text-blue-600 hover:text-blue-800 font-medium underline flex items-center justify-center gap-1" %>
     </div>
   </div>
 
   <button 
     id="recordButton"
+    type="button"
     class="w-48 h-48 rounded-full bg-red-600 shadow-xl flex items-center justify-center transition-all active:scale-95 hover:bg-red-700 border-4 border-white ring-4 ring-red-100 cursor-pointer">
     <span id="buttonText" class="text-white font-bold text-2xl uppercase tracking-widest">RECORD</span>
   </button>
@@ -18,31 +20,46 @@
     id="invoicePreview" 
     class="hidden w-full bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 mt-8">
     
-    <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
-      <h2 class="text-lg font-semibold text-gray-700">Invoice Preview</h2>
+    <div class="bg-blue-600 px-6 py-4">
+      <h2 class="text-lg font-semibold text-white italic">Review & Confirm</h2>
+      <p class="text-blue-100 text-xs">Verify the AI's work before saving.</p>
     </div>
 
     <div class="p-6 space-y-4">
-      <div class="flex justify-between border-b pb-2">
-        <span class="text-gray-500">Date</span>
-        <span id="dateField" class="font-medium text-gray-900">-</span>
-      </div>
-      <div class="flex justify-between border-b pb-2">
-        <span class="text-gray-500">Client</span>
-        <span id="clientField" class="font-medium text-gray-900">-</span>
-      </div>
-      <div class="flex justify-between border-b pb-2">
-        <span class="text-gray-500">Time Spent</span>
-        <span id="timeField" class="font-medium text-gray-900">-</span>
-      </div>
       <div>
-        <span class="text-gray-500 block mb-1">Tasks</span>
-        <ul id="tasksField" class="list-none space-y-1 text-gray-800 bg-gray-50 p-3 rounded-lg text-sm"></ul>
+        <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Client Name</label>
+        <input type="text" id="editClient" class="w-full border-b border-gray-200 focus:border-blue-500 outline-none py-1 text-lg font-medium text-gray-900 bg-transparent">
       </div>
+
       <div>
-        <span class="text-gray-500 block mb-1">Materials</span>
-        <ul id="materialsField" class="list-none space-y-1 text-gray-800 bg-gray-50 p-3 rounded-lg text-sm"></ul>
+        <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Time Spent</label>
+        <input type="text" id="editTime" class="w-full border-b border-gray-200 focus:border-blue-500 outline-none py-1 text-lg font-medium text-gray-900 bg-transparent">
       </div>
+
+      <div class="flex justify-between items-center bg-gray-50 p-2 rounded">
+        <span class="text-[10px] font-bold text-gray-400 uppercase">Date</span>
+        <span id="dateField" class="text-sm text-gray-600 font-medium"></span>
+      </div>
+
+      <div>
+        <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Tasks Performed</label>
+        <textarea id="editTasks" class="w-full mt-1 p-3 border border-gray-100 rounded-lg bg-gray-50 focus:ring-1 focus:ring-blue-400 outline-none min-h-[80px] text-sm text-gray-800"></textarea>
+      </div>
+
+      <div>
+        <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Materials Used</label>
+        <textarea id="editMaterials" class="w-full mt-1 p-3 border border-gray-100 rounded-lg bg-gray-50 focus:ring-1 focus:ring-blue-400 outline-none min-h-[60px] text-sm text-gray-800"></textarea>
+      </div>
+
+      <button 
+        id="saveButton"
+        type="button"
+        class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+        </svg>
+        CONFIRM & SAVE
+      </button>
     </div>
   </div>
 </div>
@@ -59,38 +76,25 @@ document.addEventListener("DOMContentLoaded", () => {
 
   button.addEventListener("click", async () => {
     if (!isRecording) {
-      // START RECORDING
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         mediaRecorder = new MediaRecorder(stream);
         audioChunks = [];
-
-        mediaRecorder.ondataavailable = (event) => {
-          audioChunks.push(event.data);
-        };
-
+        mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
         mediaRecorder.onstop = sendAudioToServer;
-
         mediaRecorder.start();
         isRecording = true;
-        
-        // Change UI
         buttonText.innerText = "STOP";
         button.classList.add("animate-pulse", "bg-red-800");
       } catch (err) {
-        alert("Microphone access denied. Please allow permissions.");
+        alert("Microphone error. Make sure you are on HTTPS or localhost.");
         console.error(err);
       }
     } else {
-      // STOP RECORDING
       mediaRecorder.stop();
       isRecording = false;
-      
-      // Change UI
-      buttonText.innerText = "THINKING...";
+      buttonText.innerText = "WAIT...";
       button.classList.remove("animate-pulse", "bg-red-800");
-      
-      // Stop the microphone "red dot"
       mediaRecorder.stream.getTracks().forEach(track => track.stop());
     }
   });
@@ -99,44 +103,51 @@ document.addEventListener("DOMContentLoaded", () => {
     const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
     const formData = new FormData();
     formData.append("audio", audioBlob, "recording.webm");
-
-    // Get Rails Security Token
-    const token = document.querySelector('meta[name="csrf-token"]').content;
+    
+    // Fail-safe for the CSRF token
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
 
     try {
       const response = await fetch("/process_audio", {
         method: "POST",
-        headers: { "X-CSRF-Token": token },
+        headers: { "X-CSRF-Token": csrfToken },
         body: formData
       });
 
       const data = await response.json();
-      console.log("AI Data:", data);
-
+      
       if (data.error) {
-        alert("Error: " + data.error);
-        buttonText.innerText = "RETRY";
-      } else {
-        // Show Results
-        outputDiv.classList.remove("hidden");
+        alert("AI could not understand: " + data.error);
         buttonText.innerText = "RECORD";
-
-        // Fill Data
-        document.getElementById("dateField").innerText = data.date || "-";
-        document.getElementById("clientField").innerText = data.client || "-";
-        document.getElementById("timeField").innerText = data.time || "-";
+      } else {
+        outputDiv.classList.remove("hidden");
+        buttonText.innerText = "DONE";
         
-        document.getElementById("tasksField").innerHTML = 
-          (data.tasks || []).map(t => `<li>• ${t}</li>`).join('');
-          
-        document.getElementById("materialsField").innerHTML = 
-          (data.materials || []).map(m => `<li>• ${m}</li>`).join('');
+        // Populate fields
+        document.getElementById("editClient").value = data.client || "";
+        document.getElementById("editTime").value = data.time || "";
+        document.getElementById("dateField").innerText = data.date || new Date().toLocaleDateString();
+        
+        // Join arrays with new lines for easier editing
+        document.getElementById("editTasks").value = Array.isArray(data.tasks) ? data.tasks.join("\n") : (data.tasks || "");
+        document.getElementById("editMaterials").value = Array.isArray(data.materials) ? data.materials.join("\n") : (data.materials || "");
+        
+        outputDiv.scrollIntoView({ behavior: 'smooth' });
       }
     } catch (error) {
       console.error(error);
-      alert("Server Error. Check console.");
+      alert("Network error occurred.");
       buttonText.innerText = "ERROR";
     }
   }
+
+  // Temporary local success feedback
+  document.getElementById("saveButton").addEventListener("click", function() {
+    this.innerText = "SUCCESS!";
+    this.classList.replace("bg-green-600", "bg-blue-600");
+    setTimeout(() => {
+        window.location.href = "/history";
+    }, 800);
+  });
 });
 </script>

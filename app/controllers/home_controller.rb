@@ -37,7 +37,15 @@ class HomeController < ApplicationController
       request.body = {
         contents: [{
           parts: [
-            { text: "You are a construction invoice assistant. Listen to this audio. Return ONLY valid JSON with these exact keys: 'date', 'client', 'tasks' (array of strings), 'materials' (array of strings), and 'time'. Do not use Markdown." },
+            { text: "You are a professional construction billing assistant. Listen to the audio and extract invoice data. IMPORTANT:
+
+            If a field is not mentioned, return 'Not specified'.
+            
+            Clean up 'umms' and 'ahhs'.
+            
+            Format the response as a valid JSON object with these keys: 'date', 'client', 'time', 'tasks' (array), and 'materials' (array).
+            
+            Also include a key called 'raw_summary' which is a 2-sentence professional transcript of what was said." },
             {
               inline_data: {
                 mime_type: "audio/webm",
