@@ -34,19 +34,12 @@ class HomeController < ApplicationController
       request.body = {
         contents: [{
           parts: [
-            { text: "You are a specialized construction scribe. Listen to the audio and extract data into JSON.
-                     REQUIRED KEYS:
-                     - 'client': name of the person or company
-                     - 'time': duration of work
-                     - 'tasks': array of work done
-                     - 'materials': array of items used
-                     - 'date': the date mentioned or today's date
-                     - 'raw_summary': A 1-sentence transcript of what was actually said.
-                     
-                     If you don't hear a specific field, put 'Not mentioned'. 
-                     Output ONLY raw JSON. No markdown blocks." 
+            { text: "Transcribe this audio even if it is very short or noisy. 
+         Return a JSON object with: 'client', 'time', 'tasks' (array), 'materials' (array), 'date', and 'raw_summary'. 
+         If you hear nothing, return 'Empty' for all fields. 
+         Output ONLY raw JSON."
             },
-            { inline_data: { mime_type: "audio/webm", data: base64_audio } }
+            { inline_data: { mime_type: "audio/mp4", data: base64_audio } }
           ]
         }]
       }.to_json

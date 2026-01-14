@@ -91,7 +91,12 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!isRecording) {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorder = new MediaRecorder(stream);
+        const options = { mimeType: 'audio/webm;codecs=opus' };
+if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+  mediaRecorder = new MediaRecorder(stream);
+} else {
+  mediaRecorder = new MediaRecorder(stream, options);
+}
         audioChunks = [];
         mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
         mediaRecorder.onstop = sendAudioToServer;
