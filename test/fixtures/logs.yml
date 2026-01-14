@@ -1,0 +1,15 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  date: MyString
+  client: MyString
+  time: MyString
+  tasks: MyText
+  materials: MyText
+
+two:
+  date: MyString
+  client: MyString
+  time: MyString
+  tasks: MyText
+  materials: MyText
