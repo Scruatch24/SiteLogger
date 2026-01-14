@@ -63,3 +63,7 @@ group :test do
   gem "capybara"
   gem "selenium-webdriver"
 end
+
+gem "dotenv-rails", "~> 3.2"
+gem 'prawn'
+gem 'prawn-table'

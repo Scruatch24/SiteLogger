@@ -1,173 +1,340 @@
-<div class="flex flex-col items-center space-y-6 max-w-md mx-auto mt-10 pb-20">
-  
-  <div class="text-center">
-    <h1 class="text-4xl font-bold text-gray-800 tracking-tight italic">SiteLogger</h1>
-    <p class="text-gray-500 mt-2 font-light">Tap below to log your job</p>
-    <div class="mt-4">
-      <%# This is the standard Rails way to link to the history page %>
-      <%= link_to "View History", "/history", class: "text-blue-600 hover:text-blue-800 font-medium underline flex items-center justify-center gap-1" %>
+<style>
+  #mainTranscript {
+    transition: height 0.1s ease;
+    min-height: 120px;
+  }
+</style>
+
+<div class="min-h-screen bg-white text-slate-900 font-sans p-4 pb-24">
+  <header class="flex justify-between items-center mb-8 pt-4 px-2">
+    <div class="flex items-center gap-2">
+      <div class="w-2 h-6 bg-orange-500 rounded-full"></div>
+      <h1 class="text-xl font-bold tracking-tight text-slate-900 uppercase italic">SiteLogger<span class="text-slate-400 font-light">.pro</span></h1>
     </div>
-  </div>
-
-  <button 
-    id="recordButton"
-    type="button"
-    class="w-48 h-48 rounded-full bg-red-600 shadow-xl flex items-center justify-center transition-all active:scale-95 hover:bg-red-700 border-4 border-white ring-4 ring-red-100 cursor-pointer">
-    <span id="buttonText" class="text-white font-bold text-2xl uppercase tracking-widest">RECORD</span>
-  </button>
-
-  <div 
-    id="invoicePreview" 
-    class="hidden w-full bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 mt-8">
-    
-    <div class="bg-blue-600 px-6 py-4">
-      <h2 class="text-lg font-semibold text-white italic">Review & Confirm</h2>
-      <p class="text-blue-100 text-xs">Verify the AI's work before saving.</p>
-    </div>
-
-    <div class="p-6 space-y-4">
-
-    <div class="bg-amber-50 border border-amber-200 p-3 rounded-lg">
-  <label class="text-[10px] font-bold text-amber-600 uppercase">AI Transcript</label>
-  <p id="rawSummary" class="text-sm text-amber-900 italic">Waiting for processing...</p>
-</div>
-
-<div>
-  <label class="text-[10px] font-bold text-red-500 uppercase tracking-wider italic">Raw Transcript (What AI Heard)</label>
-  <div id="rawTranscript" class="w-full mt-1 p-2 bg-red-50 border border-red-100 rounded text-xs text-red-800 italic">
-    Waiting for audio...
-  </div>
-</div>
-
-      <div>
-        <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Client Name</label>
-        <input type="text" id="editClient" class="w-full border-b border-gray-200 focus:border-blue-500 outline-none py-1 text-lg font-medium text-gray-900 bg-transparent">
-      </div>
-
-      <div>
-        <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Time Spent</label>
-        <input type="text" id="editTime" class="w-full border-b border-gray-200 focus:border-blue-500 outline-none py-1 text-lg font-medium text-gray-900 bg-transparent">
-      </div>
-
-      <div class="flex justify-between items-center bg-gray-50 p-2 rounded">
-        <span class="text-[10px] font-bold text-gray-400 uppercase">Date</span>
-        <span id="dateField" class="text-sm text-gray-600 font-medium"></span>
-      </div>
-
-      <div>
-        <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Tasks Performed</label>
-        <textarea id="editTasks" class="w-full mt-1 p-3 border border-gray-100 rounded-lg bg-gray-50 focus:ring-1 focus:ring-blue-400 outline-none min-h-[80px] text-sm text-gray-800"></textarea>
-      </div>
-
-      <div>
-        <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Materials Used</label>
-        <textarea id="editMaterials" class="w-full mt-1 p-3 border border-gray-100 rounded-lg bg-gray-50 focus:ring-1 focus:ring-blue-400 outline-none min-h-[60px] text-sm text-gray-800"></textarea>
-      </div>
-
-      <button 
-        id="saveButton"
-        type="button"
-        class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-          <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+    <div class="flex gap-2">
+      <%= link_to history_path, class: "p-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-500 hover:bg-slate-100 transition" do %>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
-        CONFIRM & SAVE
+      <% end %>
+      <%= link_to settings_path, class: "p-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-500 hover:bg-slate-100 transition" do %>
+        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      <% end %>
+    </div>
+  </header>
+
+  <div class="max-w-md mx-auto space-y-8">
+    
+    <div class="flex flex-col items-center justify-center py-4">
+      <div id="recordingWave" class="hidden absolute w-40 h-40 bg-orange-500/10 rounded-full animate-ping"></div>
+      <button id="recordButton" class="relative w-32 h-32 rounded-full bg-slate-900 shadow-xl flex flex-col items-center justify-center transition-all active:scale-95 border-4 border-slate-50">
+        <svg id="micIcon" class="w-8 h-8 text-white mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+        </svg>
+        <span id="buttonText" class="text-white text-[9px] font-black uppercase tracking-widest text-center px-2 leading-tight">Start Voice Log</span>
       </button>
+      <p id="status" class="mt-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Tap to Record</p>
+    </div>
+
+    <div id="textSection" class="space-y-2 transition-all duration-500">
+      <div class="flex justify-between items-end px-1">
+        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic">Work Details (Voice or Type)</label>
+        <span id="syncStatus" class="text-[9px] text-orange-500 font-bold uppercase hidden animate-pulse">Processing...</span>
+      </div>
+      <div class="relative">
+        <textarea id="mainTranscript" 
+                  rows="5"
+                  class="w-full bg-white border-2 border-slate-100 rounded-2xl p-4 text-slate-800 text-sm leading-relaxed resize-none focus:ring-4 focus:ring-orange-500/10 focus:border-orange-500 outline-none transition-all shadow-sm"
+                  placeholder="Tap the mic to speak, or type/paste your job details here..."
+                  oninput="autoResize(this)"></textarea>
+        
+        <button id="reParseBtn" class="absolute bottom-3 right-3 p-2 bg-slate-900 shadow-lg rounded-xl text-orange-500 active:scale-90 transition-transform hover:bg-slate-800" title="Analyze Text">
+          <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div id="invoicePreview" class="hidden animate-in fade-in slide-in-from-bottom-4 duration-700 space-y-6">
+      <div class="bg-white border-2 border-slate-100 rounded-[2.5rem] p-8 shadow-sm space-y-6">
+        <div class="flex justify-between items-center pb-4 border-b border-slate-50">
+          <h2 class="text-xs font-black uppercase tracking-[0.2em] text-slate-900">Review Entry</h2>
+          <span id="dateDisplay" class="text-[10px] font-bold text-slate-300 font-mono"></span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div class="space-y-1">
+            <label class="block text-[9px] font-bold text-slate-400 uppercase">Client</label>
+            <input type="text" id="editClient" class="w-full bg-slate-50 border-none rounded-xl py-3 px-4 font-bold text-slate-900 focus:ring-2 focus:ring-orange-500/20 transition-all">
+          </div>
+          <div class="space-y-1">
+            <label class="block text-[9px] font-bold text-slate-400 uppercase">Hours</label>
+            <input type="text" id="editTime" class="w-full bg-slate-50 border-none rounded-xl py-3 px-4 font-bold text-slate-900 focus:ring-2 focus:ring-orange-500/20 transition-all">
+          </div>
+        </div>
+
+        <div id="dynamicSections" class="space-y-6"></div>
+
+        <button type="button" onclick="addFullSection()" class="w-full py-4 border-2 border-dashed border-slate-100 rounded-2xl text-[9px] font-black text-slate-400 uppercase tracking-widest hover:border-orange-200 hover:text-orange-500 transition-all">
+          + Add New Category
+        </button>
+
+        <button id="saveButton" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-black py-5 rounded-2xl shadow-xl shadow-orange-500/20 transition-all active:scale-[0.98] uppercase text-xs tracking-[0.2em]">
+          Confirm & Log
+        </button>
+      </div>
     </div>
   </div>
+
+  <div id="errorToast" class="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
+    <div class="bg-slate-900 text-white px-6 py-4 rounded-2xl shadow-2xl border border-slate-700 flex items-center gap-3">
+      <div class="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
+      <span id="errorMessage" class="text-xs font-bold uppercase tracking-widest">AI could not hear you clearly</span>
+    </div>
+  </div>
+
 </div>
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
-  const button = document.getElementById("recordButton");
+  const recordBtn = document.getElementById("recordButton");
   const buttonText = document.getElementById("buttonText");
-  const outputDiv = document.getElementById("invoicePreview");
-  
+  const transcriptArea = document.getElementById("mainTranscript");
+  const reParseBtn = document.getElementById("reParseBtn");
+
   let mediaRecorder = null;
   let audioChunks = [];
   let isRecording = false;
 
-  button.addEventListener("click", async () => {
+  // 1. RECORDING LOGIC
+  recordBtn.onclick = async () => {
     if (!isRecording) {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const options = { mimeType: 'audio/webm;codecs=opus' };
-if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-  mediaRecorder = new MediaRecorder(stream);
-} else {
-  mediaRecorder = new MediaRecorder(stream, options);
-}
-        audioChunks = [];
-        mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
-        mediaRecorder.onstop = sendAudioToServer;
-        mediaRecorder.start();
-        isRecording = true;
-        buttonText.innerText = "STOP";
-        button.classList.add("animate-pulse", "bg-red-800");
-      } catch (err) {
-        alert("Microphone error. Make sure you are on HTTPS or localhost.");
-        console.error(err);
-      }
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      audioChunks = [];
+      mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
+      mediaRecorder.onstop = processAudio;
+      mediaRecorder.start();
+      
+      isRecording = true;
+      buttonText.innerText = "Stop";
+      recordBtn.classList.replace("bg-slate-900", "bg-red-600");
+      document.getElementById("recordingWave").classList.remove("hidden");
+      document.getElementById("status").innerText = "Listening...";
     } else {
       mediaRecorder.stop();
       isRecording = false;
-      buttonText.innerText = "WAIT...";
-      button.classList.remove("animate-pulse", "bg-red-800");
-      mediaRecorder.stream.getTracks().forEach(track => track.stop());
+      buttonText.innerText = "Processing";
+      recordBtn.classList.replace("bg-red-600", "bg-slate-900");
+      document.getElementById("recordingWave").classList.add("hidden");
+      mediaRecorder.stream.getTracks().forEach(t => t.stop());
     }
-  });
+  };
 
-  async function sendAudioToServer() {
-    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-    const formData = new FormData();
-    formData.append("audio", audioBlob, "recording.webm");
-    
-    // Fail-safe for the CSRF token
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
-
+  async function processAudio() {
     try {
-      const response = await fetch("/process_audio", {
+      const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+      const formData = new FormData();
+      formData.append("audio", audioBlob);
+
+      const res = await fetch("/process_audio", {
         method: "POST",
-        headers: { "X-CSRF-Token": csrfToken },
+        headers: { "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]').content },
         body: formData
       });
 
-      const data = await response.json();
+      const data = await res.json();
       
-      if (data.error) {
-        alert("AI could not understand: " + data.error);
-        buttonText.innerText = "RECORD";
+      if (!res.ok || data.error) {
+        showError(data.error || "Speech not recognized.");
+        buttonText.innerText = "Start Voice Log";
+        document.getElementById("status").innerText = "Tap to Record";
       } else {
-        outputDiv.classList.remove("hidden");
-        buttonText.innerText = "DONE";
-        
-        // Populate fields
-        document.getElementById("rawTranscript").innerText = data.raw_summary || "No transcript generated.";
-        document.getElementById("rawSummary").innerText = data.raw_summary || "Could not transcribe.";
-        document.getElementById("editClient").value = data.client || "";
-        document.getElementById("editTime").value = data.time || "";
-        document.getElementById("dateField").innerText = data.date || new Date().toLocaleDateString();
-        
-        // Join arrays with new lines for easier editing
-        document.getElementById("editTasks").value = Array.isArray(data.tasks) ? data.tasks.join("\n") : (data.tasks || "");
-        document.getElementById("editMaterials").value = Array.isArray(data.materials) ? data.materials.join("\n") : (data.materials || "");
-        
-        outputDiv.scrollIntoView({ behavior: 'smooth' });
+        updateUI(data);
       }
-    } catch (error) {
-      console.error(error);
-      alert("Network error occurred.");
-      buttonText.innerText = "ERROR";
+    } catch (e) {
+      showError("Network error. Recording might be too large.");
     }
   }
 
-  // Temporary local success feedback
-  document.getElementById("saveButton").addEventListener("click", function() {
-    this.innerText = "SUCCESS!";
-    this.classList.replace("bg-green-600", "bg-blue-600");
-    setTimeout(() => {
-        window.location.href = "/history";
-    }, 800);
-  });
+  // 2. MANUAL TEXT ANALYZE LOGIC
+  reParseBtn.onclick = async () => {
+    const text = transcriptArea.value;
+    if (!text) return;
+
+    document.getElementById("syncStatus").classList.remove("hidden");
+    
+    const res = await fetch("/process_audio", {
+      method: "POST",
+      headers: { 
+        "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]').content,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ manual_text: text })
+    });
+
+    const data = await res.json();
+
+    if (data.error) {
+      showError("Could not analyze text.");
+    } else {
+      updateUI(data);
+    }
+    document.getElementById("syncStatus").classList.add("hidden");
+  };
+
+  // 3. SAVE LOGIC (UPDATED FOR BILLABLE ITEMS)
+  document.getElementById("saveButton").onclick = async function() {
+    const saveBtn = this;
+    const client = document.getElementById("editClient").value;
+    const time = document.getElementById("editTime").value;
+    const date = document.getElementById("dateDisplay").innerText;
+
+    const sections = [];
+    document.querySelectorAll(".dynamic-section").forEach(sec => {
+      const title = sec.querySelector(".section-title").value;
+      const items = [];
+      
+      sec.querySelectorAll(".item-row").forEach(row => {
+        const desc = row.querySelector(".item-input").value;
+        const price = row.querySelector(".price-input").value; // Capture Price
+        
+        if (desc.trim() !== "") {
+           // We save both description AND price in the JSON
+           items.push({ desc: desc, price: price });
+        }
+      });
+
+      if (items.length > 0) sections.push({ title, items });
+    });
+
+    const res = await fetch("/logs", {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json",
+        "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]').content 
+      },
+      body: JSON.stringify({
+        log: {
+          client: client,
+          time: time,
+          date: date,
+          tasks: JSON.stringify(sections) 
+        }
+      })
+    });
+
+    const result = await res.json();
+    if (result.success) {
+      saveBtn.innerText = "SAVED ✓";
+      saveBtn.classList.replace("bg-orange-500", "bg-green-600");
+      setTimeout(() => { window.location.href = "/history"; }, 600);
+    } else {
+      showError("Error saving: " + result.errors.join(", "));
+    }
+  };
 });
+
+// UI HELPERS
+
+function autoResize(textarea) {
+  textarea.style.height = 'auto';
+  textarea.style.height = textarea.scrollHeight + 'px';
+}
+
+function addFullSection(title = "New Category", items = [""]) {
+  const container = document.getElementById("dynamicSections");
+  const sectionId = "section_" + Date.now() + Math.random().toString(36).substr(2, 5);
+  
+  const sectionDiv = document.createElement('div');
+  sectionDiv.className = "dynamic-section space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-500";
+  sectionDiv.innerHTML = `
+    <div class="flex justify-between items-center group">
+      <input type="text" value="${title}" class="bg-transparent border-none p-0 text-[9px] font-black text-slate-400 uppercase tracking-widest italic focus:ring-0 focus:text-orange-500 w-1/2 section-title">
+      <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button type="button" onclick="addItem('${sectionId}')" class="text-[9px] text-orange-500 font-bold uppercase">+ Item</button>
+        <button type="button" onclick="this.closest('.dynamic-section').remove()" class="text-[9px] text-slate-400 font-bold uppercase hover:text-red-500">✕ Remove</button>
+      </div>
+    </div>
+    <div id="${sectionId}" class="space-y-2"></div>
+  `;
+  
+  container.appendChild(sectionDiv);
+  
+  items.forEach(item => {
+    // Logic to handle AI object format vs simple string
+    const val = (typeof item === 'object' && item.desc) ? 
+      (item.desc + (item.qty && item.qty !== '1' && item.qty !== 'N/A' ? ` (x${item.qty})` : '')) 
+      : item;
+    addItem(sectionId, val);
+  });
+}
+
+// UPDATED: ADD ITEM WITH PRICE FIELD
+function addItem(containerId, value = "") {
+  const div = document.createElement('div');
+  div.className = "flex gap-2 animate-in fade-in slide-in-from-left-2 duration-300 item-row";
+  div.innerHTML = `
+    <input type="text" value="${value}" 
+           class="flex-1 bg-slate-50 border-none rounded-xl text-sm font-bold text-slate-900 focus:ring-2 focus:ring-orange-500/20 py-3 px-4 item-input"
+           placeholder="Description...">
+    
+    <div class="relative w-24">
+       <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">$</span>
+       <input type="number" step="0.01" 
+              class="w-full bg-slate-50 border-none rounded-xl text-sm font-bold text-slate-900 focus:ring-2 focus:ring-orange-500/20 py-3 pl-6 pr-2 price-input"
+              placeholder="Bill?">
+    </div>
+
+    <button type="button" onclick="this.parentElement.remove()" class="p-2 text-slate-400 hover:text-red-500 transition">✕</button>
+  `;
+  document.getElementById(containerId).appendChild(div);
+}
+
+function updateUI(data) {
+  const transcriptArea = document.getElementById("mainTranscript");
+  if (data.raw_summary) {
+    transcriptArea.value = data.raw_summary;
+    autoResize(transcriptArea);
+  }
+
+  document.getElementById("editClient").value = data.client || "";
+  document.getElementById("editTime").value = data.time || "";
+
+  // --- DATE FIX START ---
+  // If date is missing, "N/A", or contains "specified" (like "Not specified"), use Today.
+  let dateVal = data.date;
+  if (!dateVal || dateVal === "N/A" || dateVal.toLowerCase().includes("specified")) {
+    dateVal = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+  document.getElementById("dateDisplay").innerText = dateVal;
+  // --- DATE FIX END ---
+
+  const sectionContainer = document.getElementById("dynamicSections");
+  sectionContainer.innerHTML = "";
+
+  if (data.sections && data.sections.length > 0) {
+    data.sections.forEach(sec => addFullSection(sec.title, sec.items));
+  } else {
+    if (data.tasks) addFullSection("Tasks", Array.isArray(data.tasks) ? data.tasks : [data.tasks]);
+  }
+
+  document.getElementById("invoicePreview").classList.remove("hidden");
+  document.getElementById("buttonText").innerText = "Start Voice Log";
+  document.getElementById("status").innerText = "Review & Confirm";
+  document.getElementById("invoicePreview").scrollIntoView({ behavior: 'smooth' });
+}
+
+function showError(msg) {
+  const toast = document.getElementById("errorToast");
+  const msgSpan = document.getElementById("errorMessage");
+  
+  msgSpan.innerText = msg;
+  toast.classList.remove("hidden");
+  setTimeout(() => { toast.classList.add("hidden"); }, 4000);
+}
 </script>

@@ -1,0 +1,64 @@
+<div class="min-h-screen bg-white text-slate-900 font-sans p-4 pb-20">
+  <header class="flex items-center gap-4 mb-10 pt-4 px-2">
+    <%= link_to root_path, class: "p-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-500 hover:bg-slate-100 transition" do %>
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+      </svg>
+    <% end %>
+    <div class="flex flex-col">
+      <h1 class="text-xl font-bold tracking-tight text-slate-900 uppercase">Business Profile</h1>
+      <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Global Defaults</p>
+    </div>
+  </header>
+
+  <%= form_with model: @profile, url: save_settings_path, class: "max-w-md mx-auto space-y-8" do |f| %>
+    <div class="bg-slate-50 rounded-[2.5rem] p-8 space-y-6 border border-slate-100 shadow-sm">
+      
+      <div class="space-y-2">
+        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Company / Personal Name</label>
+        <%= f.text_field :business_name, placeholder: "Niko Plumbing Ltd.", class: "w-full bg-white border-slate-200 rounded-2xl py-4 px-5 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all shadow-sm" %>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div class="space-y-2">
+          <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 text-orange-600">Hourly Rate ($)</label>
+          <%= f.number_field :hourly_rate, class: "w-full bg-white border-orange-100 rounded-2xl py-4 px-5 text-sm font-black text-orange-600 focus:ring-2 focus:ring-orange-500/20 transition-all shadow-sm" %>
+        </div>
+        <div class="space-y-2">
+          <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tax Rate (%)</label>
+          <%= f.number_field :tax_rate, step: 0.1, placeholder: "0.0", class: "w-full bg-white border-slate-200 rounded-2xl py-4 px-5 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-orange-500/20 transition-all shadow-sm" %>
+        </div>
+      </div>
+
+      <div class="space-y-2">
+        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Payment Instructions</label>
+        <%= f.text_area :payment_instructions, rows: 3, placeholder: "Bank: Chase\nAcct: 123-456\nZelle: 555-0199", class: "w-full bg-white border-slate-200 rounded-2xl py-4 px-5 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-orange-500/20 transition-all shadow-sm resize-none leading-relaxed" %>
+      </div>
+
+      <div class="space-y-2">
+        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tax / VAT ID</label>
+        <%= f.text_field :tax_id, class: "w-full bg-white border-slate-200 rounded-2xl py-4 px-5 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-orange-500/20 transition-all shadow-sm" %>
+      </div>
+
+      <div class="space-y-2">
+        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email Address</label>
+        <%= f.email_field :email, class: "w-full bg-white border-slate-200 rounded-2xl py-4 px-5 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-orange-500/20 transition-all shadow-sm" %>
+      </div>
+
+      <div class="space-y-2">
+        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Phone Number</label>
+        <%= f.text_field :phone, class: "w-full bg-white border-slate-200 rounded-2xl py-4 px-5 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-orange-500/20 transition-all shadow-sm" %>
+      </div>
+
+      <div class="space-y-2">
+        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Physical Address</label>
+        <%= f.text_area :address, rows: 2, class: "w-full bg-white border-slate-200 rounded-2xl py-4 px-5 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-orange-500/20 transition-all shadow-sm resize-none" %>
+      </div>
+
+    </div>
+
+    <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-black py-5 rounded-2xl shadow-xl transition-all active:scale-[0.98] uppercase text-xs tracking-[0.2em]">
+      Save Profile
+    </button>
+  <% end %>
+</div>

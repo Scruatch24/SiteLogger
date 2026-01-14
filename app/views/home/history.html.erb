@@ -1,85 +1,130 @@
-<div class="flex flex-col space-y-6 max-w-4xl mx-auto mt-10">
-  
-  <div class="text-center">
-    <h1 class="text-4xl font-bold text-gray-800 tracking-tight">Job History</h1>
-    <p class="text-gray-500 mt-2">All your logged jobs</p>
-  </div>
-
-  <div class="mb-4">
-    <%= link_to "← Back to Home", root_path, class: "text-blue-600 hover:text-blue-800 font-medium" %>
-  </div>
-
-  <% if @logs.any? %>
-    <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
-      <div class="overflow-x-auto">
-        <table class="w-full">
-          <thead class="bg-gray-50">
-            <tr>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">Date</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">Client</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">Time</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">Tasks</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">Materials</th>
-            </tr>
-          </thead>
-          <tbody class="bg-white divide-y divide-gray-200">
-            <% @logs.each do |log| %>
-              <tr class="hover:bg-gray-50">
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  <%= log.date.presence || '-' %>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  <%= log.client.presence || '-' %>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  <%= log.time.presence || '-' %>
-                </td>
-                <td class="px-6 py-4 text-sm text-gray-700">
-                  <% 
-                    tasks = begin
-                      JSON.parse(log.tasks || '[]')
-                    rescue
-                      []
-                    end
-                  %>
-                  <% if tasks.any? %>
-                    <ul class="list-disc list-inside space-y-1">
-                      <% tasks.each do |task| %>
-                        <li><%= task %></li>
-                      <% end %>
-                    </ul>
-                  <% else %>
-                    <span class="text-gray-400">-</span>
-                  <% end %>
-                </td>
-                <td class="px-6 py-4 text-sm text-gray-700">
-                  <% 
-                    materials = begin
-                      JSON.parse(log.materials || '[]')
-                    rescue
-                      []
-                    end
-                  %>
-                  <% if materials.any? %>
-                    <ul class="list-disc list-inside space-y-1">
-                      <% materials.each do |material| %>
-                        <li><%= material %></li>
-                      <% end %>
-                    </ul>
-                  <% else %>
-                    <span class="text-gray-400">-</span>
-                  <% end %>
-                </td>
-              </tr>
-            <% end %>
-          </tbody>
-        </table>
+<div class="min-h-screen bg-white text-slate-900 font-sans p-4 pb-20">
+  <header class="flex justify-between items-center mb-8 pt-4 px-2">
+    <div class="flex items-center gap-3">
+      <%= link_to root_path, class: "p-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-500 hover:bg-slate-100 transition" do %>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+        </svg>
+      <% end %>
+      <div class="flex flex-col">
+        <h1 class="text-xl font-bold tracking-tight text-slate-900 uppercase">Logbook</h1>
+        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Job History</p>
       </div>
     </div>
-  <% else %>
-    <div class="bg-white rounded-xl shadow-lg border border-gray-200 p-8 text-center">
-      <p class="text-gray-500 text-lg">No logs yet. Start recording your first job!</p>
-      <%= link_to "Record Job", root_path, class: "mt-4 inline-block bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition-colors" %>
-    </div>
-  <% end %>
+
+    <% if @logs.any? %>
+      <%= button_to clear_all_logs_path, method: :delete, 
+          form: { data: { turbo_confirm: "Are you sure? This will wipe ALL history." } },
+          class: "text-[9px] font-black bg-white text-red-500 border border-red-100 px-4 py-2 rounded-full uppercase tracking-widest hover:bg-red-50 transition shadow-sm" do %>
+        Clear All
+      <% end %>
+    <% end %>
+  </header>
+
+  <div class="max-w-2xl mx-auto space-y-4">
+    <% if @logs.any? %>
+      <% @logs.each do |log| %>
+        <div class="bg-white border-2 border-slate-100 rounded-[2rem] overflow-hidden shadow-sm hover:border-orange-100 transition-colors group">
+          
+          <div class="bg-slate-50/50 px-6 py-3 flex justify-between items-center border-b border-slate-100">
+            <div class="flex items-center gap-2">
+              <div class="w-1.5 h-4 bg-orange-500 rounded-full"></div>
+              <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                <%= log.date.presence || "No Date" %>
+              </span>
+            </div>
+            
+            <div class="flex items-center gap-2">
+              <%= link_to download_pdf_log_path(log), target: "_blank", class: "p-2 text-slate-300 hover:text-orange-500 transition-colors", title: "Download Invoice" do %>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              <% end %>
+
+              <%= button_to log_path(log), method: :delete, 
+                  form: { data: { turbo_confirm: "Delete this log?" } },
+                  class: "p-2 text-slate-300 hover:text-red-500 transition-colors" do %>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              <% end %>
+            </div>
+          </div>
+
+          <div class="p-6">
+            <div class="flex justify-between items-start mb-6">
+              <div>
+                <label class="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Client</label>
+                <h2 class="text-xl font-bold text-slate-900 tracking-tight"><%= log.client.presence || "Unknown" %></h2>
+              </div>
+              <div class="text-right">
+                <label class="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Duration</label>
+                <span class="text-sm font-black text-orange-600 bg-orange-50 px-3 py-1 rounded-lg">
+                   <%= log.time.presence || "N/A" %> hrs
+                </span>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <% sections = begin
+                  JSON.parse(log.tasks || '[]')
+                 rescue
+                  []
+                 end %>
+
+              <% if sections.any? && sections.first.is_a?(Hash) %>
+                <% sections.each do |section| %>
+                  <div class="space-y-3">
+                    <label class="block text-[10px] font-black text-slate-900 uppercase tracking-[0.15em] border-l-2 border-orange-500 pl-2">
+                      <%= section["title"] %>
+                    </label>
+                    <ul class="space-y-2">
+                      <% section["items"].each do |item| %>
+                        <li class="text-sm text-slate-500 flex items-start gap-2 leading-relaxed">
+                          <span class="text-orange-500 font-bold">•</span>
+                          <% 
+                             # Logic to display clean text whether item is String or Object
+                             if item.is_a?(Hash)
+                               display_text = item["desc"]
+                               if item["qty"].present? && item["qty"] != "1" && item["qty"] != "N/A"
+                                 display_text += " (x#{item['qty']})"
+                               end
+                             else
+                               display_text = item
+                             end
+                          %>
+                          <%= display_text %>
+                        </li>
+                      <% end %>
+                    </ul>
+                  </div>
+                <% end %>
+              <% else %>
+                <div class="space-y-3">
+                  <label class="block text-[10px] font-black text-slate-900 uppercase tracking-[0.15em] border-l-2 border-orange-500 pl-2">Work Details</label>
+                  <ul class="space-y-2">
+                    <% sections.each do |item| %>
+                      <li class="text-sm text-slate-500 flex items-start gap-2">
+                        <span class="text-orange-500 font-bold">•</span> <%= item %>
+                      </li>
+                    <% end %>
+                  </ul>
+                </div>
+              <% end %>
+            </div>
+          </div>
+        </div>
+      <% end %>
+    <% else %>
+      <div class="text-center py-20 bg-slate-50 border-2 border-dashed border-slate-100 rounded-[2rem]">
+        <div class="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+          </svg>
+        </div>
+        <p class="text-slate-900 font-bold uppercase text-[10px] tracking-widest">No Logs Found</p>
+        <%= link_to "Record First Job", root_path, class: "mt-4 inline-block text-orange-500 text-sm font-black underline decoration-2 underline-offset-4" %>
+      </div>
+    <% end %>
+  </div>
 </div>
