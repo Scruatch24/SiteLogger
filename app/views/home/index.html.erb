@@ -26,6 +26,19 @@
     </div>
 
     <div class="p-6 space-y-4">
+
+    <div class="bg-amber-50 border border-amber-200 p-3 rounded-lg">
+  <label class="text-[10px] font-bold text-amber-600 uppercase">AI Transcript</label>
+  <p id="rawSummary" class="text-sm text-amber-900 italic">Waiting for processing...</p>
+</div>
+
+<div>
+  <label class="text-[10px] font-bold text-red-500 uppercase tracking-wider italic">Raw Transcript (What AI Heard)</label>
+  <div id="rawTranscript" class="w-full mt-1 p-2 bg-red-50 border border-red-100 rounded text-xs text-red-800 italic">
+    Waiting for audio...
+  </div>
+</div>
+
       <div>
         <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Client Name</label>
         <input type="text" id="editClient" class="w-full border-b border-gray-200 focus:border-blue-500 outline-none py-1 text-lg font-medium text-gray-900 bg-transparent">
@@ -124,6 +137,8 @@ document.addEventListener("DOMContentLoaded", () => {
         buttonText.innerText = "DONE";
         
         // Populate fields
+        document.getElementById("rawTranscript").innerText = data.raw_summary || "No transcript generated.";
+        document.getElementById("rawSummary").innerText = data.raw_summary || "Could not transcribe.";
         document.getElementById("editClient").value = data.client || "";
         document.getElementById("editTime").value = data.time || "";
         document.getElementById("dateField").innerText = data.date || new Date().toLocaleDateString();
