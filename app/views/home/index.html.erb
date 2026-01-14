@@ -109,6 +109,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let mediaRecorder = null;
   let audioChunks = [];
   let isRecording = false;
+  let recordingStartTime = 0; // NEW: Timer variable
 
   // 1. RECORDING LOGIC
   recordBtn.onclick = async () => {
@@ -118,7 +119,9 @@ document.addEventListener("DOMContentLoaded", () => {
       audioChunks = [];
       mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
       mediaRecorder.onstop = processAudio;
+      
       mediaRecorder.start();
+      recordingStartTime = Date.now(); // START TIMER
       
       isRecording = true;
       buttonText.innerText = "Stop";
@@ -126,6 +129,26 @@ document.addEventListener("DOMContentLoaded", () => {
       document.getElementById("recordingWave").classList.remove("hidden");
       document.getElementById("status").innerText = "Listening...";
     } else {
+      // NEW: CHECK DURATION
+      const duration = Date.now() - recordingStartTime;
+      
+      if (duration < 1000) { // If less than 1 second
+        mediaRecorder.onstop = null; // Kill the processor
+        mediaRecorder.stop();
+        mediaRecorder.stream.getTracks().forEach(t => t.stop());
+        
+        // Reset UI immediately
+        isRecording = false;
+        buttonText.innerText = "Start Voice Log";
+        recordBtn.classList.replace("bg-red-600", "bg-slate-900");
+        document.getElementById("recordingWave").classList.add("hidden");
+        document.getElementById("status").innerText = "Tap to Record";
+        
+        // Show Warning
+        showError("Hold button longer to record.");
+        return; 
+      }
+
       mediaRecorder.stop();
       isRecording = false;
       buttonText.innerText = "Processing";
@@ -187,7 +210,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("syncStatus").classList.add("hidden");
   };
 
-  // 3. SAVE LOGIC (UPDATED FOR BILLABLE ITEMS)
+  // 3. SAVE LOGIC (WITH BILLING SUPPORT)
   document.getElementById("saveButton").onclick = async function() {
     const saveBtn = this;
     const client = document.getElementById("editClient").value;
@@ -274,7 +297,6 @@ function addFullSection(title = "New Category", items = [""]) {
   });
 }
 
-// UPDATED: ADD ITEM WITH PRICE FIELD
 function addItem(containerId, value = "") {
   const div = document.createElement('div');
   div.className = "flex gap-2 animate-in fade-in slide-in-from-left-2 duration-300 item-row";
@@ -305,14 +327,12 @@ function updateUI(data) {
   document.getElementById("editClient").value = data.client || "";
   document.getElementById("editTime").value = data.time || "";
 
-  // --- DATE FIX START ---
-  // If date is missing, "N/A", or contains "specified" (like "Not specified"), use Today.
+  // DATE FIX: Use today if AI fails
   let dateVal = data.date;
   if (!dateVal || dateVal === "N/A" || dateVal.toLowerCase().includes("specified")) {
     dateVal = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   }
   document.getElementById("dateDisplay").innerText = dateVal;
-  // --- DATE FIX END ---
 
   const sectionContainer = document.getElementById("dynamicSections");
   sectionContainer.innerHTML = "";
