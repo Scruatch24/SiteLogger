@@ -67,3 +67,4 @@ end
 gem "dotenv-rails", "~> 3.2"
 gem 'prawn'
 gem 'prawn-table'
+gem 'matrix'
