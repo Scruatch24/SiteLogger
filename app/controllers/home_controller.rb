@@ -24,7 +24,7 @@ class HomeController < ApplicationController
     @profile.assign_attributes(profile_params)
     
     if @profile.save
-      # FIXED: Redirect back to settings instead of root
+      # Redirect back to settings so user sees their changes saved
       redirect_to settings_path, notice: "Profile saved successfully!"
     else
       render :settings, status: :unprocessable_entity
@@ -36,23 +36,34 @@ class HomeController < ApplicationController
     is_manual_text = params[:manual_text].present?
     
     begin 
-      # 1. DEFINE THE UNIVERSAL PROMPT LOGIC
-      universal_instruction = "Analyze this field report.
-        1. Extract 'client', 'time' (hours), and 'date'.
-        2. DETECT THE INDUSTRY: Is this Construction? IT? Agriculture? Medical? Cleaning?
-        3. Create 2-4 professional section titles RELEVANT TO THAT INDUSTRY.
-           - Example (Construction): 'Work Performed', 'Materials Used', 'Safety Hazards'.
-           - Example (IT): 'Systems Checked', 'Hardware Replaced', 'Pending Issues'.
-           - Example (Farming): 'Crop Health', 'Chemicals Applied', 'Weather Conditions'.
-        4. Group the extracted items into these sections.
-        5. STRICT JSON FORMAT:
+      # 1. DEFINE THE STRICT VALIDATOR LOGIC
+      # This replaces the old "Analyze this..." prompt to stop hallucinations.
+      
+      universal_instruction = "You are a STRICT Data Intake Validator.
+        
+        STEP 1: LISTEN CAREFULLY.
+        - If the audio is silent, static, clicks, or background noise: STOP. Return { \"error\": \"Audio was unclear. Please speak closer to the mic.\" }
+        - If the audio provides NO specific work details (e.g. just 'hello'): STOP. Return { \"error\": \"No work details detected.\" }
+        
+        STEP 2: CHECK FOR HALLUCINATIONS.
+        - Do NOT make up names like 'Smith Corp', 'Green Valley Farms', or 'Acme'. 
+        - Do NOT invent a time (like '9:00 AM') if not stated.
+        - Do NOT invent quantities.
+        - If you are about to make up a fake report because you didn't hear anything: STOP. Return { \"error\": \"Audio unclear\" }
+
+        STEP 3: EXTRACT REAL DATA.
+        - Only if you passed Step 1 and 2, extract 'client', 'time' (hours), and 'date'.
+        - DETECT THE INDUSTRY (Construction, IT, Farming, etc).
+        - Create 2-4 professional section titles.
+        
+        STRICT JSON OUTPUT:
         {
           \"client\": \"...\",
           \"time\": \"...\",
           \"date\": \"...\",
           \"raw_summary\": \"...\",
           \"sections\": [
-            { \"title\": \"(Contextual Title)\", \"items\": [ { \"desc\": \"...\", \"qty\": \"...\" } ] }
+            { \"title\": \"...\", \"items\": [ { \"desc\": \"...\", \"qty\": \"...\" } ] }
           ]
         }"
 
@@ -67,10 +78,9 @@ class HomeController < ApplicationController
         return render json: { error: "No audio" }, status: 400 unless audio_file
         
         audio_data = Base64.strict_encode64(audio_file.read)
+        # We explicitly ask for a verbatim transcript first to force the AI to realize there is no speech.
         prompt_parts = [
-          { text: "#{universal_instruction} 
-                 1. Transcribe audio into 'raw_summary'.
-                 2. If audio is silent/unclear, return: { \"error\": \"Audio unclear\" }" },
+          { text: "TRANSCRIPT: Generate a verbatim transcript of this audio. Then apply the validation rules below.\n#{universal_instruction}" },
           { inline_data: { mime_type: audio_file.content_type, data: audio_data } }
         ]
       end
@@ -90,23 +100,41 @@ class HomeController < ApplicationController
       # 3. HANDLE RESPONSE
       if response.code == '200' && result.dig('candidates', 0, 'content', 'parts', 0, 'text')
         raw_text = result['candidates'][0]['content']['parts'][0]['text']
-        json_match = raw_text.match(/\{.*\}/m)
-        parsed_json = JSON.parse(json_match[0])
+        
+        # Clean the response (remove ```json markdown if present)
+        cleaned_text = raw_text.gsub(/```json/, '').gsub(/```/, '')
+        
+        json_match = cleaned_text.match(/\{.*\}/m)
+        
+        if json_match
+          parsed_json = JSON.parse(json_match[0])
+        else
+          render json: { error: "Audio unclear. Please try again." }, status: 422
+          return
+        end
         
         if is_manual_text
           parsed_json['raw_summary'] ||= params[:manual_text]
         end
 
-        # Validation Gate
-        if parsed_json["error"] || (parsed_json["raw_summary"].to_s.strip.length < 2)
-          error_msg = parsed_json["error"] || "AI could not detect enough info to log."
+        # --- THE HALLUCINATION TRAP ---
+        # If the AI returns a "Perfect" report but the raw_summary is empty/short, it's lying.
+        summary_len = parsed_json["raw_summary"].to_s.strip.length
+        
+        if parsed_json["error"]
+          error_msg = parsed_json["error"]
           render json: { error: error_msg }, status: 422
+          return
+        elsif summary_len < 10
+          # TRAP: If summary is < 10 chars, it's impossible to have a full report.
+          # The AI likely hallucinated the sections while leaving the summary empty.
+          render json: { error: "No speech detected." }, status: 422
           return
         end
 
         render json: parsed_json
       else
-        render json: { error: "AI failed to process. Try again." }, status: 500
+        render json: { error: "AI connection failed." }, status: 500
       end
 
     rescue => e
@@ -118,7 +146,7 @@ class HomeController < ApplicationController
   private
 
   def profile_params
-    # SINGLE DEFINITION with all required fields
+    # Ensures all Settings fields (including Tax Rate & Instructions) are permitted
     params.require(:profile).permit(:business_name, :phone, :email, :address, :tax_id, :hourly_rate, :tax_rate, :payment_instructions)
   end
 end
