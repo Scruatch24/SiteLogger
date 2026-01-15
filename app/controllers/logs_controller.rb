@@ -1,7 +1,6 @@
 class LogsController < ApplicationController
     require 'prawn'
     require 'prawn/table'
-    require 'open-uri'
   
     def create
       @log = Log.new(log_params)
@@ -33,7 +32,7 @@ class LogsController < ApplicationController
       pdf = Prawn::Document.new(page_size: "A4", margin: 40)
       font_path = Rails.root.join("app/assets/fonts")
       
-      # 1. FONTS
+      # Register Noto Sans which supports the Lari (₾) symbol
       if File.exist?(font_path.join("NotoSans-Regular.ttf"))
         pdf.font_families.update("NotoSans" => {
           normal: font_path.join("NotoSans-Regular.ttf"),
@@ -81,6 +80,7 @@ class LogsController < ApplicationController
         report_sections << { "title" => section["title"], "items" => report_items } if report_items.any?
       end
   
+      # Sort categories by number of items (descending)
       report_sections = report_sections.select { |s| s["items"].any? }
       report_sections.sort_by! { |s| -s["items"].size }
   
@@ -114,19 +114,6 @@ class LogsController < ApplicationController
       orange_color = "F97316"
   
       # --- PDF RENDERING ---
-      
-      # LOGO PLACEMENT (Top Left)
-      if profile.logo.attached?
-        begin
-          # Open the logo from Active Storage
-          logo_data = StringIO.new(profile.logo.download)
-          pdf.image logo_data, width: 80, at: [0, pdf.cursor]
-          pdf.move_down 50 # Adjust spacing based on logo height
-        rescue => e
-          Rails.logger.error "PDF Logo error: #{e.message}"
-        end
-      end
-
       pdf.fill_color "000000"
       pdf.text profile.business_name.upcase, size: 24, style: :bold, character_spacing: -0.5
       
@@ -208,11 +195,12 @@ class LogsController < ApplicationController
         pdf.text "FIELD INTELLIGENCE REPORT", size: 12, style: :bold, character_spacing: 0.5
         pdf.move_down 10
       
+        # Two-column layout that flows properly
         pdf.column_box(
           [0, pdf.cursor],
           columns: 2,
           width: pdf.bounds.width,
-          height: pdf.cursor - pdf.bounds.bottom,
+          height: pdf.cursor - pdf.bounds.bottom, # remaining page height
           spacer: 20
         ) do
           report_sections.each do |section|
@@ -232,6 +220,8 @@ class LogsController < ApplicationController
           end
         end
       end
+      
+    
   
       pdf.number_pages "Page <page> of <total>", at: [pdf.bounds.right - 150, -10], width: 150, align: :right, size: 8, color: "999999"
       send_data pdf.render, filename: "#{invoice_number}_#{log.client}.pdf", type: "application/pdf", disposition: "inline"
@@ -243,3 +233,4 @@ class LogsController < ApplicationController
       params.require(:log).permit(:client, :time, :date, :tasks, :billing_mode)
     end
   end
+  
