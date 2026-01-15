@@ -3,22 +3,41 @@
     transition: height 0.1s ease;
     min-height: 120px;
   }
+  .industrial-shadow {
+    box-shadow: 4px 4px 0px 0px #F97316;
+  }
+  .industrial-input:focus {
+    box-shadow: 2px 2px 0px 0px #F97316;
+    transform: translate(-1px, -1px);
+  }
+  input::-webkit-outer-spin-button,
+  input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type=number] {
+    -moz-appearance: textfield;
+  }
 </style>
 
-<div class="min-h-screen bg-white text-slate-900 font-sans p-4 pb-24">
-  <header class="flex justify-between items-center mb-8 pt-4 px-2">
+<div class="min-h-screen bg-white text-black font-sans p-4 pb-32">
+  
+  <header class="flex justify-between items-center mb-12 pt-2 px-1">
     <div class="flex items-center gap-2">
-      <div class="w-2 h-6 bg-orange-500 rounded-full"></div>
-      <h1 class="text-xl font-bold tracking-tight text-slate-900 uppercase italic">SiteLogger<span class="text-slate-400 font-light">.pro</span></h1>
+      <div class="w-3 h-8 bg-orange-600"></div>
+      <h1 class="text-2xl font-black tracking-tighter text-black uppercase italic">
+        SITE<span class="text-orange-600">LOGGER</span>
+      </h1>
     </div>
-    <div class="flex gap-2">
-      <%= link_to history_path, class: "p-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-500 hover:bg-slate-100 transition" do %>
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    
+    <div class="flex gap-3">
+      <%= link_to history_path, class: "p-2 bg-white border-2 border-black rounded-lg hover:bg-orange-50 transition hover:border-orange-500 group" do %>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-black group-hover:text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       <% end %>
-      <%= link_to settings_path, class: "p-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-500 hover:bg-slate-100 transition" do %>
-        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <%= link_to settings_path, class: "p-2 bg-white border-2 border-black rounded-lg hover:bg-orange-50 transition hover:border-orange-500 group" do %>
+        <svg class="h-6 w-6 text-black group-hover:text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
         </svg>
@@ -26,74 +45,91 @@
     </div>
   </header>
 
-  <div class="max-w-md mx-auto space-y-8">
+  <div class="max-w-md mx-auto space-y-10">
     
-    <div class="flex flex-col items-center justify-center py-4">
-      <div id="recordingWave" class="hidden absolute w-40 h-40 bg-orange-500/10 rounded-full animate-ping"></div>
-      <button id="recordButton" class="relative w-32 h-32 rounded-full bg-slate-900 shadow-xl flex flex-col items-center justify-center transition-all active:scale-95 border-4 border-slate-50">
-        <svg id="micIcon" class="w-8 h-8 text-white mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+    <div class="flex flex-col items-center justify-center">
+      <div id="recordingWave" class="hidden absolute w-48 h-48 border-4 border-orange-200 rounded-full animate-ping"></div>
+      
+      <button id="recordButton" class="relative w-36 h-36 rounded-full bg-white border-[6px] border-orange-500 shadow-xl flex flex-col items-center justify-center transition-all active:scale-95 group hover:bg-orange-50">
+        <svg id="micIcon" class="w-10 h-10 text-orange-600 mb-1 group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
         </svg>
-        <span id="buttonText" class="text-white text-[9px] font-black uppercase tracking-widest text-center px-2 leading-tight">Start Voice Log</span>
+        <span id="buttonText" class="text-black text-[10px] font-black uppercase tracking-widest text-center px-2 mt-1">TAP TO RECORD</span>
       </button>
-      <p id="status" class="mt-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Tap to Record</p>
+      
+      <p id="status" class="mt-6 text-xs font-bold text-orange-600 bg-orange-50 px-3 py-1 rounded-full uppercase tracking-widest border border-orange-100">Ready</p>
     </div>
 
-    <div id="textSection" class="space-y-2 transition-all duration-500">
+    <div id="textSection" class="space-y-3 transition-all duration-500">
       <div class="flex justify-between items-end px-1">
-        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic">Work Details (Voice or Type)</label>
-        <span id="syncStatus" class="text-[9px] text-orange-500 font-bold uppercase hidden animate-pulse">Processing...</span>
+        <label class="text-xs font-black text-black uppercase tracking-widest">Manual Log</label>
+        <span id="syncStatus" class="text-[10px] text-orange-600 font-bold uppercase hidden animate-pulse">Analyzing...</span>
       </div>
       <div class="relative">
         <textarea id="mainTranscript" 
-                  rows="5"
-                  class="w-full bg-white border-2 border-slate-100 rounded-2xl p-4 text-slate-800 text-sm leading-relaxed resize-none focus:ring-4 focus:ring-orange-500/10 focus:border-orange-500 outline-none transition-all shadow-sm"
-                  placeholder="Tap the mic to speak, or type/paste your job details here..."
+                  rows="4"
+                  class="w-full bg-white border-2 border-black rounded-xl p-5 text-black text-sm font-medium leading-relaxed resize-none outline-none industrial-input placeholder:text-gray-400"
+                  placeholder="Paste text or type notes here..."
                   oninput="autoResize(this)"></textarea>
         
-        <button id="reParseBtn" class="absolute bottom-3 right-3 p-2 bg-slate-900 shadow-lg rounded-xl text-orange-500 active:scale-90 transition-transform hover:bg-slate-800" title="Analyze Text">
-          <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+        <button id="reParseBtn" class="absolute bottom-4 right-4 p-2 bg-orange-500 border-2 border-black text-white rounded-lg active:scale-95 transition-transform hover:bg-orange-600 shadow-sm" title="Analyze Text">
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M14 5l7 7m0 0l-7 7m7-7H3" />
           </svg>
         </button>
       </div>
     </div>
 
     <div id="invoicePreview" class="hidden animate-in fade-in slide-in-from-bottom-4 duration-700 space-y-6">
-      <div class="bg-white border-2 border-slate-100 rounded-[2.5rem] p-8 shadow-sm space-y-6">
-        <div class="flex justify-between items-center pb-4 border-b border-slate-50">
-          <h2 class="text-xs font-black uppercase tracking-[0.2em] text-slate-900">Review Entry</h2>
-          <span id="dateDisplay" class="text-[10px] font-bold text-slate-300 font-mono"></span>
+      
+      <div class="flex items-center gap-4">
+        <div class="h-px bg-black flex-1 opacity-10"></div>
+        <span class="text-[10px] font-black uppercase tracking-[0.2em] text-orange-600">Review Data</span>
+        <div class="h-px bg-black flex-1 opacity-10"></div>
+      </div>
+
+      <div class="bg-white border-2 border-black rounded-2xl p-6 industrial-shadow space-y-6">
+        
+        <div class="flex justify-between items-center pb-4 border-b-2 border-dashed border-gray-200">
+          <h2 class="text-sm font-black uppercase tracking-widest text-black">Job Details</h2>
+          <span id="dateDisplay" class="text-xs font-bold text-orange-600"></span>
         </div>
 
         <div class="grid grid-cols-2 gap-4">
           <div class="space-y-1">
-            <label class="block text-[9px] font-bold text-slate-400 uppercase">Client</label>
-            <input type="text" id="editClient" class="w-full bg-slate-50 border-none rounded-xl py-3 px-4 font-bold text-slate-900 focus:ring-2 focus:ring-orange-500/20 transition-all">
+            <label class="block text-[9px] font-bold text-gray-500 uppercase">Client Name</label>
+            <input type="text" id="editClient" class="w-full bg-orange-50/50 border border-orange-100 rounded-lg py-3 px-3 font-bold text-black focus:ring-1 focus:ring-orange-500 outline-none">
           </div>
-          <div class="space-y-1">
-            <label class="block text-[9px] font-bold text-slate-400 uppercase">Hours</label>
-            <input type="text" id="editTime" class="w-full bg-slate-50 border-none rounded-xl py-3 px-4 font-bold text-slate-900 focus:ring-2 focus:ring-orange-500/20 transition-all">
-          </div>
+<div class="space-y-1">
+  <label id="timeLabel" class="block text-[9px] font-bold text-gray-500 uppercase">
+    <% current_symbol = @profile.currency.presence || "$" %>
+    <%= @profile.billing_mode == "fixed" ? "Job Price (#{current_symbol})" : "Total Hours" %>
+  </label>
+  <input type="number" step="any" id="editTime" 
+         onkeypress="return (event.charCode >= 48 && event.charCode <= 57) || event.charCode == 46"
+         class="w-full bg-orange-50/50 border border-orange-100 rounded-lg py-3 px-3 font-bold text-black focus:ring-1 focus:ring-orange-500 outline-none">
+</div>
         </div>
 
         <div id="dynamicSections" class="space-y-6"></div>
 
-        <button type="button" onclick="addFullSection()" class="w-full py-4 border-2 border-dashed border-slate-100 rounded-2xl text-[9px] font-black text-slate-400 uppercase tracking-widest hover:border-orange-200 hover:text-orange-500 transition-all">
-          + Add New Category
-        </button>
+        <div class="grid grid-cols-2 gap-3 pt-2">
+          <button type="button" onclick="addFullSection()" class="py-3 border-2 border-black rounded-xl text-[10px] font-black text-black uppercase tracking-widest hover:bg-gray-50 transition-colors">
+            + Section
+          </button>
+          <button id="saveButton" class="bg-orange-600 hover:bg-orange-700 text-white border-2 border-black font-black py-3 rounded-xl uppercase text-[10px] tracking-widest transition-all active:scale-[0.98]">
+            Confirm Log
+          </button>
+        </div>
 
-        <button id="saveButton" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-black py-5 rounded-2xl shadow-xl shadow-orange-500/20 transition-all active:scale-[0.98] uppercase text-xs tracking-[0.2em]">
-          Confirm & Log
-        </button>
       </div>
     </div>
   </div>
 
   <div id="errorToast" class="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
-    <div class="bg-slate-900 text-white px-6 py-4 rounded-2xl shadow-2xl border border-slate-700 flex items-center gap-3">
-      <div class="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
-      <span id="errorMessage" class="text-xs font-bold uppercase tracking-widest">AI could not hear you clearly</span>
+    <div class="bg-white text-black px-6 py-4 rounded-xl shadow-2xl border-2 border-red-500 flex items-center gap-4">
+      <div class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+      <span id="errorMessage" class="text-xs font-bold uppercase tracking-widest">Error Message</span>
     </div>
   </div>
 
@@ -105,11 +141,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const buttonText = document.getElementById("buttonText");
   const transcriptArea = document.getElementById("mainTranscript");
   const reParseBtn = document.getElementById("reParseBtn");
+  const micIcon = document.getElementById("micIcon");
 
   let mediaRecorder = null;
   let audioChunks = [];
   let isRecording = false;
-  let recordingStartTime = 0; // NEW: Timer variable
+  let recordingStartTime = 0;
 
   // 1. RECORDING LOGIC
   recordBtn.onclick = async () => {
@@ -121,42 +158,48 @@ document.addEventListener("DOMContentLoaded", () => {
       mediaRecorder.onstop = processAudio;
       
       mediaRecorder.start();
-      recordingStartTime = Date.now(); // START TIMER
+      recordingStartTime = Date.now();
       
       isRecording = true;
-      buttonText.innerText = "Stop";
-      recordBtn.classList.replace("bg-slate-900", "bg-red-600");
+      buttonText.innerText = "STOP";
+      buttonText.classList.add("text-red-600");
+      micIcon.classList.replace("text-orange-600", "text-red-600");
+      recordBtn.classList.replace("border-orange-500", "border-red-500");
       document.getElementById("recordingWave").classList.remove("hidden");
-      document.getElementById("status").innerText = "Listening...";
+      document.getElementById("status").innerText = "RECORDING...";
+      document.getElementById("status").classList.replace("text-orange-600", "text-red-600");
+      document.getElementById("status").classList.replace("bg-orange-50", "bg-red-50");
     } else {
-      // NEW: CHECK DURATION
       const duration = Date.now() - recordingStartTime;
       
-      if (duration < 1000) { // If less than 1 second
-        mediaRecorder.onstop = null; // Kill the processor
+      if (duration < 1000) {
+        mediaRecorder.onstop = null;
         mediaRecorder.stop();
         mediaRecorder.stream.getTracks().forEach(t => t.stop());
-        
-        // Reset UI immediately
-        isRecording = false;
-        buttonText.innerText = "Start Voice Log";
-        recordBtn.classList.replace("bg-red-600", "bg-slate-900");
-        document.getElementById("recordingWave").classList.add("hidden");
-        document.getElementById("status").innerText = "Tap to Record";
-        
-        // Show Warning
-        showError("Hold button longer to record.");
+        resetRecorderUI();
+        showError("Hold longer to record");
         return; 
       }
 
       mediaRecorder.stop();
       isRecording = false;
-      buttonText.innerText = "Processing";
-      recordBtn.classList.replace("bg-red-600", "bg-slate-900");
+      document.getElementById("status").innerText = "PROCESSING...";
       document.getElementById("recordingWave").classList.add("hidden");
       mediaRecorder.stream.getTracks().forEach(t => t.stop());
     }
   };
+
+  function resetRecorderUI() {
+    isRecording = false;
+    buttonText.innerText = "TAP TO RECORD";
+    buttonText.classList.remove("text-red-600");
+    micIcon.classList.replace("text-red-600", "text-orange-600");
+    recordBtn.classList.replace("border-red-500", "border-orange-500");
+    document.getElementById("status").innerText = "READY";
+    document.getElementById("status").classList.replace("text-red-600", "text-orange-600");
+    document.getElementById("status").classList.replace("bg-red-50", "bg-orange-50");
+    document.getElementById("recordingWave").classList.add("hidden");
+  }
 
   async function processAudio() {
     try {
@@ -171,16 +214,16 @@ document.addEventListener("DOMContentLoaded", () => {
       });
 
       const data = await res.json();
+      resetRecorderUI();
       
       if (!res.ok || data.error) {
         showError(data.error || "Speech not recognized.");
-        buttonText.innerText = "Start Voice Log";
-        document.getElementById("status").innerText = "Tap to Record";
       } else {
         updateUI(data);
       }
     } catch (e) {
-      showError("Network error. Recording might be too large.");
+      resetRecorderUI();
+      showError("Network error.");
     }
   }
 
@@ -201,16 +244,16 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     const data = await res.json();
+    document.getElementById("syncStatus").classList.add("hidden");
 
     if (data.error) {
-      showError("Could not analyze text.");
+      showError(data.error);
     } else {
       updateUI(data);
     }
-    document.getElementById("syncStatus").classList.add("hidden");
   };
 
-  // 3. SAVE LOGIC (WITH BILLING SUPPORT)
+  // 3. SAVE LOGIC
   document.getElementById("saveButton").onclick = async function() {
     const saveBtn = this;
     const client = document.getElementById("editClient").value;
@@ -221,17 +264,11 @@ document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll(".dynamic-section").forEach(sec => {
       const title = sec.querySelector(".section-title").value;
       const items = [];
-      
       sec.querySelectorAll(".item-row").forEach(row => {
         const desc = row.querySelector(".item-input").value;
-        const price = row.querySelector(".price-input").value; // Capture Price
-        
-        if (desc.trim() !== "") {
-           // We save both description AND price in the JSON
-           items.push({ desc: desc, price: price });
-        }
+        const price = row.querySelector(".price-input").value;
+        if (desc.trim() !== "") items.push({ desc: desc, price: price });
       });
-
       if (items.length > 0) sections.push({ title, items });
     });
 
@@ -242,27 +279,21 @@ document.addEventListener("DOMContentLoaded", () => {
         "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]').content 
       },
       body: JSON.stringify({
-        log: {
-          client: client,
-          time: time,
-          date: date,
-          tasks: JSON.stringify(sections) 
-        }
+        log: { client: client, time: time, date: date, tasks: JSON.stringify(sections) }
       })
     });
 
     const result = await res.json();
     if (result.success) {
-      saveBtn.innerText = "SAVED ✓";
-      saveBtn.classList.replace("bg-orange-500", "bg-green-600");
+      saveBtn.innerText = "SAVED";
+      saveBtn.classList.replace("bg-orange-600", "bg-green-600");
+      saveBtn.classList.replace("border-black", "border-green-800");
       setTimeout(() => { window.location.href = "/history"; }, 600);
     } else {
-      showError("Error saving: " + result.errors.join(", "));
+      showError("Error saving log.");
     }
   };
 });
-
-// UI HELPERS
 
 function autoResize(textarea) {
   textarea.style.height = 'auto';
@@ -274,45 +305,45 @@ function addFullSection(title = "New Category", items = [""]) {
   const sectionId = "section_" + Date.now() + Math.random().toString(36).substr(2, 5);
   
   const sectionDiv = document.createElement('div');
-  sectionDiv.className = "dynamic-section space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-500";
+  sectionDiv.className = "dynamic-section space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-500";
   sectionDiv.innerHTML = `
-    <div class="flex justify-between items-center group">
-      <input type="text" value="${title}" class="bg-transparent border-none p-0 text-[9px] font-black text-slate-400 uppercase tracking-widest italic focus:ring-0 focus:text-orange-500 w-1/2 section-title">
-      <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button type="button" onclick="addItem('${sectionId}')" class="text-[9px] text-orange-500 font-bold uppercase">+ Item</button>
-        <button type="button" onclick="this.closest('.dynamic-section').remove()" class="text-[9px] text-slate-400 font-bold uppercase hover:text-red-500">✕ Remove</button>
+    <div class="flex justify-between items-center group border-b-2 border-black pb-1">
+      <input type="text" value="${title}" class="bg-transparent border-none p-0 text-xs font-black text-orange-600 uppercase tracking-widest focus:ring-0 w-2/3 section-title">
+      <div class="flex gap-3">
+        <button type="button" onclick="addItem('${sectionId}')" class="text-[10px] text-black font-bold uppercase hover:text-orange-600">+ Item</button>
+        <button type="button" onclick="this.closest('.dynamic-section').remove()" class="text-[10px] text-gray-400 font-bold uppercase hover:text-red-500">Remove</button>
       </div>
     </div>
-    <div id="${sectionId}" class="space-y-2"></div>
+    <div id="${sectionId}" class="space-y-3 pt-2"></div>
   `;
-  
   container.appendChild(sectionDiv);
-  
   items.forEach(item => {
-    // Logic to handle AI object format vs simple string
     const val = (typeof item === 'object' && item.desc) ? 
-      (item.desc + (item.qty && item.qty !== '1' && item.qty !== 'N/A' ? ` (x${item.qty})` : '')) 
-      : item;
+      (item.desc + (item.qty && item.qty !== '1' && item.qty !== 'N/A' ? ` (x${item.qty})` : '')) : item;
     addItem(sectionId, val);
   });
 }
 
 function addItem(containerId, value = "") {
+  
+  // DYNAMIC CURRENCY FOR JS
+  const currency = "<%= @profile.currency.presence || '$' %>";
   const div = document.createElement('div');
-  div.className = "flex gap-2 animate-in fade-in slide-in-from-left-2 duration-300 item-row";
+  div.className = "flex gap-2 animate-in fade-in slide-in-from-left-2 duration-300 item-row items-center";
   div.innerHTML = `
+    <div class="w-1.5 h-1.5 bg-black rounded-full"></div>
     <input type="text" value="${value}" 
-           class="flex-1 bg-slate-50 border-none rounded-xl text-sm font-bold text-slate-900 focus:ring-2 focus:ring-orange-500/20 py-3 px-4 item-input"
+           class="flex-1 bg-white border-b border-gray-200 text-sm font-medium text-black focus:border-orange-500 focus:ring-0 py-2 px-1 item-input placeholder:text-gray-300"
            placeholder="Description...">
     
-    <div class="relative w-24">
-       <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">$</span>
+    <div class="relative w-20">
+       <span class="absolute left-1 top-1/2 -translate-y-1/2 text-gray-400 text-[10px] font-bold">${currency}</span>
        <input type="number" step="0.01" 
-              class="w-full bg-slate-50 border-none rounded-xl text-sm font-bold text-slate-900 focus:ring-2 focus:ring-orange-500/20 py-3 pl-6 pr-2 price-input"
-              placeholder="Bill?">
+              class="w-full bg-white border-b border-gray-200 text-sm font-bold text-orange-600 focus:border-orange-500 focus:ring-0 py-2 pl-4 pr-0 price-input placeholder:text-gray-300"
+              placeholder="0.00">
     </div>
 
-    <button type="button" onclick="this.parentElement.remove()" class="p-2 text-slate-400 hover:text-red-500 transition">✕</button>
+    <button type="button" onclick="this.parentElement.remove()" class="text-gray-300 hover:text-red-500 transition px-1">×</button>
   `;
   document.getElementById(containerId).appendChild(div);
 }
@@ -323,11 +354,17 @@ function updateUI(data) {
     transcriptArea.value = data.raw_summary;
     autoResize(transcriptArea);
   }
-
   document.getElementById("editClient").value = data.client || "";
-  document.getElementById("editTime").value = data.time || "";
+  
+  // BILLING MODE LOGIC
+  const billingMode = "<%= @profile.billing_mode %>";
+  const defaultRate = "<%= @profile.hourly_rate %>";
+  if (billingMode === "fixed") {
+    document.getElementById("editTime").value = data.time && data.time !== "" && data.time !== "0" ? data.time : defaultRate;
+  } else {
+    document.getElementById("editTime").value = data.time || "";
+  }
 
-  // DATE FIX: Use today if AI fails
   let dateVal = data.date;
   if (!dateVal || dateVal === "N/A" || dateVal.toLowerCase().includes("specified")) {
     dateVal = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -336,23 +373,19 @@ function updateUI(data) {
 
   const sectionContainer = document.getElementById("dynamicSections");
   sectionContainer.innerHTML = "";
-
   if (data.sections && data.sections.length > 0) {
     data.sections.forEach(sec => addFullSection(sec.title, sec.items));
-  } else {
-    if (data.tasks) addFullSection("Tasks", Array.isArray(data.tasks) ? data.tasks : [data.tasks]);
+  } else if (data.tasks) {
+    addFullSection("Tasks", Array.isArray(data.tasks) ? data.tasks : [data.tasks]);
   }
 
   document.getElementById("invoicePreview").classList.remove("hidden");
-  document.getElementById("buttonText").innerText = "Start Voice Log";
-  document.getElementById("status").innerText = "Review & Confirm";
   document.getElementById("invoicePreview").scrollIntoView({ behavior: 'smooth' });
 }
 
 function showError(msg) {
   const toast = document.getElementById("errorToast");
   const msgSpan = document.getElementById("errorMessage");
-  
   msgSpan.innerText = msg;
   toast.classList.remove("hidden");
   setTimeout(() => { toast.classList.add("hidden"); }, 4000);

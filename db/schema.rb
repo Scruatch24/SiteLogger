@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_01_14_190632) do
+ActiveRecord::Schema[8.0].define(version: 2026_01_15_093728) do
   create_schema "auth"
   create_schema "neon_auth"
   create_schema "pgrst"
@@ -27,6 +27,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_01_14_190632) do
     t.text "materials"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "billing_mode"
   end
 
   create_table "profiles", force: :cascade do |t|
@@ -40,5 +41,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_01_14_190632) do
     t.datetime "updated_at", null: false
     t.text "payment_instructions"
     t.decimal "tax_rate"
+    t.string "billing_mode"
+    t.string "currency"
   end
 end

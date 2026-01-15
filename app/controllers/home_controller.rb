@@ -4,7 +4,8 @@ class HomeController < ApplicationController
   require 'json'
   require 'base64'
 
-  # --- PUBLIC METHODS ---
+  # This ensures @profile is loaded for every single page so the design doesn't crash
+  before_action :set_profile
 
   def index
   end
@@ -14,17 +15,14 @@ class HomeController < ApplicationController
   end
 
   def settings
-    @profile = Profile.first || Profile.new
+    # @profile is already set by the before_action
   end
 
   def save_settings
-    @profile = Profile.first || Profile.new
-    
-    # Use assign_attributes + save to handle both New and Existing profiles gracefully
+    # We use the @profile set by before_action
     @profile.assign_attributes(profile_params)
     
     if @profile.save
-      # Redirect back to settings so user sees their changes saved
       redirect_to settings_path, notice: "Profile saved successfully!"
     else
       render :settings, status: :unprocessable_entity
@@ -35,10 +33,11 @@ class HomeController < ApplicationController
     api_key = ENV['GEMINI_API_KEY']
     is_manual_text = params[:manual_text].present?
     
+    # We grab the current mode from the profile (set by before_action :set_profile)
+    # This informs the AI of the context before it starts processing.
+    mode = @profile.billing_mode || "hourly"
+    
     begin 
-      # 1. DEFINE THE STRICT VALIDATOR LOGIC
-      # This replaces the old "Analyze this..." prompt to stop hallucinations.
-      
       universal_instruction = "You are a STRICT Data Intake Validator.
         
         STEP 1: LISTEN CAREFULLY.
@@ -46,13 +45,19 @@ class HomeController < ApplicationController
         - If the audio provides NO specific work details (e.g. just 'hello'): STOP. Return { \"error\": \"No work details detected.\" }
         
         STEP 2: CHECK FOR HALLUCINATIONS.
-        - Do NOT make up names like 'Smith Corp', 'Green Valley Farms', or 'Acme'. 
-        - Do NOT invent a time (like '9:00 AM') if not stated.
-        - Do NOT invent quantities.
+        - Do NOT make up names, dates, or quantities.
         - If you are about to make up a fake report because you didn't hear anything: STOP. Return { \"error\": \"Audio unclear\" }
 
         STEP 3: EXTRACT REAL DATA.
-        - Only if you passed Step 1 and 2, extract 'client', 'time' (hours), and 'date'.
+        - Current Billing Mode: #{mode.upcase}
+        
+        - STRICT RULE FOR 'TIME' FIELD:
+          1. If Mode is HOURLY: Extract ONLY the numeric hours (e.g., '3.5'). Ignore dollar signs.
+          2. If Mode is FIXED: 
+             - IGNORE all mentions of duration, hours, or how long the job took.
+             - ONLY extract a value for 'time' if the user explicitly mentions a PRICE or COST (e.g., 'Charge 500' or 'Price is 200').
+             - If NO explicit price is mentioned, return \"\" (empty string) for 'time'.
+        
         - DETECT THE INDUSTRY (Construction, IT, Farming, etc).
         - Create 2-4 professional section titles.
         
@@ -78,14 +83,12 @@ class HomeController < ApplicationController
         return render json: { error: "No audio" }, status: 400 unless audio_file
         
         audio_data = Base64.strict_encode64(audio_file.read)
-        # We explicitly ask for a verbatim transcript first to force the AI to realize there is no speech.
         prompt_parts = [
           { text: "TRANSCRIPT: Generate a verbatim transcript of this audio. Then apply the validation rules below.\n#{universal_instruction}" },
           { inline_data: { mime_type: audio_file.content_type, data: audio_data } }
         ]
       end
 
-      # 2. CALL THE API
       uri = URI("https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=#{api_key}")
       http = Net::HTTP.new(uri.host, uri.port).tap { |h| h.use_ssl = true }
       http.open_timeout = 60 
@@ -97,17 +100,19 @@ class HomeController < ApplicationController
       response = http.request(request)
       result = JSON.parse(response.body)
 
-      # 3. HANDLE RESPONSE
       if response.code == '200' && result.dig('candidates', 0, 'content', 'parts', 0, 'text')
         raw_text = result['candidates'][0]['content']['parts'][0]['text']
-        
-        # Clean the response (remove ```json markdown if present)
         cleaned_text = raw_text.gsub(/```json/, '').gsub(/```/, '')
-        
         json_match = cleaned_text.match(/\{.*\}/m)
         
         if json_match
           parsed_json = JSON.parse(json_match[0])
+          
+          # Numeric safety net: Only triggers if the AI actually found a value
+          if parsed_json["time"].present? && parsed_json["time"] != ""
+            numeric_time = parsed_json["time"].to_s.scan(/\d+\.?\d*/).first
+            parsed_json["time"] = numeric_time || ""
+          end
         else
           render json: { error: "Audio unclear. Please try again." }, status: 422
           return
@@ -117,17 +122,12 @@ class HomeController < ApplicationController
           parsed_json['raw_summary'] ||= params[:manual_text]
         end
 
-        # --- THE HALLUCINATION TRAP ---
-        # If the AI returns a "Perfect" report but the raw_summary is empty/short, it's lying.
         summary_len = parsed_json["raw_summary"].to_s.strip.length
         
         if parsed_json["error"]
-          error_msg = parsed_json["error"]
-          render json: { error: error_msg }, status: 422
+          render json: { error: parsed_json["error"] }, status: 422
           return
         elsif summary_len < 10
-          # TRAP: If summary is < 10 chars, it's impossible to have a full report.
-          # The AI likely hallucinated the sections while leaving the summary empty.
           render json: { error: "No speech detected." }, status: 422
           return
         end
@@ -142,11 +142,25 @@ class HomeController < ApplicationController
     end
   end
 
-  # --- PRIVATE METHODS ---
   private
 
+  def set_profile
+    @profile = Profile.first || Profile.new
+  end
+
   def profile_params
-    # Ensures all Settings fields (including Tax Rate & Instructions) are permitted
-    params.require(:profile).permit(:business_name, :phone, :email, :address, :tax_id, :hourly_rate, :tax_rate, :payment_instructions)
+    # FIXED: Added :billing_mode to the permitted list
+    params.require(:profile).permit(
+      :business_name, 
+      :phone, 
+      :email, 
+      :address, 
+      :tax_id, 
+      :hourly_rate, 
+      :tax_rate, 
+      :payment_instructions,
+      :billing_mode, # <--- This allows the "Fixed vs Hourly" toggle to save
+      :currency
+    )
   end
 end
