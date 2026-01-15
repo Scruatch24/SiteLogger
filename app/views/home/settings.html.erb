@@ -161,7 +161,7 @@
     { n: "South African Rand", c: "ZAR", s: "R", i: "za" }
   ];
 
-  document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", () => {
     const hiddenField = document.getElementById('currency_hidden_field');
     const selectBtn = document.getElementById('currencySelectBtn');
     const display = document.getElementById('selectedCurrencyDisplay');
@@ -171,14 +171,15 @@
     const rateLabel = document.getElementById('rateLabel');
     const fixedRadio = document.getElementById('profile_billing_mode_fixed');
 
+    // FIX: Look up by CODE instead of SYMBOL to avoid Yen/Yuan confusion
+    const current = currencies.find(c => c.c === hiddenField.value) || currencies[0];
+    updateDisplay(current);
+
     function updateDisplay(currency) {
       display.innerHTML = `<span class="fi fi-${currency.i} rounded-sm shadow-sm"></span> <span class="ml-1">${currency.c} (${currency.s})</span>`;
       if (fixedRadio.checked) rateLabel.innerText = `Default Price (${currency.s})`;
       else rateLabel.innerText = `Rate (${currency.s}/hr)`;
     }
-
-    const current = currencies.find(c => c.s === hiddenField.value) || currencies[0];
-    updateDisplay(current);
 
     function renderList(filter = "") {
       list.innerHTML = "";
@@ -199,7 +200,7 @@
         `;
         div.onclick = (e) => {
           e.stopPropagation();
-          hiddenField.value = c.s;
+          hiddenField.value = c.c; // FIX: Saving the CODE (CNY) not the SYMBOL (¥)
           updateDisplay(c);
           menu.classList.add('hidden');
         };

@@ -29,9 +29,36 @@ class LogsController < ApplicationController
       log = Log.find(params[:id])
       profile = Profile.first || Profile.new(business_name: "My Business", hourly_rate: 0)
       
-      # DYNAMIC CURRENCY SETUP
-      currency = profile.currency.presence || "$"
+      # 1. UTF-8 FONT REGISTRATION (Fixes IncompatibleStringEncoding)
+      # Ensure you have these files in app/assets/fonts/
+      pdf = Prawn::Document.new(page_size: "A4", margin: 40)
+      
+      font_path = Rails.root.join("app/assets/fonts")
+      
+      # Check if fonts exist to avoid server crash if you haven't downloaded them yet
+      if File.exist?(font_path.join("Roboto-Regular.ttf"))
+        pdf.font_families.update("Roboto" => {
+          normal: font_path.join("Roboto-Regular.ttf"),
+          bold: font_path.join("Roboto-Bold.ttf")
+        })
+        pdf.font "Roboto"
+      end
   
+      # 2. CURRENCY MAPPING
+      symbols = {
+        "USD"=>"$", "EUR"=>"€", "GBP"=>"£", "GEL"=>"₾", "JPY"=>"¥", "AUD"=>"A$", "CAD"=>"C$",
+        "CHF"=>"Fr", "CNY"=>"¥", "INR"=>"₹", "TRY"=>"₺", "AED"=>"د.إ", "ILS"=>"₪", "SEK"=>"kr",
+        "BRL"=>"R$", "MXN"=>"$", "AFN"=>"Af", "ALL"=>"L", "AMD"=>"֏", "AOA"=>"Kz", "ARS"=>"$",
+        "AZN"=>"₼", "BDT"=>"৳", "BGN"=>"лв", "BHD"=>".د.ب", "CLP"=>"$", "COP"=>"$", "CZK"=>"Kč",
+        "DKK"=>"kr", "EGP"=>"E£", "HKD"=>"HK$", "HUF"=>"Ft", "ISK"=>"kr", "IDR"=>"Rp", "JOD"=>"JD",
+        "KES"=>"KSh", "KWD"=>"KD", "KZT"=>"₸", "LBP"=>"L£", "MAD"=>"DH", "MYR"=>"RM", "NGN"=>"₦",
+        "NOK"=>"kr", "NZD"=>"NZ$", "OMR"=>"RO", "PHP"=>"₱", "PKR"=>"Rs", "PLN"=>"zł", "QAR"=>"QR",
+        "RON"=>"lei", "SAR"=>"SR", "SGD"=>"S$", "THB"=>"฿", "TWD"=>"NT$", "UAH"=>"₴", "VND"=>"₫", "ZAR"=>"R"
+      }
+      
+      currency = symbols[profile.currency] || profile.currency || "$"
+      
+      # 3. PARSE DATA
       raw_sections = JSON.parse(log.tasks || '[]') rescue []
       billable_items = []
       report_sections = []
@@ -54,6 +81,7 @@ class LogsController < ApplicationController
         report_sections << { "title" => section["title"], "items" => report_items } if report_items.any?
       end
   
+      # 4. BILLING CALCULATIONS
       log_billing_mode = log.billing_mode || "hourly"
   
       if log_billing_mode == "fixed"
@@ -82,9 +110,7 @@ class LogsController < ApplicationController
       invoice_number = "INV-#{1000 + log.id}"
       orange_color = "F97316"
   
-      pdf = Prawn::Document.new(page_size: "A4", margin: 40)
-      
-      pdf.font "Helvetica"
+      # --- PDF RENDERING ---
       pdf.fill_color "000000"
       pdf.text profile.business_name.upcase, size: 24, style: :bold, character_spacing: -0.5
       

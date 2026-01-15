@@ -102,8 +102,20 @@
           </div>
 <div class="space-y-1">
   <label id="timeLabel" class="block text-[9px] font-bold text-gray-500 uppercase">
-    <% current_symbol = @profile.currency.presence || "$" %>
-    <%= @profile.billing_mode == "fixed" ? "Job Price (#{current_symbol})" : "Total Hours" %>
+<% 
+  symbols = {
+    "USD"=>"$", "EUR"=>"€", "GBP"=>"£", "GEL"=>"₾", "JPY"=>"¥", "AUD"=>"A$", "CAD"=>"C$",
+    "CHF"=>"Fr", "CNY"=>"¥", "INR"=>"₹", "TRY"=>"₺", "AED"=>"د.إ", "ILS"=>"₪", "SEK"=>"kr",
+    "BRL"=>"R$", "MXN"=>"$", "AFN"=>"Af", "ALL"=>"L", "AMD"=>"֏", "AOA"=>"Kz", "ARS"=>"$",
+    "AZN"=>"₼", "BDT"=>"৳", "BGN"=>"лв", "BHD"=>".د.ب", "CLP"=>"$", "COP"=>"$", "CZK"=>"Kč",
+    "DKK"=>"kr", "EGP"=>"E£", "HKD"=>"HK$", "HUF"=>"Ft", "ISK"=>"kr", "IDR"=>"Rp", "JOD"=>"JD",
+    "KES"=>"KSh", "KWD"=>"KD", "KZT"=>"₸", "LBP"=>"L£", "MAD"=>"DH", "MYR"=>"RM", "NGN"=>"₦",
+    "NOK"=>"kr", "NZD"=>"NZ$", "OMR"=>"RO", "PHP"=>"₱", "PKR"=>"Rs", "PLN"=>"zł", "QAR"=>"QR",
+    "RON"=>"lei", "SAR"=>"SR", "SGD"=>"S$", "THB"=>"฿", "TWD"=>"NT$", "UAH"=>"₴", "VND"=>"₫", "ZAR"=>"R"
+  }
+  currency = symbols[@profile.currency] || @profile.currency || "$" 
+%>
+    <%= @profile.billing_mode == "fixed" ? "Job Price (#{currency})" : "Total Hours" %>
   </label>
   <input type="number" step="any" id="editTime" 
          onkeypress="return (event.charCode >= 48 && event.charCode <= 57) || event.charCode == 46"
@@ -327,7 +339,27 @@ function addFullSection(title = "New Category", items = [""]) {
 function addItem(containerId, value = "") {
   
   // DYNAMIC CURRENCY FOR JS
-  const currency = "<%= @profile.currency.presence || '$' %>";
+  const currencyData = [
+    { c: "USD", s: "$" }, { c: "EUR", s: "€" }, { c: "GBP", s: "£" }, { c: "GEL", s: "₾" },
+    { c: "JPY", s: "¥" }, { c: "AUD", s: "A$" }, { c: "CAD", s: "C$" }, { c: "CHF", s: "Fr" },
+    { c: "CNY", s: "¥" }, { c: "INR", s: "₹" }, { c: "TRY", s: "₺" }, { c: "AED", s: "د.إ" },
+    { c: "ILS", s: "₪" }, { c: "SEK", s: "kr" }, { c: "BRL", s: "R$" }, { c: "MXN", s: "$" },
+    { c: "AFN", s: "Af" }, { c: "ALL", s: "L" }, { c: "AMD", s: "֏" }, { c: "AOA", s: "Kz" },
+    { c: "ARS", s: "$" }, { c: "AZN", s: "₼" }, { c: "BDT", s: "৳" }, { c: "BGN", s: "лв" },
+    { c: "BHD", s: ".د.ب" }, { c: "CLP", s: "$" }, { c: "COP", s: "$" }, { c: "CZK", s: "Kč" },
+    { c: "DKK", s: "kr" }, { c: "EGP", s: "E£" }, { c: "HKD", s: "HK$" }, { c: "HUF", s: "Ft" },
+    { c: "ISK", s: "kr" }, { c: "IDR", s: "Rp" }, { c: "JOD", s: "JD" }, { c: "KES", s: "KSh" },
+    { c: "KWD", s: "KD" }, { c: "KZT", s: "₸" }, { c: "LBP", s: "L£" }, { n: "MAD", s: "DH" },
+    { c: "MYR", s: "RM" }, { c: "NGN", s: "₦" }, { c: "NOK", s: "kr" }, { c: "NZD", s: "NZ$" },
+    { c: "OMR", s: "RO" }, { c: "PHP", s: "₱" }, { c: "PKR", s: "Rs" }, { c: "PLN", s: "zł" },
+    { c: "QAR", s: "QR" }, { c: "RON", s: "lei" }, { c: "SAR", s: "SR" }, { c: "SGD", s: "S$" },
+    { c: "THB", s: "฿" }, { c: "TWD", s: "NT$" }, { c: "UAH", s: "₴" }, { c: "VND", s: "₫" },
+    { c: "ZAR", s: "R" }
+  ];
+
+  const savedCode = "<%= @profile.currency.presence || 'USD' %>";
+  const match = currencyData.find(item => item.c === savedCode);
+  const currencySymbol = match ? match.s : savedCode;
   const div = document.createElement('div');
   div.className = "flex gap-2 animate-in fade-in slide-in-from-left-2 duration-300 item-row items-center";
   div.innerHTML = `
@@ -337,7 +369,7 @@ function addItem(containerId, value = "") {
            placeholder="Description...">
     
     <div class="relative w-20">
-       <span class="absolute left-1 top-1/2 -translate-y-1/2 text-gray-400 text-[10px] font-bold">${currency}</span>
+       <span class="absolute left-1 top-1/2 -translate-y-1/2 text-gray-400 text-[10px] font-bold">${currencySymbol}</span>
        <input type="number" step="0.01" 
               class="w-full bg-white border-b border-gray-200 text-sm font-bold text-orange-600 focus:border-orange-500 focus:ring-0 py-2 pl-4 pr-0 price-input placeholder:text-gray-300"
               placeholder="0.00">
