@@ -160,7 +160,8 @@ class HomeController < ApplicationController
       :tax_rate, 
       :payment_instructions,
       :billing_mode, # <--- This allows the "Fixed vs Hourly" toggle to save
-      :currency
+      :currency,
+      :logo
     )
   end
 end

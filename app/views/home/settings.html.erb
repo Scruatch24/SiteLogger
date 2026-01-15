@@ -10,8 +10,56 @@
     <h1 class="text-2xl font-black tracking-tighter text-black uppercase">Settings</h1>
   </header>
 
+  <% if @profile.errors.any? %>
+    <div class="max-w-md mx-auto mb-6 p-4 border-2 border-black bg-red-50 rounded-xl shadow-[4px_4px_0px_0px_#000]">
+      <h2 class="text-[10px] font-black uppercase text-red-600 mb-2">Errors:</h2>
+      <ul class="list-disc ml-4 text-xs font-bold text-red-600">
+        <% @profile.errors.full_messages.each do |msg| %>
+          <li><%= msg %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
   <%= form_with model: @profile, url: save_settings_path, class: "max-w-md mx-auto space-y-8" do |f| %>
     <div class="space-y-6">
+
+
+<%# Logo Upload - NATIVE STYLE %>
+<div class="space-y-2">
+  <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1">
+    Business Logo
+  </label>
+
+  <div class="flex items-center gap-4 w-full bg-white border-2 border-black rounded-xl py-3 px-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)]">
+
+    <%# Preview %>
+    <div class="w-12 h-12 border-2 border-black rounded-md flex items-center justify-center overflow-hidden bg-white shrink-0">
+      <% if @profile.logo.attached? && @profile.logo.persisted? %>
+        <%= image_tag @profile.logo.variant(:display), id: "logo-preview", class: "max-w-full max-h-full object-contain" %>
+      <% else %>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16" />
+        </svg>
+      <% end %>
+      <img id="client-preview" class="hidden max-w-full max-h-full object-contain" />
+    </div>
+
+    <%# Text + Action %>
+    <div class="flex-1 flex items-center justify-between gap-4">
+      <div class="text-xs font-bold text-gray-500 truncate">
+        Upload a PNG or JPG logo
+      </div>
+
+      <%= f.label :logo, class: "cursor-pointer text-xs font-black uppercase tracking-widest text-black border-2 border-black px-3 py-2 rounded-md hover:bg-orange-50 active:translate-y-[1px] transition-all" do %>
+        Change
+        <%= f.file_field :logo, class: "hidden", accept: "image/png,image/jpeg,image/jpg", onchange: "previewImage(this)" %>
+      <% end %>
+    </div>
+
+  </div>
+</div>
 
       <%# Billing Model Selection %>
       <div class="space-y-2">
@@ -39,7 +87,6 @@
           <%= f.hidden_field :currency, id: "currency_hidden_field", value: @profile.currency.presence || "USD" %>
           
           <button type="button" id="currencySelectBtn" class="w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black text-left flex justify-between items-center shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)] focus:outline-none z-10">
-            <%# PERFECT FIX: We find the currency info in Ruby so it renders INSTANTLY with no flicker %>
             <% current_currency = currencies_data.find { |c| c[:c] == (@profile.currency.presence || "USD") } || currencies_data.first %>
             <span id="selectedCurrencyDisplay" class="flex items-center gap-2">
               <span class="fi fi-<%= current_currency[:i] %> rounded-sm shadow-sm"></span> 
@@ -64,7 +111,6 @@
 
       <div class="grid grid-cols-2 gap-4">
         <div class="space-y-2">
-          <%# PERFECT FIX: Calculate the initial label in Ruby to show the symbol ₾ immediately %>
           <label id="rateLabel" class="text-[10px] font-black text-black uppercase tracking-widest ml-1">
             <% current_symbol = current_currency[:s] %>
             <%= @profile.billing_mode == "fixed" ? "Default Price (#{current_symbol})" : "Rate (#{current_symbol}/hr)" %>
@@ -110,8 +156,26 @@
 </div>
 
 <script>
-  // Single Source of Truth from Rails Helper
   const currencies = <%= currencies_data.to_json.html_safe %>;
+
+  function previewImage(input) {
+    const file = input.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const preview = document.getElementById('client-preview');
+        const existingLogo = document.getElementById('logo-preview');
+        const placeholder = document.getElementById('logo-placeholder');
+        
+        if (existingLogo) existingLogo.classList.add('hidden');
+        if (placeholder) placeholder.classList.add('hidden');
+        
+        preview.src = e.target.result;
+        preview.classList.remove('hidden');
+      }
+      reader.readAsDataURL(file);
+    }
+  }
 
   document.addEventListener("DOMContentLoaded", () => {
     const hiddenField = document.getElementById('currency_hidden_field');
@@ -124,8 +188,7 @@
     const hourlyRadio = document.getElementById('profile_billing_mode_hourly');
     const fixedRadio = document.getElementById('profile_billing_mode_fixed');
 
-    // Initial load setup
-    let selectedCurrency = currencies.find(c => c.c === hiddenField.value) || currencies[0];
+    let selectedCurrency = currencies.find(c => c.c === (hiddenField ? hiddenField.value : 'USD')) || currencies[0];
 
     function updateDisplay(currency) {
       selectedCurrency = currency;
@@ -134,16 +197,16 @@
     }
 
     function updateRateLabel() {
-      // USES THE SYMBOL (₾) NOT THE CODE (GEL)
       const symbol = selectedCurrency.s;
-      if (fixedRadio.checked) {
+      if (fixedRadio && fixedRadio.checked) {
         rateLabel.innerText = `Default Price (${symbol})`;
-      } else {
+      } else if (rateLabel) {
         rateLabel.innerText = `Rate (${symbol}/hr)`;
       }
     }
 
     function renderList(filter = "") {
+      if (!list) return;
       list.innerHTML = "";
       const filtered = currencies.filter(c => 
         c.n.toLowerCase().includes(filter.toLowerCase()) || 
@@ -170,27 +233,30 @@
       });
     }
 
-    selectBtn.onclick = (e) => {
-      e.stopPropagation();
-      menu.classList.toggle('hidden');
-      if (!menu.classList.contains('hidden')) {
-        search.value = "";
-        renderList("");
-        search.focus();
-      }
-    };
+    if (selectBtn) {
+      selectBtn.onclick = (e) => {
+        e.stopPropagation();
+        menu.classList.toggle('hidden');
+        if (!menu.classList.contains('hidden')) {
+          search.value = "";
+          renderList("");
+          search.focus();
+        }
+      };
+    }
     
-    search.onclick = (e) => e.stopPropagation();
-    search.oninput = (e) => renderList(e.target.value);
+    if (search) {
+      search.onclick = (e) => e.stopPropagation();
+      search.oninput = (e) => renderList(e.target.value);
+    }
     
-    // Toggle label when radio buttons change
-    hourlyRadio.addEventListener('change', updateRateLabel);
-    fixedRadio.addEventListener('change', updateRateLabel);
+    if (hourlyRadio) hourlyRadio.addEventListener('change', updateRateLabel);
+    if (fixedRadio) fixedRadio.addEventListener('change', updateRateLabel);
 
     renderList();
 
     document.addEventListener('click', () => {
-      menu.classList.add('hidden');
+      if (menu) menu.classList.add('hidden');
     });
   });
 </script>
