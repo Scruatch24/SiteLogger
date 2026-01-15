@@ -13,6 +13,7 @@
   <%= form_with model: @profile, url: save_settings_path, class: "max-w-md mx-auto space-y-8" do |f| %>
     <div class="space-y-6">
 
+      <%# Billing Model Selection %>
       <div class="space-y-2">
         <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1">Billing Model</label>
         <div class="flex border-2 border-black rounded-xl overflow-hidden shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)]">
@@ -31,12 +32,19 @@
         </div>
       </div>
 
+      <%# Global Currency Dropdown %>
       <div class="space-y-2">
         <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1">Global Currency</label>
         <div class="relative">
-          <%= f.hidden_field :currency, id: "currency_hidden_field", value: @profile.currency.presence || "$" %>
+          <%= f.hidden_field :currency, id: "currency_hidden_field", value: @profile.currency.presence || "USD" %>
+          
           <button type="button" id="currencySelectBtn" class="w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black text-left flex justify-between items-center shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)] focus:outline-none z-10">
-            <span id="selectedCurrencyDisplay" class="flex items-center gap-2 italic">Loading...</span>
+            <%# PERFECT FIX: We find the currency info in Ruby so it renders INSTANTLY with no flicker %>
+            <% current_currency = currencies_data.find { |c| c[:c] == (@profile.currency.presence || "USD") } || currencies_data.first %>
+            <span id="selectedCurrencyDisplay" class="flex items-center gap-2">
+              <span class="fi fi-<%= current_currency[:i] %> rounded-sm shadow-sm"></span> 
+              <span class="ml-1"><%= current_currency[:c] %> (<%= current_currency[:s] %>)</span>
+            </span>
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M19 9l-7 7-7-7" stroke-width="3" stroke="black"/></svg>
           </button>
           
@@ -56,8 +64,10 @@
 
       <div class="grid grid-cols-2 gap-4">
         <div class="space-y-2">
+          <%# PERFECT FIX: Calculate the initial label in Ruby to show the symbol ₾ immediately %>
           <label id="rateLabel" class="text-[10px] font-black text-black uppercase tracking-widest ml-1">
-            <%= @profile.billing_mode == "fixed" ? "Default Price (#{@profile.currency.presence || '$'})" : "Rate (#{@profile.currency.presence || '$'}/hr)" %>
+            <% current_symbol = current_currency[:s] %>
+            <%= @profile.billing_mode == "fixed" ? "Default Price (#{current_symbol})" : "Rate (#{current_symbol}/hr)" %>
           </label>
           <%= f.number_field :hourly_rate, step: 0.01, class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 outline-none shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)]" %>
         </div>
@@ -100,68 +110,10 @@
 </div>
 
 <script>
-  // COMPLETE GLOBAL DATA SET
-  const currencies = [
-    { n: "US Dollar", c: "USD", s: "$", i: "us" },
-    { n: "Euro", c: "EUR", s: "€", i: "eu" },
-    { n: "British Pound", c: "GBP", s: "£", i: "gb" },
-    { n: "Georgian Lari", c: "GEL", s: "₾", i: "ge" },
-    { n: "Japanese Yen", c: "JPY", s: "¥", i: "jp" },
-    { n: "Australian Dollar", c: "AUD", s: "A$", i: "au" },
-    { n: "Canadian Dollar", c: "CAD", s: "C$", i: "ca" },
-    { n: "Swiss Franc", c: "CHF", s: "Fr", i: "ch" },
-    { n: "Chinese Yuan", c: "CNY", s: "¥", i: "cn" },
-    { n: "Indian Rupee", c: "INR", s: "₹", i: "in" },
-    { n: "Turkish Lira", c: "TRY", s: "₺", i: "tr" },
-    { n: "UAE Dirham", c: "AED", s: "د.إ", i: "ae" },
-    { n: "Israeli Shekel", c: "ILS", s: "₪", i: "il" },
-    { n: "Swedish Krona", c: "SEK", s: "kr", i: "se" },
-    { n: "Brazilian Real", c: "BRL", s: "R$", i: "br" },
-    { n: "Mexican Peso", c: "MXN", s: "$", i: "mx" },
-    { n: "Afghan Afghani", c: "AFN", s: "Af", i: "af" },
-    { n: "Albanian Lek", c: "ALL", s: "L", i: "al" },
-    { n: "Armenian Dram", c: "AMD", s: "֏", i: "am" },
-    { n: "Angolan Kwanza", c: "AOA", s: "Kz", i: "ao" },
-    { n: "Argentine Peso", c: "ARS", s: "$", i: "ar" },
-    { n: "Azerbaijani Manat", c: "AZN", s: "₼", i: "az" },
-    { n: "Bangladeshi Taka", c: "BDT", s: "৳", i: "bd" },
-    { n: "Bulgarian Lev", c: "BGN", s: "лв", i: "bg" },
-    { n: "Bahraini Dinar", c: "BHD", s: ".د.ب", i: "bh" },
-    { n: "Chilean Peso", c: "CLP", s: "$", i: "cl" },
-    { n: "Colombian Peso", c: "COP", s: "$", i: "co" },
-    { n: "Czech Koruna", c: "CZK", s: "Kč", i: "cz" },
-    { n: "Danish Krone", c: "DKK", s: "kr", i: "dk" },
-    { n: "Egyptian Pound", c: "EGP", s: "E£", i: "eg" },
-    { n: "Hong Kong Dollar", c: "HKD", s: "HK$", i: "hk" },
-    { n: "Hungarian Forint", c: "HUF", s: "Ft", i: "hu" },
-    { n: "Icelandic Króna", c: "ISK", s: "kr", i: "is" },
-    { n: "Indonesian Rupiah", c: "IDR", s: "Rp", i: "id" },
-    { n: "Jordanian Dinar", c: "JOD", s: "JD", i: "jo" },
-    { n: "Kenyan Shilling", c: "KES", s: "KSh", i: "ke" },
-    { n: "Kuwaiti Dinar", c: "KWD", s: "KD", i: "kw" },
-    { n: "Kazakhstani Tenge", c: "KZT", s: "₸", i: "kz" },
-    { n: "Lebanese Pound", c: "LBP", s: "L£", i: "lb" },
-    { n: "Moroccan Dirham", c: "MAD", s: "DH", i: "ma" },
-    { n: "Malaysian Ringgit", c: "MYR", s: "RM", i: "my" },
-    { n: "Nigerian Naira", c: "NGN", s: "₦", i: "ng" },
-    { n: "Norwegian Krone", c: "NOK", s: "kr", i: "no" },
-    { n: "New Zealand Dollar", c: "NZD", s: "NZ$", i: "nz" },
-    { n: "Omani Rial", c: "OMR", s: "RO", i: "om" },
-    { n: "Philippine Peso", c: "PHP", s: "₱", i: "ph" },
-    { n: "Pakistan Rupee", c: "PKR", s: "Rs", i: "pk" },
-    { n: "Polish Zloty", c: "PLN", s: "zł", i: "pl" },
-    { n: "Qatari Rial", c: "QAR", s: "QR", i: "qa" },
-    { n: "Romanian Leu", c: "RON", s: "lei", i: "ro" },
-    { n: "Saudi Riyal", c: "SAR", s: "SR", i: "sa" },
-    { n: "Singapore Dollar", c: "SGD", s: "S$", i: "sg" },
-    { n: "Thai Baht", c: "THB", s: "฿", i: "th" },
-    { n: "Taiwan Dollar", c: "TWD", s: "NT$", i: "tw" },
-    { n: "Ukrainian Hryvnia", c: "UAH", s: "₴", i: "ua" },
-    { n: "Vietnamese Dong", c: "VND", s: "₫", i: "vn" },
-    { n: "South African Rand", c: "ZAR", s: "R", i: "za" }
-  ];
+  // Single Source of Truth from Rails Helper
+  const currencies = <%= currencies_data.to_json.html_safe %>;
 
-document.addEventListener("DOMContentLoaded", () => {
+  document.addEventListener("DOMContentLoaded", () => {
     const hiddenField = document.getElementById('currency_hidden_field');
     const selectBtn = document.getElementById('currencySelectBtn');
     const display = document.getElementById('selectedCurrencyDisplay');
@@ -169,16 +121,26 @@ document.addEventListener("DOMContentLoaded", () => {
     const search = document.getElementById('currencySearch');
     const list = document.getElementById('currencyList');
     const rateLabel = document.getElementById('rateLabel');
+    const hourlyRadio = document.getElementById('profile_billing_mode_hourly');
     const fixedRadio = document.getElementById('profile_billing_mode_fixed');
 
-    // FIX: Look up by CODE instead of SYMBOL to avoid Yen/Yuan confusion
-    const current = currencies.find(c => c.c === hiddenField.value) || currencies[0];
-    updateDisplay(current);
+    // Initial load setup
+    let selectedCurrency = currencies.find(c => c.c === hiddenField.value) || currencies[0];
 
     function updateDisplay(currency) {
+      selectedCurrency = currency;
       display.innerHTML = `<span class="fi fi-${currency.i} rounded-sm shadow-sm"></span> <span class="ml-1">${currency.c} (${currency.s})</span>`;
-      if (fixedRadio.checked) rateLabel.innerText = `Default Price (${currency.s})`;
-      else rateLabel.innerText = `Rate (${currency.s}/hr)`;
+      updateRateLabel();
+    }
+
+    function updateRateLabel() {
+      // USES THE SYMBOL (₾) NOT THE CODE (GEL)
+      const symbol = selectedCurrency.s;
+      if (fixedRadio.checked) {
+        rateLabel.innerText = `Default Price (${symbol})`;
+      } else {
+        rateLabel.innerText = `Rate (${symbol}/hr)`;
+      }
     }
 
     function renderList(filter = "") {
@@ -200,7 +162,7 @@ document.addEventListener("DOMContentLoaded", () => {
         `;
         div.onclick = (e) => {
           e.stopPropagation();
-          hiddenField.value = c.c; // FIX: Saving the CODE (CNY) not the SYMBOL (¥)
+          hiddenField.value = c.c;
           updateDisplay(c);
           menu.classList.add('hidden');
         };
@@ -211,23 +173,22 @@ document.addEventListener("DOMContentLoaded", () => {
     selectBtn.onclick = (e) => {
       e.stopPropagation();
       menu.classList.toggle('hidden');
-      if (!menu.classList.contains('hidden')) search.focus();
+      if (!menu.classList.contains('hidden')) {
+        search.value = "";
+        renderList("");
+        search.focus();
+      }
     };
     
-    // Prevent search click from closing the menu
     search.onclick = (e) => e.stopPropagation();
     search.oninput = (e) => renderList(e.target.value);
     
-    document.getElementById('profile_billing_mode_hourly').addEventListener('change', () => {
-      rateLabel.innerText = `Rate (${hiddenField.value}/hr)`;
-    });
-    fixedRadio.addEventListener('change', () => {
-      rateLabel.innerText = `Default Price (${hiddenField.value})`;
-    });
+    // Toggle label when radio buttons change
+    hourlyRadio.addEventListener('change', updateRateLabel);
+    fixedRadio.addEventListener('change', updateRateLabel);
 
     renderList();
 
-    // Close menu when clicking anywhere else
     document.addEventListener('click', () => {
       menu.classList.add('hidden');
     });

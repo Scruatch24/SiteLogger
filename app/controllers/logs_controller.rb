@@ -29,19 +29,19 @@ class LogsController < ApplicationController
       log = Log.find(params[:id])
       profile = Profile.first || Profile.new(business_name: "My Business", hourly_rate: 0)
       
-      # 1. UTF-8 FONT REGISTRATION (Fixes IncompatibleStringEncoding)
-      # Ensure you have these files in app/assets/fonts/
       pdf = Prawn::Document.new(page_size: "A4", margin: 40)
-      
       font_path = Rails.root.join("app/assets/fonts")
       
-      # Check if fonts exist to avoid server crash if you haven't downloaded them yet
-      if File.exist?(font_path.join("Roboto-Regular.ttf"))
-        pdf.font_families.update("Roboto" => {
-          normal: font_path.join("Roboto-Regular.ttf"),
-          bold: font_path.join("Roboto-Bold.ttf")
+      # Register Noto Sans which supports the Lari (₾) symbol
+      if File.exist?(font_path.join("NotoSans-Regular.ttf"))
+        pdf.font_families.update("NotoSans" => {
+          normal: font_path.join("NotoSans-Regular.ttf"),
+          bold: font_path.join("NotoSans-Bold.ttf")
         })
-        pdf.font "Roboto"
+        pdf.font "NotoSans"
+      else
+        # Fallback if font file is missing
+        pdf.font "Helvetica" 
       end
   
       # 2. CURRENCY MAPPING

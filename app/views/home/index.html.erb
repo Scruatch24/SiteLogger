@@ -18,6 +18,10 @@
   input[type=number] {
     -moz-appearance: textfield;
   }
+  /* Animation for the pop-up price field */
+  .price-badge-container.hidden {
+    display: none;
+  }
 </style>
 
 <div class="min-h-screen bg-white text-black font-sans p-4 pb-32">
@@ -100,27 +104,16 @@
             <label class="block text-[9px] font-bold text-gray-500 uppercase">Client Name</label>
             <input type="text" id="editClient" class="w-full bg-orange-50/50 border border-orange-100 rounded-lg py-3 px-3 font-bold text-black focus:ring-1 focus:ring-orange-500 outline-none">
           </div>
-<div class="space-y-1">
-  <label id="timeLabel" class="block text-[9px] font-bold text-gray-500 uppercase">
-<% 
-  symbols = {
-    "USD"=>"$", "EUR"=>"€", "GBP"=>"£", "GEL"=>"₾", "JPY"=>"¥", "AUD"=>"A$", "CAD"=>"C$",
-    "CHF"=>"Fr", "CNY"=>"¥", "INR"=>"₹", "TRY"=>"₺", "AED"=>"د.إ", "ILS"=>"₪", "SEK"=>"kr",
-    "BRL"=>"R$", "MXN"=>"$", "AFN"=>"Af", "ALL"=>"L", "AMD"=>"֏", "AOA"=>"Kz", "ARS"=>"$",
-    "AZN"=>"₼", "BDT"=>"৳", "BGN"=>"лв", "BHD"=>".د.ب", "CLP"=>"$", "COP"=>"$", "CZK"=>"Kč",
-    "DKK"=>"kr", "EGP"=>"E£", "HKD"=>"HK$", "HUF"=>"Ft", "ISK"=>"kr", "IDR"=>"Rp", "JOD"=>"JD",
-    "KES"=>"KSh", "KWD"=>"KD", "KZT"=>"₸", "LBP"=>"L£", "MAD"=>"DH", "MYR"=>"RM", "NGN"=>"₦",
-    "NOK"=>"kr", "NZD"=>"NZ$", "OMR"=>"RO", "PHP"=>"₱", "PKR"=>"Rs", "PLN"=>"zł", "QAR"=>"QR",
-    "RON"=>"lei", "SAR"=>"SR", "SGD"=>"S$", "THB"=>"฿", "TWD"=>"NT$", "UAH"=>"₴", "VND"=>"₫", "ZAR"=>"R"
-  }
-  currency = symbols[@profile.currency] || @profile.currency || "$" 
-%>
-    <%= @profile.billing_mode == "fixed" ? "Job Price (#{currency})" : "Total Hours" %>
-  </label>
-  <input type="number" step="any" id="editTime" 
-         onkeypress="return (event.charCode >= 48 && event.charCode <= 57) || event.charCode == 46"
-         class="w-full bg-orange-50/50 border border-orange-100 rounded-lg py-3 px-3 font-bold text-black focus:ring-1 focus:ring-orange-500 outline-none">
-</div>
+          <div class="space-y-1">
+            <label id="timeLabel" class="block text-[9px] font-bold text-gray-500 uppercase">
+              <% current_currency = currencies_data.find { |c| c[:c] == (@profile.currency.presence || "USD") } %>
+              <% currency_sym = current_currency[:s] %>
+              <%= @profile.billing_mode == "fixed" ? "Job Price (#{currency_sym})" : "Total Hours" %>
+            </label>
+            <input type="number" step="any" id="editTime" 
+                   onkeypress="return (event.charCode >= 48 && event.charCode <= 57) || event.charCode == 46"
+                   class="w-full bg-orange-50/50 border border-orange-100 rounded-lg py-3 px-3 font-bold text-black focus:ring-1 focus:ring-orange-500 outline-none">
+          </div>
         </div>
 
         <div id="dynamicSections" class="space-y-6"></div>
@@ -160,30 +153,32 @@ document.addEventListener("DOMContentLoaded", () => {
   let isRecording = false;
   let recordingStartTime = 0;
 
-  // 1. RECORDING LOGIC
   recordBtn.onclick = async () => {
     if (!isRecording) {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorder = new MediaRecorder(stream);
-      audioChunks = [];
-      mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
-      mediaRecorder.onstop = processAudio;
-      
-      mediaRecorder.start();
-      recordingStartTime = Date.now();
-      
-      isRecording = true;
-      buttonText.innerText = "STOP";
-      buttonText.classList.add("text-red-600");
-      micIcon.classList.replace("text-orange-600", "text-red-600");
-      recordBtn.classList.replace("border-orange-500", "border-red-500");
-      document.getElementById("recordingWave").classList.remove("hidden");
-      document.getElementById("status").innerText = "RECORDING...";
-      document.getElementById("status").classList.replace("text-orange-600", "text-red-600");
-      document.getElementById("status").classList.replace("bg-orange-50", "bg-red-50");
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+        mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
+        mediaRecorder.onstop = processAudio;
+        
+        mediaRecorder.start();
+        recordingStartTime = Date.now();
+        
+        isRecording = true;
+        buttonText.innerText = "STOP";
+        buttonText.classList.add("text-red-600");
+        micIcon.classList.replace("text-orange-600", "text-red-600");
+        recordBtn.classList.replace("border-orange-500", "border-red-500");
+        document.getElementById("recordingWave").classList.remove("hidden");
+        document.getElementById("status").innerText = "RECORDING...";
+        document.getElementById("status").classList.replace("text-orange-600", "text-red-600");
+        document.getElementById("status").classList.replace("bg-orange-50", "bg-red-50");
+      } catch (e) {
+        showError("Microphone access required.");
+      }
     } else {
       const duration = Date.now() - recordingStartTime;
-      
       if (duration < 1000) {
         mediaRecorder.onstop = null;
         mediaRecorder.stop();
@@ -192,7 +187,6 @@ document.addEventListener("DOMContentLoaded", () => {
         showError("Hold longer to record");
         return; 
       }
-
       mediaRecorder.stop();
       isRecording = false;
       document.getElementById("status").innerText = "PROCESSING...";
@@ -227,25 +221,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const data = await res.json();
       resetRecorderUI();
-      
-      if (!res.ok || data.error) {
-        showError(data.error || "Speech not recognized.");
-      } else {
-        updateUI(data);
-      }
+      if (!res.ok || data.error) showError(data.error || "Speech not recognized.");
+      else updateUI(data);
     } catch (e) {
       resetRecorderUI();
       showError("Network error.");
     }
   }
 
-  // 2. MANUAL TEXT ANALYZE LOGIC
   reParseBtn.onclick = async () => {
     const text = transcriptArea.value;
     if (!text) return;
-
     document.getElementById("syncStatus").classList.remove("hidden");
-    
     const res = await fetch("/process_audio", {
       method: "POST",
       headers: { 
@@ -254,18 +241,12 @@ document.addEventListener("DOMContentLoaded", () => {
       },
       body: JSON.stringify({ manual_text: text })
     });
-
     const data = await res.json();
     document.getElementById("syncStatus").classList.add("hidden");
-
-    if (data.error) {
-      showError(data.error);
-    } else {
-      updateUI(data);
-    }
+    if (data.error) showError(data.error);
+    else updateUI(data);
   };
 
-  // 3. SAVE LOGIC
   document.getElementById("saveButton").onclick = async function() {
     const saveBtn = this;
     const client = document.getElementById("editClient").value;
@@ -330,52 +311,85 @@ function addFullSection(title = "New Category", items = [""]) {
   `;
   container.appendChild(sectionDiv);
   items.forEach(item => {
-    const val = (typeof item === 'object' && item.desc) ? 
-      (item.desc + (item.qty && item.qty !== '1' && item.qty !== 'N/A' ? ` (x${item.qty})` : '')) : item;
-    addItem(sectionId, val);
+    let val = "";
+    let price = "";
+    
+    if (typeof item === 'object') {
+      val = item.desc || "";
+      if (item.qty && item.qty !== '1' && item.qty !== 'N/A') {
+        val += ` (x${item.qty})`;
+      }
+      price = item.price || "";
+    } else {
+      val = item;
+    }
+    
+    addItem(sectionId, val, price);
   });
 }
 
-function addItem(containerId, value = "") {
+function togglePrice(btn) {
+  // Now searching within the row for the associated badge
+  const row = btn.closest('.item-row');
+  const badge = row.querySelector('.price-badge-container');
+  const input = badge.querySelector('input');
   
-  // DYNAMIC CURRENCY FOR JS
-  const currencyData = [
-    { c: "USD", s: "$" }, { c: "EUR", s: "€" }, { c: "GBP", s: "£" }, { c: "GEL", s: "₾" },
-    { c: "JPY", s: "¥" }, { c: "AUD", s: "A$" }, { c: "CAD", s: "C$" }, { c: "CHF", s: "Fr" },
-    { c: "CNY", s: "¥" }, { c: "INR", s: "₹" }, { c: "TRY", s: "₺" }, { c: "AED", s: "د.إ" },
-    { c: "ILS", s: "₪" }, { c: "SEK", s: "kr" }, { c: "BRL", s: "R$" }, { c: "MXN", s: "$" },
-    { c: "AFN", s: "Af" }, { c: "ALL", s: "L" }, { c: "AMD", s: "֏" }, { c: "AOA", s: "Kz" },
-    { c: "ARS", s: "$" }, { c: "AZN", s: "₼" }, { c: "BDT", s: "৳" }, { c: "BGN", s: "лв" },
-    { c: "BHD", s: ".د.ب" }, { c: "CLP", s: "$" }, { c: "COP", s: "$" }, { c: "CZK", s: "Kč" },
-    { c: "DKK", s: "kr" }, { c: "EGP", s: "E£" }, { c: "HKD", s: "HK$" }, { c: "HUF", s: "Ft" },
-    { c: "ISK", s: "kr" }, { c: "IDR", s: "Rp" }, { c: "JOD", s: "JD" }, { c: "KES", s: "KSh" },
-    { c: "KWD", s: "KD" }, { c: "KZT", s: "₸" }, { c: "LBP", s: "L£" }, { n: "MAD", s: "DH" },
-    { c: "MYR", s: "RM" }, { c: "NGN", s: "₦" }, { c: "NOK", s: "kr" }, { c: "NZD", s: "NZ$" },
-    { c: "OMR", s: "RO" }, { c: "PHP", s: "₱" }, { c: "PKR", s: "Rs" }, { c: "PLN", s: "zł" },
-    { c: "QAR", s: "QR" }, { c: "RON", s: "lei" }, { c: "SAR", s: "SR" }, { c: "SGD", s: "S$" },
-    { c: "THB", s: "฿" }, { c: "TWD", s: "NT$" }, { c: "UAH", s: "₴" }, { c: "VND", s: "₫" },
-    { c: "ZAR", s: "R" }
-  ];
+  const isHidden = badge.classList.contains('hidden');
+  
+  if (isHidden) {
+    // Light up button and show price field
+    badge.classList.remove('hidden');
+    btn.classList.remove('bg-white', 'text-gray-400');
+    btn.classList.add('bg-orange-600', 'text-white');
+    input.focus();
+  } else {
+    // Dim button and hide price field
+    badge.classList.add('hidden');
+    input.value = ""; 
+    btn.classList.add('bg-white', 'text-gray-400');
+    btn.classList.remove('bg-orange-600', 'text-white');
+  }
+}
 
-  const savedCode = "<%= @profile.currency.presence || 'USD' %>";
-  const match = currencyData.find(item => item.c === savedCode);
-  const currencySymbol = match ? match.s : savedCode;
+function addItem(containerId, value = "", price = "") {
+  const currencySymbol = "<%= currencies_data.find { |c| c[:c] == (@profile.currency.presence || 'USD') }[:s] %>";
+  
   const div = document.createElement('div');
-  div.className = "flex gap-2 animate-in fade-in slide-in-from-left-2 duration-300 item-row items-center";
+  // gap-2 provides breathing room between the main input and the accessories
+  div.className = "flex items-center gap-2 mb-3 w-full animate-in fade-in slide-in-from-left-2 duration-300 item-row";
+  
+  const hasPrice = price && price !== "" && price !== "0" && price !== "0.00";
+  const badgeClass = hasPrice ? "" : "hidden";
+  const btnClass = hasPrice ? "bg-orange-600 text-white" : "bg-white text-gray-400";
+
   div.innerHTML = `
-    <div class="w-1.5 h-1.5 bg-black rounded-full"></div>
-    <input type="text" value="${value}" 
-           class="flex-1 bg-white border-b border-gray-200 text-sm font-medium text-black focus:border-orange-500 focus:ring-0 py-2 px-1 item-input placeholder:text-gray-300"
-           placeholder="Description...">
+    <div class="flex flex-1 items-center border-2 border-black rounded-xl overflow-hidden bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] min-w-0">
+      
+      <button type="button" 
+              onclick="togglePrice(this)"
+              class="w-10 h-10 flex items-center justify-center border-r-2 border-black transition-all font-black text-sm flex-shrink-0 ${btnClass}">
+        ${currencySymbol}
+      </button>
+
+      <input type="text" value="${value}" 
+             class="flex-1 bg-transparent border-none text-sm font-bold text-black focus:ring-0 py-2 px-3 item-input placeholder:text-gray-300 min-w-0"
+             placeholder="Work description...">
+    </div>
     
-    <div class="relative w-20">
-       <span class="absolute left-1 top-1/2 -translate-y-1/2 text-gray-400 text-[10px] font-bold">${currencySymbol}</span>
-       <input type="number" step="0.01" 
-              class="w-full bg-white border-b border-gray-200 text-sm font-bold text-orange-600 focus:border-orange-500 focus:ring-0 py-2 pl-4 pr-0 price-input placeholder:text-gray-300"
+    <div class="price-badge-container ${badgeClass} flex items-center border-2 border-black rounded-xl overflow-hidden h-10 bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] flex-shrink-0">
+       <div class="bg-orange-50 px-2 h-full flex items-center justify-center border-r-2 border-black min-w-[30px]">
+         <span class="text-[10px] font-black text-orange-600">${currencySymbol}</span>
+       </div>
+       <input type="number" step="0.01" value="${price}"
+              class="w-16 h-full bg-white text-xs font-black text-black focus:ring-0 border-none py-0 px-2 price-input placeholder:text-gray-300 text-right"
               placeholder="0.00">
     </div>
 
-    <button type="button" onclick="this.parentElement.remove()" class="text-gray-300 hover:text-red-500 transition px-1">×</button>
+    <button type="button" 
+            onclick="this.parentElement.remove()" 
+            class="w-6 h-10 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors font-bold text-xl flex-shrink-0">
+      ×
+    </button>
   `;
   document.getElementById(containerId).appendChild(div);
 }
@@ -388,7 +402,6 @@ function updateUI(data) {
   }
   document.getElementById("editClient").value = data.client || "";
   
-  // BILLING MODE LOGIC
   const billingMode = "<%= @profile.billing_mode %>";
   const defaultRate = "<%= @profile.hourly_rate %>";
   if (billingMode === "fixed") {
