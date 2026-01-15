@@ -136,9 +136,15 @@ class LogsController < ApplicationController
   
       pdf.move_down 40
       pdf.fill_color "000000"
-      pdf.text "RECIPIENT", size: 8, style: :bold, character_spacing: 1
+      
+      # Added leading: 1 to ensure the bold text sits cleanly
+      pdf.text "RECIPIENT", size: 8, style: :bold, character_spacing: 1, leading: 1
+      
       pdf.move_down 5
-      pdf.text log.client.presence || "Valued Client", size: 14, style: :bold
+      
+      # Added leading: 4 to give space for descenders (g, j, y, p, q) in the larger font
+      pdf.text log.client.presence || "Valued Client", size: 14, style: :bold, leading: 4
+      
       pdf.move_down 30
   
       table_data = [["DESCRIPTION", table_qty_header, "UNIT PRICE", "TOTAL"]]
@@ -188,26 +194,32 @@ class LogsController < ApplicationController
       end
   
       if report_sections.any?
-        pdf.move_down 40; pdf.dash(2); pdf.stroke_color "CCCCCC"; pdf.stroke_horizontal_rule; pdf.undash
-        pdf.start_new_page if pdf.cursor < 250
-        pdf.move_down 20
+        pdf.move_down 40
+        pdf.stroke_horizontal_rule
+        
+        # FIX: Lower threshold from 250 to 100. 
+        # If we have less than ~1.4 inches left, THEN start a new page.
+        if pdf.cursor < 100
+          pdf.start_new_page 
+        else
+          pdf.move_down 20
+        end
+  
+        # Keep the Header and the Column Box start together
         pdf.fill_color orange_color
         pdf.text "FIELD INTELLIGENCE REPORT", size: 12, style: :bold, character_spacing: 0.5
         pdf.move_down 10
-      
-        # Two-column layout that flows properly
-        pdf.column_box(
-          [0, pdf.cursor],
-          columns: 2,
-          width: pdf.bounds.width,
-          height: pdf.cursor - pdf.bounds.bottom, # remaining page height
-          spacer: 20
-        ) do
+        
+        # Calculate available height for the columns on THIS page
+        # We subtract the bottom margin to ensure we don't write off the page
+        available_height = pdf.cursor - pdf.bounds.bottom
+  
+        pdf.column_box([0, pdf.cursor], columns: 2, width: pdf.bounds.width, height: available_height, spacer: 20) do
           report_sections.each do |section|
             pdf.fill_color "000000"
             pdf.text section["title"].upcase, size: 8, style: :bold
             pdf.move_down 2
-      
+    
             section["items"].each do |item|
               desc = item.is_a?(Hash) ? item["desc"] : item
               qty  = item.is_a?(Hash) ? item["qty"].to_f : 0
@@ -215,7 +227,7 @@ class LogsController < ApplicationController
               pdf.fill_color "444444"
               pdf.text text, size: 9, leading: 2
             end
-      
+    
             pdf.move_down 4
           end
         end
@@ -231,6 +243,6 @@ class LogsController < ApplicationController
   
     def log_params
       params.require(:log).permit(:client, :time, :date, :tasks, :billing_mode)
-    end
+    end 
   end
   
