@@ -40,7 +40,6 @@ class LogsController < ApplicationController
         })
         pdf.font "NotoSans"
       else
-        # Fallback if font file is missing
         pdf.font "Helvetica" 
       end
   
@@ -57,7 +56,7 @@ class LogsController < ApplicationController
       }
       
       currency = symbols[profile.currency] || profile.currency || "$"
-      
+  
       # 3. PARSE DATA
       raw_sections = JSON.parse(log.tasks || '[]') rescue []
       billable_items = []
@@ -80,6 +79,10 @@ class LogsController < ApplicationController
         end
         report_sections << { "title" => section["title"], "items" => report_items } if report_items.any?
       end
+  
+      # Sort categories by number of items (descending)
+      report_sections = report_sections.select { |s| s["items"].any? }
+      report_sections.sort_by! { |s| -s["items"].size }
   
       # 4. BILLING CALCULATIONS
       log_billing_mode = log.billing_mode || "hourly"
@@ -121,7 +124,7 @@ class LogsController < ApplicationController
       pdf.fill_color "666666"
       pdf.text "#{profile.phone}  •  #{profile.email}", size: 9
       pdf.text profile.address, size: 9
-      
+  
       pdf.bounding_box([pdf.bounds.width - 200, pdf.bounds.height], width: 200) do
         pdf.fill_color orange_color
         pdf.text "INVOICE", size: 36, style: :bold, align: :right
@@ -180,28 +183,45 @@ class LogsController < ApplicationController
       end
   
       if profile.payment_instructions.present?
-        pdf.move_down 40; pdf.fill_color orange_color; pdf.text "PAYMENT INSTRUCTIONS", size: 8, style: :bold, character_spacing: 1
+        pdf.move_down 40; pdf.fill_color orange_color; pdf.text "PAYMENT INSTRUCTIONS", size: 14, style: :bold, character_spacing: 1
         pdf.move_down 5; pdf.fill_color "000000"; pdf.text profile.payment_instructions, size: 10, leading: 3
       end
   
       if report_sections.any?
-        pdf.start_new_page if pdf.cursor < 200
         pdf.move_down 40; pdf.dash(2); pdf.stroke_color "CCCCCC"; pdf.stroke_horizontal_rule; pdf.undash
-        pdf.move_down 30; pdf.fill_color orange_color; pdf.text "FIELD INTELLIGENCE REPORT", size: 12, style: :bold, character_spacing: 1
+        pdf.start_new_page if pdf.cursor < 250
         pdf.move_down 20
-        report_sections.each do |section|
-          pdf.fill_color "000000"; pdf.text section["title"].upcase, size: 9, style: :bold
-          pdf.move_down 8
-          section["items"].each do |item|
-            desc = item.is_a?(Hash) ? item["desc"] : item
-            qty = item.is_a?(Hash) ? item["qty"].to_f : 0
-            qty_str = (qty > 0 && qty != 1) ? " (x#{'%g' % qty})" : ""
-            text = "• #{desc}#{qty_str}"
-            pdf.indent(10) { pdf.fill_color "444444"; pdf.text text, size: 10, leading: 4 }
+        pdf.fill_color orange_color
+        pdf.text "FIELD INTELLIGENCE REPORT", size: 12, style: :bold, character_spacing: 0.5
+        pdf.move_down 10
+      
+        # Two-column layout that flows properly
+        pdf.column_box(
+          [0, pdf.cursor],
+          columns: 2,
+          width: pdf.bounds.width,
+          height: pdf.cursor - pdf.bounds.bottom, # remaining page height
+          spacer: 20
+        ) do
+          report_sections.each do |section|
+            pdf.fill_color "000000"
+            pdf.text section["title"].upcase, size: 8, style: :bold
+            pdf.move_down 2
+      
+            section["items"].each do |item|
+              desc = item.is_a?(Hash) ? item["desc"] : item
+              qty  = item.is_a?(Hash) ? item["qty"].to_f : 0
+              text = qty > 0 && qty != 1 ? "– #{desc} (x#{'%g' % qty})" : "– #{desc}"
+              pdf.fill_color "444444"
+              pdf.text text, size: 9, leading: 2
+            end
+      
+            pdf.move_down 4
           end
-          pdf.move_down 15
         end
       end
+      
+    
   
       pdf.number_pages "Page <page> of <total>", at: [pdf.bounds.right - 150, -10], width: 150, align: :right, size: 8, color: "999999"
       send_data pdf.render, filename: "#{invoice_number}_#{log.client}.pdf", type: "application/pdf", disposition: "inline"
@@ -213,3 +233,4 @@ class LogsController < ApplicationController
       params.require(:log).permit(:client, :time, :date, :tasks, :billing_mode)
     end
   end
+  

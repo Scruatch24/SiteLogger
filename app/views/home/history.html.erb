@@ -59,24 +59,15 @@
                   <%= log.billing_mode == "fixed" ? "Total Price" : "Duration" %>
                 </label>
                 <span class="text-lg font-black text-orange-600">
-                   <% 
-  symbols = {
-    "USD"=>"$", "EUR"=>"€", "GBP"=>"£", "GEL"=>"₾", "JPY"=>"¥", "AUD"=>"A$", "CAD"=>"C$",
-    "CHF"=>"Fr", "CNY"=>"¥", "INR"=>"₹", "TRY"=>"₺", "AED"=>"د.إ", "ILS"=>"₪", "SEK"=>"kr",
-    "BRL"=>"R$", "MXN"=>"$", "AFN"=>"Af", "ALL"=>"L", "AMD"=>"֏", "AOA"=>"Kz", "ARS"=>"$",
-    "AZN"=>"₼", "BDT"=>"৳", "BGN"=>"лв", "BHD"=>".د.ب", "CLP"=>"$", "COP"=>"$", "CZK"=>"Kč",
-    "DKK"=>"kr", "EGP"=>"E£", "HKD"=>"HK$", "HUF"=>"Ft", "ISK"=>"kr", "IDR"=>"Rp", "JOD"=>"JD",
-    "KES"=>"KSh", "KWD"=>"KD", "KZT"=>"₸", "LBP"=>"L£", "MAD"=>"DH", "MYR"=>"RM", "NGN"=>"₦",
-    "NOK"=>"kr", "NZD"=>"NZ$", "OMR"=>"RO", "PHP"=>"₱", "PKR"=>"Rs", "PLN"=>"zł", "QAR"=>"QR",
-    "RON"=>"lei", "SAR"=>"SR", "SGD"=>"S$", "THB"=>"฿", "TWD"=>"NT$", "UAH"=>"₴", "VND"=>"₫", "ZAR"=>"R"
-  }
-  currency = symbols[@profile.currency] || @profile.currency || "$" 
-%>
-                   <% if log.billing_mode == "fixed" %>
-                     <%= currency %><%= log.time %>
-                   <% else %>
-                     <%= "%g" % log.time.to_f %> <span class="text-xs text-gray-400">HRS</span>
-                   <% end %>
+                  <%# Fetching symbol from our ApplicationHelper data %>
+                  <% current_currency = currencies_data.find { |c| c[:c] == (@profile.currency.presence || "USD") } %>
+                  <% currency = current_currency[:s] %>
+
+                  <% if log.billing_mode == "fixed" %>
+                    <%= currency %><%= log.time %>
+                  <% else %>
+                    <%= "%g" % log.time.to_f %> <span class="text-xs text-gray-400">HRS</span>
+                  <% end %>
                 </span>
               </div>
             </div>
@@ -92,24 +83,43 @@
                     </label>
                     <ul class="space-y-2 pl-3">
                       <% section["items"].each do |item| %>
-                        <li class="text-sm text-black font-medium flex items-start gap-2">
-                          <div class="w-1.5 h-1.5 bg-black rounded-full mt-1.5 flex-shrink-0"></div>
-                          <span class="leading-relaxed">
-                            <% 
-                               if item.is_a?(Hash)
-                                 display_text = item["desc"]
-                                 if item["qty"].present? && item["qty"] != "1" && item["qty"] != "N/A"
-                                   display_text += " (x#{item['qty']})"
-                                 end
-                                 if item["price"].present? && item["price"].to_f > 0
-                                    display_text += " [#{currency}#{item['price']}]"
-                                 end
-                               else
-                                 display_text = item
-                               end
-                            %>
-                            <%= display_text %>
-                          </span>
+                        <li class="flex items-center justify-between group">
+                          <div class="flex items-start gap-2 flex-1 min-w-0">
+                            <span class="relative pl-4 text-sm text-black font-medium leading-relaxed before:content-[''] before:absolute before:left-0 before:top-[0.6em] before:w-1.5 before:h-1.5 before:bg-black before:rounded-full">
+
+                            <span class="text-sm text-black font-medium leading-relaxed">
+                               <% if item.is_a?(Hash) %>
+                                 <%= item["desc"] %>
+                                 <% if item["qty"].present? && item["qty"] != "1" && item["qty"] != "N/A" %>
+                                   <span class="text-[10px] text-gray-400 font-bold ml-1 italic">(x<%= item["qty"] %>)</span>
+                                 <% end %>
+                               <% else %>
+                                 <%= item %>
+                               <% end %>
+                            </span>
+                          </div>
+
+                          <%# PERFECTED PRICE DISPLAY: A Mini Industrial Tag %>
+                          <% if item.is_a?(Hash) && item["price"].present? && item["price"].to_f > 0 %>
+<div class="ml-4 flex-shrink-0">
+  <div class="inline-flex h-5 items-center border border-black rounded-md bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+    
+    <div class="h-full px-1.5 flex items-center bg-orange-50 border-r border-black">
+      <span class="text-[9px] font-black text-orange-600 uppercase tracking-tight">
+        <%= currency %>
+      </span>
+    </div>
+
+    <div class="h-full px-1.5 flex items-center">
+      <span class="text-[9px] font-black text-black tabular-nums">
+        <%= number_with_precision(item["price"], precision: 2) %>
+      </span>
+    </div>
+
+  </div>
+</div>
+
+                          <% end %>
                         </li>
                       <% end %>
                     </ul>

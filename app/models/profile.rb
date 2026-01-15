@@ -1,2 +1,4 @@
 class Profile < ApplicationRecord
-end
+    # This line allows you to attach a logo image to the profile
+    has_one_attached :logo
+  end
