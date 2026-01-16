@@ -14,7 +14,8 @@
     <%= javascript_importmap_tags %>
   </head>
 
-  <body class="bg-gray-100 min-h-screen">
+  <body class="bg-white min-h-screen">
+    <div class="fixed inset-0 border-4 border-black pointer-events-none z-[9999]"></div>
     <main class="container mx-auto px-4 py-8 max-w-md">
       <%= yield %>
     </main>
