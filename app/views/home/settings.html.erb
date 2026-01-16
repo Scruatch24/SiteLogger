@@ -90,7 +90,7 @@
 
       <%# Billing Model Selection %>
       <div class="space-y-2">
-        <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1">Billing Model</label>
+        <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1">Default Billing Model</label>
         <div class="flex border-2 border-black rounded-xl overflow-hidden shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)]">
           <%= f.label :billing_mode_hourly, class: "flex-1 cursor-pointer" do %>
             <%= f.radio_button :billing_mode, "hourly", class: "peer hidden", checked: @profile.billing_mode != "fixed" %>
@@ -105,6 +105,7 @@
             </div>
           <% end %>
         </div>
+        <p class="text-[9px] font-bold text-gray-400 ml-1">Unless Mentioned Otherwise</p>
       </div>
 
 

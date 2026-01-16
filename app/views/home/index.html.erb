@@ -30,22 +30,26 @@
   .item-menu-dropdown {
     display: none;
     position: absolute;
-    top: calc(100% + 4px);
-    left: 0;
+    top: 100%;
+    left: -2px;
     background: white;
     border: 2px solid black;
-    border-radius: 8px;
+    border-radius: 0 0 12px 12px;
+    overflow: hidden;
     z-index: 50;
-    box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);
-    min-width: 140px;
+    box-shadow: 3px 3px 0px 0px rgba(0,0,0,1);
+    width: calc(100% + 4px);
     padding: 6px;
   }
   .item-menu-dropdown.show {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    animation: fadeIn 0.1s ease-out;
   }
+  .slider-icon path {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
   .menu-item {
     position: relative; /* For dropright positioning */
     display: flex;
@@ -69,9 +73,18 @@
     color: #EA580C;
   }
   .menu-item.active {
-    background-color: #FFF7ED;
+    background-color: #FFEDD5; /* Orange-100 */
     color: #EA580C;
-    border-color: #EA580C;
+    border: 1px solid #EA580C;
+    border-bottom: none;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+  .menu-item-discount.active {
+    background-color: #DCFCE7; /* Green-100 */
+    color: #16A34A;
+    border: 1px solid #16A34A;
+    border-bottom: none;
   }
   .menu-icon {
     display: flex;
@@ -92,6 +105,14 @@
   .menu-item.active .menu-icon {
     background: #EA580C;
     color: white;
+  }
+  .menu-item-discount.active .menu-icon {
+    background: #16A34A;
+    color: white;
+  }
+  .menu-item-discount:hover .menu-icon {
+    color: #16A34A;
+    background: #DCFCE7;
   }
   
   /* Dropright Input */
@@ -147,6 +168,36 @@
     background-color: #EA580C;
     color: white;
     border: 1px solid black;
+  }
+  .badge-discount {
+    background-color: #16A34A; /* Green-600 */
+    color: white;
+    border: 1px solid black;
+  }
+  
+  /* Green Active State for Discount Menu */
+  .menu-item-discount.active {
+    background-color: #DCFCE7; /* Green-100 */
+    color: #16A34A; /* Green-600 */
+    border-color: #16A34A;
+    border-bottom-left-radius: 0; 
+    border-bottom-right-radius: 0;
+    border-bottom: none;
+    z-index: 10; /* Sit above inputs */
+  }
+  .menu-item-discount.active .menu-icon {
+    background-color: #16A34A;
+    color: white;
+  }
+  
+  .discount-inputs-row {
+    border-color: #16A34A; /* Match active green */
+    border-width: 0 1px 1px 1px; /* Sides and bottom only */
+    border-style: solid;
+    border-radius: 0 0 6px 6px;
+    margin-top: -1px; /* Overlap border */
+    background-color: #F0FDF4; /* Very light green bg to match */
+    padding: 6px; /* slightly more padding */
   }
 
   @keyframes fadeIn {
@@ -233,10 +284,14 @@
         <div class="space-y-6">
           <div class="space-y-1">
             <label class="block text-[9px] font-bold text-gray-500 uppercase ml-1">Client Name</label>
-            <input type="text" id="editClient" class="w-full bg-orange-50/50 border border-orange-100 rounded-lg py-3 px-3 font-bold text-black focus:ring-1 focus:ring-orange-500 outline-none">
+            <div class="border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] relative h-[52px] flex items-center">
+              <input type="text" id="editClient" 
+                     class="w-full bg-transparent border-none text-base font-black text-black focus:ring-0 py-3 px-3 outline-none placeholder:text-gray-300"
+                     placeholder="Enter client name...">
+            </div>
           </div>
         <div class="grid grid-cols-2 gap-4" id="laborGrid">
-          <div class="space-y-1 relative" id="laborBox" data-taxable="false">
+          <div class="space-y-1 relative" id="laborBox" data-taxable="false" data-billing-mode="<%= @profile.billing_mode %>">
             <label id="timeLabel" class="block text-[9px] font-bold text-gray-500 uppercase ml-1">
               <% current_currency = currencies_data.find { |c| c[:c] == (@profile.currency.presence || "USD") } %>
               <% currency_sym = current_currency[:s] %>
@@ -244,20 +299,63 @@
             </label>
             
             <div class="flex items-center border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] relative h-[52px]">
-              <div class="h-full w-10 border-r-2 border-black flex-shrink-0 relative item-menu-container">
+              <div class="h-full w-10 border-r-2 border-black flex-shrink-0 item-menu-container">
                 <button type="button" onclick="toggleMenu(this)" class="labor-tax-toggle w-full h-full flex flex-col items-center justify-center gap-[3px] hover:bg-gray-50 item-menu-btn rounded-l-[10px]">
-                  <div class="w-4 h-0.5 bg-black rounded-full transition-colors hamburger-line"></div>
-                  <div class="w-4 h-0.5 bg-black rounded-full transition-colors hamburger-line"></div>
-                  <div class="w-4 h-0.5 bg-black rounded-full transition-colors hamburger-line"></div>
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 transition-colors slider-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                    <path d="M3 4h18M3 12h18M3 20h18" />
+                    <path class="slider-head-1" d="M12 2v4" />
+                    <path class="slider-head-2" d="M12 10v4" />
+                    <path class="slider-head-3" d="M12 18v4" />
+                  </svg>
                 </button>
                 
                 <div class="item-menu-dropdown">
                   <!-- Tax Menu Item -->
-                  <div class="menu-item menu-item-tax" onclick="toggleLaborTaxable(this)">
-                    <span>Taxable</span>
-                    <div class="flex items-center gap-2">
-                       <div class="menu-icon">%</div>
-                    </div>
+                  <div class="tax-wrapper flex flex-col w-full">
+                      <div class="menu-item menu-item-tax" onclick="toggleLaborTaxable(this)">
+                        <span>Taxable</span>
+                        <div class="menu-icon">%</div>
+                      </div>
+                      
+                      <div class="tax-inputs-row hidden gap-1 p-1 bg-orange-50 animate-in slide-in-from-top-1 duration-200 border border-t-0 border-orange-600 rounded-b-md"
+                           style="grid-template-columns: 1fr;">
+                           <div class="relative w-full">
+                             <span class="absolute left-1 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400">%</span>
+                             <input type="number" step="0.1" class="menu-input tax-menu-input text-right w-full border-orange-200 pl-4 pr-1" 
+                                    style="width: 100%"
+                                    value="<%= @profile.tax_rate.presence || 0 %>" placeholder="%" 
+                                    oninput="updateLaborBadge()">
+                           </div>
+                      </div>
+                  </div>
+                  <!-- Discount Menu Item -->
+                  <div class="discount-wrapper flex flex-col w-full">
+                      <div class="menu-item menu-item-discount" onclick="toggleDiscount(this)">
+                        <span>Discount</span>
+                        <div class="menu-icon">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+                          </svg>
+                        </div>
+                      </div>
+                      
+                       <div class="discount-inputs-row hidden grid gap-1 p-1 bg-green-50 animate-in slide-in-from-top-1 duration-200 border border-t-0 border-green-600 rounded-b-md"
+                            style="grid-template-columns: 1fr 1fr;">
+                            <div class="relative flex-1">
+                              <span class="absolute left-1 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400">$</span>
+                              <input type="number" step="0.01" class="menu-input discount-flat-input text-right w-full border-gray-300 pl-4 pr-1" 
+                                    style="width: 100%"
+                                    placeholder="0.00" 
+                                    oninput="updateLaborBadge()">
+                            </div>
+                            <div class="relative flex-1">
+                              <span class="absolute left-1 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400">%</span>
+                              <input type="number" step="0.1" class="menu-input discount-percent-input text-right w-full border-gray-300 pl-4 pr-1" 
+                                    style="width: 100%"
+                                    placeholder="0" 
+                                    oninput="updateLaborBadge()">
+                           </div>
+                      </div>
                   </div>
                 </div>
               </div>
@@ -266,9 +364,12 @@
                      onkeypress="return (event.charCode >= 48 && event.charCode <= 57) || event.charCode == 46"
                      oninput="updateLaborBadge()"
                      class="flex-1 bg-transparent border-none py-3 px-2 font-black text-black focus:ring-0 outline-none text-right min-w-0 text-sm">
-              <span class="text-[10px] font-black text-gray-400 mr-3 shrink-0"><%= currency_sym %></span>
+              <span id="laborUnitIndicator" class="text-[10px] font-black text-gray-400 mr-3 shrink-0"><%= currency_sym %></span>
               
               <!-- Labor Badges (Hanging) -->
+              <div class="absolute -bottom-6 left-2 flex items-center gap-2 z-0 pointer-events-none">
+                  <span id="laborDiscountBadge" class="badge badge-discount hidden shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"></span>
+              </div>
               <div class="absolute -bottom-6 right-2 flex items-center gap-2 z-0 pointer-events-none">
                   <span id="laborTaxBadge" class="badge badge-tax hidden shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] border border-black bg-orange-600 text-white"></span>
               </div>
@@ -285,16 +386,9 @@
         </div>
         </div>
 
-        <div id="dynamicSections" class="space-y-6"></div>
+        <div id="dynamicSections" class="space-y-6 pt-6"></div>
 
-        <!-- Global Tax Indicator Button -->
-        <div id="globalTaxIndicator" class="border-2 border-black rounded-xl py-3 px-4 flex items-center justify-between bg-gray-100 transition-colors">
-          <span class="text-[10px] font-black uppercase tracking-widest text-black">Order Taxability</span>
-          <div class="flex items-center gap-2">
-            <span id="taxIndicatorStatus" class="text-[9px] font-bold uppercase text-gray-500">Partial / No Tax</span>
-            <div id="taxIndicatorBulb" class="w-3 h-3 rounded-full bg-gray-400 border border-black shadow-inner"></div>
-          </div>
-        </div>
+
 
         <div class="grid grid-cols-2 gap-3 pt-2">
           <button type="button" onclick="addFullSection()" class="py-3 border-2 border-black rounded-xl text-[10px] font-black text-black uppercase tracking-widest hover:bg-gray-50 transition-colors">
@@ -319,12 +413,24 @@
 </div>
 
 <script>
+  function cleanNum(val) {
+    if (val === null || val === undefined || val === "") return "";
+    let f = parseFloat(val);
+    if (isNaN(f)) return val;
+    return (f % 1 === 0) ? f.toString() : f.toFixed(2).replace(/\.?0+$/, "");
+  }
 
   // Global Tax Variables
   let currentLogTaxScope = "<%= @profile.tax_scope %>";
   const defaultGlobalTaxRate = "<%= @profile.tax_rate.presence || 0 %>";
   const profileBillingMode = "<%= @profile.billing_mode %>";
   const profileHourlyRate = <%= @profile.hourly_rate.to_f %>;
+  
+  // Inject Currency Data (Defined in ApplicationHelper)
+  const CURRENCIES = <%= currencies_data.to_json.html_safe %>;
+  // Initialize with profile default
+  let activeCurrencyCode = "<%= @profile.currency.presence || 'USD' %>";
+  let activeCurrencySymbol = CURRENCIES.find(c => c.c === activeCurrencyCode)?.s || "$";
 
 document.addEventListener("DOMContentLoaded", () => {
   const recordBtn = document.getElementById("recordButton");
@@ -342,9 +448,26 @@ document.addEventListener("DOMContentLoaded", () => {
   // Close menus when clicking outside
   document.addEventListener('click', (e) => {
     if (!e.target.closest('.item-menu-container')) {
-      document.querySelectorAll('.item-menu-dropdown').forEach(d => d.classList.remove('show'));
+      document.querySelectorAll('.item-menu-dropdown.show').forEach(d => {
+        d.classList.remove('show');
+        const btn = d.previousElementSibling;
+        if (btn) {
+          btn.classList.remove('active');
+          randomizeIcon(btn);
+        }
+        
+        const container = d.closest('.border-2.rounded-xl');
+        if (container) {
+          container.style.borderBottomLeftRadius = '';
+          container.style.borderBottomRightRadius = '';
+        }
+      });
     }
   });
+  
+  // Initial randomization for Labor Box
+  const laborIconContainer = document.querySelector('#laborBox .item-menu-btn');
+  if (laborIconContainer) randomizeIcon(laborIconContainer);
 
   recordBtn.onclick = async () => {
     if (!isRecording) {
@@ -456,17 +579,26 @@ document.addEventListener("DOMContentLoaded", () => {
         const taxRate = row.querySelector(".tax-menu-input").value;
         const taxable = row.dataset.taxable === "true";
         
+        // Discounts
+        const discFlat = row.querySelector(".discount-flat-input").value;
+        const discPercent = row.querySelector(".discount-percent-input").value;
+        
         if (desc.trim() !== "") {
           items.push({ 
             desc: desc, 
             price: price, 
             taxable: taxable,
-            tax_rate: (taxable && taxRate) ? taxRate : null 
+            tax_rate: (taxable && taxRate) ? taxRate : null,
+            discount_flat: discFlat,
+            discount_percent: discPercent
           });
         }
       });
       if (items.length > 0) sections.push({ title, items });
     });
+
+    const laborDiscFlat = document.querySelector('#laborBox .discount-flat-input')?.value || "";
+    const laborDiscPercent = document.querySelector('#laborBox .discount-percent-input')?.value || "";
 
     const res = await fetch("/logs", {
       method: "POST",
@@ -481,7 +613,9 @@ document.addEventListener("DOMContentLoaded", () => {
           date: date, 
           tasks: JSON.stringify(sections),
           tax_scope: currentLogTaxScope,
-          labor_taxable: document.getElementById('laborBox').dataset.taxable === "true"
+          labor_taxable: document.getElementById('laborBox').dataset.taxable === "true",
+          labor_discount_flat: laborDiscFlat,
+          labor_discount_percent: laborDiscPercent
         }
       })
     });
@@ -533,6 +667,8 @@ function addFullSection(title = "New Category", items = [""]) {
     let price = "";
     let taxable = null;
     let taxRate = null;
+    let discFlat = "";
+    let discPercent = "";
     
     if (typeof item === 'object') {
       val = item.desc || "";
@@ -546,11 +682,21 @@ function addFullSection(title = "New Category", items = [""]) {
       if (item.tax_rate) {
           taxRate = item.tax_rate;
       }
+      discFlat = item.discount_flat || "";
+      discPercent = item.discount_percent || "";
     } else {
       val = item;
     }
     
-    addItem(sectionId, val, price, taxable, title, taxRate);
+    addItem(sectionId, val, price, taxable, title, taxRate, (item.qty && item.qty !== 'N/A') ? item.qty : 1, discFlat, discPercent);
+  });
+}
+
+function randomizeIcon(container) {
+  const heads = container.querySelectorAll('path[class^="slider-head-"]');
+  heads.forEach(h => {
+      const rand = (Math.random() * 14) - 7;
+      h.style.transform = `translateX(${rand}px)`;
   });
 }
 
@@ -558,11 +704,71 @@ function toggleMenu(btn) {
   const dropdown = btn.nextElementSibling;
   const isShow = dropdown.classList.contains('show');
   
-  // Close all others
-  document.querySelectorAll('.item-menu-dropdown').forEach(d => d.classList.remove('show'));
+  // Close all others and reset their container corners
+  document.querySelectorAll('.item-menu-dropdown.show').forEach(d => {
+      // Don't close the one we just clicked (toggle logic handles it)
+      if (d === dropdown) return;
+
+      d.classList.remove('show');
+      // Remove active class from buttons
+      const otherBtn = d.previousElementSibling;
+      if (otherBtn) {
+          otherBtn.classList.remove('active');
+          randomizeIcon(otherBtn);
+      }
+      
+      // Reset corners of their containers
+      const container = d.closest('.border-2.rounded-xl');
+      if (container) {
+          container.style.borderBottomLeftRadius = '';
+          container.style.borderBottomRightRadius = '';
+      }
+  });
   
   if (!isShow) {
     dropdown.classList.add('show');
+    btn.classList.add('active');
+    
+    // Rerandomize on click for extra dynamic feel
+    randomizeIcon(btn);
+    
+    // "Labor as Master" Width Logic
+    const laborBox = document.getElementById('laborBox');
+    const isLaborBox = btn.closest('#laborBox');
+    const container = btn.closest('.border-2.rounded-xl');
+    
+    if (isLaborBox) {
+        // Labor Box: Full width dropdown, so square off BOTH bottom corners
+        if (container) {
+            container.style.borderBottomLeftRadius = '0';
+            container.style.borderBottomRightRadius = '0';
+        }
+        dropdown.style.width = ''; // Reset to CSS default
+    } else {
+        // Items: Dropdown is partial width (matches Labor), so square off ONLY bottom-left
+        if (container) {
+            container.style.borderBottomLeftRadius = '0';
+            // Leave bottom-right rounded
+        }
+        
+        const laborInputContainer = laborBox.querySelector('.flex.items-center.border-2');
+        if (laborInputContainer) {
+            const masterWidth = laborInputContainer.offsetWidth; 
+            dropdown.style.width = (masterWidth + 4) + 'px';
+        }
+    }
+  } else {
+    // Already open, so close it
+    dropdown.classList.remove('show');
+    btn.classList.remove('active');
+    randomizeIcon(btn);
+    
+    // Reset corners
+    const container = btn.closest('.border-2.rounded-xl');
+    if (container) {
+        container.style.borderBottomLeftRadius = '';
+        container.style.borderBottomRightRadius = '';
+    }
   }
 }
 
@@ -581,32 +787,88 @@ function updateBadge(row) {
   const taxRate = parseFloat(taxInput.value) || 0;
   const currencySymbol = row.dataset.symbol;
   const isTaxable = row.dataset.taxable === "true";
+  const qtyVal = parseFloat(row.dataset.qty) || 1;
+  
+  // Discount Calculation & Validation
+  const discFlatInput = row.querySelector('.discount-flat-input');
+  const discPercentInput = row.querySelector('.discount-percent-input');
+  
+  let discFlat = parseFloat(discFlatInput ? discFlatInput.value : 0) || 0;
+  let discPercent = parseFloat(discPercentInput ? discPercentInput.value : 0) || 0;
+  
+  const baseTotal = priceVal * qtyVal;
+  
+  // Validation: Cap Percentage at 100
+  if (discPercent > 100) {
+      discPercent = 100;
+      discPercentInput.value = "100"; // Visual Clamp
+  }
+  
+  // Validation: Cap Flat at BaseTotal
+  if (discFlat > baseTotal) {
+      discFlat = baseTotal;
+      discFlatInput.value = cleanNum(baseTotal); // Visual Clamp
+  }
+  
+  // Priority: If Percent is present, it might override or add? 
+  // User said "one will say $ for flat, the other % for percentage". Usually mutually exclusive or additive.
+  // Implementation plan: Additive (Flat + Percent of Base).
+  // But Validation says "Discount cannot be... more than the actual price".
+  
+  let discountAmount = discFlat + (baseTotal * (discPercent / 100));
+  
+  // Final Cap on Total Discount
+  if (discountAmount > baseTotal) {
+      discountAmount = baseTotal;
+      // If we hit this, it means the combination exceeded total. 
+      // We could clamp the flat amount down? Or just clamp the result.
+      // Clamping result covers it.
+  }
+  
+  const subtotal = Math.max(0, baseTotal - discountAmount); // Pre-tax subtotal after discount
+
+
 
   // 1. Update Price Badge
-  if (priceVal > 0) {
-    priceBadge.innerText = `${currencySymbol}${priceVal.toFixed(2)}`;
+  if (baseTotal > 0) {
+    priceBadge.innerText = `${currencySymbol}${cleanNum(baseTotal)}`;
     priceBadge.classList.remove('hidden');
   } else {
     priceBadge.classList.add('hidden');
   }
 
-  // 2. Update Tax Badge
-  if (isTaxable) {
+  // 1.5 Update Discount Badge
+  const discountBadge = row.querySelector('.badge-discount');
+  if (discountAmount > 0) {
+    if (discPercent > 0 && discFlat === 0) {
+        // Show Percentage if only percent used
+        const displayPercent = cleanNum(discPercent);
+        discountBadge.innerText = `-${displayPercent}%`;
+    } else {
+        // Show Amount
+        discountBadge.innerText = `-${currencySymbol}${cleanNum(discountAmount)}`;
+    }
+    discountBadge.classList.remove('hidden');
+  } else {
+    discountBadge.classList.add('hidden');
+  }
+
+  // 2. Update Tax Badge - Only show if taxable AND has a price
+  if (isTaxable && subtotal > 0) {
     const displayRate = parseFloat(taxRate); // Strip .0
     taxBadge.innerText = `${displayRate}%`;
     taxBadge.classList.remove('hidden');
     row.querySelector('.menu-item-tax').classList.add('active');
   } else {
     taxBadge.classList.add('hidden');
-    row.querySelector('.menu-item-tax').classList.remove('active');
+    row.querySelector('.menu-item-tax').classList.toggle('active', isTaxable);
   }
 
-  // 3. Update Equation visibility and After Tax Badge
-  if (isTaxable && priceVal > 0) {
-    const taxAmount = priceVal * (taxRate / 100);
-    const total = priceVal + taxAmount;
+  // 3. Update Equation visibility and Result Badge
+  if (isTaxable && subtotal > 0) {
+    const taxAmount = subtotal * (taxRate / 100);
     
-    afterTaxBadge.innerText = `${currencySymbol}${total.toFixed(2)}`;
+    afterTaxBadge.innerText = `${currencySymbol}${cleanNum(taxAmount)}`;
     afterTaxBadge.classList.remove('hidden');
     multiplier.classList.remove('hidden');
     equals.classList.remove('hidden');
@@ -618,58 +880,70 @@ function updateBadge(row) {
 }
 
 function toggleTaxable(menuItem) {
+  /* New Toggle Taxable Logic */
   const row = menuItem.closest('.item-row');
-  const isTaxable = row.dataset.taxable === "true";
+  const wrapper = menuItem.closest('.tax-wrapper');
+  const taxInputRow = wrapper.querySelector('.tax-inputs-row');
+  const taxInput = wrapper.querySelector('.tax-menu-input');
   
-  // Toggle state
-  const newTaxableState = !isTaxable;
-  row.dataset.taxable = newTaxableState;
-  
-  const taxInput = row.querySelector('.tax-menu-input');
-  
-  // If turning ON
-  if (newTaxableState) {
-     // Default rate logic
-     if (!taxInput.value || taxInput.value === "0") {
+  const priceWrapper = row.querySelector('.price-wrapper');
+  const priceInputRow = priceWrapper.querySelector('.price-inputs-row');
+  const priceMenuItem = row.querySelector('.menu-item-price');
+  const priceInput = row.querySelector('.price-menu-input');
+  const priceLabel = priceMenuItem.querySelector('span'); 
+  const priceIcon = priceMenuItem.querySelector('.menu-icon');
+
+  // Toggle Taxable State
+  let newTaxableState = false;
+  if (menuItem.classList.contains('active')) {
+     menuItem.classList.remove('active');
+     taxInputRow.classList.add('hidden');
+     taxInputRow.classList.remove('grid');
+     newTaxableState = false;
+  } else {
+     menuItem.classList.add('active');
+     taxInputRow.classList.remove('hidden');
+     taxInputRow.classList.add('grid');
+     if (!taxInput.value) {
         taxInput.value = defaultGlobalTaxRate;
      }
 
      // Auto-enable Price if not active, and populate default if empty
-     const priceMenuItem = row.querySelector('.menu-item-price');
-     const priceInput = row.querySelector('.price-menu-input');
-     
      if (!priceMenuItem.classList.contains('active')) {
         priceMenuItem.classList.add('active');
+        priceInputRow.classList.remove('hidden'); // SHOW PRICE INPUT
+        priceInputRow.classList.add('grid');
         if (!priceInput.value || parseFloat(priceInput.value) === 0) {
-            priceInput.value = "5"; // Default price
+            priceInput.value = "10"; // Default price
         }
      }
+     newTaxableState = true;
   }
   
+  row.dataset.taxable = newTaxableState; // Keep dataset sync
   updateBadge(row);
   updateHamburgerGlow(row);
   
-  // Update Price visual state (dim if locked)
-  const priceMenuItem = row.querySelector('.menu-item-price');
-  const priceLabel = priceMenuItem.querySelector('span');
-  const priceIcon = priceMenuItem.querySelector('.menu-icon');
-  
+  // --- DEPENDENCY LOGIC ---
   if (newTaxableState) {
-    priceLabel.style.opacity = "0.5";
-    priceIcon.style.opacity = "0.5";
-    priceMenuItem.style.cursor = "not-allowed";
+       priceLabel.style.opacity = "0.5";
+       priceIcon.style.opacity = "0.5";
+       priceMenuItem.style.cursor = "not-allowed";
   } else {
-    priceLabel.style.opacity = "1";
-    priceIcon.style.opacity = "1";
-    priceMenuItem.style.cursor = "pointer";
+       const discountMenuItem = row.querySelector('.menu-item-discount');
+       const isDiscountActive = discountMenuItem && discountMenuItem.classList.contains('active');
+       
+       if (!isDiscountActive) {
+           priceLabel.style.opacity = "1";
+           priceIcon.style.opacity = "1";
+           priceMenuItem.style.cursor = "pointer";
+       }
   }
-  
+
   // If turning ON, focus the TAX input
   if (newTaxableState) {
     setTimeout(() => taxInput.focus(), 50);
   }
-
-  if (window.updateGlobalTaxIndicator) window.updateGlobalTaxIndicator();
 }
 
 function toggleLaborTaxable(menuItem) {
@@ -678,37 +952,51 @@ function toggleLaborTaxable(menuItem) {
   const newTaxableState = !isTaxable;
   laborBox.dataset.taxable = newTaxableState;
   
+  const wrapper = menuItem.closest('.tax-wrapper');
+  const taxInputRow = wrapper.querySelector('.tax-inputs-row');
+  const taxInput = wrapper.querySelector('.tax-menu-input');
+  
   if (newTaxableState) {
     menuItem.classList.add('active');
+    taxInputRow.classList.remove('hidden');
+    taxInputRow.classList.add('grid');
+    if (!taxInput.value || taxInput.value === "0") {
+         // Should pull default from somewhere if needed, currently value is in HTML or user set
+    }
+    setTimeout(() => taxInput.focus(), 50);
   } else {
     menuItem.classList.remove('active');
+    taxInputRow.classList.add('hidden');
+    taxInputRow.classList.remove('grid');
   }
   
   updateLaborBadge();
   updateHamburgerGlow(laborBox);
-  if (window.updateGlobalTaxIndicator) window.updateGlobalTaxIndicator();
 }
 
 function updateHamburgerGlow(container) {
-  // Works for both individual items (row) and Labor section (laborBox)
   const isLabor = container.id === 'laborBox';
   const isTaxable = container.dataset.taxable === "true";
-  
-  // For items, also check if Price is active
-  let hasActiveAction = isTaxable;
+  const discountMenuItem = container.querySelector('.menu-item-discount');
+  const isDiscountActive = discountMenuItem && discountMenuItem.classList.contains('active');
+  let isOrange = isTaxable;
   if (!isLabor) {
     const priceActive = container.querySelector('.menu-item-price').classList.contains('active');
-    if (priceActive) hasActiveAction = true;
+    if (priceActive) isOrange = true;
   }
-
-  const hamburgerLines = container.querySelectorAll('.hamburger-line');
-  hamburgerLines.forEach(line => {
-    if (hasActiveAction) {
-      line.classList.replace('bg-black', 'bg-orange-600');
+  const sliderIcon = container.querySelector('.slider-icon');
+  if (sliderIcon) {
+    if (isOrange) {
+      sliderIcon.classList.remove('text-black', 'text-green-600');
+      sliderIcon.classList.add('text-orange-600');
+    } else if (isDiscountActive) {
+      sliderIcon.classList.remove('text-black', 'text-orange-600');
+      sliderIcon.classList.add('text-green-600');
     } else {
-      line.classList.replace('bg-orange-600', 'bg-black');
+      sliderIcon.classList.remove('text-orange-600', 'text-green-600');
+      sliderIcon.classList.add('text-black');
     }
-  });
+  }
 }
 
 function updateLaborBadge() {
@@ -718,57 +1006,167 @@ function updateLaborBadge() {
   const timeInput = document.getElementById('editTime');
   const afterTaxDisplay = document.getElementById('laborAfterTaxDisplay');
   const value = parseFloat(timeInput.value) || 0;
-
-  // 1. Badge Visibility & Text
-  if (isTaxable && value > 0) {
-    const displayRate = parseFloat(defaultGlobalTaxRate); // This strips .0
-    taxBadge.innerText = `${displayRate}%`;
+  const taxInput = laborBox.querySelector('.tax-menu-input');
+  let currentTaxRate = taxInput && taxInput.value ? parseFloat(taxInput.value) : (parseFloat(laborBox.dataset.taxRate) || parseFloat(defaultGlobalTaxRate));
+  const discFlatInput = laborBox.querySelector('.discount-flat-input');
+  const discPercentInput = laborBox.querySelector('.discount-percent-input');
+  let discFlat = parseFloat(discFlatInput ? discFlatInput.value : 0) || 0;
+  let discPercent = parseFloat(discPercentInput ? discPercentInput.value : 0) || 0;
+  const billingMode = laborBox.dataset.billingMode || profileBillingMode;
+  const currentHourlyRate = parseFloat(laborBox.dataset.hourlyRate) || profileHourlyRate;
+  const baseCost = billingMode === 'fixed' ? value : value * currentHourlyRate;
+  if (discPercent > 100) { discPercent = 100; discPercentInput.value = "100"; }
+  if (discFlat > baseCost && baseCost > 0) { discFlat = baseCost; discFlatInput.value = cleanNum(baseCost); }
+  let discountAmount = discFlat + (baseCost * (discPercent / 100));
+  if (discountAmount > baseCost) discountAmount = baseCost;
+  const laborCost = Math.max(0, baseCost - discountAmount);
+  const discountBadge = document.getElementById('laborDiscountBadge');
+  if (discountAmount > 0) {
+    const currencySym = typeof activeCurrencySymbol !== 'undefined' ? activeCurrencySymbol : "$";
+    if (discPercent > 0 && discFlat === 0) {
+        discountBadge.innerText = `-${cleanNum(discPercent)}%`;
+    } else {
+        discountBadge.innerText = `-${currencySym}${cleanNum(discountAmount)}`;
+    }
+    discountBadge.classList.remove('hidden');
+  } else {
+    discountBadge.classList.add('hidden');
+  }
+  if (isTaxable && laborCost > 0) {
+    taxBadge.innerText = `${cleanNum(currentTaxRate)}%`;
     taxBadge.classList.remove('hidden');
   } else {
     taxBadge.classList.add('hidden');
   }
-
-  // 2. AFTER TAX Calculation
-  let laborCost = profileBillingMode === 'fixed' ? value : value * profileHourlyRate;
-  let tax = 0;
-  if (isTaxable) {
-    tax = laborCost * (parseFloat(defaultGlobalTaxRate) / 100);
-  }
+  let tax = isTaxable ? laborCost * (currentTaxRate / 100) : 0;
   const total = laborCost + tax;
-  afterTaxDisplay.innerText = total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  afterTaxDisplay.innerText = total.toLocaleString(undefined, { maximumFractionDigits: 2 });
 }
+
 
 function togglePrice(menuItem) {
   const row = menuItem.closest('.item-row');
   const isTaxable = row.dataset.taxable === "true";
   
-  // Prevent disabling if Taxable is ON
-  if (isTaxable && menuItem.classList.contains('active')) {
+  // Prevent disabling if Taxable is ON OR Discount is ON
+  const discountMenuItem = row.querySelector('.menu-item-discount');
+  const isDiscount = discountMenuItem && discountMenuItem.classList.contains('active');
+  
+  if ((isTaxable || isDiscount) && menuItem.classList.contains('active')) {
       return; 
   }
 
-  const input = row.querySelector('.price-menu-input');
+  const wrapper = menuItem.closest('.price-wrapper');
+  const priceInputRow = wrapper.querySelector('.price-inputs-row');
+  const priceInput = wrapper.querySelector('.price-menu-input');
   
-  // Toggle visibility manually
-  menuItem.classList.toggle('active');
+  // If globally disabled (due to Taxable/Discount being active), prevent interaction
+  if (menuItem.style.cursor === "not-allowed") return;
   
   if (menuItem.classList.contains('active')) {
-    // Set default value if empty
-    if (!input.value || parseFloat(input.value) === 0) {
-        input.value = "5";
-        updateBadge(row); // Update badge immediately to show the $5
-    }
-    setTimeout(() => input.focus(), 50);
+    menuItem.classList.remove('active');
+    priceInputRow.classList.add('hidden');
+    priceInputRow.classList.remove('grid');
+    priceInput.value = ""; 
   } else {
-      // If disabling, clear the value so the badge disappears
-      input.value = "";
-      updateBadge(row);
+    menuItem.classList.add('active');
+    priceInputRow.classList.remove('hidden');
+    priceInputRow.classList.add('grid');
+    // Set default value if empty when activating
+    if (!priceInput.value || parseFloat(priceInput.value) === 0) {
+        priceInput.value = "10";
+    }
+    setTimeout(() => priceInput.focus(), 50);
   }
+  
+  updateBadge(row);
   updateHamburgerGlow(row);
 }
 
-function addItem(containerId, value = "", price = "", taxable = null, sectionTitle = "", taxRate = null) {
-  const currencySymbol = "<%= currencies_data.find { |c| c[:c] == (@profile.currency.presence || 'USD') }[:s] %>";
+function toggleDiscount(menuItem) {
+  const container = menuItem.closest('.item-row') || menuItem.closest('#laborBox');
+  const wrapper = menuItem.closest('.discount-wrapper');
+  const inputsRow = wrapper.querySelector('.discount-inputs-row');
+  
+  menuItem.classList.toggle('active');
+  const isActive = menuItem.classList.contains('active');
+  
+  const flatInput = inputsRow.querySelector('.discount-flat-input');
+  
+  if (isActive) {
+      inputsRow.classList.remove('hidden');
+      inputsRow.classList.add('grid'); // Ensure grid layout
+      
+      // 1. Auto-Activate and Lock Price (for Items) FIRST
+      if (container.id !== 'laborBox') {
+          const priceMenuItem = container.querySelector('.menu-item-price');
+          const priceInputRow = container.querySelector('.price-inputs-row');
+          const priceInput = container.querySelector('.price-menu-input');
+          const priceLabel = priceMenuItem.querySelector('span');
+          const priceIcon = priceMenuItem.querySelector('.menu-icon');
+          
+          if (!priceMenuItem.classList.contains('active')) {
+              priceMenuItem.classList.add('active');
+              // SHOW PRICE INPUT ROW
+              priceInputRow.classList.remove('hidden');
+              priceInputRow.classList.add('grid');
+              
+              if (!priceInput.value || parseFloat(priceInput.value) === 0) {
+                  priceInput.value = "10";
+              }
+          }
+          // Lock UI
+          priceLabel.style.opacity = "0.5";
+          priceIcon.style.opacity = "0.5";
+          priceMenuItem.style.cursor = "not-allowed";
+      }
+
+      // 2. Set Default Discount Value (5)
+      const percentVal = inputsRow.querySelector('.discount-percent-input').value;
+      if (!flatInput.value || flatInput.value === "0" || flatInput.value === "") {
+          if (!percentVal || percentVal === "0" || percentVal === "") {
+              flatInput.value = "5";
+          }
+      }
+      
+      // 3. Update Badges
+      if (container.id === 'laborBox') updateLaborBadge();
+      else updateBadge(container);
+      
+      setTimeout(() => flatInput.focus(), 50);
+
+  } else {
+      inputsRow.classList.add('hidden');
+      // Clear inputs
+      const percentInput = inputsRow.querySelector('.discount-percent-input');
+      if(flatInput) flatInput.value = "";
+      if(percentInput) percentInput.value = "";
+      
+      // Unlock Price UI if needed (for Items)
+      if (container.id !== 'laborBox') {
+          const priceMenuItem = container.querySelector('.menu-item-price');
+          const priceLabel = priceMenuItem.querySelector('span');
+          const priceIcon = priceMenuItem.querySelector('.menu-icon');
+          const isTaxable = container.dataset.taxable === "true";
+          
+          // Only unlock if Taxable is ALSO not active
+          if (!isTaxable) {
+              priceLabel.style.opacity = "1";
+              priceIcon.style.opacity = "1";
+              priceMenuItem.style.cursor = "pointer";
+          }
+      }
+      
+      if (container.id === 'laborBox') updateLaborBadge();
+      else updateBadge(container);
+  }
+  
+  updateHamburgerGlow(container);
+}
+
+function addItem(containerId, value = "", price = "", taxable = null, sectionTitle = "", taxRate = null, qty = 1, discFlat = "", discPercent = "") {
+  // Use global currency symbol if available, fallback to profile default (which initializes it anyway)
+  const currencySymbol = typeof activeCurrencySymbol !== 'undefined' ? activeCurrencySymbol : "$";
   
     // Default taxable logic (if valid boolean not provided)
     if (typeof taxable !== 'boolean') {
@@ -781,17 +1179,18 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
       const taxTasks = scope.includes("tasks_only");
       const taxMaterials = scope.includes("materials_only");
 
+      const hasPrice = price && price !== "" && parseFloat(price) !== 0;
+
       if (taxAll) {
-        taxable = true;
+        taxable = hasPrice;
       } else {
-        if (isTasks && taxTasks) taxable = true;
-        else if (isMaterials && taxMaterials) taxable = true;
+        if (isTasks && taxTasks && hasPrice) taxable = true;
+        else if (isMaterials && taxMaterials && hasPrice) taxable = true;
         else taxable = false;
       }
     }
 
-    // Update global indicator whenever something is added
-    if (window.updateGlobalTaxIndicator) setTimeout(window.updateGlobalTaxIndicator, 50);
+
     
     // Default Tax Rate
     const globalRate = defaultGlobalTaxRate; 
@@ -802,12 +1201,19 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
     const div = document.createElement('div');
     div.dataset.taxable = taxable;
     div.dataset.symbol = currencySymbol;
+    div.dataset.qty = qty || 1;
     // Adjusted margin (mb-8) for optimal spacing
     div.className = "flex items-center gap-2 mb-8 w-full animate-in fade-in slide-in-from-left-2 duration-300 item-row";
     
     // Inputs (Price and Tax)
     const hasPrice = price && price !== "" && price !== "0" && price !== "0.00";
-    const priceVal = hasPrice ? price : "";
+    const priceVal = hasPrice ? cleanNum(price) : "";
+    
+    // Discount Logic for Initial Load
+    const hasDiscount = (discFlat && parseFloat(discFlat) > 0) || (discPercent && parseFloat(discPercent) > 0);
+    const discActiveClass = hasDiscount ? "active" : "";
+    const discFlatVal = discFlat ? cleanNum(discFlat) : "";
+    const discPercentVal = discPercent ? cleanNum(discPercent) : "";
     
     const priceActiveClass = hasPrice ? "active" : "";
     const taxActiveClass = taxable ? "active" : "";
@@ -820,42 +1226,90 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
       <div class="flex flex-1 items-center border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] min-w-0 main-item-box transition-colors relative">
         
         <!-- Hamburger Menu Container -->
-        <div class="relative h-10 w-10 border-r-2 border-black flex-shrink-0 item-menu-container">
+        <div class="h-10 w-10 border-r-2 border-black flex-shrink-0 item-menu-container">
           <button type="button" onclick="toggleMenu(this)" class="w-full h-full flex flex-col items-center justify-center gap-[3px] hover:bg-gray-50 item-menu-btn rounded-l-[10px]">
-            <div class="w-4 h-0.5 bg-black rounded-full transition-colors hamburger-line"></div>
-            <div class="w-4 h-0.5 bg-black rounded-full transition-colors hamburger-line"></div>
-            <div class="w-4 h-0.5 bg-black rounded-full transition-colors hamburger-line"></div>
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 transition-colors slider-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+              <path d="M3 4h18M3 12h18M3 20h18" />
+              <path class="slider-head-1" d="M12 2v4" />
+              <path class="slider-head-2" d="M12 10v4" />
+              <path class="slider-head-3" d="M12 18v4" />
+            </svg>
           </button>
           
           <div class="item-menu-dropdown">
-            <!-- Price Menu Item -->
-            <div class="menu-item menu-item-price ${priceActiveClass}" onclick="togglePrice(this)"
-                 style="${cursorStyle}">
-              <span style="${lockedStyle}">Price</span>
-              <div class="flex items-center gap-2">
-                 <div class="menu-input-container" onclick="event.stopPropagation()">
-                    <input type="number" step="0.01" class="menu-input price-menu-input text-right" 
-                           value="${priceVal}" placeholder="0.00" 
-                           oninput="updateBadge(this.closest('.item-row'))">
-                    <span class="text-[10px] font-bold text-gray-400 ml-1">${currencySymbol}</span>
-                 </div>
-                 <div class="menu-icon" style="${lockedStyle}">$</div>
-              </div>
-            </div>
             
-            <!-- Tax Menu Item -->
-            <div class="menu-item menu-item-tax ${taxActiveClass}" onclick="toggleTaxable(this)">
-              <span>Taxable</span>
-              <div class="flex items-center gap-2">
-                 <div class="menu-input-container" onclick="event.stopPropagation()">
-                    <input type="number" step="0.1" class="menu-input tax-menu-input text-right" 
-                           value="${parseFloat(taxRate) > 0 ? parseFloat(taxRate) : globalRate}" placeholder="%" 
-                           oninput="updateBadge(this.closest('.item-row'))">
-                    <span class="text-[10px] font-bold text-gray-400 ml-1">%</span>
-                 </div>
-                 <div class="menu-icon">%</div>
-              </div>
+            <!-- Tax Menu Item (MOVED TOP) -->
+            <div class="tax-wrapper flex flex-col w-full">
+                <div class="menu-item menu-item-tax ${taxActiveClass}" onclick="toggleTaxable(this)">
+                  <span>Taxable</span>
+                  <div class="menu-icon">%</div>
+                </div>
+                
+                <div class="tax-inputs-row ${taxable ? 'grid' : 'hidden'} gap-1 p-1 bg-orange-50 animate-in slide-in-from-top-1 duration-200 border border-t-0 border-orange-600 rounded-b-md"
+                     style="grid-template-columns: 1fr;">
+                     <div class="relative w-full">
+                       <span class="absolute left-1 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400">%</span>
+                       <input type="number" step="0.1" class="menu-input tax-menu-input text-right w-full border-orange-200 pl-4 pr-1" 
+                              style="width: 100%"
+                              value="${parseFloat(taxRate) > 0 ? parseFloat(taxRate) : globalRate}" placeholder="%" 
+                              oninput="updateBadge(this.closest('.item-row'))">
+                     </div>
+                </div>
             </div>
+
+            <!-- Price Menu Item (Moved Middle) -->
+            <div class="price-wrapper flex flex-col w-full">
+                <div class="menu-item menu-item-price ${priceActiveClass}" onclick="togglePrice(this)"
+                     style="${cursorStyle}">
+                  <span style="${lockedStyle}">Price</span>
+                  <div class="menu-icon price-menu-icon" style="${lockedStyle}">${currencySymbol}</div>
+                </div>
+
+                <div class="price-inputs-row ${hasPrice ? 'grid' : 'hidden'} gap-1 p-1 bg-orange-50 animate-in slide-in-from-top-1 duration-200 border border-t-0 border-orange-600 rounded-b-md"
+                     style="grid-template-columns: 1fr;">
+                     <div class="relative w-full">
+                        <span class="absolute left-1 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400 price-input-symbol">${currencySymbol}</span>
+                        <input type="number" step="0.01" class="menu-input price-menu-input text-right w-full border-orange-200 pl-4 pr-1" 
+                               style="width: 100%"
+                               value="${priceVal}" placeholder="0.00" 
+                               oninput="updateBadge(this.closest('.item-row'))">
+                     </div>
+                </div>
+            </div>
+
+            <!-- Discount Menu Item (Moved Last) -->
+            <div class="discount-wrapper flex flex-col w-full">
+                <div class="menu-item menu-item-discount ${discActiveClass}" onclick="toggleDiscount(this)">
+                  <span>Discount</span>
+                  <div class="menu-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+                    </svg>
+                  </div>
+                </div>
+                
+                <!-- Inline Input Container -->
+                <div class="discount-inputs-row ${hasDiscount ? 'grid' : 'hidden'} gap-1 p-1 bg-green-50 animate-in slide-in-from-top-1 duration-200 border border-t-0 border-green-600 rounded-b-md" 
+                     style="grid-template-columns: 1fr 1fr;">
+                     <div class="relative w-full">
+                       <span class="absolute left-1 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400 discount-flat-symbol">${currencySymbol}</span>
+                       <input type="number" step="0.01" class="menu-input discount-flat-input text-right w-full border-gray-300 pl-4 pr-1" 
+                              style="width: 100%"
+                              value="${discFlatVal}"
+                              placeholder="0.00" 
+                              oninput="updateBadge(this.closest('.item-row'))">
+                     </div>
+                     <div class="relative w-full">
+                       <span class="absolute left-1 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400">%</span>
+                       <input type="number" step="0.1" class="menu-input discount-percent-input text-right w-full border-gray-300 pl-4 pr-1" 
+                              style="width: 100%"
+                              value="${discPercentVal}"
+                              placeholder="0" 
+                              oninput="updateBadge(this.closest('.item-row'))">
+                     </div>
+                </div>
+            </div>
+
           </div>
         </div>
   
@@ -864,13 +1318,16 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
                placeholder="Work description...">
         
         <!-- Badges Container (Hanging Bottom Right) -->
-        <div class="absolute -bottom-6 right-2 flex items-center gap-2 z-0 pointer-events-none">
+        <div class="absolute -bottom-6 left-2 flex items-center gap-2 z-0 pointer-events-none">
+            <span class="badge badge-discount hidden shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"></span>
+        </div>
+        <div class="absolute -bottom-6 right-2 flex items-center gap-1 z-0 pointer-events-none">
             <span class="badge badge-price hidden shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] border border-black bg-orange-600 text-white"></span>
-            <div class="badge-operator badge-multiplier hidden mx-0.5 flex items-center justify-center">
+            <div class="badge-operator badge-multiplier hidden flex items-center justify-center">
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
             </div>
             <span class="badge badge-tax hidden shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] border border-black bg-orange-600 text-white"></span>
-            <div class="badge-operator badge-equals hidden mx-0.5 flex items-center justify-center">
+            <div class="badge-operator badge-equals hidden flex items-center justify-center">
                 <svg width="12" height="10" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="5" stroke-linecap="round"><path d="M4 8h16M4 16h16"/></svg>
             </div>
             <span class="badge badge-after-tax hidden shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] border border-black bg-orange-600 text-white"></span>
@@ -878,14 +1335,16 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
       </div>
       
       <button type="button" 
-              onclick="this.parentElement.remove(); if(window.updateGlobalTaxIndicator) window.updateGlobalTaxIndicator();" 
+              onclick="this.parentElement.remove();" 
               class="w-6 h-10 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors font-bold text-xl flex-shrink-0">
         ×
       </button>
     `;
+    // Finalize
     document.getElementById(containerId).appendChild(div);
-    updateBadge(div);
-    updateHamburgerGlow(div);
+    randomizeIcon(div); // RANDOMIZE ON CREATION
+    setTimeout(() => { updateBadge(div); updateHamburgerGlow(div); }, 50);
+    return div;
 }
 
 function updateUI(data) {
@@ -896,31 +1355,143 @@ function updateUI(data) {
       autoResize(transcriptArea);
     }
     document.getElementById("editClient").value = data.client || "";
+    const laborBox = document.getElementById('laborBox');
     
-    // Set tax scope
+    // Set tax scope (AI-detected or profile default)
     currentLogTaxScope = data.tax_scope || "<%= @profile.tax_scope %>";
     
-    const billingMode = "<%= @profile.billing_mode %>";
+    // Billing Mode & Time Label synchronization
+    const billingMode = data.billing_mode || "<%= @profile.billing_mode %>";
     const defaultRate = "<%= @profile.hourly_rate %>";
+    
+    // Currency Update Logic
+    // Reset to profile default first (so we don't stick to a previous query's currency)
+    activeCurrencyCode = "<%= @profile.currency.presence || 'USD' %>";
+    
+    if (data.currency) {
+      activeCurrencyCode = data.currency;
+    }
+    
+    const found = CURRENCIES.find(c => c.c === activeCurrencyCode);
+    if (found) activeCurrencySymbol = found.s;
+    const currencySymbol = activeCurrencySymbol;
+    
+    // Update Labor Unit Indicator
+    const timeLabel = document.getElementById("timeLabel");
+    const laborUnitIndicator = document.getElementById("laborUnitIndicator");
+    
+    if (timeLabel) {
+      timeLabel.innerText = billingMode === "fixed" ? "LABOR PRICE" : "LABOR HOURS";
+    }
+    
+    if (laborUnitIndicator) {
+      if (billingMode === "hourly") {
+         laborUnitIndicator.innerHTML = `
+           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+             <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+           </svg>`;
+      } else {
+         laborUnitIndicator.innerText = currencySymbol;
+      }
+    }
+    
+    // Update Labor After Tax Symbol
+    const afterTaxSym = document.querySelector('#laborAfterTaxDisplay + span');
+    if (afterTaxSym) afterTaxSym.innerText = currencySymbol;
+    
+    // Update Labor Discount Flat Symbol
+    const laborDiscSym = document.querySelector('#laborBox .discount-inputs-row span.absolute:first-child');
+    // Using a more robust selector if above is fragile: 
+    // The structure is fixed: .discount-inputs-row > div:first-child > span (this is the $)
+    const laborDiscRow = document.querySelector('#laborBox .discount-inputs-row');
+    if (laborDiscRow) {
+        const flatSym = laborDiscRow.querySelector('div:first-child span.absolute');
+        if (flatSym) flatSym.innerText = currencySymbol;
+    }
+
+    // Update ALL dynamic items (Price icon and input symbols)
+    document.querySelectorAll('.price-menu-icon').forEach(el => el.innerText = currencySymbol);
+    document.querySelectorAll('.price-input-symbol').forEach(el => el.innerText = currencySymbol);
+    document.querySelectorAll('.discount-flat-symbol').forEach(el => el.innerText = currencySymbol);
+    document.querySelectorAll('.badge-price').forEach(el => {
+        // Since badges often contain calculations, we might need a more complex update logic
+        // but for now, we'll let updateBadge handle it since it's called in most places.
+        // However, updating the symbol inside the badge text if it's static is good.
+    });
+
+    // Update ANY existing items/badges if they differ (though usually we clear sections below, but labor might persist)
+    // Actually sections are cleared below (sectionContainer.innerHTML = ""), so we only need to worry about Labor Box here.
+    // However, if we preserve any state, we should be careful. 
+    // Data from AI usually replaces everything.
+    
+    if (laborBox) {
+      laborBox.dataset.billingMode = billingMode;
+      // ... (rest of laborBox logic)
+      if (data.hourly_rate) {
+        laborBox.dataset.hourlyRate = data.hourly_rate;
+      }
+      if (data.labor_tax_rate) {
+        laborBox.dataset.taxRate = data.labor_tax_rate;
+        const laborTaxInput = laborBox.querySelector('.tax-menu-input');
+        if (laborTaxInput) laborTaxInput.value = data.labor_tax_rate;
+      }
+    }
+    
+    // ... (rest of function continues)
+    
+    // *IMPORTANT*: Since sections are rebuilt below using `addFullSection` -> `addItem`, 
+    // we need to make sure `addItem` uses the global `activeCurrencySymbol`.
+    // I will update addItem separately.
+
     if (billingMode === "fixed") {
-      document.getElementById("editTime").value = data.time && data.time !== "" && data.time !== "0" ? data.time : defaultRate;
+      document.getElementById("editTime").value = data.fixed_price && data.fixed_price !== "" && data.fixed_price !== "0" ? cleanNum(data.fixed_price) : (cleanNum(data.time) || defaultRate);
     } else {
-      document.getElementById("editTime").value = data.time || "";
+      document.getElementById("editTime").value = cleanNum(data.labor_hours || data.time || "");
     }
 
     // Handle Labor Taxable initial state based on scope
-    const laborBox = document.getElementById('laborBox');
     const laborMenuItem = laborBox.querySelector('.menu-item-tax');
     const hamburgerLines = laborBox.querySelectorAll('.hamburger-line');
     const scope = (currentLogTaxScope || "").split(",").map(t => t.trim());
-    const laborTaxableByDefault = scope.includes("all") || scope.includes("total") || scope.includes("labor");
+    
+    // Explicit override from AI vs Scope-based default
+    const laborTime = document.getElementById("editTime").value;
+    const hasLaborValue = laborTime && laborTime !== "" && parseFloat(laborTime) !== 0;
+    
+    let laborTaxableByDefault = (scope.includes("all") || scope.includes("total") || scope.includes("labor")) && hasLaborValue;
+    if (typeof data.labor_taxable === 'boolean') {
+      laborTaxableByDefault = data.labor_taxable;
+    }
     
     laborBox.dataset.taxable = laborTaxableByDefault;
+    const laborTaxInputRow = laborBox.querySelector('.tax-inputs-row');
+    
     if (laborTaxableByDefault) {
       laborMenuItem.classList.add('active');
+      laborTaxInputRow.classList.remove('hidden');
+      laborTaxInputRow.classList.add('grid');
     } else {
       laborMenuItem.classList.remove('active');
+      laborTaxInputRow.classList.add('hidden');
+      laborTaxInputRow.classList.remove('grid');
     }
+
+    // Populate Labor Discount
+    const lDiscFlat = data.labor_discount_flat || "";
+    const lDiscPercent = data.labor_discount_percent || "";
+    laborBox.querySelector('.discount-flat-input').value = lDiscFlat ? cleanNum(lDiscFlat) : "";
+    laborBox.querySelector('.discount-percent-input').value = lDiscPercent ? cleanNum(lDiscPercent) : "";
+    const laborDiscountInputs = laborBox.querySelector('.discount-inputs-row');
+    if ((lDiscFlat && parseFloat(lDiscFlat) > 0) || (lDiscPercent && parseFloat(lDiscPercent) > 0)) {
+        laborBox.querySelector('.menu-item-discount').classList.add('active');
+        laborDiscountInputs.classList.remove('hidden');
+        laborDiscountInputs.classList.add('grid');
+    } else {
+        laborBox.querySelector('.menu-item-discount').classList.remove('active');
+        laborDiscountInputs.classList.add('hidden');
+        laborDiscountInputs.classList.remove('grid');
+    }
+    
     updateLaborBadge();
     updateHamburgerGlow(laborBox);
 
@@ -954,48 +1525,4 @@ function showError(msg) {
   toast.classList.remove("hidden");
   setTimeout(() => { toast.classList.add("hidden"); }, 4000);
 }
-  window.updateGlobalTaxIndicator = function() {
-    const indicator = document.getElementById("globalTaxIndicator");
-    const statusText = document.getElementById("taxIndicatorStatus");
-    const bulb = document.getElementById("taxIndicatorBulb");
-    const itemRows = document.querySelectorAll(".item-row");
-    
-    if (itemRows.length === 0) {
-      // Default state based on scope if no items
-      const isAll = (currentLogTaxScope === "all" || currentLogTaxScope === "total");
-      setIndicator(isAll);
-      return;
-    }
-
-    let allTaxable = true;
-    
-    // Check Labor taxable state
-    const laborBox = document.getElementById('laborBox');
-    if (laborBox && laborBox.dataset.taxable !== "true") allTaxable = false;
-
-    itemRows.forEach(row => {
-      if (row.dataset.taxable !== "true") allTaxable = false;
-    });
-
-    setIndicator(allTaxable);
-
-    function setIndicator(active) {
-      if (active) {
-        indicator.classList.replace("bg-gray-100", "bg-orange-600");
-        indicator.classList.add("border-orange-700");
-        statusText.innerText = "Full Tax Active";
-        statusText.classList.replace("text-gray-500", "text-white");
-        bulb.classList.replace("bg-gray-400", "bg-white");
-        bulb.classList.add("animate-pulse");
-      } else {
-        indicator.className = indicator.className.replace(/bg-orange-600|border-orange-700/, "bg-gray-100");
-        statusText.innerText = "Partial / No Tax";
-        statusText.classList.replace("text-white", "text-gray-500");
-        bulb.className = bulb.className.replace(/bg-white|animate-pulse/, "bg-gray-400");
-      }
-    }
-  };
-
-  // Initial call
-  setTimeout(window.updateGlobalTaxIndicator, 100);
 </script>

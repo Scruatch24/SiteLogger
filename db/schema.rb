@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_01_16_132541) do
+ActiveRecord::Schema[8.0].define(version: 2026_01_16_173942) do
   create_schema "auth"
   create_schema "neon_auth"
   create_schema "pgrst"
@@ -58,6 +58,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_01_16_132541) do
     t.string "billing_mode"
     t.string "tax_scope", default: "total", null: false
     t.boolean "labor_taxable"
+    t.decimal "labor_discount_flat"
+    t.decimal "labor_discount_percent"
   end
 
   create_table "profiles", force: :cascade do |t|

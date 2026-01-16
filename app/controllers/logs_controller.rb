@@ -298,6 +298,6 @@ class LogsController < ApplicationController
     private
 
     def log_params
-      params.require(:log).permit(:client, :time, :date, :tasks, :billing_mode, :tax_scope, :labor_taxable)
+      params.require(:log).permit(:client, :time, :date, :tasks, :billing_mode, :tax_scope, :labor_taxable, :labor_discount_flat, :labor_discount_percent)
     end
 end
