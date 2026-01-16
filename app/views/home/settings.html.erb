@@ -25,41 +25,68 @@
     <div class="space-y-6">
 
 
-<%# Logo Upload - NATIVE STYLE %>
-<div class="space-y-2">
-  <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1">
-    Business Logo
-  </label>
-
-  <div class="flex items-center gap-4 w-full bg-white border-2 border-black rounded-xl py-3 px-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)]">
-
-    <%# Preview %>
-    <div class="w-12 h-12 border-2 border-black rounded-md flex items-center justify-center overflow-hidden bg-white shrink-0">
-      <% if @profile.logo.attached? && @profile.logo.persisted? %>
-        <%= image_tag @profile.logo.variant(:display), id: "logo-preview", class: "max-w-full max-h-full object-contain" %>
-      <% else %>
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16" />
-        </svg>
-      <% end %>
-      <img id="client-preview" class="hidden max-w-full max-h-full object-contain" />
-    </div>
-
-    <%# Text + Action %>
-    <div class="flex-1 flex items-center justify-between gap-4">
-      <div class="text-xs font-bold text-gray-500 truncate">
-        Upload a PNG or JPG logo
+      <div class="space-y-2">
+        <label class="text-[10px] font-black text-orange-600 uppercase tracking-widest ml-1">Company / Name</label>
+        <%= f.text_field :business_name, class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 outline-none shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)]" %>
       </div>
 
-      <%= f.label :logo, class: "cursor-pointer text-xs font-black uppercase tracking-widest text-black border-2 border-black px-3 py-2 rounded-md hover:bg-orange-50 active:translate-y-[1px] transition-all" do %>
-        Change
-        <%= f.file_field :logo, class: "hidden", accept: "image/png,image/jpeg,image/jpg", onchange: "previewImage(this)" %>
-      <% end %>
-    </div>
+      <%# Logo Upload - NATIVE STYLE %>
+      <div class="space-y-2">
+        <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1">
+          Business Logo
+        </label>
 
-  </div>
-</div>
+        <div class="flex items-center gap-4 w-full bg-white border-2 border-black rounded-xl py-3 px-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)]">
+          <%# Preview %>
+          <div class="w-12 h-12 border-2 border-black rounded-md flex items-center justify-center overflow-hidden bg-white shrink-0">
+            <% if @profile.logo.attached? && @profile.logo.persisted? %>
+              <%= image_tag @profile.logo.variant(:display), id: "logo-preview", class: "max-w-full max-h-full object-contain" %>
+            <% else %>
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16" />
+              </svg>
+            <% end %>
+            <img id="client-preview" class="hidden max-w-full max-h-full object-contain" />
+          </div>
+
+          <%# Text + Action %>
+          <div class="flex-1 flex items-center justify-between gap-4">
+            <div class="text-xs font-bold text-gray-500 truncate">
+              Upload a PNG or JPG logo
+            </div>
+
+            <%= f.label :logo, class: "cursor-pointer text-xs font-black uppercase tracking-widest text-black border-2 border-black px-3 py-2 rounded-md hover:bg-orange-50 active:translate-y-[1px] transition-all" do %>
+              Change
+              <%= f.file_field :logo, class: "hidden", accept: "image/png,image/jpeg,image/jpg", onchange: "previewImage(this)" %>
+            <% end %>
+          </div>
+        </div>
+      </div>
+
+      <%# Currency Dropdown %>
+      <div class="space-y-2">
+        <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1">Default Currency</label>
+        <div class="relative">
+          <%= f.hidden_field :currency, id: "currency_hidden_field", value: @profile.currency.presence || "USD" %>
+          
+          <button type="button" id="currencySelectBtn" class="w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black text-left flex justify-between items-center shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)] focus:outline-none z-10">
+            <% current_currency = currencies_data.find { |c| c[:c] == (@profile.currency.presence || "USD") } || currencies_data.first %>
+            <span id="selectedCurrencyDisplay" class="flex items-center gap-2">
+              <span class="fi fi-<%= current_currency[:i] %> rounded-sm shadow-sm"></span> 
+              <span class="ml-1"><%= current_currency[:c] %> (<%= current_currency[:s] %>)</span>
+            </span>
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M19 9l-7 7-7-7" stroke-width="3" stroke="black"/></svg>
+          </button>
+          
+          <div id="currencyMenu" class="hidden absolute z-50 mt-2 w-full bg-white border-2 border-black rounded-xl shadow-2xl max-h-80 overflow-y-auto">
+            <div class="p-2 sticky top-0 bg-white border-b-2 border-black z-20">
+              <input type="text" id="currencySearch" placeholder="Search country or code..." class="w-full px-3 py-3 text-sm border-2 border-black rounded-lg outline-none focus:border-orange-500 bg-white">
+            </div>
+            <div id="currencyList" class="relative z-10"></div>
+          </div>
+        </div>
+        <p class="text-[9px] font-bold text-gray-400 ml-1">Unless Mentioned Otherwise</p>
+      </div>
 
       <%# Billing Model Selection %>
       <div class="space-y-2">
@@ -80,47 +107,56 @@
         </div>
       </div>
 
-      <%# Global Currency Dropdown %>
-      <div class="space-y-2">
-        <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1">Global Currency</label>
-        <div class="relative">
-          <%= f.hidden_field :currency, id: "currency_hidden_field", value: @profile.currency.presence || "USD" %>
-          
-          <button type="button" id="currencySelectBtn" class="w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black text-left flex justify-between items-center shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)] focus:outline-none z-10">
-            <% current_currency = currencies_data.find { |c| c[:c] == (@profile.currency.presence || "USD") } || currencies_data.first %>
-            <span id="selectedCurrencyDisplay" class="flex items-center gap-2">
-              <span class="fi fi-<%= current_currency[:i] %> rounded-sm shadow-sm"></span> 
-              <span class="ml-1"><%= current_currency[:c] %> (<%= current_currency[:s] %>)</span>
-            </span>
-            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M19 9l-7 7-7-7" stroke-width="3" stroke="black"/></svg>
-          </button>
-          
-          <div id="currencyMenu" class="hidden absolute z-50 mt-2 w-full bg-white border-2 border-black rounded-xl shadow-2xl max-h-80 overflow-y-auto">
-            <div class="p-2 sticky top-0 bg-white border-b-2 border-black z-20">
-              <input type="text" id="currencySearch" placeholder="Search country or code..." class="w-full px-3 py-3 text-sm border-2 border-black rounded-lg outline-none focus:border-orange-500 bg-white">
-            </div>
-            <div id="currencyList" class="relative z-10"></div>
-          </div>
-        </div>
-      </div>
+
       
+
+
       <div class="space-y-2">
-        <label class="text-[10px] font-black text-orange-600 uppercase tracking-widest ml-1">Company / Name</label>
-        <%= f.text_field :business_name, class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 outline-none shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)]" %>
+        <label id="rateLabel" class="text-[10px] font-black text-black uppercase tracking-widest ml-1">
+          <% current_symbol = current_currency[:s] %>
+          <%= @profile.billing_mode == "fixed" ? "Default Price (#{current_symbol})" : "Rate (#{current_symbol}/hr)" %>
+        </label>
+        <%= f.number_field :hourly_rate, step: 0.01, class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 outline-none shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)]" %>
+        <p class="text-[9px] font-bold text-gray-400 ml-1">Unless Mentioned Otherwise</p>
       </div>
 
-      <div class="grid grid-cols-2 gap-4">
-        <div class="space-y-2">
-          <label id="rateLabel" class="text-[10px] font-black text-black uppercase tracking-widest ml-1">
-            <% current_symbol = current_currency[:s] %>
-            <%= @profile.billing_mode == "fixed" ? "Default Price (#{current_symbol})" : "Rate (#{current_symbol}/hr)" %>
-          </label>
-          <%= f.number_field :hourly_rate, step: 0.01, class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 outline-none shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)]" %>
+      <div class="space-y-2">
+        <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1">Default Tax Scope</label>
+
+        <%# Hidden field to store actual value %>
+        <%= f.hidden_field :tax_scope, id: "tax_scope_hidden" %>
+
+        <div class="space-y-3">
+          <%# Row 1: The Components (Multi-select) %>
+          <div class="flex border-2 border-black rounded-xl overflow-hidden shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)] h-12">
+            <button type="button" data-scope="labor" onclick="toggleScopeToken(this)" class="flex-1 text-[10px] font-black uppercase tracking-widest transition-all hover:bg-orange-50 border-r-2 border-black scope-toggle">
+              Labor
+            </button>
+            <button type="button" data-scope="tasks_only" onclick="toggleScopeToken(this)" class="flex-1 text-[10px] font-black uppercase tracking-widest transition-all hover:bg-orange-50 border-r-2 border-black scope-toggle">
+              Tasks
+            </button>
+            <button type="button" data-scope="materials_only" onclick="toggleScopeToken(this)" class="flex-1 text-[10px] font-black uppercase tracking-widest transition-all hover:bg-orange-50 scope-toggle">
+              Materials
+            </button>
+          </div>
+
+          <%# Row 2: The Helpers (All/None) %>
+          <div class="flex border-2 border-black rounded-xl overflow-hidden shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)] h-12">
+            <button type="button" id="scope_all_btn" onclick="setScopeAll()" class="flex-1 text-[10px] font-black uppercase tracking-widest transition-all hover:bg-orange-50 border-r-2 border-black">
+              All
+            </button>
+            <button type="button" id="scope_none_btn" onclick="setScopeNone()" class="flex-1 text-[10px] font-black uppercase tracking-widest transition-all hover:bg-orange-50">
+              None
+            </button>
+          </div>
         </div>
-        <div class="space-y-2">
-          <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1">Tax Rate (%)</label>
-          <%= f.number_field :tax_rate, step: 0.1, class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 outline-none shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)]" %>
-        </div>
+        <p class="text-[9px] font-bold text-gray-400 ml-1">Unless Mentioned Otherwise</p>
+      </div>
+
+      <div class="space-y-2">
+        <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1">Default Tax Rate (%)</label>
+        <%= f.number_field :tax_rate, step: 0.1, class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 outline-none shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)]" %>
+        <p class="text-[9px] font-bold text-gray-400 ml-1">Unless Mentioned Otherwise</p>
       </div>
 
       <div class="space-y-2">
@@ -187,6 +223,77 @@
     const rateLabel = document.getElementById('rateLabel');
     const hourlyRadio = document.getElementById('profile_billing_mode_hourly');
     const fixedRadio = document.getElementById('profile_billing_mode_fixed');
+    const scopeHidden = document.getElementById('tax_scope_hidden');
+    const scopeToggles = document.querySelectorAll('.scope-toggle');
+    const scopeAllBtn = document.getElementById('scope_all_btn');
+    const scopeNoneBtn = document.getElementById('scope_none_btn');
+
+    // Initialize Tax Scope tokens from hidden field
+    let activeTokens = scopeHidden.value ? scopeHidden.value.split(',').filter(t => t) : [];
+    
+    // Migration: if value is "total", convert it to all tokens
+    if (activeTokens.length === 1 && activeTokens[0] === "total") {
+      activeTokens = ["labor", "tasks_only", "materials_only"];
+      scopeHidden.value = activeTokens.join(',');
+    }
+    
+    updateScopeUI();
+
+    window.toggleScopeToken = function(btn) {
+      const token = btn.dataset.scope;
+      if (activeTokens.includes(token)) {
+        activeTokens = activeTokens.filter(t => t !== token);
+      } else {
+        activeTokens.push(token);
+      }
+      scopeHidden.value = activeTokens.join(',');
+      updateScopeUI();
+    };
+
+    window.setScopeAll = function() {
+      activeTokens = ["labor", "tasks_only", "materials_only"];
+      scopeHidden.value = activeTokens.join(',');
+      updateScopeUI();
+    };
+
+    window.setScopeNone = function() {
+      activeTokens = [];
+      scopeHidden.value = "";
+      updateScopeUI();
+    };
+
+    function updateScopeUI() {
+      scopeToggles.forEach(btn => {
+        const token = btn.dataset.scope;
+        if (activeTokens.includes(token)) {
+          btn.classList.add('bg-orange-600', 'text-white');
+          btn.classList.remove('hover:bg-orange-50');
+        } else {
+          btn.classList.remove('bg-orange-600', 'text-white');
+          btn.classList.add('hover:bg-orange-50');
+        }
+      });
+
+      // Update All/None highlights
+      const allActive = activeTokens.length === 3;
+      const noneActive = activeTokens.length === 0;
+
+      if (allActive) {
+        scopeAllBtn.classList.add('bg-orange-600', 'text-white');
+        scopeAllBtn.classList.remove('hover:bg-orange-50');
+      } else {
+        scopeAllBtn.classList.remove('bg-orange-600', 'text-white');
+        scopeAllBtn.classList.add('hover:bg-orange-50');
+      }
+
+      if (noneActive) {
+        scopeNoneBtn.classList.add('bg-orange-600', 'text-white');
+        scopeNoneBtn.classList.remove('hover:bg-orange-50');
+      } else {
+        scopeNoneBtn.classList.remove('bg-orange-600', 'text-white');
+        scopeNoneBtn.classList.add('hover:bg-orange-50');
+      }
+    }
 
     let selectedCurrency = currencies.find(c => c.c === (hiddenField ? hiddenField.value : 'USD')) || currencies[0];
 
