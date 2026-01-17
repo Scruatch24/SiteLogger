@@ -149,19 +149,20 @@ class HomeController < ApplicationController
           - If user says "no tax" GLOBALLY (without mentioning a specific item) → Set "labor_taxable": false and "tax_scope": "none".
           - If no mention → leave "labor_taxable": null.
 
-        DISCOUNT RULES - LABOR (CRITICAL - DO NOT IGNORE):
-        - Extract discounts for labor/work/service from ANY phrasing:
-          - "X% discount" → labor_discount_percent: "X"
-          - "X percent off" → labor_discount_percent: "X"
-          - "give them X% off" → labor_discount_percent: "X"
-          - "give the customer a X percent discount" → labor_discount_percent: "X"
-          - "$X off labor" → labor_discount_flat: "X"
-        - Convert written numbers: "ten" → 10, "twenty" → 20, "fifty" → 50
-        - If no discount → leave empty strings.
+        GLOBAL DISCOUNT RULES (CRITICAL):
+        - If a GENERAL discount is mentioned (e.g., "Give the customer a 10% discount", "Apply 5% off everything") WITHOUT mentioning a specific item:
+          - Apply "labor_discount_percent": "X" (if labor is being charged).
+          - Apply "discount_percent": "X" to EVERY material and task item that has a price ("unit_price" or "price").
+          - DO NOT apply discount to items with no price.
 
-        DISCOUNT RULES - ITEMS (CRITICAL):
-        - If user mentions a discount for a specific item:
-          - Set "discount_percent" or "discount_flat" on that item.
+        DISCOUNT RULES - SPECIFIC ITEMS (CRITICAL - HIGHEST PRIORITY):
+        - If user mentions a discount for a SPECIFIC item (e.g., "10% off the pipe", "discount on the faucet"):
+          - Set "discount_percent" or "discount_flat" ONLY on that specific item in materials or tasks.
+          - DO NOT set "labor_discount_percent" or "labor_discount_flat".
+          - DO NOT apply discount to any other items.
+        - If user mentions a discount for labor/work/service specifically (e.g., "10% off labor", "discount on the work"):
+          - Set "labor_discount_percent" or "labor_discount_flat" ONLY.
+          - DO NOT apply discount to materials or tasks.
 
         DEFAULT BILLING MODE: #{mode.upcase}
 
@@ -175,6 +176,17 @@ class HomeController < ApplicationController
           - If the user says "[Item] was 40" generally, default to "materials".
         - REDUNDANCY RULE: Do NOT add a task CALLED "Labor" or "Work" if labor_hours or fixed_price is extracted. Use the *specific description* instead or leave empty if only generic (e.g., "worked for 2 hours").
         - If the only mention is generic (e.g., "worked for 2 hours"), leave "tasks": [].
+
+        DUE DATE RULES (CRITICAL):
+        - Extract payment due date if mentioned.
+        - Common patterns:
+          - "net 7", "net 14", "net 30" → due_days: 7/14/30
+          - "due in X days" → due_days: X
+          - "due next friday", "due next week" → due_days: calculate days until
+          - "due by [date]" → due_date: "[date]"
+          - "payment due immediately", "due upon receipt" → due_days: 0
+        - If no due date mentioned → leave due_days and due_date as null (default 14 days will be applied).
+        - Convert word numbers: "seven" → 7, "thirty" → 30
 
         OUTPUT STRICT JSON ONLY:
 
@@ -197,6 +209,8 @@ class HomeController < ApplicationController
           "tasks": [
             { "desc": "", "price": "", "taxable": null, "tax_rate": null, "discount_flat": "", "discount_percent": "" }
           ],
+          "due_days": null,
+          "due_date": null,
           "raw_summary": ""
         }
       PROMPT
@@ -274,22 +288,35 @@ class HomeController < ApplicationController
       Rails.logger.info "FALLBACK_DEBUG_PROCESSED: '#{raw_text}' | Current Percent: '#{json["labor_discount_percent"]}'"
 
       # If labor_discount_percent is empty, try to extract from raw_text
+      # BUT only if the discount is NOT specific to an item (e.g., "on the pipe", "on the faucet")
       if json["labor_discount_percent"].blank?
-        # Match patterns like "10 percent discount", "10% off", "discount of 10%"
-        if match = raw_text.match(/(\d+)\s*(percent|%)\s*(discount|off)/i)
-          json["labor_discount_percent"] = match[1]
-          Rails.logger.info "FALLBACK_EXTRACTED: labor_discount_percent = #{match[1]}"
-        elsif match = raw_text.match(/discount\s*(of)?\s*(\d+)\s*(percent|%)/i)
-          json["labor_discount_percent"] = match[2]
-          Rails.logger.info "FALLBACK_EXTRACTED: labor_discount_percent = #{match[2]}"
+        # Check if discount is item-specific by looking for "on the [item]" or "off the [item]"
+        is_item_specific = raw_text.match(/discount\s+(on|for)\s+(the\s+)?\w+/i) ||
+                           raw_text.match(/off\s+(the\s+)?\w+/i) && !raw_text.match(/off\s+(the\s+)?(labor|work|service)/i)
+
+        unless is_item_specific
+          # Match patterns like "10 percent discount", "10% off", "discount of 10%"
+          if match = raw_text.match(/(\d+)\s*(percent|%)\s*(discount|off)/i)
+            json["labor_discount_percent"] = match[1]
+            Rails.logger.info "FALLBACK_EXTRACTED: labor_discount_percent = #{match[1]}"
+          elsif match = raw_text.match(/discount\s*(of)?\s*(\d+)\s*(percent|%)/i)
+            json["labor_discount_percent"] = match[2]
+            Rails.logger.info "FALLBACK_EXTRACTED: labor_discount_percent = #{match[2]}"
+          end
         end
       end
 
       # If labor_discount_flat is empty, try to extract from raw_text
+      # BUT only if the discount is NOT specific to an item
       if json["labor_discount_flat"].blank?
-        if match = raw_text.match(/\$(\d+(\.\d+)?)\s*(off|discount)/i)
-          json["labor_discount_flat"] = match[1]
-          Rails.logger.info "FALLBACK_EXTRACTED: labor_discount_flat = #{match[1]}"
+        is_item_specific = raw_text.match(/\$\d+(\.\d+)?\s*(off|discount)\s+(on|for)?\s*(the\s+)?\w+/i) &&
+                           !raw_text.match(/\$\d+(\.\d+)?\s*(off|discount)\s+(on|for)?\s*(the\s+)?(labor|work|service)/i)
+
+        unless is_item_specific
+          if match = raw_text.match(/\$(\d+(\.\d+)?)\s*(off|discount)/i)
+            json["labor_discount_flat"] = match[1]
+            Rails.logger.info "FALLBACK_EXTRACTED: labor_discount_flat = #{match[1]}"
+          end
         end
       end
 
@@ -360,7 +387,7 @@ class HomeController < ApplicationController
         }
       end
 
-      json.slice!("client", "time", "raw_summary", "sections", "tax_scope", "billing_mode", "currency", "hourly_rate", "labor_tax_rate", "labor_taxable", "labor_discount_flat", "labor_discount_percent")
+      json.slice!("client", "time", "raw_summary", "sections", "tax_scope", "billing_mode", "currency", "hourly_rate", "labor_tax_rate", "labor_taxable", "labor_discount_flat", "labor_discount_percent", "due_days", "due_date")
 
       render json: json
 
@@ -390,6 +417,7 @@ class HomeController < ApplicationController
       :payment_instructions,
       :billing_mode, # <--- This allows the "Fixed vs Hourly" toggle to save
       :currency,
+      :invoice_style,
       :logo
     )
   end

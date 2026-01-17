@@ -1,6 +1,7 @@
 class LogsController < ApplicationController
     require "prawn"
     require "prawn/table"
+    require_relative "../services/invoice_generator"
 
     def create
       @log = Log.new(log_params)
@@ -28,7 +29,7 @@ class LogsController < ApplicationController
       redirect_to history_path
     end
 
-    def download_pdf
+    def _deprecated_download_pdf
       log = Log.find(params[:id])
       profile = Profile.first || Profile.new(business_name: "My Business", hourly_rate: 0)
 
@@ -166,44 +167,69 @@ class LogsController < ApplicationController
       total_due = subtotal + tax_amount
 
       invoice_date = log.date.presence || Date.today.strftime("%b %d, %Y")
+      due_date = log.due_date.presence || (Date.parse(invoice_date) + 14.days rescue Date.today + 14).strftime("%b %d, %Y")
       invoice_number = "INV-#{1000 + log.id}"
       orange_color = "F97316"
 
-      # --- PDF RENDERING ---
+      # --- PDF RENDERING (PREMIUM RE-CRAFT) ---
       pdf.fill_color "000000"
-      pdf.text profile.business_name.upcase, size: 24, style: :bold, character_spacing: -0.5
 
-      pdf.fill_color orange_color
-      pdf.fill_rectangle [ 0, pdf.cursor - 5 ], 30, 5
-      pdf.move_down 20
-
-      pdf.fill_color "666666"
-      pdf.text "#{profile.phone}  •  #{profile.email}", size: 9
-      pdf.text profile.address, size: 9
-
-      pdf.bounding_box([ pdf.bounds.width - 200, pdf.bounds.height ], width: 200) do
+      # Header Bar with Brand Accents
+      pdf.canvas do
         pdf.fill_color orange_color
-        pdf.text "INVOICE", size: 36, style: :bold, align: :right
-        pdf.fill_color "000000"
-        pdf.text invoice_number, size: 12, style: :bold, align: :right
-        pdf.fill_color "666666"
-        pdf.text invoice_date, size: 10, align: :right
+        pdf.fill_rectangle [ 0, pdf.bounds.top ], pdf.bounds.width, 140
+
+        pdf.fill_color "FFFFFF"
+        pdf.font("NotoSans", style: :bold) do
+          pdf.text_box profile.business_name.upcase, at: [ 40, pdf.bounds.top - 40 ], size: 28, character_spacing: -0.5
+        end
+
+        pdf.font("NotoSans", size: 10) do
+          contact_info = [ profile.phone, profile.email ].reject(&:blank?).join("  •  ")
+          pdf.text_box contact_info, at: [ 40, pdf.bounds.top - 80 ], width: 300
+          pdf.text_box profile.address, at: [ 40, pdf.bounds.top - 95 ], width: 300
+        end
+
+        # Invoice Label in the Orange Bar
+        pdf.font("NotoSans", style: :bold) do
+          pdf.text_box "INVOICE", at: [ pdf.bounds.width - 340, pdf.bounds.top - 40 ], size: 48, align: :right, width: 300, opacity: 0.2
+        end
       end
 
-      pdf.move_down 40
-      pdf.fill_color "000000"
+      pdf.move_down 110 # Move past the canvas header
 
-      # Added leading: 1 to ensure the bold text sits cleanly
-      pdf.text "RECIPIENT", size: 8, style: :bold, character_spacing: 1, leading: 1
+      # Details Row (Invoice #, Date, Due Date, Client)
+      pdf.bounding_box([ 0, pdf.cursor ], width: pdf.bounds.width) do
+        # Left side: Client Info
+        pdf.bounding_box([ 0, pdf.bounds.height ], width: 300) do
+          pdf.fill_color "666666"
+          pdf.text "BILL TO", size: 8, style: :bold, character_spacing: 1
+          pdf.move_down 5
+          pdf.fill_color "000000"
+          pdf.text log.client.presence || "Valued Client", size: 16, style: :bold, leading: 2
+        end
 
-      pdf.move_down 5
+        # Right side: Invoice Meta
+        pdf.bounding_box([ pdf.bounds.width - 220, pdf.bounds.height ], width: 220) do
+          meta_data = [
+            [ "INVOICE NO.", invoice_number ],
+            [ "DATE", invoice_date ],
+            [ "DUE DATE", due_date ]
+          ]
 
-      # Added leading: 4 to give space for descenders (g, j, y, p, q) in the larger font
-      pdf.text log.client.presence || "Valued Client", size: 14, style: :bold, leading: 4
+          pdf.table(meta_data, width: 220) do
+            cells.borders = []
+            cells.padding = [ 2, 0 ]
+            column(0).font_style = :bold; column(0).size = 8; column(0).text_color = "666666"; column(0).align = :left
+            column(1).font_style = :bold; column(1).size = 10; column(1).text_color = "000000"; column(1).align = :right
+          end
+        end
+      end
 
       pdf.move_down 30
 
-      table_data = [ [ "DESCRIPTION", table_qty_header, "UNIT PRICE", "TOTAL" ] ]
+      # Main Items Table
+      table_data = [ [ "DESCRIPTION", table_qty_header, "RATE", "AMOUNT" ] ]
       table_data << [ labor_label, qty_label, rate_label, "#{currency}#{'%.2f' % labor_cost}" ]
 
       billable_items.each do |item|
@@ -212,92 +238,190 @@ class LogsController < ApplicationController
         table_data << [ item[:desc], m_qty_label, "-", "#{currency}#{'%.2f' % item[:price]}" ]
       end
 
-      pdf.table(table_data, width: pdf.bounds.width) do
+      pdf.table(table_data, width: pdf.bounds.width, cell_style: { border_color: "EEEEEE", border_width: 0.5 }) do
         row(0).font_style = :bold
-        row(0).background_color = "000000"
-        row(0).text_color = "FFFFFF"
-        row(0).size = 9
-        row(0).padding = [ 10, 12 ]
+        row(0).background_color = "F9F9F9"
+        row(0).text_color = "333333"
+        row(0).size = 8
+        row(0).padding = [ 12, 10 ]
+        row(0).borders = [ :bottom ]
+        row(0).border_width = 1.5
+        row(0).border_color = "000000"
+
         cells.borders = [ :bottom ]
-        cells.border_width = 0.5
-        cells.border_color = "EEEEEE"
-        cells.padding = [ 12, 12 ]
+        cells.padding = [ 12, 10 ]
         cells.size = 10
+
         columns(1..3).align = :right
-        column(0).width = 250
+        column(0).width = 300
+
+        # Zebra striping
+        rows(1..-1).each_with_index do |_, i|
+          row(i + 1).background_color = "FAFAFA" if i.odd?
+        end
       end
 
-      pdf.move_down 20
+      pdf.move_down 30
 
+      # Summary and Totals
       pdf.bounding_box([ pdf.bounds.width - 250, pdf.cursor ], width: 250) do
         totals = [
-          [ "Subtotal", "#{currency}#{'%.2f' % subtotal}" ],
-          [ "Total Tax", "#{currency}#{'%.2f' % tax_amount}" ],
-          [ "AMOUNT DUE", "#{currency}#{'%.2f' % total_due}" ]
+          [ "SUBTOTAL", "#{currency}#{'%.2f' % subtotal}" ],
+          [ "TAX", "#{currency}#{'%.2f' % tax_amount}" ],
+          [ "TOTAL DUE", "#{currency}#{'%.2f' % total_due}" ]
         ]
+
         pdf.table(totals, width: 250) do
-          cells.borders = []; cells.padding = [ 5, 12 ]; cells.align = :right
-          column(0).font_style = :bold; column(0).size = 9; column(0).text_color = "666666"
-          column(1).size = 11; column(1).font_style = :bold
-          row(2).column(0).text_color = "000000"; row(2).column(0).size = 12
-          row(2).column(1).text_color = orange_color; row(2).column(1).size = 18
+          cells.borders = []
+          cells.padding = [ 6, 10 ]
+          cells.align = :right
+
+          column(0).font_style = :bold; column(0).size = 8; column(0).text_color = "666666"
+          column(1).font_style = :bold; column(1).size = 11; column(1).text_color = "000000"
+
+          # Final Total Highlight
+          row(2).background_color = orange_color
+          row(2).column(0).text_color = "FFFFFF"
+          row(2).column(1).text_color = "FFFFFF"
+          row(2).column(1).size = 16
+          row(2).padding = [ 10, 10 ]
         end
       end
 
+      # Payment Instructions
       if profile.payment_instructions.present?
-        pdf.move_down 40; pdf.fill_color orange_color; pdf.text "PAYMENT INSTRUCTIONS", size: 14, style: :bold, character_spacing: 1
-        pdf.move_down 5; pdf.fill_color "000000"; pdf.text profile.payment_instructions, size: 10, leading: 3
+        pdf.move_down 40
+        pdf.fill_color orange_color
+        pdf.text "PAYMENT INSTRUCTIONS", size: 9, style: :bold, character_spacing: 1
+        pdf.move_down 8
+        pdf.fill_color "444444"
+        pdf.text profile.payment_instructions, size: 9, leading: 4
       end
 
+      # Field Report Section (if any)
       if report_sections.any?
-        pdf.move_down 40
-        pdf.stroke_horizontal_rule
-
-        # FIX: Lower threshold from 250 to 100.
-        # If we have less than ~1.4 inches left, THEN start a new page.
-        if pdf.cursor < 100
+        # Check if we need a new page due to lack of space (if less than 150pt left)
+        if pdf.cursor < 150
           pdf.start_new_page
-        else
           pdf.move_down 20
+        else
+          pdf.move_down 50
         end
 
-        # Keep the Header and the Column Box start together
+        # Report Section Header (Same Page Style)
+        pdf.fill_color "F3F4F6"
+        pdf.fill_rectangle [ 0, pdf.cursor ], pdf.bounds.width, 30
         pdf.fill_color orange_color
-        pdf.text "FIELD INTELLIGENCE REPORT", size: 12, style: :bold, character_spacing: 0.5
-        pdf.move_down 10
+        pdf.font("NotoSans", style: :bold) do
+          pdf.text_box "FIELD INTELLIGENCE REPORT", at: [ 10, pdf.cursor - 8 ], size: 11, character_spacing: 1
+        end
 
-        # Calculate available height for the columns on THIS page
-        # We subtract the bottom margin to ensure we don't write off the page
-        available_height = pdf.cursor - pdf.bounds.bottom
+        pdf.move_down 45
 
-        pdf.column_box([ 0, pdf.cursor ], columns: 2, width: pdf.bounds.width, height: available_height, spacer: 20) do
+        pdf.column_box([ 0, pdf.cursor ], columns: 2, width: pdf.bounds.width, spacer: 25) do
           report_sections.each do |section|
             pdf.fill_color "000000"
-            pdf.text section["title"].upcase, size: 8, style: :bold
-            pdf.move_down 2
+            pdf.font("NotoSans", style: :bold) do
+              pdf.text section["title"].upcase, size: 9, leading: 2
+            end
+            pdf.stroke_color orange_color
+            pdf.stroke_horizontal_line 0, 40
+            pdf.move_down 8
 
             section["items"].each do |item|
               desc = item.is_a?(Hash) ? item["desc"] : item
               qty  = item.is_a?(Hash) ? item["qty"].to_f : 0
-              text = qty > 0 && qty != 1 ? "– #{desc} (x#{'%g' % qty})" : "– #{desc}"
-              pdf.fill_color "444444"
-              pdf.text text, size: 9, leading: 2
-            end
+              text = qty > 0 && qty != 1 ? "#{desc} (x#{'%g' % qty})" : desc
 
-            pdf.move_down 4
+              pdf.fill_color "444444"
+              pdf.indent(5) do
+                pdf.text "• #{text}", size: 9, leading: 4
+              end
+            end
+            pdf.move_down 20
           end
         end
       end
 
+      # Footer
+      pdf.page_count.times do |i|
+        pdf.go_to_page(i + 1)
+        pdf.fill_color "999999"
+        pdf.text_box "Generated by TALKINVOICE  •  Page #{i+1} of #{pdf.page_count}",
+                     at: [ pdf.bounds.left, -10 ],
+                     width: pdf.bounds.width,
+                     align: :center,
+                     size: 7
+      end
 
-
-      pdf.number_pages "Page <page> of <total>", at: [ pdf.bounds.right - 150, -10 ], width: 150, align: :right, size: 8, color: "999999"
       send_data pdf.render, filename: "#{invoice_number}_#{log.client}.pdf", type: "application/pdf", disposition: "inline"
+    end
+
+
+    def download_pdf
+      log = Log.find(params[:id])
+      profile = Profile.first || Profile.new(business_name: "My Business", hourly_rate: 0)
+
+      pdf_data = InvoiceGenerator.new(log, profile).render
+
+      send_data pdf_data, filename: "INV-#{1000 + log.id}_#{log.client}.pdf", type: "application/pdf", disposition: "inline"
+    end
+
+    def preview_pdf
+      style = params[:style] || "professional"
+
+      # Cache Key based on style and profile updated_at to invalidate on profile changes
+      profile = Profile.first || Profile.new(business_name: "TalkInvoice Demo")
+      cache_key = "preview_pdf_#{style}_#{profile.updated_at.to_i}"
+
+      pdf_data = Rails.cache.fetch(cache_key, expires_in: 5.minutes) do
+        profile = Profile.first || Profile.new(
+          business_name: "TalkInvoice Demo",
+          phone: "555-0123",
+          email: "demo@talkinvoice.com",
+          address: "123 Innovation Dr, Tech City",
+          hourly_rate: 100,
+          currency: "USD",
+          tax_rate: 10,
+          payment_instructions: "Please pay via Bank Transfer to Account #123456789"
+        )
+        profile.invoice_style = style
+
+        # Dummy Log Data
+        log = Log.new(
+          id: 999,
+          client: "Acme Corp",
+          time: "4.5",
+          date: Date.today.strftime("%b %d, %Y"),
+          due_date: (Date.today + 14).strftime("%b %d, %Y"),
+          billing_mode: "hourly",
+          tax_scope: "all",
+          labor_taxable: true,
+          tasks: [
+            { "title" => "Labor", "items" => [
+              { "desc" => "Initial Site Consultation", "qty" => "1.5", "price" => "150.0", "taxable" => true },
+              { "desc" => "Installation Work", "qty" => "3.0", "price" => "300.0", "taxable" => true }
+            ] },
+            { "title" => "Materials", "items" => [
+              { "desc" => "High-grade Sensor", "qty" => "2", "price" => "200.0", "taxable" => true },
+              { "desc" => "Cabling & Fixtures", "qty" => "1", "price" => "75.50", "taxable" => true }
+            ] },
+            { "title" => "Field Notes", "items" => [
+               "checked voltage levels - all nominal",
+               "customer requested follow-up next week"
+            ] }
+          ].to_json
+        )
+
+        InvoiceGenerator.new(log, profile).render
+      end
+
+      send_data pdf_data, filename: "preview_#{style}.pdf", type: "application/pdf", disposition: "inline"
     end
 
     private
 
     def log_params
-      params.require(:log).permit(:client, :time, :date, :tasks, :billing_mode, :tax_scope, :labor_taxable, :labor_discount_flat, :labor_discount_percent)
+      params.require(:log).permit(:client, :time, :date, :due_date, :tasks, :billing_mode, :tax_scope, :labor_taxable, :labor_discount_flat, :labor_discount_percent)
     end
 end

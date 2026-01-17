@@ -40,7 +40,7 @@
           <%# Preview %>
           <div class="w-12 h-12 border-2 border-black rounded-md flex items-center justify-center overflow-hidden bg-white shrink-0">
             <% if @profile.logo.attached? && @profile.logo.persisted? %>
-              <%= image_tag @profile.logo.variant(:display), id: "logo-preview", class: "max-w-full max-h-full object-contain" %>
+              <%= image_tag @profile.logo, id: "logo-preview", class: "max-w-full max-h-full object-contain" %>
             <% else %>
               <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16" />
@@ -62,6 +62,31 @@
           </div>
         </div>
       </div>
+
+      <%# Invoice Design Selection %>
+      <div class="space-y-4 pt-4 border-t-2 border-dashed border-gray-200">
+        <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1">Invoice Design</label>
+        <%= f.hidden_field :invoice_style, id: "invoice_style_input", value: @profile.invoice_style.presence || "professional" %>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="space-y-2">
+            <% ["professional", "modern", "classic", "bold", "minimal"].each do |style| %>
+              <div onclick="selectInvoiceStyle('<%= style %>')" id="style_btn_<%= style %>" class="invoice-style-btn cursor-pointer border-2 border-black rounded-xl p-4 flex items-center justify-between hover:bg-orange-50 transition-colors">
+                 <span class="text-xs font-black uppercase tracking-widest"><%= style %></span>
+                 <div class="w-4 h-4 rounded-full border-2 border-black flex items-center justify-center bg-white">
+                   <div class="w-2 h-2 rounded-full bg-orange-600 hidden indicator"></div>
+                 </div>
+              </div>
+            <% end %>
+          </div>
+          
+          <div class="border-2 border-black rounded-xl overflow-hidden bg-gray-50 relative aspect-[1/1.41] shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)]">
+             <div id="previewLoading" class="absolute inset-0 z-10 bg-white/80 flex items-center justify-center hidden">
+               <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
+             </div>
+             <iframe id="pdfPreviewFrame" data-src="<%= preview_pdf_logs_path(style: @profile.invoice_style.presence || "professional") %>" src="about:blank" class="w-full h-full border-none" onload="document.getElementById('previewLoading').classList.add('hidden')"></iframe>
+          </div>
+        </div>
 
       <%# Currency Dropdown %>
       <div class="space-y-2">
@@ -366,5 +391,56 @@
     document.addEventListener('click', () => {
       if (menu) menu.classList.add('hidden');
     });
+
+    window.selectInvoiceStyle = function(style) {
+      document.getElementById('invoice_style_input').value = style;
+      
+      // Update UI
+      document.querySelectorAll('.invoice-style-btn').forEach(btn => {
+        btn.classList.remove('bg-orange-600', 'bg-black', 'text-white', 'hover:bg-orange-700');
+        btn.classList.add('hover:bg-orange-50');
+        btn.querySelector('.indicator').classList.add('hidden');
+      });
+      
+      const activeBtn = document.getElementById('style_btn_' + style);
+      if (activeBtn) {
+        activeBtn.classList.remove('hover:bg-orange-50');
+        activeBtn.classList.add('bg-orange-600', 'text-white', 'hover:bg-orange-700');
+        activeBtn.querySelector('.indicator').classList.remove('hidden');
+      }
+      
+      // Update Preview with Debounce
+      clearTimeout(window.previewTimeout);
+      window.previewTimeout = setTimeout(() => {
+        const iframe = document.getElementById('pdfPreviewFrame');
+        document.getElementById('previewLoading').classList.remove('hidden');
+        iframe.src = "/logs/preview_pdf?style=" + style;
+      }, 200);
+    };
+    
+    // Init Style Selection (Lazy)
+    const initialStyle = document.getElementById('invoice_style_input').value;
+    
+    // Set initial UI state without loading iframe immediately
+    document.querySelectorAll('.invoice-style-btn').forEach(btn => {
+      btn.classList.remove('bg-orange-600', 'bg-black', 'text-white', 'hover:bg-orange-700');
+      btn.classList.add('hover:bg-orange-50');
+      btn.querySelector('.indicator').classList.add('hidden');
+    });
+    const activeBtn = document.getElementById('style_btn_' + initialStyle);
+    if (activeBtn) {
+      activeBtn.classList.remove('hover:bg-orange-50');
+      activeBtn.classList.add('bg-orange-600', 'text-white', 'hover:bg-orange-700');
+      activeBtn.querySelector('.indicator').classList.remove('hidden');
+    }
+
+    // Lazy load the iframe after page render
+    setTimeout(() => {
+        const iframe = document.getElementById('pdfPreviewFrame');
+        document.getElementById('previewLoading').classList.remove('hidden');
+        if (iframe.dataset.src) {
+           iframe.src = iframe.dataset.src;
+        }
+    }, 500);
   });
 </script>

@@ -300,7 +300,32 @@
         
         <div class="flex justify-between items-center pb-4 border-b-2 border-dashed border-gray-200">
           <h2 class="text-sm font-black uppercase tracking-widest text-black">Job Details</h2>
-          <span id="dateDisplay" class="text-xs font-bold text-orange-600"></span>
+          <div class="flex items-center gap-2 relative">
+            <span id="dateDisplay" class="text-xs font-bold text-orange-600"><%= Time.now.strftime("%b %d, %Y") %></span>
+            <button type="button" onclick="toggleMainCalendar()" class="w-7 h-7 border-2 border-black rounded-lg bg-white hover:bg-orange-50 transition-colors flex items-center justify-center group">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-black group-hover:text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </button>
+            <!-- Main Date Calendar Popup -->
+            <div id="mainCalendarPopup" class="hidden absolute top-full right-0 mt-2 bg-white border-2 border-black rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] z-[100] p-4 min-w-[280px]">
+              <div class="flex justify-between items-center mb-3">
+                <button type="button" onclick="changeMainCalendarMonth(-1)" class="w-8 h-8 border-2 border-black rounded-lg hover:bg-orange-50 flex items-center justify-center font-black text-lg">‹</button>
+                <span id="mainCalendarMonthYear" class="text-sm font-black uppercase tracking-widest text-black"></span>
+                <button type="button" onclick="changeMainCalendarMonth(1)" class="w-8 h-8 border-2 border-black rounded-lg hover:bg-orange-50 flex items-center justify-center font-black text-lg">›</button>
+              </div>
+              <div class="grid grid-cols-7 gap-1 mb-2">
+                <span class="text-[9px] font-bold text-gray-400 text-center">SU</span>
+                <span class="text-[9px] font-bold text-gray-400 text-center">MO</span>
+                <span class="text-[9px] font-bold text-gray-400 text-center">TU</span>
+                <span class="text-[9px] font-bold text-gray-400 text-center">WE</span>
+                <span class="text-[9px] font-bold text-gray-400 text-center">TH</span>
+                <span class="text-[9px] font-bold text-gray-400 text-center">FR</span>
+                <span class="text-[9px] font-bold text-gray-400 text-center">SA</span>
+              </div>
+              <div id="mainCalendarDays" class="grid grid-cols-7 gap-1"></div>
+            </div>
+          </div>
         </div>
 
         <div class="space-y-6">
@@ -383,13 +408,13 @@
                   </div>
                 </div>
               </div>
+              <span id="laborUnitIndicator" class="flex items-center justify-center bg-orange-600 text-white font-black border-2 border-black rounded-lg h-6 w-6 ml-2 shrink-0 select-none text-[10px]"><%= currency_sym %></span>
               <input type="text" id="editTime" 
                      inputmode="decimal"
                       placeholder="<%= @profile.billing_mode == 'fixed' ? 'Enter price...' : 'Enter hours...' %>"
                       onkeypress="return (event.charCode >= 48 && event.charCode <= 57) || event.charCode == 46"
                       oninput="updateLaborBadge()"
-                      class="flex-1 bg-transparent border-none py-3 px-2 font-black text-black focus:ring-0 outline-none text-right min-w-0 text-sm placeholder:text-gray-300">
-              <span id="laborUnitIndicator" class="text-xs font-black text-gray-400 mr-3 shrink-0"><%= currency_sym %></span>
+                      class="flex-1 bg-transparent border-none py-3 px-2 font-black text-black focus:ring-0 outline-none text-left min-w-0 text-sm placeholder:text-gray-300">
               
               <!-- Labor Badges (Hanging) -->
               <div class="absolute -bottom-6 left-2.5 flex items-center gap-2 z-0 pointer-events-none">
@@ -404,8 +429,8 @@
           <div class="space-y-1 relative">
             <label class="block text-[9px] font-bold text-gray-500 uppercase ml-1">After Tax</label>
             <div class="flex items-center border-2 border-black rounded-xl bg-orange-50 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] relative h-[52px] px-4">
-              <span class="flex-1 text-right font-black text-black" id="laborAfterTaxDisplay">0.00</span>
-              <span class="text-xs font-black text-gray-400 ml-2 shrink-0"><%= currency_sym %></span>
+              <span class="flex-1 text-right font-black text-black" id="laborAfterTaxDisplay">0</span>
+              <span class="flex items-center justify-center bg-orange-600 text-white font-black border-2 border-black rounded-lg h-6 w-6 ml-2 shrink-0 select-none text-[10px]"><%= currency_sym %></span>
             </div>
           </div>
         </div>
@@ -414,7 +439,7 @@
         <div id="dynamicSections" class="space-y-6 pt-6">
           <div class="dynamic-section space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
             <div class="flex justify-between items-center group border-b-2 border-black pb-1">
-              <input type="text" value="New Category" class="bg-transparent border-none p-0 text-xs font-black text-orange-600 uppercase tracking-widest focus:ring-0 w-2/3 section-title">
+              <input type="text" value="New Category" class="bg-transparent border-none p-0 text-base font-black text-orange-600 uppercase tracking-widest focus:ring-0 w-2/3 section-title">
               <div class="flex gap-2 mb-1 shrink-0">
                 <button type="button" onclick="addItem('section_initial')" 
                         class="bg-orange-600 text-white px-2.5 py-0.5 rounded-md font-black uppercase text-[9px] shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-700 transition-colors whitespace-nowrap">
@@ -548,12 +573,67 @@
         </div>
 
 
+        <!-- Due Date Display -->
+        <div class="flex justify-end items-center pt-4 pb-2 relative">
+          <div class="flex items-center gap-2">
+            <div class="flex flex-col justify-center text-right">
+              <span class="text-[9px] font-bold text-gray-400 uppercase tracking-widest leading-none translate-y-[-1px]">Due Date</span>
+              <div id="dueDateDisplay" class="text-xs font-black text-black leading-none mt-0.5 flex items-baseline justify-end">
+                <% initial_due = Time.now + 14.days %>
+                <span id="dueDateValue" class="leading-none"><%= initial_due.strftime("%b %d, %Y") %></span>
+                <span id="dueDaysLabel" class="text-[12px] font-bold text-gray-400 ml-[2px] leading-none whitespace-nowrap"><%= "(in 14 days)" %></span>
+              </div>
+            </div>
+            <button type="button" onclick="toggleCalendar()" class="w-8 h-8 border-2 border-black rounded-lg bg-white hover:bg-orange-50 transition-colors flex items-center justify-center group flex-shrink-0">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-black group-hover:text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </button>
+          </div>
+          
+          <!-- Calendar Popup -->
+          <div id="calendarPopup" class="hidden absolute bottom-full right-0 mb-2 bg-white border-2 border-black rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] z-50 p-4 min-w-[280px]">
+            <div class="flex justify-between items-center mb-3">
+              <button type="button" onclick="changeCalendarMonth(-1)" class="w-8 h-8 border-2 border-black rounded-lg hover:bg-orange-50 flex items-center justify-center font-black text-lg">‹</button>
+              <span id="calendarMonthYear" class="text-sm font-black uppercase tracking-widest"></span>
+              <button type="button" onclick="changeCalendarMonth(1)" class="w-8 h-8 border-2 border-black rounded-lg hover:bg-orange-50 flex items-center justify-center font-black text-lg">›</button>
+            </div>
+            <div class="grid grid-cols-7 gap-1 mb-2">
+              <span class="text-[9px] font-bold text-gray-400 text-center">SU</span>
+              <span class="text-[9px] font-bold text-gray-400 text-center">MO</span>
+              <span class="text-[9px] font-bold text-gray-400 text-center">TU</span>
+              <span class="text-[9px] font-bold text-gray-400 text-center">WE</span>
+              <span class="text-[9px] font-bold text-gray-400 text-center">TH</span>
+              <span class="text-[9px] font-bold text-gray-400 text-center">FR</span>
+              <span class="text-[9px] font-bold text-gray-400 text-center">SA</span>
+            </div>
+            <div id="calendarDays" class="grid grid-cols-7 gap-1"></div>
+            <div class="flex gap-2 mt-3 pt-3 border-t-2 border-dashed border-gray-200">
+              <button type="button" onclick="setQuickDue(7)" class="flex-1 py-2 border-2 border-black rounded-lg text-[9px] font-black uppercase hover:bg-orange-50 transition-colors">Net 7</button>
+              <button type="button" onclick="setQuickDue(14)" class="flex-1 py-2 border-2 border-black rounded-lg text-[9px] font-black uppercase hover:bg-orange-50 transition-colors">Net 14</button>
+              <button type="button" onclick="setQuickDue(30)" class="flex-1 py-2 border-2 border-black rounded-lg text-[9px] font-black uppercase hover:bg-orange-50 transition-colors">Net 30</button>
+            </div>
+          </div>
+        </div>
 
-        <div class="grid grid-cols-2 gap-3 pt-2">
-          <button type="button" onclick="addFullSection()" class="py-3 border-2 border-black rounded-xl text-[10px] font-black text-black uppercase tracking-widest hover:bg-gray-50 transition-colors">
-            + Section
-          </button>
-          <button id="saveButton" class="bg-orange-600 hover:bg-orange-700 text-white border-2 border-black font-black py-3 rounded-xl uppercase text-[10px] tracking-widest transition-all active:scale-[0.98]">
+        <div class="flex items-center gap-3 pt-2">
+          <!-- Plus Button with Dropup -->
+          <div class="relative">
+            <button type="button" id="addMenuBtn" onclick="toggleAddMenu()" class="w-12 h-12 border-2 border-black rounded-xl text-3xl font-black text-black hover:bg-gray-50 transition-colors flex items-center justify-center leading-none">
+              <span class="inline-block translate-y-[-4px]">+</span>
+            </button>
+            <div id="addMenuDropup" class="hidden absolute bottom-full left-0 mb-2 bg-white border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden z-50 min-w-[140px]">
+              <button type="button" onclick="addFullSection(); toggleAddMenu();" class="w-full px-4 py-3 text-left text-[10px] font-black text-black uppercase tracking-widest hover:bg-orange-50 hover:text-orange-600 transition-colors border-b border-gray-200">
+                Add Section
+              </button>
+              <button type="button" onclick="addFeeSection(); toggleAddMenu();" class="w-full px-4 py-3 text-left text-[10px] font-black text-black uppercase tracking-widest hover:bg-orange-50 hover:text-orange-600 transition-colors">
+                Add a Fee
+              </button>
+            </div>
+          </div>
+          
+          <!-- Confirm Log Button (Centered/Expanded) -->
+          <button id="saveButton" class="flex-1 bg-orange-600 hover:bg-orange-700 text-white border-2 border-black font-black py-3 rounded-xl uppercase text-[10px] tracking-widest transition-all active:scale-[0.98] text-center">
             Confirm Log
           </button>
         </div>
@@ -772,6 +852,7 @@ document.addEventListener("DOMContentLoaded", () => {
           client: client, 
           time: time, 
           date: date, 
+          due_date: document.getElementById("dueDateValue").innerText,
           tasks: JSON.stringify(sections),
           tax_scope: currentLogTaxScope,
           labor_taxable: document.getElementById('laborBox').dataset.taxable === "true",
@@ -798,7 +879,257 @@ document.addEventListener("DOMContentLoaded", () => {
     updateBadge(row);
     updateHamburgerGlow(row);
   });
+  
+  // Initialize default due date (14 days)
+  updateDueDate(null, null);
 });
+
+function updateDueDate(dueDays, dueDate) {
+  const dueDateValue = document.getElementById('dueDateValue');
+  const dueDaysLabel = document.getElementById('dueDaysLabel');
+  
+  let targetDate;
+  let daysUntil;
+  
+  if (dueDate) {
+    // Explicit date provided
+    targetDate = new Date(dueDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    targetDate.setHours(0, 0, 0, 0);
+    daysUntil = Math.ceil((targetDate - today) / (1000 * 60 * 60 * 24));
+  } else {
+    // Use days (default to 14 if not provided)
+    daysUntil = dueDays !== null && dueDays !== undefined ? parseInt(dueDays) : 14;
+    targetDate = new Date();
+    targetDate.setDate(targetDate.getDate() + daysUntil);
+  }
+  
+  // Format the date
+  const formattedDate = targetDate.toLocaleDateString('en-US', { 
+    day: 'numeric', 
+    month: 'short', 
+    year: 'numeric' 
+  });
+  
+  dueDateValue.innerText = formattedDate;
+  
+  // Format the days label
+  if (daysUntil === 0) {
+    dueDaysLabel.innerText = '(due today)';
+  } else if (daysUntil === 1) {
+    dueDaysLabel.innerText = '(in 1 day)';
+  } else if (daysUntil < 0) {
+    dueDaysLabel.innerText = `(${Math.abs(daysUntil)} days overdue)`;
+    dueDaysLabel.classList.add('text-red-500');
+    dueDaysLabel.classList.remove('text-gray-400');
+  } else {
+    dueDaysLabel.innerText = `(in ${daysUntil} days)`;
+    dueDaysLabel.classList.remove('text-red-500');
+    dueDaysLabel.classList.add('text-gray-400');
+  }
+  
+  // Store the selected date for calendar
+  window.selectedDueDate = targetDate;
+}
+
+// Calendar State
+let calendarViewDate = new Date();
+
+function toggleCalendar() {
+  const popup = document.getElementById('calendarPopup');
+  const isHidden = popup.classList.contains('hidden');
+  
+  if (isHidden) {
+    // Initialize calendar to selected date or today
+    calendarViewDate = window.selectedDueDate ? new Date(window.selectedDueDate) : new Date();
+    renderCalendar();
+    popup.classList.remove('hidden');
+  } else {
+    popup.classList.add('hidden');
+  }
+}
+
+// Close calendars when clicking outside
+document.addEventListener('click', (e) => {
+  // Due Date Calendar
+  const popup = document.getElementById('calendarPopup');
+  const calendarBtn = e.target.closest('button[onclick="toggleCalendar()"]');
+  if (popup && !popup.contains(e.target) && !calendarBtn) {
+    popup.classList.add('hidden');
+  }
+
+  // Main Date Calendar
+  const mainPopup = document.getElementById('mainCalendarPopup');
+  const mainCalendarBtn = e.target.closest('button[onclick="toggleMainCalendar()"]');
+  if (mainPopup && !mainPopup.contains(e.target) && !mainCalendarBtn) {
+    mainPopup.classList.add('hidden');
+  }
+});
+
+function changeCalendarMonth(delta) {
+  calendarViewDate.setMonth(calendarViewDate.getMonth() + delta);
+  renderCalendar();
+}
+
+function renderCalendar() {
+  const monthYear = document.getElementById('calendarMonthYear');
+  const daysContainer = document.getElementById('calendarDays');
+  
+  const year = calendarViewDate.getFullYear();
+  const month = calendarViewDate.getMonth();
+  
+  // Update header
+  monthYear.innerText = calendarViewDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  
+  // Get first day of month and total days
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  
+  // Get today for highlighting
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  // Get selected date for highlighting
+  const selected = window.selectedDueDate ? new Date(window.selectedDueDate) : null;
+  if (selected) selected.setHours(0, 0, 0, 0);
+  
+  let html = '';
+  
+  // Empty cells for days before first day of month
+  for (let i = 0; i < firstDay; i++) {
+    html += '<div class="w-8 h-8"></div>';
+  }
+  
+  // Days of the month
+  for (let day = 1; day <= daysInMonth; day++) {
+    const date = new Date(year, month, day);
+    date.setHours(0, 0, 0, 0);
+    
+    const isToday = date.getTime() === today.getTime();
+    const isSelected = selected && date.getTime() === selected.getTime();
+    const isPast = date < today;
+    
+    let classes = 'w-8 h-8 rounded-lg text-xs font-bold flex items-center justify-center cursor-pointer transition-colors ';
+    
+    if (isSelected) {
+      classes += 'bg-orange-600 text-white border-2 border-black';
+    } else if (isToday) {
+      classes += 'border-2 border-orange-600 text-orange-600 hover:bg-orange-50';
+    } else if (isPast) {
+      classes += 'text-gray-300 cursor-not-allowed';
+    } else {
+      classes += 'hover:bg-orange-50 hover:text-orange-600 border border-transparent';
+    }
+    
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const onclick = isPast ? '' : `onclick="selectCalendarDate('${dateStr}')"`;
+    
+    html += `<div class="${classes}" ${onclick}>${day}</div>`;
+  }
+  
+  daysContainer.innerHTML = html;
+}
+
+function selectCalendarDate(dateStr) {
+  const parts = dateStr.split('-');
+  const selectedDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+  
+  // Calculate days until
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  selectedDate.setHours(0, 0, 0, 0);
+  const daysUntil = Math.ceil((selectedDate - today) / (1000 * 60 * 60 * 24));
+  
+  updateDueDate(daysUntil, null);
+  toggleCalendar();
+}
+
+function setQuickDue(days) {
+  updateDueDate(days, null);
+  toggleCalendar();
+}
+
+// Main Date Calendar State
+let mainCalendarViewDate = new Date();
+window.selectedMainDate = new Date(); // Default to today
+
+function toggleMainCalendar() {
+  const popup = document.getElementById('mainCalendarPopup');
+  const isHidden = popup.classList.contains('hidden');
+  
+  if (isHidden) {
+    mainCalendarViewDate = new Date(window.selectedMainDate);
+    renderMainCalendar();
+    popup.classList.remove('hidden');
+  } else {
+    popup.classList.add('hidden');
+  }
+}
+
+function changeMainCalendarMonth(delta) {
+  mainCalendarViewDate.setMonth(mainCalendarViewDate.getMonth() + delta);
+  renderMainCalendar();
+}
+
+function renderMainCalendar() {
+  const monthYear = document.getElementById('mainCalendarMonthYear');
+  const daysContainer = document.getElementById('mainCalendarDays');
+  
+  const year = mainCalendarViewDate.getFullYear();
+  const month = mainCalendarViewDate.getMonth();
+  
+  monthYear.innerText = mainCalendarViewDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const selected = new Date(window.selectedMainDate);
+  selected.setHours(0, 0, 0, 0);
+  
+  let html = '';
+  for (let i = 0; i < firstDay; i++) {
+    html += '<div class="w-8 h-8"></div>';
+  }
+  
+  for (let day = 1; day <= daysInMonth; day++) {
+    const date = new Date(year, month, day);
+    date.setHours(0, 0, 0, 0);
+    
+    const isToday = date.getTime() === today.getTime();
+    const isSelected = date.getTime() === selected.getTime();
+    
+    let classes = 'w-8 h-8 rounded-lg text-xs font-bold flex items-center justify-center cursor-pointer transition-colors ';
+    
+    if (isSelected) {
+      classes += 'bg-orange-600 text-white border-2 border-black';
+    } else if (isToday) {
+      classes += 'border-2 border-orange-600 text-orange-600 hover:bg-orange-50';
+    } else {
+      classes += 'hover:bg-orange-50 hover:text-orange-600 border border-transparent';
+    }
+    
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    html += `<div class="${classes}" onclick="selectMainCalendarDate('${dateStr}')">${day}</div>`;
+  }
+  
+  daysContainer.innerHTML = html;
+}
+
+function selectMainCalendarDate(dateStr) {
+  const parts = dateStr.split('-');
+  const selectedDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+  window.selectedMainDate = selectedDate;
+  
+  document.getElementById('dateDisplay').innerText = selectedDate.toLocaleDateString('en-US', { 
+    month: 'short', day: 'numeric', year: 'numeric' 
+  });
+  
+  toggleMainCalendar();
+}
 
 function autoResize(textarea) {
   textarea.style.height = 'auto';
@@ -813,7 +1144,7 @@ function addFullSection(title = "New Category", items = [""]) {
   sectionDiv.className = "dynamic-section space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-500";
   sectionDiv.innerHTML = `
     <div class="flex justify-between items-center group border-b-2 border-black pb-1">
-      <input type="text" value="${title}" class="bg-transparent border-none p-0 text-xs font-black text-orange-600 uppercase tracking-widest focus:ring-0 w-2/3 section-title">
+      <input type="text" value="${title}" class="bg-transparent border-none p-0 text-sm font-black text-orange-600 uppercase tracking-widest focus:ring-0 w-2/3 section-title">
       <div class="flex gap-2 mb-1 shrink-0">
         <button type="button" onclick="addItem('${sectionId}')" 
                 class="bg-orange-600 text-white px-2.5 py-0.5 rounded-md font-black uppercase text-[9px] shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-700 transition-colors whitespace-nowrap">
@@ -860,6 +1191,56 @@ function addFullSection(title = "New Category", items = [""]) {
   });
 }
 
+function toggleAddMenu() {
+  const dropup = document.getElementById('addMenuDropup');
+  dropup.classList.toggle('hidden');
+}
+
+// Close add menu when clicking outside
+document.addEventListener('click', (e) => {
+  const dropup = document.getElementById('addMenuDropup');
+  const btn = document.getElementById('addMenuBtn');
+  if (dropup && btn && !dropup.contains(e.target) && !btn.contains(e.target)) {
+    dropup.classList.add('hidden');
+  }
+});
+
+function addFeeSection() {
+  const container = document.getElementById("dynamicSections");
+  const sectionId = "fee_" + Date.now() + Math.random().toString(36).substr(2, 5);
+  const currencySymbol = typeof activeCurrencySymbol !== 'undefined' ? activeCurrencySymbol : "$";
+  
+  const sectionDiv = document.createElement('div');
+  sectionDiv.className = "dynamic-section space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-500";
+  sectionDiv.innerHTML = `
+    <div class="flex justify-between items-center group border-b-2 border-black pb-1">
+      <input type="text" value="Fee" class="bg-transparent border-none p-0 text-base font-black text-orange-600 uppercase tracking-widest focus:ring-0 w-2/3 section-title">
+      <div class="flex gap-2 mb-1 shrink-0">
+        <button type="button" onclick="this.closest('.dynamic-section').remove()" 
+                class="bg-black text-white px-2.5 py-0.5 rounded-md font-black uppercase text-[9px] shadow-[1px_1px_0px_0px_rgba(0,0,0,0.3)] hover:bg-gray-800 transition-colors whitespace-nowrap">
+          Remove
+        </button>
+      </div>
+    </div>
+    <div id="${sectionId}" class="pt-2"></div>
+  `;
+  container.appendChild(sectionDiv);
+  
+  // Add a single fee item with price enabled by default
+  addItem(sectionId, "", "0", false, "Fee", null, 1, "", "");
+  
+  // Auto-activate price for the fee item
+  const feeItem = document.getElementById(sectionId).querySelector('.item-row');
+  if (feeItem) {
+    const priceMenuItem = feeItem.querySelector('.menu-item-price');
+    const priceInputRow = feeItem.querySelector('.price-inputs-row');
+    if (priceMenuItem && priceInputRow) {
+      priceMenuItem.classList.add('active');
+      priceInputRow.classList.remove('hidden');
+      priceInputRow.classList.add('grid');
+    }
+  }
+}
 function randomizeIcon(container) {
   const heads = container.querySelectorAll('path[class^="slider-head-"]');
   heads.forEach(h => {
@@ -1153,6 +1534,21 @@ function updateHamburgerGlow(container) {
   const isTaxable = container.dataset.taxable === "true";
   const discountMenuItem = container.querySelector('.menu-item-discount');
   const isDiscountActive = discountMenuItem && discountMenuItem.classList.contains('active');
+  
+  // Disable glow if Labor value is 0 or empty
+  if (isLabor) {
+      const timeInput = document.getElementById('editTime');
+      const val = parseFloat(timeInput.value) || 0;
+      if (val === 0) {
+          const sliderIcon = container.querySelector('.slider-icon');
+          if (sliderIcon) {
+              sliderIcon.classList.remove('text-orange-600', 'text-green-600');
+              sliderIcon.classList.add('text-black');
+          }
+          return;
+      }
+  }
+
   let isOrange = isTaxable;
   if (!isLabor) {
     const priceActive = container.querySelector('.menu-item-price').classList.contains('active');
@@ -1214,7 +1610,10 @@ function updateLaborBadge() {
   }
   let tax = isTaxable ? laborCost * (currentTaxRate / 100) : 0;
   const total = laborCost + tax;
-  afterTaxDisplay.innerText = total.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  afterTaxDisplay.innerText = cleanNum(total);
+  
+  // Ensure icon glow updates based on value
+  updateHamburgerGlow(laborBox);
 }
 
 
@@ -1681,6 +2080,9 @@ function updateUI(data) {
       dateVal = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     }
     document.getElementById("dateDisplay").innerText = dateVal;
+  
+    // Due Date Logic
+    updateDueDate(data.due_days, data.due_date);
   
     const sectionContainer = document.getElementById("dynamicSections");
     sectionContainer.innerHTML = "";
