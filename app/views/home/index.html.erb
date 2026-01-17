@@ -1,7 +1,7 @@
 <style>
   #mainTranscript {
-    transition: height 0.1s ease;
     min-height: 120px;
+    overflow: hidden;
   }
   .industrial-shadow {
     box-shadow: 4px 4px 0px 0px #F97316;
@@ -114,6 +114,10 @@
     color: #16A34A;
     background: #DCFCE7;
   }
+  .menu-item-discount:hover {
+    background: #F0FDF4; /* Green-50 */
+    color: #16A34A;
+  }
   
   /* Dropright Input */
   .menu-input-container {
@@ -156,7 +160,7 @@
     justify-content: center;
     height: 24px;
     padding: 0 10px;
-    border-radius: 6px;
+    border-radius: 0 0 6px 6px;
     font-size: 11px;
     font-weight: 900;
     text-transform: uppercase;
@@ -206,13 +210,18 @@
   }
 </style>
 
-<div class="min-h-screen bg-white text-black font-sans p-4 pb-32">
+<div class="bg-white text-black font-sans p-4 pb-32 md:pb-10">
   
   <header class="flex justify-between items-center mb-12 pt-2 px-1">
-    <div class="flex items-center gap-2">
-      <div class="w-3 h-8 bg-orange-600"></div>
+    <div class="flex items-center gap-3">
+      <div class="flex items-center justify-center w-10 h-10 bg-orange-600 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] rounded-lg">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6" />
+        </svg>
+      </div>
       <h1 class="text-2xl font-black tracking-tighter text-black uppercase italic">
-        SITE<span class="text-orange-600">LOGGER</span>
+        TALK<span class="text-orange-600">INVOICE</span>
       </h1>
     </div>
     
@@ -231,50 +240,63 @@
     </div>
   </header>
 
-  <div class="max-w-md mx-auto space-y-10">
-    
-    <div class="flex flex-col items-center justify-center">
-      <div id="recordingWave" class="hidden absolute w-48 h-48 border-4 border-orange-200 rounded-full animate-ping"></div>
+  <div class="max-w-md md:max-w-6xl mx-auto">
+    <div class="grid grid-cols-1 md:grid-cols-[380px_1fr] gap-12 items-start">
       
-      <button id="recordButton" class="relative w-36 h-36 rounded-full bg-white border-[6px] border-orange-500 shadow-xl flex flex-col items-center justify-center transition-all active:scale-95 group hover:bg-orange-50">
-        <svg id="micIcon" class="w-10 h-10 text-orange-600 mb-1 group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-        </svg>
-        <span id="buttonText" class="text-black text-[10px] font-black uppercase tracking-widest text-center px-2 mt-1">TAP TO RECORD</span>
-      </button>
-      
-      <p id="status" class="mt-6 text-xs font-bold text-orange-600 bg-orange-50 px-3 py-1 rounded-full uppercase tracking-widest border border-orange-100">Ready</p>
-    </div>
-
-    <div id="textSection" class="space-y-3 transition-all duration-500">
-      <div class="flex justify-between items-end px-1">
-        <label class="text-xs font-black text-black uppercase tracking-widest">Manual Log</label>
-        <span id="syncStatus" class="text-[10px] text-orange-600 font-bold uppercase hidden animate-pulse">Analyzing...</span>
-      </div>
-      <div class="relative">
-        <textarea id="mainTranscript" 
-                  rows="4"
-                  class="w-full bg-white border-2 border-black rounded-xl p-5 text-black text-sm font-medium leading-relaxed resize-none outline-none industrial-input placeholder:text-gray-400"
-                  placeholder="Paste text or type notes here..."
-                  oninput="autoResize(this)"></textarea>
+      <!-- LEFT COLUMN: Sticky Console -->
+      <div class="md:sticky md:top-8 flex flex-col gap-10">
         
-        <button id="reParseBtn" class="absolute bottom-4 right-4 p-2 bg-orange-500 border-2 border-black text-white rounded-lg active:scale-95 transition-transform hover:bg-orange-600 shadow-sm" title="Analyze Text">
-          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-          </svg>
-        </button>
-      </div>
-    </div>
+        <!-- Recording Console -->
+        <div class="flex flex-col items-center justify-center pt-4">
+          <div id="recordingWave" class="hidden absolute w-48 h-48 border-4 border-orange-200 rounded-full animate-ping"></div>
+          
+          <button id="recordButton" class="relative w-36 h-36 rounded-full bg-white border-[6px] border-orange-500 shadow-xl flex flex-col items-center justify-center transition-all active:scale-95 group hover:bg-orange-50">
+            <svg id="micIcon" class="w-10 h-10 text-orange-600 mb-1 group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+            </svg>
+            <span id="buttonText" class="text-black text-[10px] font-black uppercase tracking-widest text-center px-2 mt-1">TAP TO RECORD</span>
+          </button>
+          
+          <p id="status" class="mt-6 text-xs font-bold text-orange-600 bg-orange-50 px-3 py-1 rounded-full uppercase tracking-widest border border-orange-100">Ready</p>
+        </div>
 
-    <div id="invoicePreview" class="hidden animate-in fade-in slide-in-from-bottom-4 duration-700 space-y-6">
+        <!-- Transcript Console -->
+        <div id="textSection" class="space-y-3 transition-all duration-500">
+          <div class="flex justify-between items-end px-1">
+            <label class="text-xs font-black text-black uppercase tracking-widest">Live Transcript</label>
+            <span id="syncStatus" class="text-[10px] text-orange-600 font-bold uppercase hidden animate-pulse">Analyzing...</span>
+          </div>
+          <div class="relative">
+            <textarea id="mainTranscript" 
+                      rows="6"
+                      class="w-full bg-white border-2 border-black rounded-xl p-5 text-black text-sm font-medium leading-relaxed resize-none outline-none industrial-input placeholder:text-gray-400"
+                      placeholder="Paste text or type notes here..."
+                      oninput="autoResize(this)"></textarea>
+          </div>
+          
+          <!-- Apply Action Button -->
+          <div class="flex justify-end pr-1">
+            <button id="reParseBtn" class="flex items-center gap-2 px-4 py-2 bg-orange-500 border-2 border-black text-white rounded-xl active:scale-95 transition-all hover:bg-orange-600 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] group" title="Analyze Text">
+              <span class="text-[10px] font-black uppercase tracking-widest">Apply</span>
+              <svg class="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN: Invoice Data -->
+      <div id="invoicePreview" class="transition-all duration-700 space-y-8">
+
       
-      <div class="flex items-center gap-4">
-        <div class="h-px bg-black flex-1 opacity-10"></div>
-        <span class="text-[10px] font-black uppercase tracking-[0.2em] text-orange-600">Review Data</span>
-        <div class="h-px bg-black flex-1 opacity-10"></div>
-      </div>
+        <div class="flex items-center gap-4">
+          <div class="h-px bg-black flex-1 opacity-10"></div>
+          <span class="text-[10px] font-black uppercase tracking-[0.2em] text-orange-600">Review Data</span>
+          <div class="h-px bg-black flex-1 opacity-10"></div>
+        </div>
 
-      <div class="bg-white border-2 border-black rounded-2xl p-6 industrial-shadow space-y-6">
+        <div class="bg-white border-2 border-black rounded-2xl p-6 industrial-shadow space-y-6">
         
         <div class="flex justify-between items-center pb-4 border-b-2 border-dashed border-gray-200">
           <h2 class="text-sm font-black uppercase tracking-widest text-black">Job Details</h2>
@@ -328,6 +350,8 @@
                            </div>
                       </div>
                   </div>
+                  <!-- Divider -->
+                  <div class="h-[1px] bg-gray-100 mx-2 my-0.5"></div>
                   <!-- Discount Menu Item -->
                   <div class="discount-wrapper flex flex-col w-full">
                       <div class="menu-item menu-item-discount" onclick="toggleDiscount(this)">
@@ -361,16 +385,17 @@
               </div>
               <input type="text" id="editTime" 
                      inputmode="decimal"
-                     onkeypress="return (event.charCode >= 48 && event.charCode <= 57) || event.charCode == 46"
-                     oninput="updateLaborBadge()"
-                     class="flex-1 bg-transparent border-none py-3 px-2 font-black text-black focus:ring-0 outline-none text-right min-w-0 text-sm">
-              <span id="laborUnitIndicator" class="text-[10px] font-black text-gray-400 mr-3 shrink-0"><%= currency_sym %></span>
+                      placeholder="<%= @profile.billing_mode == 'fixed' ? 'Enter price...' : 'Enter hours...' %>"
+                      onkeypress="return (event.charCode >= 48 && event.charCode <= 57) || event.charCode == 46"
+                      oninput="updateLaborBadge()"
+                      class="flex-1 bg-transparent border-none py-3 px-2 font-black text-black focus:ring-0 outline-none text-right min-w-0 text-sm placeholder:text-gray-300">
+              <span id="laborUnitIndicator" class="text-xs font-black text-gray-400 mr-3 shrink-0"><%= currency_sym %></span>
               
               <!-- Labor Badges (Hanging) -->
-              <div class="absolute -bottom-6 left-2 flex items-center gap-2 z-0 pointer-events-none">
+              <div class="absolute -bottom-6 left-2.5 flex items-center gap-2 z-0 pointer-events-none">
                   <span id="laborDiscountBadge" class="badge badge-discount hidden shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"></span>
               </div>
-              <div class="absolute -bottom-6 right-2 flex items-center gap-2 z-0 pointer-events-none">
+              <div class="absolute -bottom-6 right-2.5 flex items-center gap-2 z-0 pointer-events-none">
                   <span id="laborTaxBadge" class="badge badge-tax hidden shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] border border-black bg-orange-600 text-white"></span>
               </div>
             </div>
@@ -386,7 +411,141 @@
         </div>
         </div>
 
-        <div id="dynamicSections" class="space-y-6 pt-6"></div>
+        <div id="dynamicSections" class="space-y-6 pt-6">
+          <div class="dynamic-section space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
+            <div class="flex justify-between items-center group border-b-2 border-black pb-1">
+              <input type="text" value="New Category" class="bg-transparent border-none p-0 text-xs font-black text-orange-600 uppercase tracking-widest focus:ring-0 w-2/3 section-title">
+              <div class="flex gap-2 mb-1 shrink-0">
+                <button type="button" onclick="addItem('section_initial')" 
+                        class="bg-orange-600 text-white px-2.5 py-0.5 rounded-md font-black uppercase text-[9px] shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-700 transition-colors whitespace-nowrap">
+                  + Item
+                </button>
+                <button type="button" onclick="this.closest('.dynamic-section').remove()" 
+                        class="bg-black text-white px-2.5 py-0.5 rounded-md font-black uppercase text-[9px] shadow-[1px_1px_0px_0px_rgba(0,0,0,0.3)] hover:bg-gray-800 transition-colors whitespace-nowrap">
+                  Remove
+                </button>
+              </div>
+            </div>
+            <div id="section_initial" class="pt-2">
+              <div class="flex items-center gap-2 mb-8 w-full animate-in fade-in slide-in-from-left-2 duration-300 item-row" 
+                   data-taxable="false" data-symbol="<%= currency_sym %>" data-qty="1">
+                <div class="flex flex-1 items-center border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] min-w-0 main-item-box transition-colors relative">
+                  
+                  <!-- Hamburger Menu Container -->
+                  <div class="h-10 w-10 border-r-2 border-black flex-shrink-0 item-menu-container">
+                    <button type="button" onclick="toggleMenu(this)" class="w-full h-full flex flex-col items-center justify-center gap-[3px] hover:bg-gray-50 item-menu-btn rounded-l-[10px]">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 transition-colors slider-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                        <path d="M3 4h18M3 12h18M3 20h18" />
+                        <path class="slider-head-1" d="M12 2v4" />
+                        <path class="slider-head-2" d="M12 10v4" />
+                        <path class="slider-head-3" d="M12 18v4" />
+                      </svg>
+                    </button>
+                    
+                    <div class="item-menu-dropdown">
+                      
+                      <!-- Tax Menu Item -->
+                      <div class="tax-wrapper flex flex-col w-full">
+                          <div class="menu-item menu-item-tax" onclick="toggleTaxable(this)">
+                            <span>Taxable</span>
+                            <div class="menu-icon">%</div>
+                          </div>
+                          
+                          <div class="tax-inputs-row hidden gap-1 p-1 bg-orange-50 animate-in slide-in-from-top-1 duration-200 border border-t-0 border-orange-600 rounded-b-md"
+                               style="grid-template-columns: 1fr;">
+                               <div class="relative w-full">
+                                 <span class="absolute left-1 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400">%</span>
+                                 <input type="number" step="0.1" class="menu-input tax-menu-input text-right w-full border-orange-200 pl-4 pr-1" 
+                                        style="width: 100%"
+                                        value="<%= @profile.tax_rate.presence || 0 %>" placeholder="%" 
+                                        oninput="updateBadge(this.closest('.item-row'))">
+                               </div>
+                          </div>
+                      </div>
+                      <!-- Divider -->
+                      <div class="h-[1px] bg-gray-100 mx-2 my-0.5"></div>
+                      <!-- Price Menu Item -->
+                      <div class="price-wrapper flex flex-col w-full">
+                          <div class="menu-item menu-item-price" onclick="togglePrice(this)">
+                            <span>Price</span>
+                            <div class="menu-icon price-menu-icon text-black font-black uppercase tracking-tighter"><%= currency_sym %></div>
+                          </div>
+
+                          <div class="price-inputs-row hidden gap-1 p-1 bg-orange-50 animate-in slide-in-from-top-1 duration-200 border border-t-0 border-orange-600 rounded-b-md"
+                               style="grid-template-columns: 1fr;">
+                               <div class="relative w-full">
+                                  <span class="absolute left-1 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400 price-input-symbol"><%= currency_sym %></span>
+                                  <input type="number" step="0.01" class="menu-input price-menu-input text-right w-full border-orange-200 pl-4 pr-1" 
+                                         style="width: 100%"
+                                         placeholder="0.00" 
+                                         oninput="updateBadge(this.closest('.item-row'))">
+                               </div>
+                          </div>
+                      </div>
+                      <!-- Divider -->
+                      <div class="h-[1px] bg-gray-100 mx-2 my-0.5"></div>
+                      <!-- Discount Menu Item -->
+                      <div class="discount-wrapper flex flex-col w-full">
+                          <div class="menu-item menu-item-discount" onclick="toggleDiscount(this)">
+                            <span>Discount</span>
+                            <div class="menu-icon">
+                              <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+                              </svg>
+                            </div>
+                          </div>
+                          
+                          <div class="discount-inputs-row hidden gap-1 p-1 bg-green-50 animate-in slide-in-from-top-1 duration-200 border border-t-0 border-green-600 rounded-b-md" 
+                               style="grid-template-columns: 1fr 1fr;">
+                               <div class="relative w-full">
+                                 <span class="absolute left-1 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400 discount-flat-symbol"><%= currency_sym %></span>
+                                 <input type="number" step="0.01" class="menu-input discount-flat-input text-right w-full border-gray-300 pl-4 pr-1" 
+                                        style="width: 100%"
+                                        placeholder="0.00" 
+                                        oninput="updateBadge(this.closest('.item-row'))">
+                               </div>
+                               <div class="relative w-full">
+                                 <span class="absolute left-1 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400">%</span>
+                                 <input type="number" step="0.1" class="menu-input discount-percent-input text-right w-full border-gray-300 pl-4 pr-1" 
+                                        style="width: 100%"
+                                        placeholder="0" 
+                                        oninput="updateBadge(this.closest('.item-row'))">
+                               </div>
+                          </div>
+                      </div>
+
+                    </div>
+                  </div>
+            
+                  <input type="text" class="flex-1 bg-transparent border-none text-sm font-bold text-black focus:ring-0 py-2 px-3 item-input placeholder:text-gray-300 min-w-0 rounded-r-xl"
+                         placeholder="Work description...">
+                  
+                  <!-- Badges Container -->
+                  <div class="absolute -bottom-6 left-2.5 flex items-center gap-2 z-0 pointer-events-none">
+                      <span class="badge badge-discount hidden shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"></span>
+                  </div>
+                  <div class="absolute -bottom-6 right-2.5 flex items-center gap-1 z-0 pointer-events-none">
+                      <span class="badge badge-price hidden shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] border border-black bg-orange-600 text-white"></span>
+                      <div class="badge-operator badge-multiplier hidden flex items-center justify-center">
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                      </div>
+                      <span class="badge badge-tax hidden shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] border border-black bg-orange-600 text-white"></span>
+                      <div class="badge-operator badge-equals hidden flex items-center justify-center">
+                          <svg width="12" height="10" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="5" stroke-linecap="round"><path d="M4 8h16M4 16h16"/></svg>
+                      </div>
+                      <span class="badge badge-after-tax hidden shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] border border-black bg-orange-600 text-white"></span>
+                  </div>
+                </div>
+                
+                <button type="button" 
+                        onclick="this.parentElement.remove();" 
+                        class="w-6 h-10 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors font-bold text-xl flex-shrink-0">
+                  ×
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
 
 
 
@@ -400,8 +559,10 @@
         </div>
 
       </div>
-    </div>
-  </div>
+      </div> <!-- End Right Column (Invoice Preview) -->
+
+    </div> <!-- End Grid Container -->
+  </div> <!-- End Max-Width Container -->
 
   <div id="errorToast" class="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
     <div class="bg-white text-black px-6 py-4 rounded-xl shadow-2xl border-2 border-red-500 flex items-center gap-4">
@@ -630,6 +791,13 @@ document.addEventListener("DOMContentLoaded", () => {
       showError("Error saving log.");
     }
   };
+
+  // Hydrate initial static items if any
+  document.querySelectorAll('.item-row').forEach(row => {
+    randomizeIcon(row);
+    updateBadge(row);
+    updateHamburgerGlow(row);
+  });
 });
 
 function autoResize(textarea) {
@@ -732,28 +900,34 @@ function toggleMenu(btn) {
     // Rerandomize on click for extra dynamic feel
     randomizeIcon(btn);
     
-    // "Labor as Master" Width Logic
     const laborBox = document.getElementById('laborBox');
     const isLaborBox = btn.closest('#laborBox');
     const container = btn.closest('.border-2.rounded-xl');
     
-    if (isLaborBox) {
-        // Labor Box: Full width dropdown, so square off BOTH bottom corners
-        if (container) {
-            container.style.borderBottomLeftRadius = '0';
-            container.style.borderBottomRightRadius = '0';
-        }
-        dropdown.style.width = ''; // Reset to CSS default
+    // Desktop width synchronization logic
+    const isDesktop = window.innerWidth >= 768;
+    const laborInputRow = laborBox.querySelector('.flex.items-center.border-2');
+    const masterWidth = laborInputRow ? laborInputRow.offsetWidth : 0;
+    const iconWidth = 40; // The h-10 w-10 icon container
+    const inputAreaWidth = masterWidth - iconWidth;
+    const targetWidth = (inputAreaWidth / 2) + iconWidth;
+
+    if (isDesktop) {
+        // Apply synchronized half-width logic to BOTH Labor and Items
+        dropdown.style.width = (targetWidth + 2) + 'px'; 
+        container.style.borderBottomLeftRadius = '0';
+        // Only square off right corner if it's full width (it isn't on desktop anymore)
+        container.style.borderBottomRightRadius = ''; 
     } else {
-        // Items: Dropdown is partial width (matches Labor), so square off ONLY bottom-left
-        if (container) {
-            container.style.borderBottomLeftRadius = '0';
-            // Leave bottom-right rounded
-        }
-        
-        const laborInputContainer = laborBox.querySelector('.flex.items-center.border-2');
-        if (laborInputContainer) {
-            const masterWidth = laborInputContainer.offsetWidth; 
+        // Mobile: Maintain original Behavior
+        if (isLaborBox) {
+            if (container) {
+                container.style.borderBottomLeftRadius = '0';
+                container.style.borderBottomRightRadius = '0';
+            }
+            dropdown.style.width = '';
+        } else {
+            if (container) container.style.borderBottomLeftRadius = '0';
             dropdown.style.width = (masterWidth + 4) + 'px';
         }
     }
@@ -1256,7 +1430,8 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
                      </div>
                 </div>
             </div>
-
+            <!-- Divider -->
+            <div class="h-[1px] bg-gray-100 mx-2 my-0.5"></div>
             <!-- Price Menu Item (Moved Middle) -->
             <div class="price-wrapper flex flex-col w-full">
                 <div class="menu-item menu-item-price ${priceActiveClass}" onclick="togglePrice(this)"
@@ -1276,7 +1451,8 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
                      </div>
                 </div>
             </div>
-
+            <!-- Divider -->
+            <div class="h-[1px] bg-gray-100 mx-2 my-0.5"></div>
             <!-- Discount Menu Item (Moved Last) -->
             <div class="discount-wrapper flex flex-col w-full">
                 <div class="menu-item menu-item-discount ${discActiveClass}" onclick="toggleDiscount(this)">
@@ -1318,10 +1494,10 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
                placeholder="Work description...">
         
         <!-- Badges Container (Hanging Bottom Right) -->
-        <div class="absolute -bottom-6 left-2 flex items-center gap-2 z-0 pointer-events-none">
+        <div class="absolute -bottom-6 left-2.5 flex items-center gap-2 z-0 pointer-events-none">
             <span class="badge badge-discount hidden shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"></span>
         </div>
-        <div class="absolute -bottom-6 right-2 flex items-center gap-1 z-0 pointer-events-none">
+        <div class="absolute -bottom-6 right-2.5 flex items-center gap-1 z-0 pointer-events-none">
             <span class="badge badge-price hidden shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] border border-black bg-orange-600 text-white"></span>
             <div class="badge-operator badge-multiplier hidden flex items-center justify-center">
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
@@ -1458,6 +1634,10 @@ function updateUI(data) {
     const laborTime = document.getElementById("editTime").value;
     const hasLaborValue = laborTime && laborTime !== "" && parseFloat(laborTime) !== 0;
     
+    // Rerandomize labor icon specifically
+    const laborIconBtn = laborBox.querySelector('.item-menu-btn');
+    if (laborIconBtn) randomizeIcon(laborIconBtn);
+
     let laborTaxableByDefault = (scope.includes("all") || scope.includes("total") || scope.includes("labor")) && hasLaborValue;
     if (typeof data.labor_taxable === 'boolean') {
       laborTaxableByDefault = data.labor_taxable;
