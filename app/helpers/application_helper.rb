@@ -66,4 +66,12 @@ module ApplicationHelper
         { n: "Armenian Dram", c: "AMD", s: "֏", i: "am", p: "suf" }
       ]
     end
+    def format_money_ruby(amount, profile, currency_code = nil)
+      code = currency_code.presence || profile.currency.presence || "USD"
+      currency = currencies_data.find { |c| c[:c] == code }
+      sym = currency ? currency[:s] : "$"
+      pos = currency ? currency[:p] : "pre"
+      val = "%.2f" % (amount || 0)
+      pos == "suf" ? "#{val} #{sym}" : "#{sym}#{val}"
+    end
 end

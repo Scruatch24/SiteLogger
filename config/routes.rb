@@ -4,9 +4,11 @@ Rails.application.routes.draw do
   post "process_audio", to: "home#process_audio"
   get "history", to: "home#history"
   get "settings", to: "home#settings"
+  get "profile", to: "home#profile"
 
   # Use 'match' with 'via' to allow both POST and PATCH
   match "save_settings", to: "home#save_settings", via: [ :post, :patch ]
+  match "save_profile", to: "home#save_profile", via: [ :post, :patch ]
 
   resources :logs, only: [ :create, :destroy ] do
     member do
@@ -15,6 +17,7 @@ Rails.application.routes.draw do
     collection do
       delete "clear_all"
       get "preview_pdf"
+      get "preview_pdf_multipage"
     end
   end
 end

@@ -1,31 +1,56 @@
+<style>
+  .industrial-shadow {
+    box-shadow: 4px 4px 0px 0px #F97316;
+  }
+</style>
+
 <div class="min-h-screen bg-white text-black font-sans p-4 pb-20">
   
-  <header class="flex justify-between items-center mb-10 pt-4 px-1">
-    <div class="flex items-center gap-3">
-      <%= link_to root_path, class: "p-2 bg-white border-2 border-black rounded-lg text-black hover:bg-orange-50 hover:border-orange-500 transition" do %>
+  <header class="flex flex-row justify-between items-center mb-10 pt-4 px-1 gap-2">
+    <div class="flex items-center gap-2 md:gap-3 select-none min-w-0">
+      <%= link_to root_path, class: "p-1.5 md:p-2 bg-white border-2 border-black rounded-lg text-black hover:bg-orange-50 hover:border-orange-500 transition shrink-0" do %>
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
         </svg>
       <% end %>
-      <div class="flex flex-col">
-        <h1 class="text-2xl font-black tracking-tighter text-black uppercase">History</h1>
-      </div>
+      <h1 class="text-2xl font-black tracking-tighter text-black uppercase italic truncate pr-2">History</h1>
     </div>
 
-    <% if @logs.any? %>
-      <%= button_to clear_all_logs_path, method: :delete, 
-          form: { data: { turbo_confirm: "Wipe all history?" } },
-          class: "text-[10px] font-black text-red-500 border-b-2 border-red-100 hover:border-red-500 uppercase tracking-widest transition" do %>
-        Clear All
+    <div class="flex gap-1.5 md:gap-3 shrink-0 items-center">
+      <% if @logs.any? %>
+        <%= button_to clear_all_logs_path, method: :delete, 
+            form: { data: { turbo_confirm: "Wipe all history?" } },
+            class: "text-[9px] md:text-[10px] font-black text-red-500 border-b-2 border-red-100 hover:border-red-500 uppercase tracking-widest transition mr-1 md:mr-4 whitespace-nowrap" do %>
+          Clear All
+        <% end %>
       <% end %>
-    <% end %>
+
+      <%= link_to profile_path, class: "p-1.5 md:p-2 bg-white border-2 border-black rounded-lg hover:bg-orange-50 transition hover:border-orange-500 group", title: "Profile" do %>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 md:h-5 md:w-5 text-black group-hover:text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+        </svg>
+      <% end %>
+
+      <%= link_to settings_path, class: "p-1.5 md:p-2 bg-white border-2 border-black rounded-lg hover:bg-orange-50 transition hover:border-orange-500 group", title: "Settings" do %>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 md:h-5 md:w-5 text-black group-hover:text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      <% end %>
+    </div>
   </header>
 
   <div class="max-w-2xl mx-auto space-y-6">
     <% if @logs.any? %>
       <% @logs.each do |log| %>
+        <%# Get currency for this log %>
+        <% log_currency_code = log.try(:currency).presence || @profile.currency.presence || "USD" %>
+        <% current_currency = currencies_data.find { |c| c[:c] == log_currency_code } %>
+        <% currency = current_currency[:s] %>
+        
         <div class="bg-white border-2 border-black rounded-xl overflow-hidden industrial-shadow hover:translate-y-[-2px] transition-transform duration-200">
           
+          <%# Header with Date and Actions %>
           <div class="bg-white px-5 py-4 flex justify-between items-center border-b-2 border-dashed border-gray-200">
             <span class="text-xs font-black text-orange-600 uppercase tracking-widest">
               <%= log.date.presence || "No Date" %>
@@ -49,6 +74,7 @@
           </div>
 
           <div class="p-6">
+            <%# Client and Duration/Price Header %>
             <div class="flex justify-between items-start mb-8">
               <div>
                 <label class="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Client</label>
@@ -56,15 +82,11 @@
               </div>
               <div class="text-right">
                 <label class="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">
-                  <%= log.billing_mode == "fixed" ? "Total Price" : "Duration" %>
+                  <%= log.billing_mode == "fixed" ? "Labor Price" : "Duration" %>
                 </label>
                 <span class="text-lg font-black text-orange-600">
-                  <%# Fetching symbol from our ApplicationHelper data %>
-                  <% current_currency = currencies_data.find { |c| c[:c] == (@profile.currency.presence || "USD") } %>
-                  <% currency = current_currency[:s] %>
-
                   <% if log.billing_mode == "fixed" %>
-                    <%= currency %><%= log.time %>
+                    <%= format_money_ruby(log.time.to_f, @profile, log_currency_code) %>
                   <% else %>
                     <%= "%g" % log.time.to_f %> <span class="text-xs text-gray-400">HRS</span>
                   <% end %>
@@ -72,20 +94,39 @@
               </div>
             </div>
 
+            <%# Sections %>
             <div class="flex flex-col space-y-6">
               <% sections = JSON.parse(log.tasks || '[]') rescue [] %>
 
               <% if sections.any? && sections.first.is_a?(Hash) %>
                 <% sections.each do |section| %>
+                  <% 
+                    title = section["title"].to_s.downcase
+                    is_labor = title.include?("labor") || title.include?("service")
+                    is_materials = title.include?("material")
+                    is_expenses = title.include?("expense")
+                    is_fees = title.include?("fee")
+                  %>
                   <div class="space-y-3">
-                    <label class="block text-[20px] font-black text-orange-600 uppercase tracking-widest border-l-2 border-black pl-2">
-                      <%= section["title"] %>
-                    </label>
+                    <div class="flex items-center border-b-2 border-black pb-1">
+                      <%# Section Icon %>
+                      <% if is_labor %>
+                        <svg class="h-4 w-4 text-orange-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" /></svg>
+                      <% elsif is_materials %>
+                        <svg class="h-4 w-4 text-orange-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
+                      <% elsif is_expenses %>
+                        <svg class="h-4 w-4 text-orange-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                      <% elsif is_fees %>
+                        <svg class="h-4 w-4 text-orange-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 011 12V7a4 4 0 014-4z" /></svg>
+                      <% else %>
+                        <svg class="h-4 w-4 text-orange-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                      <% end %>
+                      <span class="text-base font-black text-orange-600 uppercase tracking-widest"><%= section["title"] %></span>
+                    </div>
+                    
                     <ul class="pl-3">
                       <% section["items"].each do |item| %>
-                        <!-- Industrial Box Item -->
                         <li class="relative mb-6 group pl-5">
-                           <!-- Bullet Outside -->
                            <span class="absolute left-0 top-1/2 -translate-y-1/2 w-2 h-2 bg-black rounded-full z-0 group-hover:scale-125 transition-transform duration-300 group-hover:bg-orange-600"></span>
 
                            <div class="flex flex-1 items-center border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] min-w-0 px-4 py-3 relative z-10">
@@ -100,19 +141,36 @@
                                  <% end %>
                               </span>
                               
-                              <!-- Hanging Badges Container -->
+                              <%# Hanging Badges %>
                               <div class="absolute -bottom-5 right-2 flex items-center gap-1 z-20 pointer-events-none">
+                                <%# Price Badge %>
                                 <% if item.is_a?(Hash) && item["price"].present? && item["price"].to_f > 0 %>
-                                   <span class="badge badge-price shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] border border-black bg-orange-600 text-white px-2 py-0.5 rounded text-[10px] font-black uppercase">
-                                      <%= currency %><%= number_with_precision(item["price"], precision: 2) %>
+                                   <span class="shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] border border-black bg-orange-600 text-white px-2 py-0.5 rounded text-[10px] font-black uppercase">
+                                      <%= format_money_ruby(item["price"].to_f, @profile, log_currency_code) %>
                                    </span>
                                 <% end %>
 
+                                <%# Tax Badge %>
                                 <% if item.is_a?(Hash) && (item["taxable"] == true || item["taxable"] == "true") %>
                                    <% t_rate = item["tax_rate"].presence || @profile.tax_rate.presence || 0 %>
-                                   <span class="badge badge-tax shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] border border-black bg-orange-600 text-white px-2 py-0.5 rounded text-[10px] font-black uppercase">
+                                   <span class="shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] border border-black bg-orange-600 text-white px-2 py-0.5 rounded text-[10px] font-black uppercase">
                                       <%= t_rate %>%
                                    </span>
+                                <% end %>
+
+                                <%# Discount Badge (Green) %>
+                                <% if item.is_a?(Hash) %>
+                                  <% disc_flat = item["discount_flat"].to_f %>
+                                  <% disc_pct = item["discount_percent"].to_f %>
+                                  <% if disc_flat > 0 %>
+                                    <span class="shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] border border-black bg-green-500 text-white px-2 py-0.5 rounded text-[10px] font-black uppercase">
+                                       -<%= format_money_ruby(disc_flat, @profile, log_currency_code) %>
+                                    </span>
+                                  <% elsif disc_pct > 0 %>
+                                    <span class="shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] border border-black bg-green-500 text-white px-2 py-0.5 rounded text-[10px] font-black uppercase">
+                                       -<%= disc_pct %>%
+                                    </span>
+                                  <% end %>
                                 <% end %>
                               </div>
                            </div>
@@ -122,6 +180,7 @@
                   </div>
                 <% end %>
               <% else %>
+                <%# Legacy format - simple bullet list %>
                 <div class="space-y-2">
                    <ul class="space-y-1">
                     <% sections.each do |item| %>
@@ -130,6 +189,141 @@
                   </ul>
                 </div>
               <% end %>
+
+              <%# Credit Section %>
+              <% if log.try(:credit_flat).present? && log.try(:credit_flat).to_f > 0 %>
+                <div class="space-y-3">
+                  <div class="flex items-center border-b-2 border-black pb-1">
+                    <svg class="h-4 w-4 text-orange-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
+                    <span class="text-base font-black text-orange-600 uppercase tracking-widest">Credit</span>
+                  </div>
+                  <ul class="pl-3">
+                    <li class="relative mb-6 group pl-5">
+                      <span class="absolute left-0 top-1/2 -translate-y-1/2 w-2 h-2 bg-red-500 rounded-full z-0"></span>
+                      <div class="flex flex-1 items-center border-2 border-red-500 rounded-xl bg-red-50 shadow-[3px_3px_0px_0px_rgba(239,68,68,1)] min-w-0 px-4 py-3 relative z-10">
+                        <span class="text-sm text-red-600 font-bold leading-relaxed flex-1">
+                          <%= log.try(:credit_reason).presence || "Customer credit" %>
+                        </span>
+                      </div>
+                    </li>
+                  </ul>
+                </div>
+              <% end %>
+            </div>
+
+            <%# Totals Summary %>
+            <div class="mt-8 pt-4 border-t-2 border-dashed border-gray-200">
+              <%
+                # Calculate totals
+                subtotal = 0.0
+                tax_total = 0.0
+                item_discounts = 0.0
+                
+                sections = JSON.parse(log.tasks || '[]') rescue []
+                if sections.any? && sections.first.is_a?(Hash)
+                  sections.each do |sec|
+                    sec["items"].each do |item|
+                      if item.is_a?(Hash)
+                        price = item["price"].to_f
+                        qty = (item["qty"].presence || 1).to_f
+                        item_total = price * qty
+                        
+                        # Apply item discount
+                        disc_flat = item["discount_flat"].to_f
+                        disc_pct = item["discount_percent"].to_f
+                        if disc_flat > 0
+                          item_discounts += disc_flat
+                          item_total -= disc_flat
+                        elsif disc_pct > 0
+                          disc_amt = item_total * (disc_pct / 100)
+                          item_discounts += disc_amt
+                          item_total -= disc_amt
+                        end
+                        
+                        subtotal += item_total
+                        
+                        # Calculate tax
+                        if item["taxable"] == true || item["taxable"] == "true"
+                          rate = (item["tax_rate"].presence || @profile.tax_rate.presence || 0).to_f
+                          tax_total += item_total * (rate / 100)
+                        end
+                      end
+                    end
+                  end
+                end
+                
+                # Add labor
+                labor_amount = log.time.to_f
+                if log.billing_mode != "fixed"
+                  # Use hourly rate from log if available, else from profile
+                  hourly_rate = log.try(:hourly_rate).present? ? log.try(:hourly_rate).to_f : @profile.hourly_rate.to_f
+                  labor_amount = labor_amount * hourly_rate
+                end
+                
+                # Labor discount
+                labor_disc = 0.0
+                if log.labor_discount_flat.to_f > 0
+                  labor_disc = log.labor_discount_flat.to_f
+                elsif log.labor_discount_percent.to_f > 0
+                  labor_disc = labor_amount * (log.labor_discount_percent.to_f / 100)
+                end
+                labor_amount -= labor_disc
+                
+                subtotal += labor_amount
+                
+                # Labor tax
+                if log.try(:labor_taxable)
+                   # Use global tax rate from profile (logs don't have separate global tax rate yet)
+                  tax_total += labor_amount * ((@profile.tax_rate.presence || 0).to_f / 100)
+                end
+                
+                # Global discount
+                global_disc = 0.0
+                if log.try(:global_discount_flat).to_f > 0
+                  global_disc = log.try(:global_discount_flat).to_f
+                elsif log.try(:global_discount_percent).to_f > 0
+                  global_disc = subtotal * (log.try(:global_discount_percent).to_f / 100)
+                end
+                
+                # Credit
+                credit = log.try(:credit_flat).to_f
+                
+                # Grand total
+                grand_total = subtotal + tax_total - global_disc - credit
+              %>
+              
+              <div class="space-y-2 text-right">
+                <div class="flex justify-end items-center gap-4">
+                  <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Subtotal</span>
+                  <span class="text-sm font-black text-black w-24"><%= format_money_ruby(subtotal, @profile, log_currency_code) %></span>
+                </div>
+                
+                <% if tax_total > 0 %>
+                  <div class="flex justify-end items-center gap-4">
+                    <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Tax</span>
+                    <span class="text-sm font-black text-black w-24">+<%= format_money_ruby(tax_total, @profile, log_currency_code) %></span>
+                  </div>
+                <% end %>
+                
+                <% if global_disc > 0 %>
+                  <div class="flex justify-end items-center gap-4">
+                    <span class="text-[10px] font-bold text-green-500 uppercase tracking-widest">Discount</span>
+                    <span class="text-sm font-black text-green-500 w-24">-<%= format_money_ruby(global_disc, @profile, log_currency_code) %></span>
+                  </div>
+                <% end %>
+                
+                <% if credit > 0 %>
+                  <div class="flex justify-end items-center gap-4">
+                    <span class="text-[10px] font-bold text-red-500 uppercase tracking-widest">Credit</span>
+                    <span class="text-sm font-black text-red-500 w-24">-<%= format_money_ruby(credit, @profile, log_currency_code) %></span>
+                  </div>
+                <% end %>
+                
+                <div class="flex justify-end items-center gap-4 pt-2 border-t-2 border-black">
+                  <span class="text-xs font-black text-black uppercase tracking-widest">Total</span>
+                  <span class="text-xl font-black text-orange-600 w-24"><%= format_money_ruby(grand_total, @profile, log_currency_code) %></span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
