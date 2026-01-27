@@ -71,7 +71,15 @@ module ApplicationHelper
       currency = currencies_data.find { |c| c[:c] == code }
       sym = currency ? currency[:s] : "$"
       pos = currency ? currency[:p] : "pre"
-      val = "%.2f" % (amount || 0)
-      pos == "suf" ? "#{val} #{sym}" : "#{sym}#{val}"
+      amt = (amount || 0).to_f.round(2)
+      sign = amt < 0 ? "-" : ""
+      val = "%.2f" % amt.abs
+      pos == "suf" ? "#{sign}#{val} #{sym}" : "#{sign}#{sym}#{val}"
+    end
+
+    def clean_num(number)
+      return "0" if number.blank? || number.to_f == 0
+      val = number.to_f.round(2)
+      (val % 1 == 0) ? val.to_i.to_s : val.to_s
     end
 end

@@ -1,0 +1,2 @@
+class TrackingEvent < ApplicationRecord
+end

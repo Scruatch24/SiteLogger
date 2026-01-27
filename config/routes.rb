@@ -18,6 +18,9 @@ Rails.application.routes.draw do
       delete "clear_all"
       get "preview_pdf"
       get "preview_pdf_multipage"
+      post "generate_preview"
     end
   end
+
+  post "track", to: "tracking#track"
 end

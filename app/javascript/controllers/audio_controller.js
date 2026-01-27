@@ -26,13 +26,17 @@ export default class extends Controller {
     try {
       // 1. Reset UI from previous recordings
       if (this.hasOutputTarget) this.outputTarget.classList.add("hidden")
-      
+
+      // Fix: Clear previous transcript to ensure only new audio is processed
+      const transcriptInput = document.getElementById('mainTranscript');
+      if (transcriptInput) transcriptInput.value = "";
+
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       this.mediaRecorder = new MediaRecorder(stream)
       this.chunks = []
 
       this.mediaRecorder.ondataavailable = (e) => this.chunks.push(e.data)
-      
+
       this.mediaRecorder.onstop = async () => {
         const blob = new Blob(this.chunks, { type: 'audio/webm' })
         this.processAudio(blob)
@@ -40,7 +44,9 @@ export default class extends Controller {
 
       this.mediaRecorder.start()
       this.recording = true
-      
+
+      window.trackEvent('recording_started');
+
       // 2. Professional Recording State
       this.buttonTarget.innerText = "Stop & Process"
       this.buttonTarget.classList.add("bg-red-600", "ring-4", "ring-red-100")
@@ -55,13 +61,15 @@ export default class extends Controller {
     if (this.mediaRecorder && this.mediaRecorder.state !== "inactive") {
       this.mediaRecorder.stop()
       this.recording = false
-      
+
+      window.trackEvent('recording_completed');
+
       // 3. Disable button during AI processing to prevent double-uploads
       this.buttonTarget.innerText = "Analyzing Audio..."
-      this.buttonTarget.disabled = true 
+      this.buttonTarget.disabled = true
       this.buttonTarget.classList.remove("bg-red-600", "ring-4", "ring-red-100")
       this.buttonTarget.classList.add("opacity-50", "cursor-not-allowed")
-      
+
       this.mediaRecorder.stream.getTracks().forEach(track => track.stop())
     }
   }
@@ -82,6 +90,8 @@ export default class extends Controller {
 
       if (data.error) throw new Error(data.error)
 
+      window.trackEvent('invoice_generated');
+
       // 4. Populate and Show Results
       if (this.hasOutputTarget) {
         this.dateTarget.innerText = data.date || "-"
@@ -89,7 +99,7 @@ export default class extends Controller {
         this.timeTarget.innerText = data.time || "-"
         this.tasksTarget.innerHTML = (data.tasks || []).map(t => `<li>• ${t}</li>`).join('')
         this.materialsTarget.innerHTML = (data.materials || []).map(m => `<li>• ${m}</li>`).join('')
-        
+
         this.outputTarget.classList.remove("hidden")
         // Smooth scroll to results
         this.outputTarget.scrollIntoView({ behavior: 'smooth' })
@@ -132,7 +142,7 @@ export default class extends Controller {
     const symbols = this.currencySymbolsValue;
     const selectedCode = event.target.value;
     const symbol = symbols[selectedCode] || selectedCode;
-    
+
     if (this.hasCurrencySymbolTarget) {
       this.currencySymbolTarget.textContent = `(${symbol})`;
     }

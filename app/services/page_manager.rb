@@ -2,7 +2,7 @@
 # Tracks vertical space and handles page breaks with running subtotals
 class PageManager
   # Layout Constants (in points)
-  HEADER_HEIGHT = 140           # Orange header bar height
+  HEADER_HEIGHT = 100           # Minimal industrial signature height
   FOOTER_HEIGHT = 50            # Space reserved for footer
   PAGE_MARGIN = 40              # Document margins
   SINGLE_LINE_ROW_HEIGHT = 28   # Single-line item row
@@ -12,9 +12,6 @@ class PageManager
   TOTALS_BASE_HEIGHT = 120      # Base height for totals block
   TOTALS_LINE_HEIGHT = 30       # Each line in totals (SUBTOTAL, TAX, etc.)
   PAYMENT_INSTRUCTIONS_HEIGHT = 80
-  FIELD_REPORT_HEADER_HEIGHT = 35
-  FIELD_REPORT_SECTION_HEIGHT = 30
-  FIELD_REPORT_ITEM_HEIGHT = 18
 
   # Column widths for item table (A4 page width - margins = ~515pt)
   COLUMN_WIDTHS = {
@@ -67,13 +64,25 @@ class PageManager
     @running_subtotal = 0.0
   end
 
-  # Calculate row height based on description length
-  def compute_row_height(description, chars_per_line: 50)
-    return SINGLE_LINE_ROW_HEIGHT if description.to_s.empty?
+  # Calculate row height based on description length and sub-categories
+  def compute_row_height(description, chars_per_line: 50, sub_categories: [], item_has_tax_line: false, item_has_discount: false)
+    return SINGLE_LINE_ROW_HEIGHT if description.to_s.empty? && sub_categories.blank? && !item_has_tax_line && !item_has_discount
 
     lines = (description.to_s.length / chars_per_line.to_f).ceil
     lines = [ lines, 1 ].max
-    lines > 1 ? DOUBLE_LINE_ROW_HEIGHT : SINGLE_LINE_ROW_HEIGHT
+
+    base_height = lines > 1 ? DOUBLE_LINE_ROW_HEIGHT : SINGLE_LINE_ROW_HEIGHT
+
+    # Add height for sub-categories (each sub-category adds about 15 points)
+    if sub_categories.present?
+      base_height += sub_categories.size * 15 + 10 # 10 for margin
+    end
+
+    # Add reserved space for Tax and Discount lines
+    base_height += 12 if item_has_tax_line
+    base_height += 12 if item_has_discount
+
+    base_height
   end
 
   # Calculate totals block height dynamically

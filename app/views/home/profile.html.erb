@@ -1,17 +1,27 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.2.3/css/flag-icons.min.css" />
 
-<div class="min-h-screen bg-white text-black font-sans p-4">
-  <header class="flex items-center gap-2 md:gap-4 mb-10 pt-4 px-1">
-    <%= link_to root_path, class: "p-1.5 md:p-2 bg-white border-2 border-black rounded-lg text-black hover:bg-orange-50 hover:border-orange-500 transition shrink-0" do %>
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+<div class="min-h-screen bg-white text-black font-sans p-4 pb-24 md:pb-4">
+  <header class="sticky top-0 z-40 bg-white border-b-2 border-black md:border-b-0 md:static md:bg-transparent -mx-4 px-4 py-3 mb-2 md:mb-10 md:pt-4 md:px-1 flex items-center justify-between shadow-sm md:shadow-none">
+    <div class="flex items-center gap-3 md:gap-4 min-w-0">
+      <%= link_to root_path, class: "p-1.5 md:p-2 bg-white border-2 border-black rounded-xl text-black btn-back-hover transition-all active:scale-95 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] shrink-0" do %>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+        </svg>
+      <% end %>
+      <h1 class="text-xl md:text-2xl font-black tracking-tighter text-black uppercase italic truncate pr-2">Profile</h1>
+    </div>
+    
+    <%# Mobile Save Icon %>
+    <button type="button" onclick="document.getElementById('profileForm').requestSubmit()" class="md:hidden p-2 bg-orange-600 text-white border-2 border-black rounded-xl shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
+        <path stroke-linecap="round" stroke-linejoin="round" d="M17 21v-8H7v8M9 3v5h6V3M10 18h4" />
       </svg>
-    <% end %>
-    <h1 class="text-2xl font-black tracking-tighter text-black uppercase italic truncate pr-2">Profile</h1>
+    </button>
   </header>
 
   <div id="saveToast" class="fixed top-12 left-0 right-0 z-[10000] hidden flex justify-center pointer-events-none">
-    <div class="bg-orange-600 text-white px-8 py-4 rounded-full font-black text-sm uppercase tracking-[0.2em] shadow-[8px_8px_0px_0px_#000000] flex items-center gap-3 border-2 border-black animate-in fade-in zoom-in duration-300">
+    <div class="bg-green-600 text-white px-8 py-4 rounded-full font-black text-sm uppercase tracking-[0.2em] shadow-[8px_8px_0px_0px_#000000] flex items-center gap-3 border-2 border-black animate-in fade-in zoom-in duration-300">
       <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
         <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
       </svg>
@@ -20,62 +30,87 @@
   </div>
 
   <%= form_with model: @profile, url: save_profile_path, id: "profileForm", local: false, class: "max-w-md mx-auto space-y-8" do |f| %>
-    <div class="space-y-6">
+    <div class="space-y-6 pt-0">
       <div class="space-y-2">
         <label class="text-[10px] font-black text-orange-600 uppercase tracking-widest ml-1">Company / Name</label>
-        <%= f.text_field :business_name, class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 outline-none shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)]" %>
+        <%= f.text_field :business_name, class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all" %>
       </div>
 
-      <div class="space-y-2">
+      <div class="space-y-3">
         <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1">Business Logo</label>
-        <div class="flex items-center gap-4 w-full bg-white border-2 border-black rounded-xl py-3 px-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)]">
-          <div class="w-12 h-12 border-2 border-black rounded-md flex items-center justify-center overflow-hidden bg-white shrink-0">
-            <% if @profile.logo.attached? && @profile.logo.persisted? %>
-              <%= image_tag @profile.logo, id: "logo-preview", class: "max-w-full max-h-full object-contain" %>
-            <% else %>
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16" />
-              </svg>
-            <% end %>
-            <img id="client-preview" class="hidden max-w-full max-h-full object-contain" />
+        <div class="w-full bg-white border-2 border-black rounded-xl p-6 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+          
+          <!-- Large Preview Area -->
+          <div class="w-full h-48 bg-gray-50 border-2 border-dashed border-gray-200 rounded-lg flex items-center justify-center relative overflow-hidden mb-6 group hover:border-orange-200 transition-colors">
+             <% if @profile.logo.attached? && @profile.logo.persisted? %>
+                <%= image_tag @profile.logo, id: "logo-preview", class: "max-w-full max-h-full object-contain p-4" %>
+             <% else %>
+                <div id="default-logo-icon" class="text-gray-300 flex flex-col items-center gap-3">
+                   <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                   </svg>
+                   <span class="text-xs font-black uppercase tracking-widest text-gray-300">No Logo Set</span>
+                </div>
+             <% end %>
+             <img id="client-preview" class="hidden absolute inset-0 w-full h-full object-contain bg-white p-4" />
           </div>
-          <div class="flex-1 flex items-center justify-between gap-4">
-            <div class="text-xs font-bold text-gray-500 truncate">Upload a PNG or JPG logo</div>
-            <%= f.label :logo, class: "cursor-pointer text-xs font-black uppercase tracking-widest text-black border-2 border-black px-3 py-2 rounded-md hover:bg-orange-50 active:translate-y-[1px] transition-all" do %>
-              Change
-              <%= f.file_field :logo, class: "hidden", accept: "image/png,image/jpeg,image/jpg", onchange: "previewImage(this)" %>
-            <% end %>
+
+          <!-- Controls Footer -->
+          <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+             <div class="flex flex-col items-center md:items-start text-[10px] font-bold text-gray-400 uppercase tracking-wider leading-tight text-center md:text-left">
+               <span>Supports PNG, JPG</span>
+               <span>Max File Size: 2MB</span>
+             </div>
+
+             <div class="flex items-center gap-3 w-full md:w-auto">
+               <% if @profile.logo.attached? %>
+                  <button type="button" id="remove_logo_btn" onclick="markLogoForRemoval()" class="flex-1 md:flex-none text-[10px] font-black uppercase tracking-widest text-red-600 border-2 border-red-100 bg-red-50 px-4 py-3 rounded-lg hover:bg-red-100 transition-all text-center">
+                    Remove
+                  </button>
+                  <%= f.hidden_field :remove_logo, value: "0", id: "remove_logo_field" %>
+               <% end %>
+
+               <%= f.label :logo, class: "flex-1 md:flex-none cursor-pointer text-xs font-black uppercase tracking-widest text-white border-2 border-black bg-black px-6 py-3 rounded-lg hover:bg-orange-600 hover:border-orange-600 active:translate-y-[1px] transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:shadow-none text-center flex items-center justify-center gap-2 group" do %>
+                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                 <span class="md:hidden">Upload</span>
+                 <span class="hidden md:inline">Upload Logo</span>
+                 <%= f.file_field :logo, class: "hidden", accept: "image/png,image/jpeg,image/jpg", onchange: "previewImage(this)" %>
+               <% end %>
+             </div>
           </div>
+
         </div>
       </div>
 
+      <div class="border-t-2 border-dashed border-gray-200"></div>
+
       <div class="space-y-2">
         <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1">Payment Instructions</label>
-        <%= f.text_area :payment_instructions, rows: 3, class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-medium text-black focus:border-orange-500 outline-none shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)] resize-none custom-scrollbar overflow-hidden", oninput: "autoResize(this)", style: "max-height: 300px; field-sizing: content;" %>
+        <%= f.text_area :payment_instructions, rows: 3, class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-medium text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all resize-none custom-scrollbar overflow-hidden", onkeydown: "return checkEnter(event, this, 8)", oninput: "limitLines(this, 8); autoResize(this)", style: "max-height: 300px; field-sizing: content;" %>
       </div>
 
       <div class="space-y-2">
         <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1">Email</label>
-        <%= f.email_field :email, class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 outline-none shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)]" %>
+        <%= f.email_field :email, class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all" %>
       </div>
 
       <div class="space-y-2">
         <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1">Phone</label>
-        <%= f.text_field :phone, class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 outline-none shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)]" %>
+        <%= f.text_field :phone, class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all" %>
       </div>
 
       <div class="space-y-2">
         <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1">Address</label>
-        <%= f.text_area :address, rows: 2, class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-medium text-black focus:border-orange-500 outline-none shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)] resize-none custom-scrollbar overflow-hidden", oninput: "autoResize(this)", style: "max-height: 200px; field-sizing: content;" %>
+        <%= f.text_area :address, rows: 2, class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-medium text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all resize-none custom-scrollbar overflow-hidden", onkeydown: "return checkEnter(event, this, 4)", oninput: "limitLines(this, 4); autoResize(this)", style: "max-height: 200px; field-sizing: content;" %>
       </div>
 
       <div class="space-y-2">
         <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1">Tax ID</label>
-        <%= f.text_field :tax_id, class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 outline-none shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)]" %>
+        <%= f.text_field :tax_id, class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all" %>
       </div>
     </div>
 
-    <button type="submit" id="saveProfileBtn" class="w-full bg-orange-600 hover:bg-orange-700 text-white border-2 border-black font-black py-4 rounded-xl shadow-[4px_4px_0px_0px_#000000] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all uppercase text-xs tracking-[0.2em] flex items-center justify-center gap-3">
+    <button type="submit" id="saveProfileBtn" class="hidden md:flex w-full bg-orange-600 text-white border-2 border-black font-black py-4 rounded-xl shadow-[4px_4px_0px_0px_#000000] active:scale-[0.97] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all uppercase text-xs tracking-[0.2em] items-center justify-center gap-3 save-btn-hover">
       <span id="btnText">Save Profile</span>
       <div id="btnSpinner" class="hidden">
         <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -92,6 +127,28 @@
   .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 5px; }
   .custom-scrollbar::-webkit-scrollbar-thumb { background: #ea580c; border-radius: 5px; }
   .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #c2410c; }
+
+  /* Safe Hover Utilities */
+  @media (hover: hover) {
+    .btn-back-hover:hover {
+      background-color: #fff7ed !important; /* orange-50 */
+      border-color: #f97316 !important; /* orange-500 */
+    }
+    .btn-change-logo-hover:hover {
+      background-color: #fff7ed !important; /* orange-50 */
+    }
+    .save-btn-hover:hover {
+      background-color: #c2410c !important; /* orange-700 */
+    }
+  }
+
+  /* Disabled State */
+  #saveProfileBtn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    box-shadow: none !important;
+    transform: translate(2px, 2px) !important;
+  }
 </style>
 
 <script>
@@ -110,6 +167,24 @@
     }
   }
 
+  function checkEnter(e, el, max) {
+    if (e.key === 'Enter') {
+      const lines = el.value.split('\n').length;
+      if (lines >= max) {
+        e.preventDefault();
+        return false;
+      }
+    }
+    return true;
+  }
+
+  function limitLines(el, max) {
+    const lines = el.value.split('\n');
+    if (lines.length > max) {
+      el.value = lines.slice(0, max).join('\n');
+    }
+  }
+
   function previewImage(input) {
     const file = input.files[0];
     if (file) {
@@ -117,15 +192,40 @@
       reader.onload = function(e) {
         const preview = document.getElementById('client-preview');
         const existingLogo = document.getElementById('logo-preview');
+        const defaultIcon = document.getElementById('default-logo-icon');
+        
         if (existingLogo) existingLogo.classList.add('hidden');
+        if (defaultIcon) defaultIcon.classList.add('hidden');
+        
         preview.src = e.target.result;
         preview.classList.remove('hidden');
+        
+        // Reset remove flag if user uploads new one
+        const removeField = document.getElementById('remove_logo_field');
+        if (removeField) removeField.value = "0";
       }
       reader.readAsDataURL(file);
     }
   }
 
+  function markLogoForRemoval() {
+    if (confirm("Are you sure you want to remove the logo?")) {
+      const removeField = document.getElementById('remove_logo_field');
+      const logoPreview = document.getElementById('logo-preview');
+      const removeBtn = document.getElementById('remove_logo_btn');
+      
+      if (removeField) removeField.value = "1";
+      if (logoPreview) logoPreview.classList.add('opacity-20'); // Visual feedback
+      if (removeBtn) removeBtn.innerText = "Removed";
+      if (removeBtn) removeBtn.classList.add('opacity-50', 'cursor-not-allowed');
+      
+      // Auto-save strictly preferred? Or let user click save?
+      // Let's verify via the save button to be safe
+    }
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
+    window.isNewProfile = <%= @is_new_profile %>;
     document.querySelectorAll('textarea').forEach(el => autoResize(el));
 
     document.getElementById('profileForm').addEventListener('submit', async (e) => {
@@ -154,8 +254,16 @@
         
         const result = await response.json();
         if (response.ok && result.success) {
+          if (window.isNewProfile) {
+            window.trackEvent('signup_completed');
+            window.isNewProfile = false;
+          }
           toast.classList.remove('hidden');
-          setTimeout(() => toast.classList.add('hidden'), 3000);
+          toast.classList.add('animate-bounce');
+          setTimeout(() => {
+            toast.classList.add('hidden');
+            toast.classList.remove('animate-bounce');
+          }, 3000);
         } else {
           alert("Error saving Profile.");
         }
@@ -165,6 +273,7 @@
         btn.disabled = false;
         text.innerText = originalText;
         spinner.classList.add('hidden');
+        btn.blur(); // Clear mobile focus/active state explicitly
       }
     });
   });

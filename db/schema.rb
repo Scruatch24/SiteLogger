@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_01_19_084335) do
+ActiveRecord::Schema[8.0].define(version: 2026_01_27_101718) do
   create_schema "auth"
   create_schema "neon_auth"
   create_schema "pgrst"
@@ -67,6 +67,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_01_19_084335) do
     t.string "credit_reason"
     t.string "currency"
     t.decimal "hourly_rate"
+    t.string "discount_tax_rule"
+    t.text "credits"
+    t.string "global_discount_message"
   end
 
   create_table "profiles", force: :cascade do |t|
@@ -85,6 +88,17 @@ ActiveRecord::Schema[8.0].define(version: 2026_01_19_084335) do
     t.string "tax_scope", default: "total", null: false
     t.string "invoice_style"
     t.string "discount_tax_rule", default: "post_tax"
+    t.decimal "labor_price"
+    t.string "plan", default: "guest"
+  end
+
+  create_table "tracking_events", force: :cascade do |t|
+    t.string "event_name"
+    t.integer "user_id"
+    t.string "session_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "ip_address"
   end
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"

@@ -4,17 +4,30 @@ class LogsController < ApplicationController
     require_relative "../services/invoice_generator"
 
     def create
-      @log = Log.new(log_params)
+      p = log_params.to_h
+      p[:tasks] = JSON.parse(p[:tasks]) rescue p[:tasks] if p[:tasks].is_a?(String)
+      p[:credits] = JSON.parse(p[:credits]) rescue p[:credits] if p[:credits].is_a?(String)
+
+      @log = Log.new(p)
       profile = Profile.first || Profile.new
-      @log.billing_mode = profile.billing_mode || "hourly"
+      @log.billing_mode = profile.billing_mode || "hourly" if @log.billing_mode.blank?
 
       # Default tax scope (if not provided by frontend)
       @log.tax_scope = profile.tax_scope if @log.tax_scope.blank?
 
       if @log.save
-        render json: { success: true }
+        respond_to do |format|
+          format.json { render json: { success: true } }
+          format.html { redirect_to history_path }
+        end
       else
-        render json: { success: false, errors: @log.errors.full_messages }, status: :unprocessable_entity
+        respond_to do |format|
+          format.json { render json: { success: false, errors: @log.errors.full_messages }, status: :unprocessable_entity }
+          format.html {
+            flash[:alert] = @log.errors.full_messages.join(", ")
+            redirect_to root_path
+          }
+        end
       end
     end
 
@@ -155,9 +168,27 @@ class LogsController < ApplicationController
       send_data pdf_data, filename: "preview_multipage_#{style}.pdf", type: "application/pdf", disposition: "inline"
     end
 
+    def generate_preview
+      p = log_params.to_h
+      p[:tasks] = JSON.parse(p[:tasks]) rescue p[:tasks] if p[:tasks].is_a?(String)
+      p[:credits] = JSON.parse(p[:credits]) rescue p[:credits] if p[:credits].is_a?(String)
+
+      # Extract currency and billing mode from top level if needed
+      # but they should be in log_params
+
+      log = Log.new(p)
+      profile = Profile.first || Profile.new
+      log.billing_mode = profile.billing_mode || "hourly" if log.billing_mode.blank?
+      log.tax_scope = profile.tax_scope if log.tax_scope.blank?
+
+      pdf_data = InvoiceGenerator.new(log, profile).render
+
+      send_data pdf_data, filename: "Preview.pdf", type: "application/pdf", disposition: "inline"
+    end
+
     private
 
     def log_params
-      params.require(:log).permit(:client, :time, :date, :due_date, :tasks, :billing_mode, :tax_scope, :labor_taxable, :labor_discount_flat, :labor_discount_percent, :global_discount_flat, :global_discount_percent, :credit_flat, :credit_reason, :currency, :hourly_rate)
+      params.require(:log).permit(:client, :time, :date, :due_date, :tasks, :credits, :billing_mode, :discount_tax_rule, :tax_scope, :labor_taxable, :labor_discount_flat, :labor_discount_percent, :global_discount_flat, :global_discount_percent, :global_discount_message, :credit_flat, :credit_reason, :currency, :hourly_rate)
     end
 end

@@ -1,4 +1,5 @@
 class HomeController < ApplicationController
+  helper :logs
   require "net/http"
   require "uri"
   require "json"
@@ -19,7 +20,7 @@ class HomeController < ApplicationController
   end
 
   def profile
-    # @profile is already set by the before_action
+    @is_new_profile = !@profile.persisted?
   end
 
   def save_profile
@@ -56,195 +57,212 @@ class HomeController < ApplicationController
     api_key = ENV["GEMINI_API_KEY"]
     is_manual_text = params[:manual_text].present?
     mode = @profile.billing_mode || "hourly"
+    limit = @profile.char_limit
+
+    # Server-side Audio Duration Check
+    if !is_manual_text && params[:audio_duration].present? && params[:audio_duration].to_f < 1.0
+       return render json: { error: "Audio too short. Please speak longer." }, status: :unprocessable_entity
+    end
+
+    # Character Limit Check
+    current_length = params[:manual_text].to_s.length
+    if current_length >= limit
+      return render json: {
+        error: "Your transcript is already at the character limit (#{limit}). Upgrade to add more text."
+      }, status: :unprocessable_entity
+    end
 
     begin
       instruction = <<~PROMPT
-        You are a STRICT speech-to-invoice data extractor.
+        You are a STRICT data extractor for casual contractors (plumbers, electricians, techs).
+Your job: convert spoken notes or written text into a single valid JSON invoice object. Be robust to slang and casual phrasing, but never invent financial values or change accounting semantics.
 
-        DO NOT:
-        - Create reports or summaries
-        - Rephrase or beautify text
-        - Guess or infer missing data
-        - Annotate values (no parentheses, no labels)
-        - Force results if audio is unclear
+----------------------------
+CORE DIRECTIVES (non-negotiable)
+----------------------------
+1. DO NOT invent data. Only extract facts explicitly stated. Use null for unknown or ambiguous fields instead of erroring, unless the entire input is unrelated to billing or a job.
+2. DO NOT calculate totals. Return raw values (hours, rates, item prices). No multiplication or derived totals.
+3. If user states a specific rate/price it overrides defaults. Provided values ALWAYS take priority.
+4. Respect strict accounting rule: ANY reduction spoken/written as occurring "after tax", "off the total", "from the final bill", "at the end", "off the invoice" must be treated as a CREDIT (credit_flat), NOT a discount (global or otherwise). Item prices and taxes must remain unchanged in this case.
+5. TAXABILITY: Return `taxable: null` (literal null) for all items unless the user EXPLICITLY says "tax free", "no tax", "exempt", or "add tax". Do NOT infer taxability yourself; allow the system default (based on tax scope) to apply.
+6. GROUPS & BUNDLING: If a total price is given for a category (e.g. "Materials were 2300" or "Labor was 1200"), you MUST create ONE priced item for that category.
+   - Example Input: "Condenser, coil, line set... materials were 2300"
+   - Output: ONE Materials item { "name": "Materials", "qty": 1, "unit_price": 2300, "sub_categories": ["Condenser", "Coil", "Line set"], "taxable": null }.
+   - LATE TOTAL RULE: Even if items are listed first without prices (e.g. "Got a condenser and a coil... total materials 2300"), consolidate them into a single item with the total price. Do NOT leave them priced at 0.
+7. NUMERIC WORDS: "twelve hundred" -> 1200, "twenty-three hundred" -> 2300, "thirty-five hundred" -> 3500. Always return numbers as numeric strings or integers.
+8. CLIENT EXTRACTION: Explicitly look for introductions like "This is [Name]", "Invoice for [Name]", "Bill to [Name]".
+   - "Hello, this is Apex Roofing" -> Client: "Apex Roofing"
+9. Output STRICT JSON. No extra fields. Use null for unknown numeric values, empty arrays for absent categories.
 
-        ONLY extract facts that were EXPLICITLY spoken.
+----------------------------
+ERROR HANDLING (return **only** below JSON on error)
+----------------------------
+If input is complete gibberish or entirely unrelated to a contractor job ->
+{"error":"Input unclear - please try again"}
 
-        === ERROR HANDLING (CRITICAL) ===
-        If you cannot understand the audio or extract meaningful work details, return ONLY:
-        {"error": "Audio unclear - please try again"}
+If a numeric reduction is ambiguous (no currency or percent indicated) ->
+DEFAULT TO CURRENCY (flat amount). Do not error.
 
-        Return an error if:
-        - Audio is silent or has only background noise
-        - Speech is unintelligible or too quiet
-        - No work-related information is detected
-        - Only random words with no context
+If input empty or silent ->
+{"error":"Input empty"}
 
-        DO NOT return empty fields with fabricated data. Return an error instead.
-        **CRITICAL**: If the user only mentions a credit or discount context (e.g., "apply $50 credit for overcharge"), DO NOT invent materials, expenses, or fees that were not explicitly mentioned. Only return exactly what was stated.
+If only non-billing talk (no labor/materials/fees/expenses/credits) -> error above.
 
-        === CATEGORY SYSTEM (CRITICAL) ===
+----------------------------
+NATURAL LANGUAGE / SLANG RULESET (pragmatic)
+----------------------------
+- Accept trade slang: "bucks", "quid" → count as currency; "knock off", "hook him up" → credit/discount intent; "trip charge", "service call" → fee; common part names ("P-Trap", "SharkBite") → materials.
+- MEASUREMENTS vs QUANTITY: "25 feet of pipe" → Qty: 1, Name/Desc: "25 feet of pipe". Do NOT extract '25' as quantity unless it refers to discrete units (e.g. "25 pipes").
+- If explicit currency word omitted (e.g., "Take 20 off"), treat as CURRENCY (flat amount). Only infer percent if "percent" or "%" is explicitly used.
+- If user mentions a rate earlier (e.g., “$90 an hour”) assume it persists for subsequent hourly items until explicitly changed.
+- If user says "usual rate", "standard rate", or "same rate", leave rate fields as NULL (system will apply defaults).
 
-        There are FOUR distinct categories. You MUST categorize each item correctly:
+----------------------------
+CATEGORY RULES (must map correctly)
+----------------------------
+Categories: LABOR/SERVICE, MATERIALS, EXPENSES, FEES, CREDITS.
 
-        1. LABOR/SERVICE (labor_service_items):
-           - Work descriptions WITHOUT a separate price
-           - These are tied to the main labor charge (hourly or fixed)
-           - Examples: "repaired the sink", "electrical work", "installed flooring"
-           - If someone says "2 hours plumbing work", the "plumbing work" goes here
-           - **DEFAULT**: If LABOR time/price is detected but no specific work described, use "Work performed".
-           - ONLY leave empty if no labor/time is present (e.g. credit-only).
+LABOR:
+- If multiple distinct services are mentioned, create separate labor entries.
+- If user gives "2 hours, $100 total": treat as fixed $100 (flat). Do NOT infer $50/hr.
+- Hours + rate → mode "hourly", include hours and rate fields. Flat total → mode "fixed", include price field and set hours=1 or include hours as metadata (per your schema).
+- If user sets multiplier like "time and a half" or "double rate", compute the new rate from the default hourly rate only when no explicit hourly was spoken. If explicit hourly rate spoken — use it.
+- Do not propagate explicit rates to other hours. Only apply explicit rates to the hour they are spoken. For any other hour, use the default rate if unspecified.
+- USE SPECIFIC TITLES for the 'desc' field if provided (e.g., "Monday Service", "Emergency Call Out"). Use generic names ("Labor", "Service") ONLY if no specific description is given.
+- Be concise but descriptive.#{' '}
+- Put additional task details into 'sub_categories'.- Put specific work details (e.g., "Fixed leak", "Replaced sensor") into the 'sub_categories' array.
 
-        2. MATERIALS (materials):
-           - PHYSICAL GOODS incorporated into the project or handed to client
-           - These HAVE a price (unit_price)
-           - Examples: "faucet $40", "pipes $15", "lumber", "wiring", "servers", "cables"
-           - Tangible items the customer can touch
 
-        3. EXPENSES (expenses):
-           - PASS-THROUGH REIMBURSEMENTS - costs you paid to third parties
-           - No profit made - just getting paid back what was spent
-           - Usually NOT taxed (tax-exempt reimbursements)
-           - Examples: "Uber $25", "hotel $150", "parking $10", "flight $300", "toll $5", "rental equipment $50"
-           - Key words: travel, Uber, Lyft, taxi, hotel, lodging, parking, toll, mileage, gas, rental
+MATERIALS:
+- Physical goods the client keeps. Only extract the name of the item.
+- BUNDLING: If user gives a TOTAL PRICE for "materials" (plural), create ONE item named "Materials" (or specific group name) with that price. List the specific items in 'sub_categories'.
+- Extract QUANTITY into the 'qty' field (default 1).
+- Extract UNIT PRICE (price per item) into 'unit_price'.
+- DO NOT put "(x2)" or quantity info in the description/name if you are setting the 'qty' field.
+- If user says "2 items at 40 each", 'qty' is 2 and 'unit_price' is 40.
+- Never include internal cost unless explicitly spoken (avoid exposing cost).
 
-        4. FEES (fees):
-           - SURCHARGES that count as your income/revenue
-           - Extra charges added to cover business costs or risks
-           - Usually taxed as a service
-           - Examples: "rush fee $50", "credit card fee 3%", "disposal fee $30", "admin fee $20", "service charge $15"
-           - Key words: fee, charge, surcharge, rush, processing, admin, disposal, convenience
+AMBIGUOUS ITEMS (Labor vs Materials):
+- "Action + Object + Price" (e.g. "Replaced filter $25", "Cleaned vents $15") -> CLASSIFY AS LABOR/SERVICE. Name it "Filter Replacement" or "Vent Cleaning".
+- REDUNDANCY CHECK: Do NOT add a sub_category that just repeats the main title (e.g. if desc is "Filter Replacement", do not add "Replaced filter" to sub_categories). Only add sub_categories for EXTRA details.
+- Only classify as Materials if the spoken text purely describes the object (e.g. "The filter cost $25", "New filter: $25").
+- If in doubt, prefer Labor/Service for tasks.
 
-        === TAX SCOPE RULES ===
-        - Available tokens: "labor", "materials_only", "fees_only", "expenses_only"
-        - Examples:
-          - "tax everything" → "labor,materials_only,fees_only,expenses_only"
-          - "don't tax anything" → "none"
-          - "tax labor and fees" → "labor,fees_only"
-          - "don't tax the expenses" → (leave expenses_only out of the list)
-          - "tax only the part" or "tax only the materials" → "materials_only"
-          - "tax the valve" (when valve is a material) → "materials_only"
-        - CRITICAL: When tax_scope includes a category token, the items in that category#{' '}
-          MUST have "taxable": true in the output JSON. The dashboard uses this flag.
+EXPENSES:
+- Pass-through reimbursables (parking, tolls, Uber). Usually not taxed. Price numeric required.
+- BUNDLING: If user gives a TOTAL PRICE for "expenses" (plural), create ONE main item named "Expenses" (or specific group name) with that price. List component details in 'sub_categories'.
 
-        === PRICING RULES ===
-        - Extract prices even if phrased as "around $40", "costs $40"
-        - unit_price/price must be a number (e.g. 40.0)
+FEES:
+- Surcharges, disposal, rush fees. Usually taxed unless user says otherwise.
+- BUNDLING: Same logic as Materials/Expenses. If a total fee amount is given for multiple fee types, bundle them into one main Fee item with sub-categories.
 
-        === CURRENCY DETECTION ===
-        - Extract "currency" ONLY if user explicitly mentions a currency NAME or CODE
-        - Ignore symbols ($, €, £) attached to numbers
-        - If no currency word → null
+CREDITS:
+- Each credit reason must be its own entry with its own amount.#{'  '}
+- If user describes multiple reasons with separate amounts, return multiple credit entries.#{'  '}
+- If user describes multiple reasons for a single amount, prefer separate credits (if amounts differ). If user intends combined single amount for multiple reasons, ensure they explicitly said so.
 
-        === BILLING MODE ===
-        - HOURLY: "X per hour", "X an hour", mentions of hours + rate
-        - FIXED: "fixed price", "flat rate", "charge X for the job"
-        - DEFAULT: #{mode.upcase}
+----------------------------
+DISCOUNT vs CREDIT RULES (explicit)
+----------------------------
+- Default: discounts = PRE-TAX. They reduce taxable base and must be applied proportionally or scoped per-category as instructed.
+- If user says "after tax", "off the total", "from the final amount" → treat as CREDIT (post-tax) and do NOT change item taxable flags or prices.
+- Ambiguous "take $X off" with no timing language → default to GLOBAL DISCOUNT (pre-tax).
+- EXCLUSION LOGIC: If input says "discount everything except [category]", you are STRICTLY FORBIDDEN from using "global_discount". You MUST apply the discount to every other item individually (labor, materials, fees) and leave the excluded category 0.
 
-        === TIME/HOURS RULES ===
-        - Only extract time if duration words exist: hour, hours, minutes, half, quarter
-        - "hour and a half" → 1.5
-        - "45 minutes" → 0.75
-        - IGNORE numbers for prices, quantities, addresses
+----------------------------
+EXTRACTION STRATEGY (MULTI-PASS)
+----------------------------
+- STEP 1: Scan the ENTIRE text for currency totals (e.g., "$2300", "twelve hundred").#{' '}
+- STEP 2: Map these totals to their functional categories (Labor, Materials, Fees).
+- STEP 3: ONLY then gather descriptions and sub-categories.
+- LATE TOTAL RULE: If items are listed first (e.g. "Condenser, coil, pipe...") and a price follows later (e.g. "...materials were 2300"), you MUST consolidate them. It is strictly forbidden to leave the categorized parts with $0. Create ONE priced item and use the parts as sub-categories.
 
-        === LABOR HOURS vs FIXED PRICE ===
-        - HOURS + RATE → billing_mode: "hourly", labor_hours: X, hourly_rate: Y
-        - TOTAL for job → billing_mode: "fixed", fixed_price: X
-        - NEVER calculate hours × rate
+----------------------------
+TAXABILITY & PRICES (STRICT)
+----------------------------
+1. TAXABLE FIELD:#{' '}
+   - DEFAULT: Return `taxable: null` to use system defaults.
+   - EXPLICIT "Tax everything except [X]": Set `taxable: false` for X items, and `taxable: true` for ALL other items.
+   - EXPLICIT "Tax [X] only": Set `taxable: true` for X items, `taxable: false` for others.
+   - EXPLICIT "Tax materials" or "Tax parts": Set `taxable: true` for Materials.
+2. PRICE BUNDLING: Always consolidate. "Labor was 1200" -> ONE fixed labor item, price 1200. "Materials 2300" -> ONE materials item, qty 1, unit_price 2300.
+3. NUMERIC WORDS: "twelve hundred" -> 1200, "twenty-three hundred" -> 2300.
 
-        === RATE MULTIPLIERS (CURRENT DEFAULT RATE: #{(@profile.hourly_rate.presence || 0)}) ===
-        - If user implies a multiplier on their normal rate (e.g., "double my rate", "time and a half", "half price labor"):
-        - CALCULATE the new rate based on the default rate provided above.
-        - Example (Default 50): "Double rate" → hourly_rate: 100
-        - Example (Default 100): "Half rate" → hourly_rate: 50
-        - If no multiplier mentioned, return null for hourly_rate (use default).
+----------------------------
+TAX SCOPE & RATES
+----------------------------
+- DEFAULT SCOPE: Use null if no instruction.#{' '}
+- EXPLICIT SCOPE: If user says "tax ONLY on parts", `tax_scope` MUST be "materials".
+- TAX RATES: "8% tax" -> tax_rate: 8.0.
 
-        === DISCOUNT RULES ===
-        - "off the labor", "off the work" → labor_discount_flat/percent
-        - "off the total", "off the invoice", "off the bill" → global_discount_flat/percent
-        - "off the [item]" → item discount
-        - **IMPORTANT**: If the user says "X off the total" and mentions a similar number for a material (e.g., "Pipe for 20, take 20 off the total"), you MUST extract BOTH. Do not assume the second mention is just a repetition of the first.
-        - **DEFAULT**: If unspecified where "off" applies but "total" is mentioned anywhere in that context, use global_discount.
-        - If user explicitly says "before tax" or "pre-tax discount" → discount_tax_mode: "pre_tax"
-        - If user explicitly says "after tax" or "post-tax discount" → discount_tax_mode: "post_tax"
-        - **default** to "post_tax" unless user specifies "pre-tax" or "before tax".
+----------------------------
+DISAMBIGUATION RULES (when to ask the user — but in this extractor you must return an error instead of inventing)
+----------------------------
+- If a numeric reduction has no currency or percent -> Default to CURRENCY.
+- If hours are spoken with no rate and no default exists -> return hours with hourly_rate = null (system will apply default).
 
-        === PROFESSIONAL INVOICE TONE ===
-        You are an AI assistant that generates PROFESSIONAL INVOICE DATA.
-        - Your output will be displayed directly on a formal invoice.
-        - **GLOBAL RULE**: Rephrase ALL casual user input (labor descriptions, material names, credit reasons) into professional business terminology.
-        - **Avoid** first-person phrases like "I did...", "We installed...". Use "Installation of...", "Repair of...", etc.
-        - EXAMPLES:
-          - Labor: "I fixed the leak" → "Leak repair service"
-          - Labor: "Changed the bulb" → "Light bulb replacement"
-          - Labor: "looked at the breaker" → "Circuit breaker inspection"
-          - Material: "bought some generic pipe" → "PVC Piping"
-          - Credit: "I overcharged them last time" → "Previous balance adjustment"
-          - Credit: "My fault so I'm giving them 20 bucks" → "Courtesy credit"
-          - Credit: "They prepaid" → "Prepayment applied"
+----------------------------
+OUTPUT & TONE
+----------------------------
+- Professional Tone: Use context-aware titles for the 'desc' field.
+- **Brevity Extreme**: Choose primary descriptions ('desc'/'name') and subcategory names to be as short as possible without sacrificing informativeness. Use concise, impactful technical terms.
+- Keep descriptions short and free of parentheses/metadata.
+- Put all specific actions/details into the 'sub_categories' array.
 
-        === CREDIT RULES (IMPORTANT: CREDIT ≠ DISCOUNT) ===
-        Credit is money owed TO the customer from a PAST event. Discount is a reduction on the CURRENT invoice.
-        - **High confidence**: "credit", "store credit", "warranty credit", "apply credit", "their credit"
-        - **Medium confidence**: "overcharged", "I overcharged them" (use context to confirm it's a credit, not just a statement)
-        - Extract: credit_flat (amount), credit_reason (why the credit exists)
-        - **CRITICAL**: If credit_flat is present, ALWAYS extract a credit_reason. If none is explicitly stated, infer the most logical one (e.g. "customer credit").
-        - **REPHRASING**:
-          - "I overcharged them 20 last time" → credit_flat: 20, credit_reason: "Previous balance adjustment"
-          - "They have a deposit of 100" → credit_flat: 100, credit_reason: "Deposit applied"
-          - "Credit for the mistake" → credit_flat: 50, credit_reason: "Service adjustment"
-        - Examples:
-          - "Apply their $50 credit" → credit_flat: 50, credit_reason: "Customer credit", currency: "USD"
-          - "Warranty credit of 30 dollars" → credit_flat: 30, credit_reason: "Warranty credit", currency: "USD"
-          - "I overcharged them 20 last time" → credit_flat: 20, credit_reason: "Previous balance adjustment"
+----------------------------
+OUTPUT JSON SCHEMA (must match exactly)
+----------------------------
+Return EXACTLY the JSON structure below (use null for unknown numeric, empty arrays for absent categories):
 
-        - **CRITICAL**: Only include items in materials, expenses, or fees if explicitly mentioned. If only a credit/discount is mentioned, leave other sections empty.
-
-        OUTPUT STRICT JSON ONLY:
-
-        {
-          "client": "",
-          "address": "",
-          "labor_hours": "",
-          "fixed_price": "",
-          "hourly_rate": null,
-          "labor_tax_rate": null,
-          "labor_taxable": null,
-          "labor_discount_flat": "",
-          "labor_discount_percent": "",
-          "global_discount_flat": "",
-          "global_discount_percent": "",
-          "discount_tax_mode": null,
-          "credit_flat": "",
-          "credit_reason": "",
-          "currency": null,
-          "billing_mode": null,
-          "tax_scope": "",
-          "labor_service_items": [
-            { "desc": "" }
-          ],
-          "materials": [
-            { "name": "", "qty": "", "unit_price": "", "taxable": null, "tax_rate": null, "discount_flat": "", "discount_percent": "" }
-          ],
-          "expenses": [
-            { "desc": "", "price": "", "taxable": false, "tax_rate": null, "discount_flat": "", "discount_percent": "" }
-          ],
-          "fees": [
-            { "desc": "", "price": "", "taxable": true, "tax_rate": null, "discount_flat": "", "discount_percent": "" }
-          ],
-          "due_days": null,
-          "due_date": null,
-          "raw_summary": ""
-        }
-      PROMPT
+{
+  "client": "",
+  "address": "",
+  "labor_hours": "",
+  "fixed_price": "",
+  "hourly_rate": null,
+  "labor_tax_rate": null,
+  "labor_taxable": null,
+  "labor_discount_flat": "",
+  "labor_discount_percent": "",
+  "global_discount_flat": "",
+  "global_discount_percent": "",
+  "discount_tax_mode": null,
+  "credits": [
+    { "amount": "", "reason": "" }
+  ],
+  "currency": "ISO 4217 code (e.g., USD, GBP, EUR)",#{' '}
+  "billing_mode": null,
+  "tax_scope": "",
+  "labor_service_items": [
+    { "desc": "", "hours": "", "rate": "", "price": "", "mode": "hourly|fixed", "taxable": null, "tax_rate": null, "discount_flat": "", "discount_percent": "", "sub_categories": [] }
+  ],
+  "materials": [
+    { "name": "", "qty": "", "unit_price": "", "taxable": null, "tax_rate": null, "discount_flat": "", "discount_percent": "", "sub_categories": [] }
+  ],
+  "expenses": [
+    { "name": "", "price": "", "taxable": false, "tax_rate": null, "discount_flat": "", "discount_percent": "", "sub_categories": [] }
+  ],
+  "fees": [
+    { "name": "", "price": "", "taxable": true, "tax_rate": null, "discount_flat": "", "discount_percent": "", "sub_categories": [] }
+  ],
+  "due_days": null,
+  "due_date": null,
+  "raw_summary": ""
+}
+PROMPT
 
       if is_manual_text
-        prompt_parts = [ {
-          text: "#{instruction}\nTEXT:\n#{params[:manual_text]}"
-        } ]
+        prompt_parts = [
+          { text: instruction },
+          { text: "USER INPUT (MANUAL TEXT):\n#{params[:manual_text]}" }
+        ]
       else
         audio = params[:audio]
         return render json: { error: "No audio" }, status: 400 unless audio
+
+        if audio.size > 10.megabytes
+          return render json: { error: "Audio too large (Limit: 10MB)" }, status: 413
+        end
 
         audio_data = Base64.strict_encode64(audio.read)
         prompt_parts = [
@@ -253,38 +271,54 @@ class HomeController < ApplicationController
         ]
       end
 
-      uri = URI("https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=#{api_key}")
+      uri = URI("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent")
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = true
+      http.read_timeout = 30
+      http.open_timeout = 10
 
-      req = Net::HTTP::Post.new(uri, "Content-Type" => "application/json")
+      req = Net::HTTP::Post.new(uri, "Content-Type" => "application/json", "x-goog-api-key" => api_key)
       req.body = { contents: [ { parts: prompt_parts } ] }.to_json
 
       res = http.request(req)
-      body = JSON.parse(res.body)
-      raw = body.dig("candidates", 0, "content", "parts", 0, "text")
+      body = JSON.parse(res.body) rescue {}
 
-      return render json: { error: "AI failed" }, status: 500 unless raw
+      parts = body.dig("candidates", 0, "content", "parts")
+      raw = parts&.map { |p| p["text"] }&.join("\n")
 
-      cleaned = raw.gsub(/```json|```/, "")
-      json = JSON.parse(cleaned) rescue nil
+      unless raw
+        Rails.logger.error "AI FAILURE: No raw text in response. Body: #{body.to_json}"
+        return render json: { error: "AI failed to generate a response" }, status: 500
+      end
+
+      Rails.logger.info "AI RAW RESPONSE: #{raw}"
+
+      # More robust JSON extraction to handle preamble or "thinking" blocks
+      json_match = raw.match(/\{[\s\S]*\}/m)
+      json = nil
+      if json_match
+        begin
+          json = JSON.parse(json_match[0])
+        rescue => e
+          Rails.logger.error "AI JSON PARSE ERROR: #{e.message}. Raw: #{raw}"
+        end
+      else
+        Rails.logger.error "AI NO JSON FOUND IN RAW: #{raw}"
+      end
+
       return render json: { error: "Invalid AI output" }, status: 422 unless json
 
       if json["error"]
+        Rails.logger.warn "AI RETURNED ERROR: #{json["error"]}"
         return render json: { error: json["error"] }, status: 422
       end
 
-      Rails.logger.info "AI_DEBUG_RAW: #{json}"
+      Rails.logger.info "AI_PROCESSED: #{json}"
+
+      # Enforce Array Safety
+      %w[labor_service_items materials expenses fees credits].each { |k| json[k] = Array(json[k]) }
 
       # ---------- NORMALIZATION ----------
-      def clean_num(val)
-        return "" if val.blank?
-        # Remove anything that isn't a digit, decimal point, or negative sign
-        stripped = val.to_s.gsub(/[^0-9.-]/, "")
-        return "" if stripped.blank?
-        f = stripped.to_f
-        (f % 1 == 0) ? f.to_i.to_s : f.to_s
-      end
 
       hours = clean_num(json["labor_hours"])
       price = clean_num(json["fixed_price"])
@@ -301,88 +335,28 @@ class HomeController < ApplicationController
       json["global_discount_flat"] = clean_num(json["global_discount_flat"])
       json["global_discount_percent"] = clean_num(json["global_discount_percent"])
 
-      # Pass Credit
-      json["credit_flat"] = clean_num(json["credit_flat"])
-      json["credit_reason"] = json["credit_reason"].to_s.strip.presence&.upcase_first
+      # Pass Credit - REMOVE legacy single fields
+      # json["credit_flat"] -> REMOVED
+      # json["credit_reason"] -> REMOVED
 
-      # Pass Discount Tax Mode (pre_tax/post_tax if explicitly mentioned, otherwise nil for profile default)
-      json["discount_tax_mode"] = json["discount_tax_mode"] if [ "pre_tax", "post_tax" ].include?(json["discount_tax_mode"])
+      # Normalize Credits Array
+      json["credits"] ||= []
 
-      # ===== FALLBACK: Extract discount from raw_summary if AI missed it =====
-      json["raw_summary"] ||= params[:manual_text]
-      raw_text = json["raw_summary"].to_s.downcase
-      Rails.logger.info "FALLBACK_DEBUG: raw_text=#{raw_text}"
+      # Strict post-tax credit enforcement
+      # If detecting "post_tax" mode, ensure we aren't applying discounts incorrectly,
+      # but technically the prompt handles this by putting them in credits[].
 
-      # Convert word numbers to digits
-      word_to_num = { "one" => 1, "two" => 2, "three" => 3, "four" => 4, "five" => 5,
-                      "six" => 6, "seven" => 7, "eight" => 8, "nine" => 9, "ten" => 10,
-                      "eleven" => 11, "twelve" => 12, "fifteen" => 15, "twenty" => 20,
-                      "twenty-five" => 25, "thirty" => 30, "forty" => 40, "fifty" => 50 }
-      word_to_num.each { |word, num| raw_text = raw_text.gsub(/\b#{word}\b/i, num.to_s) }
+      # Filter and Normalize Credits
+      json["credits"] = json["credits"].map do |c|
+        {
+          "amount" => clean_num(c["amount"]),
+          "reason" => c["reason"].to_s.strip.presence || "Courtesy Credit"
+        }
+      end.select { |c| c["amount"].present? && c["amount"] > 0 }
 
-      # CORRECTION: Move Labor Discount to Global if context implies Total
-      # Aggressively move if "total" is mentioned and global is empty
-      if json["global_discount_flat"].blank? && json["global_discount_percent"].blank?
-         total_regex = /(off|discount).*?(total|invoice|bill)/i
-
-         if raw_text.match(total_regex)
-            # Find the value to move. Check labor or even misclassified items if they match the phrase context
-            if json["labor_discount_flat"].present? || json["labor_discount_percent"].present?
-               Rails.logger.info "CORRECTION RULES: Moving Labor Discount to Global (Context: '#{raw_text}')"
-               json["global_discount_flat"] = json["labor_discount_flat"]
-               json["global_discount_percent"] = json["labor_discount_percent"]
-               json["labor_discount_flat"] = ""
-               json["labor_discount_percent"] = ""
-            end
-         end
-      end
-
-      # ===== FALLBACK: Extract discount from raw_summary if BOTH are missing =====
-      if json["labor_discount_percent"].blank? && json["global_discount_percent"].blank?
-        # Check if discount is item-specific (e.g. "discount on the bulb")
-        is_item_specific = raw_text.match(/discount\s+(on|for)\s+(the\s+)?\w+/i) ||
-                           (raw_text.match(/off\s+(the\s+)?\w+/i) && !raw_text.match(/off\s+(the\s+)?(labor|work|service|total|invoice|bill)/i))
-
-        is_global = raw_text.match(/(total|invoice|bill)/i)
-
-        unless is_item_specific
-          # Percentage extraction: "20 percent off/discount", "discount of 20%"
-          if match = raw_text.match(/(\d+)\s*(percent|%)\s*(discount|off)/i) ||
-                     raw_text.match(/discount\s*(of)?\s*(\d+)\s*(percent|%)/i)
-            val = match[1] || match[2]
-            if is_global
-              json["global_discount_percent"] = val
-            else
-              json["labor_discount_percent"] = val
-            end
-          end
-        end
-      end
-
-      # If labor_discount_flat is empty, try to extract from raw_text
-      if json["labor_discount_flat"].blank? && json["global_discount_flat"].blank?
-        amount_pattern = "(?:\\$)?(\\d+(\\.\\d+)?)\\s*(?:dollars|bucks)?"
-
-        is_item_specific = (raw_text.match(/#{amount_pattern}\s*(off|discount)\s+(on|for)?\s*(the\s+)?\w+/i) &&
-                           !raw_text.match(/#{amount_pattern}\s*(off|discount)\s+(on|for)?\s*(the\s+)?(labor|work|service|total|invoice|bill)/i))
-
-        is_global = raw_text.match(/(total|invoice|bill)/i)
-
-        unless is_item_specific
-          # Flat extraction: "$20 off", "20 off", "20 dollars discount"
-          if match = raw_text.match(/#{amount_pattern}\s*(off|discount)/i) ||
-                     raw_text.match(/(?:off|discount)\s*(?:of)?\s*#{amount_pattern}/i)
-             val = match[1]
-             if is_global
-               json["global_discount_flat"] = val
-             else
-               json["labor_discount_flat"] = val
-             end
-          end
-        end
-      end
-
-
+      # Pass Discount Tax Mode (pre_tax only, otherwise nil for profile default)
+      # Post-tax discounts are PROHIBITED (must be credits).
+      json["discount_tax_mode"] = json["discount_tax_mode"] == "pre_tax" ? "pre_tax" : nil
 
 
       # PASS labor_taxable through if provided (null means use scope default)
@@ -415,17 +389,85 @@ class HomeController < ApplicationController
 
       json["sections"] = []
 
-      # ... (rest of normalization)
+        # LABOR/SERVICE items (no price - tied to labor charge)
+        # Unified Logic: Populate from top-level if array is empty
+        if json["labor_service_items"].blank? && (json["labor_hours"].present? || json["fixed_price"].present?)
+          # item_price removed (was unused)
+          json["labor_service_items"] = [ {
+            "desc" => "Work performed",
+            "hours" => json["labor_hours"],
+            "price" => json["fixed_price"],
+            "mode" => json["billing_mode"] || "hourly",
+            "rate" => json["hourly_rate"],
+            "sub_categories" => []
+          } ]
+        end
 
-      # LABOR/SERVICE items (no price - tied to labor charge)
       if json["labor_service_items"]&.any?
+        # Safety: Promotion of spoken rate to Master Rate
+        # Scan ALL items for the first mentions of a rate if global is missing
+        if json["hourly_rate"].blank?
+          first_rate_item = json["labor_service_items"].find { |i| i.is_a?(Hash) && i["rate"].present? }
+          json["hourly_rate"] = clean_num(first_rate_item["rate"]) if first_rate_item
+        end
+
         json["sections"] << {
           title: "Labor/Service",
-          items: json["labor_service_items"].map do |item|
+          items: json["labor_service_items"].each_with_index.map do |item, idx|
             if item.is_a?(Hash)
-              { desc: item["desc"].to_s.strip.upcase_first }
+              # Priority: If mode is fixed, use price. If hourly, use hours.
+              item_mode = item["mode"].presence || json["billing_mode"] || "hourly"
+
+              # Improved value mapping logic
+              raw_hours = clean_num(item["hours"])
+              raw_price = clean_num(item["price"])
+              raw_rate  = clean_num(item["rate"])
+
+              item_qty_or_amount, item_rate_val = if item_mode == "fixed"
+                 # In fixed mode, we favor price, then rate, then hours.
+                 [ raw_price.presence || raw_rate.presence || raw_hours.presence, @profile.hourly_rate ]
+              else
+                 # In hourly mode, we favor hours.
+                 # If no hours but we have a price, that price should reflect the RATE, not the HOURS.
+                 target_qty = raw_hours.presence || "1"
+                 target_rate = if raw_hours.present?
+                                 raw_rate.presence || raw_price.presence
+                 else
+                                 raw_price.presence || raw_rate.presence
+                 end
+                 [ target_qty, target_rate.presence || @profile.hourly_rate ]
+              end
+
+              if item_qty_or_amount.blank? && idx == 0
+                item_qty_or_amount = (json["billing_mode"] == "fixed" ? clean_num(json["fixed_price"]) : clean_num(json["labor_hours"]))
+              end
+
+              # Safety: Only inherit top-level labor FLAt discount if there is exactly ONE labor item.
+              # Percentage discounts can apply to all items (mathematically equivalent).
+              inherit_flat_discount = json["labor_service_items"].size == 1
+              inherit_percent_discount = true
+
+              {
+                desc: item["desc"].to_s.strip.humanize,
+                price: item_qty_or_amount,
+                rate: item_rate_val,
+                mode: item_mode,
+                # Fix: Default to true if nil, so that UI can decide based on scope.
+                # Actually, better to determine it here based on scope if nil.
+                taxable: item["taxable"].nil? ? (effective_tax_scope.include?("labor") || effective_tax_scope.include?("all") || effective_tax_scope.include?("total")) : to_bool(item["taxable"]),
+                tax_rate: clean_num(item["tax_rate"]),
+                discount_flat: clean_num(item["discount_flat"].presence || (inherit_flat_discount && json["labor_discount_flat"].present? && item["discount_flat"].blank? ? json["labor_discount_flat"] : "")),
+                discount_percent: clean_num(item["discount_percent"].presence || (inherit_percent_discount && json["labor_discount_percent"].present? && item["discount_percent"].blank? ? json["labor_discount_percent"] : "")),
+                sub_categories: Array(item["sub_categories"])
+              }
             else
-              { desc: item.to_s.strip.upcase_first }
+              {
+                desc: item.to_s.strip.humanize,
+                price: (idx == 0 ? (json["billing_mode"] == "fixed" ? json["fixed_price"] : json["labor_hours"]) : ""),
+                discount_flat: clean_num(json["labor_discount_flat"].present? ? json["labor_discount_flat"] : ""),
+                discount_percent: clean_num(json["labor_discount_percent"].present? ? json["labor_discount_percent"] : ""),
+                sub_categories: []
+              }
             end
           end
         }
@@ -436,14 +478,48 @@ class HomeController < ApplicationController
         json["sections"] << {
           title: "Materials",
           items: json["materials"].map do |m|
+            # Fallback: Extract quantity from description if missing in field
+            d_text = (m["name"].presence || m["desc"].presence || "").to_s.strip
+            q_val = clean_num(m["qty"])
+
+            if q_val.nil? || q_val == 1.0
+              # Try to find (x5), x5, (5), 5 off
+              if match = d_text.match(/[\(\s]x?(\d+)[\)]?$/i) || d_text.match(/^(\d+)\s+x\s+/)
+                 extracted_q = match[1].to_f
+                 if extracted_q > 1
+                   q_val = extracted_q
+                   # key: remove (x2) from description? Maybe keeps it clean.
+                   d_text = d_text.gsub(/[\(\s]x?(\d+)[\)]?$/i, "").strip.sub(/^(\d+)\s+x\s+/, "")
+                 end
+              elsif match = d_text.match(/^(\d+)\s+([A-Za-z]+)/) # "2 Fittings", but careful with "2 inch"
+                  dist = match[1].to_f
+                  # Simple heuristic: if quantity is 1 (default), and desc starts with "2 Fittings", assume 2 is qty
+                  # BUT exclude common measurements like "2 inch", "3 mm"
+                  word = match[2].downcase
+                  unless %w[inch in mm cm m ft kg lb oz gal].include?(word)
+                    if dist > 1
+                       q_val = dist
+                       d_text = d_text.sub(/^(\d+)\s+/, "")
+                    end
+                  end
+              elsif match = d_text.match(/\s(\d+)\s+each$/i)
+                  extracted_q = match[1].to_f
+                  if extracted_q > 1
+                    q_val = extracted_q
+                    d_text = d_text.gsub(/\s(\d+)\s+each$/i, "").strip
+                  end
+              end
+            end
+
             {
-              desc: m["name"].to_s.strip.upcase_first,
-              qty: clean_num(m["qty"].presence || "1"),
+              desc: d_text.humanize,
+              qty: q_val || 1,
               price: clean_num(m["unit_price"]),
-              taxable: m["taxable"],
-              tax_rate: m["tax_rate"],
+              taxable: to_bool(m["taxable"]),
+              tax_rate: clean_num(m["tax_rate"]),
               discount_flat: clean_num(m["discount_flat"]),
-              discount_percent: clean_num(m["discount_percent"])
+              discount_percent: clean_num(m["discount_percent"]),
+              sub_categories: Array(m["sub_categories"])
             }
           end
         }
@@ -455,12 +531,13 @@ class HomeController < ApplicationController
           title: "Expenses",
           items: json["expenses"].map do |e|
             {
-              desc: e["desc"].to_s.strip.upcase_first,
+              desc: (e["name"].presence || e["desc"].presence || "").to_s.strip.humanize,
               price: clean_num(e["price"]),
-              taxable: e["taxable"].nil? ? false : e["taxable"], # Default to not taxable
-              tax_rate: e["tax_rate"],
+              taxable: to_bool(e["taxable"]), # Default handled in helper if nil logic needed, but strict bool here
+              tax_rate: clean_num(e["tax_rate"]),
               discount_flat: clean_num(e["discount_flat"]),
-              discount_percent: clean_num(e["discount_percent"])
+              discount_percent: clean_num(e["discount_percent"]),
+              sub_categories: Array(e["sub_categories"])
             }
           end
         }
@@ -472,20 +549,42 @@ class HomeController < ApplicationController
           title: "Fees",
           items: json["fees"].map do |f|
             {
-              desc: f["desc"].to_s.strip.upcase_first,
+              desc: (f["name"].presence || f["desc"].presence || "").to_s.strip.humanize,
               price: clean_num(f["price"]),
-              taxable: f["taxable"].nil? ? true : f["taxable"], # Default to taxable
-              tax_rate: f["tax_rate"],
+              taxable: to_bool(f["taxable"]), # Default handled in helper if nil logic needed, but strict bool here
+              tax_rate: clean_num(f["tax_rate"]),
               discount_flat: clean_num(f["discount_flat"]),
-              discount_percent: clean_num(f["discount_percent"])
+              discount_percent: clean_num(f["discount_percent"]),
+              sub_categories: Array(f["sub_categories"])
             }
           end
         }
       end
 
-      json.slice!("client", "time", "raw_summary", "sections", "tax_scope", "billing_mode", "currency", "hourly_rate", "labor_tax_rate", "labor_taxable", "labor_discount_flat", "labor_discount_percent", "global_discount_flat", "global_discount_percent", "credit_flat", "credit_reason", "discount_tax_mode", "due_days", "due_date")
+      final_response = {
+        "client" => json["client"],
+        "time" => json["time"],
+        "raw_summary" => json["raw_summary"],
+        "sections" => json["sections"],
+        "tax_scope" => json["tax_scope"],
+        "billing_mode" => json["billing_mode"],
+        "currency" => json["currency"],
+        "hourly_rate" => json["hourly_rate"],
+        "labor_tax_rate" => json["labor_tax_rate"],
+        "labor_taxable" => json["labor_taxable"],
+        "labor_discount_flat" => json["labor_discount_flat"],
+        "labor_discount_percent" => json["labor_discount_percent"],
+        "global_discount_flat" => json["global_discount_flat"],
+        "global_discount_percent" => json["global_discount_percent"],
+        "credits" => json["credits"], # Now the only source of truth
+        "discount_tax_mode" => json["discount_tax_mode"],
+        "due_days" => json["due_days"],
+        "due_date" => json["due_date"]
+      }
 
-      render json: json
+      Rails.logger.info "FINAL NORMALIZED JSON: #{final_response.to_json}"
+
+      render json: final_response
 
     rescue => e
       render json: { error: e.message }, status: 500
@@ -497,6 +596,24 @@ class HomeController < ApplicationController
 
   def set_profile
     @profile = Profile.first || Profile.new
+  end
+
+  def clean_num(val)
+    return nil if val.blank?
+
+    # Extract digits, decimal points, and negative signs
+    # We strip expensive word-to-number logic since the AI prompt ensures numeric JSON output
+    stripped = val.to_s.gsub(/[^0-9.-]/, "")
+    return nil if stripped.blank?
+
+    f = stripped.to_f
+    (f % 1 == 0) ? f.to_i : f
+  end
+
+  def to_bool(val)
+    return false if val.nil?
+    str = val.to_s.downcase.strip
+    [ "true", "1", "yes", "on" ].include?(str)
   end
 
   def profile_params
@@ -515,6 +632,7 @@ class HomeController < ApplicationController
       :currency,
       :invoice_style,
       :discount_tax_rule,
+      :remove_logo,
       :logo
     )
   end

@@ -1,0 +1,43 @@
+<div class="flex justify-between items-start text-sm group py-1">
+  <div class="pr-2 min-w-0">
+    <div class="font-bold text-gray-900 break-words"><%= item[:desc] %></div>
+    <% if item[:sub_categories].any? %>
+      <ul class="pl-2 mt-0.5 space-y-0.5 border-l-2 border-gray-200">
+        <% item[:sub_categories].each do |sub| %>
+          <li class="text-xs text-gray-500"><%= sub %></li>
+        <% end %>
+      </ul>
+    <% end %>
+    
+    <div class="flex flex-wrap gap-1 mt-1">
+      <% if item[:taxable] && item[:computed_tax_amount] > 0 %>
+        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-600 border border-gray-200 uppercase tracking-wide">
+          <% tax_rate_display = item[:tax_rate].present? && item[:tax_rate].to_f > 0 ? " (#{item[:tax_rate]}%)" : "" %>
+          Tax: <%= format_money_ruby(item[:computed_tax_amount], profile, currency) %><%= tax_rate_display %>
+        </span>
+      <% elsif item[:taxable] %>
+        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-400 border border-gray-200 uppercase tracking-wide">
+          Taxable
+        </span>
+      <% end %>
+      <% if item[:item_discount_amount] > 0 %>
+        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-green-50 text-green-600 border border-green-200 uppercase tracking-wide">
+          <% disc_pct_display = item[:discount_percent].present? && item[:discount_percent].to_f > 0 ? " (#{item[:discount_percent]}%)" : "" %>
+          <%= item[:discount_message].present? ? item[:discount_message].upcase : "DISCOUNT" %>: -<%= format_money_ruby(item[:item_discount_amount], profile, currency) %><%= disc_pct_display %>
+        </span>
+      <% end %>
+    </div>
+  </div>
+  
+  <div class="text-right whitespace-nowrap pl-2 shrink-0">
+    <div class="font-bold text-black">
+      <%= format_money_ruby(item[:price], profile, currency) %>
+    </div>
+    
+    <% if item[:qty].to_f > 0 && item[:qty].to_f != 1 %>
+      <div class="text-[10px] font-medium text-gray-400">
+        <%= "%g" % item[:qty].to_f %> x <%= format_money_ruby(item[:price].to_f / item[:qty].to_f, profile, currency) %>
+      </div>
+    <% end %>
+  </div>
+</div>
