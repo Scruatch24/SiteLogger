@@ -14,7 +14,7 @@ class TrackingController < ApplicationController
     end
 
     if limit_reached?(event_name, user_id, ip_address)
-      return render json: { status: "error", message: "Daily limit reached" }, status: :too_many_requests
+      return render json: { status: "error", message: "Rate limit reached" }, status: :too_many_requests
     end
 
     TrackingEvent.create!(
@@ -44,9 +44,9 @@ class TrackingController < ApplicationController
 
   def check_export_limit(user_id, ip_address)
     if user_id.blank?
-      # Guest user: 2 per IP per day
+      # Guest user: 2 per IP per minute
       count = TrackingEvent.where(event_name: "invoice_exported", ip_address: ip_address)
-                          .where("created_at > ?", 24.hours.ago)
+                          .where("created_at > ?", 1.minute.ago)
                           .count
       count >= 2
     else
@@ -60,11 +60,11 @@ class TrackingController < ApplicationController
 
   def check_recording_limit(user_id, ip_address)
     if user_id.blank?
-      # Guest user: 5 per IP per minute
+      # Guest user: 2 per IP per minute
       count = TrackingEvent.where(event_name: "recording_started", ip_address: ip_address)
                           .where("created_at > ?", 1.minute.ago)
                           .count
-      count >= 5
+      count >= 2
     else
       # Free user: 10 per user per minute
       count = TrackingEvent.where(event_name: "recording_started", user_id: user_id)

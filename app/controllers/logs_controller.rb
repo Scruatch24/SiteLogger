@@ -9,15 +9,25 @@ class LogsController < ApplicationController
       p[:credits] = JSON.parse(p[:credits]) rescue p[:credits] if p[:credits].is_a?(String)
 
       @log = Log.new(p)
-      profile = Profile.first || Profile.new
+      @log.user = current_user if user_signed_in?
+
+      profile = @profile # using the one from HomeController before_filter or set manually
+      if !user_signed_in?
+        profile = Profile.where(user_id: nil).first || Profile.new
+      end
       @log.billing_mode = profile.billing_mode || "hourly" if @log.billing_mode.blank?
 
       # Default tax scope (if not provided by frontend)
       @log.tax_scope = profile.tax_scope if @log.tax_scope.blank?
 
+      # Persist appearance settings from profile to the log
+      if @log.accent_color.blank? || @log.accent_color == "#EA580C"
+        @log.accent_color = profile.accent_color
+      end
+
       if @log.save
         respond_to do |format|
-          format.json { render json: { success: true } }
+          format.json { render json: { success: true, id: @log.id, display_number: @log.display_number, client: @log.client } }
           format.html { redirect_to history_path }
         end
       else
@@ -32,91 +42,304 @@ class LogsController < ApplicationController
     end
 
     def destroy
-      @log = Log.find(params[:id])
+      @log = if user_signed_in?
+        current_user.logs.find(params[:id])
+      else
+        Log.where(user_id: nil).find(params[:id])
+      end
       @log.destroy
       redirect_to history_path
     end
 
+    def update_entry
+      @log = if user_signed_in?
+        current_user.logs.find(params[:id])
+      else
+        Log.where(user_id: nil).find(params[:id])
+      end
+
+      # Rule: Paid invoices should be locked: no RENAME available
+      if @log.status == "paid" && params[:field] == "client"
+        return render json: { success: false, errors: [ "Paid invoices are locked and cannot be renamed." ] }, status: :forbidden
+      end
+
+      field = params[:field]
+      value = params[:value]
+
+      case field
+      when "client"
+        @log.client = value
+      when "item"
+        s_idx = params[:section_index].to_i
+        i_idx = params[:item_index].to_i
+
+        # Load tasks safely
+        tasks = @log.tasks.is_a?(String) ? JSON.parse(@log.tasks || "[]") : (@log.tasks || [])
+
+        if tasks[s_idx] && tasks[s_idx]["items"] && tasks[s_idx]["items"][i_idx]
+          item = tasks[s_idx]["items"][i_idx]
+          if item.is_a?(Hash)
+            item["desc"] = value
+          else
+            # If it's a string item
+            tasks[s_idx]["items"][i_idx] = value
+          end
+          # Save back
+          @log.tasks = tasks
+        end
+      when "subcategory"
+        s_idx = params[:section_index].to_i
+        i_idx = params[:item_index].to_i
+        sub_idx = params[:subcategory_index].to_i
+
+        tasks = @log.tasks.is_a?(String) ? JSON.parse(@log.tasks || "[]") : (@log.tasks || [])
+
+        if tasks[s_idx] && tasks[s_idx]["items"] && tasks[s_idx]["items"][i_idx]
+          item = tasks[s_idx]["items"][i_idx]
+          if item.is_a?(Hash) && item["sub_categories"].is_a?(Array)
+             item["sub_categories"][sub_idx] = value
+             @log.tasks = tasks
+          end
+        end
+      when "credit"
+        c_idx = params[:credit_index].to_i
+        credits = @log.credits.is_a?(String) ? JSON.parse(@log.credits || "[]") : (@log.credits || [])
+        if credits[c_idx]
+          credits[c_idx]["reason"] = value
+          @log.credits = credits
+        end
+      end
+
+      if @log.save
+        render json: { success: true }
+      else
+        render json: { success: false, errors: @log.errors.full_messages }, status: :unprocessable_entity
+      end
+    end
+
+    def update_status
+      @log = if user_signed_in?
+        current_user.logs.find(params[:id])
+      else
+        Log.where(user_id: nil).find(params[:id])
+      end
+
+      status = params[:status]
+      if Log::STATUSES.include?(status)
+        @log.status = status
+        if @log.save
+          render json: { success: true }
+        else
+          render json: { success: false, errors: @log.errors.full_messages }, status: :unprocessable_entity
+        end
+      else
+        render json: { success: false, errors: [ "Invalid status" ] }, status: :unprocessable_entity
+      end
+    end
+
+    def update_categories
+      @log = if user_signed_in?
+        current_user.logs.find(params[:id])
+      else
+        Log.where(user_id: nil).find(params[:id])
+      end
+
+      category_ids = params[:category_ids] || []
+      @log.category_ids = category_ids
+      @log.pinned = params[:pinned] if params.has_key?(:pinned)
+
+      if @log.save
+        render json: { success: true }
+      else
+        render json: { success: false, errors: @log.errors.full_messages }, status: :unprocessable_entity
+      end
+    end
+
+    def bulk_update_categories
+      log_ids = params[:log_ids] || []
+      added_ids = (params[:added_category_ids] || []).map(&:to_i)
+      removed_ids = (params[:removed_category_ids] || []).map(&:to_i)
+      # pinned_action is no longer handled here, use bulk_pin instead
+
+      logs = if user_signed_in?
+        current_user.logs.where(id: log_ids)
+      else
+        Log.where(user_id: nil, id: log_ids)
+      end
+
+      errors = []
+      logs.each do |log|
+        # Add categories if not already present
+        new_ids = log.category_ids + added_ids
+        # Remove categories if present
+        new_ids = new_ids - removed_ids
+        log.category_ids = new_ids.uniq
+
+        unless log.save
+          errors << { id: log.id, errors: log.errors.full_messages }
+        end
+      end
+
+      if errors.empty?
+        render json: { success: true }
+      else
+        render json: { success: false, errors: errors }, status: :unprocessable_entity
+      end
+    end
+
+    def bulk_pin
+      log_ids = params[:log_ids] || []
+      category_id = params[:category_id] # nil for global, ID for category
+      should_pin = params[:pin] == true
+
+      if user_signed_in?
+        current_user.logs.where(id: log_ids)
+      else
+        Log.where(user_id: nil, id: log_ids)
+      end
+
+      if category_id.present?
+        # Category-specific pinning
+        # Process sequentialy to ensure distinct timestamps based on selection order
+        logs_ordered = log_ids.map { |id| Log.find(id) }
+        logs_ordered.each_with_index do |log, index|
+          assignment = LogCategoryAssignment.find_or_create_by(log_id: log.id, category_id: category_id)
+          # Add micro-delay to ensure database timestamps are distinct if needed,
+          # but usually Time.current is enough if processed in a loop.
+          # Explicitly setting slightly different times to be safe for sorting.
+          ts = should_pin ? (Time.current + index.seconds) : nil
+          assignment.update(pinned_at: ts)
+        end
+      else
+        # Global pinning
+        logs_ordered = log_ids.map { |id| Log.find(id) }
+        logs_ordered.each_with_index do |log, index|
+          ts = should_pin ? (Time.current + index.seconds) : nil
+          log.update(pinned: should_pin, pinned_at: ts)
+        end
+      end
+
+      render json: { success: true }
+    end
+
     def clear_all
-      Log.destroy_all
+      if user_signed_in?
+        current_user.logs.destroy_all
+      else
+        Log.where(user_id: nil).destroy_all
+      end
       redirect_to history_path
     end
 
 
 
     def download_pdf
-      log = Log.find(params[:id])
-      profile = Profile.first || Profile.new(business_name: "My Business", hourly_rate: 0)
+      log = if user_signed_in?
+        current_user.logs.find(params[:id])
+      else
+        Log.where(user_id: nil).find(params[:id])
+      end
 
-      pdf_data = InvoiceGenerator.new(log, profile).render
+      profile = if log.user
+        log.user.profile || Profile.new(business_name: "My Business", hourly_rate: 0)
+      else
+        Profile.where(user_id: nil).first || Profile.new(business_name: "My Business", hourly_rate: 0)
+      end
 
-      send_data pdf_data, filename: "INV-#{1000 + log.id}_#{log.client}.pdf", type: "application/pdf", disposition: "inline"
+      generator = InvoiceGenerator.new(log, profile)
+      pdf_data = generator.render
+      response.headers["X-PDF-Pages"] = generator.page_count.to_s
+      send_data pdf_data, filename: "INV-#{log.display_number}_#{log.client}.pdf", type: "application/pdf", disposition: "inline"
     end
 
     def preview_pdf
-      style = params[:style] || "professional"
+      set_preview_profile
+      style = params[:style] || @profile.invoice_style || "classic"
+      @profile.invoice_style = style
+      profile = @profile
 
-      # No caching to prevent binary corruption issues
-      profile = Profile.first || Profile.new(
-        business_name: "TalkInvoice Demo",
-        phone: "555-0123",
-        email: "demo@talkinvoice.com",
-        address: "123 Innovation Dr, Tech City",
-        hourly_rate: 100,
-        currency: "USD",
-        tax_rate: 10,
-        payment_instructions: "Please pay via Bank Transfer to Account #123456789"
-      )
-      profile.invoice_style = style
-
-      # Dummy Log Data
+      # Rich Dummy Log Data showcasing ALL features
       log = Log.new(
-        id: 999,
-        client: "Acme Corp",
-        time: "4.5",
+        id: 1248,
+        client: "Stark Industries - R&D Wing",
+        time: "12.5",
         date: Date.today.strftime("%b %d, %Y"),
-        due_date: (Date.today + 14).strftime("%b %d, %Y"),
+        due_date: (Date.today + 30).strftime("%b %d, %Y"),
         billing_mode: "hourly",
-        tax_scope: "all",
+        tax_scope: "labor,materials_only,fees_only",
         labor_taxable: true,
         currency: profile.currency,
         hourly_rate: profile.hourly_rate,
+        global_discount_percent: 5.0,
+        global_discount_message: "Preferred Client Discount",
+        accent_color: params[:accent_color].presence || profile.accent_color,
+        credits: [
+          { "reason" => "Initial Deposit Paid", "amount" => "500.00" },
+          { "reason" => "Referral Credit", "amount" => "50.00" }
+        ].to_json,
         tasks: [
-          { "title" => "Labor", "items" => [
-            { "desc" => "Initial Site Consultation", "qty" => "1.5", "price" => "150.0", "taxable" => true },
-            { "desc" => "Installation Work", "qty" => "3.0", "price" => "300.0", "taxable" => true }
-          ] },
-          { "title" => "Materials", "items" => [
-            { "desc" => "High-grade Sensor", "qty" => "2", "price" => "200.0", "taxable" => true },
-            { "desc" => "Cabling & Fixtures", "qty" => "1", "price" => "75.50", "taxable" => true }
-          ] },
-          { "title" => "Field Notes", "items" => [
-             "checked voltage levels - all nominal",
-             "customer requested follow-up next week"
-          ] }
+          {
+            "title" => "Labor & Services",
+            "items" => [
+              {
+                "desc" => "Security System Calibration",
+                "price" => "4.5",
+                "mode" => "hourly",
+                "taxable" => true,
+                "discount_percent" => 10,
+                "discount_message" => "First hour free promo",
+                "currency" => profile.currency,
+                "hourly_rate" => profile.hourly_rate,
+                "tax_rate" => profile.tax_rate,
+                "labor_taxable" => true,
+                "global_discount_flat" => 0,
+                "sub_categories" => [ "Biometric sync check", "Latency optimization" ]
+              },
+              { "desc" => "Emergency Response Setup", "price" => "250.0", "mode" => "fixed", "taxable" => true }
+            ]
+          },
+          {
+            "title" => "Hardware & Materials",
+            "items" => [
+              { "desc" => "Shielded Signal Cabling (ft)", "qty" => "50", "price" => "2.50", "taxable" => true, "discount_flat" => 25.0 }
+            ]
+          },
+          {
+            "title" => "Project Expenses",
+            "items" => [
+              { "desc" => "Express Site Logistics", "qty" => "1", "price" => "45.00", "taxable" => false }
+            ]
+          },
+          {
+            "title" => "Fees",
+            "items" => [
+              { "desc" => "Hazardous Disposal Fee", "qty" => "1", "price" => "120.00", "taxable" => true },
+              { "desc" => "Mandatory City Permit", "qty" => "1", "price" => "75.00", "taxable" => true }
+            ]
+          },
+          {
+            "title" => "Technical Field Notes",
+            "items" => [
+              "Fiber optic link established at 10Gbps",
+              "Backup batteries tested and cycled (100% health)",
+              "Master control panel firmware updated to v4.2"
+            ]
+          }
         ].to_json
       )
 
-      pdf_data = InvoiceGenerator.new(log, profile).render
-
+      generator = InvoiceGenerator.new(log, profile)
+      pdf_data = generator.render
+      response.headers["X-PDF-Pages"] = generator.page_count.to_s
       send_data pdf_data, filename: "preview_#{style}.pdf", type: "application/pdf", disposition: "inline"
     end
 
     # Multi-page test endpoint for verifying pagination
     def preview_pdf_multipage
-      style = params[:style] || "professional"
-
-      profile = Profile.first || Profile.new(
-        business_name: "TalkInvoice Demo",
-        phone: "555-0123",
-        email: "demo@talkinvoice.com",
-        address: "123 Innovation Dr, Tech City",
-        hourly_rate: 100,
-        currency: "USD",
-        tax_rate: 10,
-        payment_instructions: "Please pay via Bank Transfer to Account #123456789"
-      )
-      profile.invoice_style = style
+      set_preview_profile
+      style = params[:style] || @profile.invoice_style || "classic"
+      @profile.invoice_style = style
+      profile = @profile
 
       # Generate 40+ items for multi-page testing
       material_items = (1..35).map do |i|
@@ -151,6 +374,7 @@ class LogsController < ApplicationController
         global_discount_percent: 5,
         credit_flat: 50,
         credit_reason: "Loyalty discount",
+        accent_color: params[:accent_color].presence || profile.accent_color,
         tasks: [
           { "title" => "Labor", "items" => [
             { "desc" => "Initial Site Consultation", "qty" => "2", "price" => "0", "taxable" => false },
@@ -163,32 +387,80 @@ class LogsController < ApplicationController
         ].to_json
       )
 
-      pdf_data = InvoiceGenerator.new(log, profile).render
-
+      generator = InvoiceGenerator.new(log, profile)
+      pdf_data = generator.render
+      response.headers["X-PDF-Pages"] = generator.page_count.to_s
       send_data pdf_data, filename: "preview_multipage_#{style}.pdf", type: "application/pdf", disposition: "inline"
     end
 
     def generate_preview
-      p = log_params.to_h
-      p[:tasks] = JSON.parse(p[:tasks]) rescue p[:tasks] if p[:tasks].is_a?(String)
-      p[:credits] = JSON.parse(p[:credits]) rescue p[:credits] if p[:credits].is_a?(String)
+      # Ensure schema is fresh to avoid missing column errors
+      Log.reset_column_information
 
-      # Extract currency and billing mode from top level if needed
-      # but they should be in log_params
+      begin
+        p = log_params.to_h
+        p[:tasks] = JSON.parse(p[:tasks]) rescue p[:tasks] if p[:tasks].is_a?(String)
+        p[:credits] = JSON.parse(p[:credits]) rescue p[:credits] if p[:credits].is_a?(String)
 
-      log = Log.new(p)
-      profile = Profile.first || Profile.new
-      log.billing_mode = profile.billing_mode || "hourly" if log.billing_mode.blank?
-      log.tax_scope = profile.tax_scope if log.tax_scope.blank?
+        set_preview_profile
+        profile = @profile
 
-      pdf_data = InvoiceGenerator.new(log, profile).render
+        if params[:log_id].present? && params[:log_id] != "null"
+          log_id = params[:log_id].to_i
+          log = if user_signed_in?
+            current_user.logs.find_by(id: log_id)
+          else
+            Log.where(user_id: nil).find_by(id: log_id)
+          end
 
-      send_data pdf_data, filename: "Preview.pdf", type: "application/pdf", disposition: "inline"
+          if log
+            log.assign_attributes(p)
+          else
+            # Fallback if ID provided but not found
+            log = Log.new(p)
+            log.user = current_user if user_signed_in?
+            log.id = log_id
+          end
+        else
+          log = Log.new(p)
+          log.user = current_user if user_signed_in?
+        end
+
+        if log.accent_color.blank? || log.accent_color == "#EA580C"
+          log.accent_color = profile.accent_color
+        end
+        log.billing_mode = profile.billing_mode || "hourly" if log.billing_mode.blank?
+        log.tax_scope = profile.tax_scope if log.tax_scope.blank?
+
+        generator = InvoiceGenerator.new(log, profile)
+        pdf_data = generator.render
+        response.headers["X-PDF-Pages"] = generator.page_count.to_s
+        response.headers["X-INV-No"] = log.display_number.to_s
+        send_data pdf_data, filename: "Preview.pdf", type: "application/pdf", disposition: "inline"
+      rescue => e
+        Rails.logger.error "Generate Preview Error: #{e.message}"
+        Rails.logger.error e.backtrace.join("\n")
+        # Fallback error response for the client
+        render json: { error: e.message }, status: :internal_server_error
+      end
     end
 
-    private
+    def set_preview_profile
+      # Use the global @profile (set in ApplicationController), but ensure it has rich dummy data for the preview if it's a guest
+      unless @profile.persisted?
+        @profile.business_name = "Titan Automation Solutions"
+        @profile.phone = "+1 (555) 042-9988"
+        @profile.email = "billing@titan-auto.com"
+        @profile.address = "742 Evergreen Terrace\nSuite 101\nSpringfield, IL 62704"
+        @profile.tax_id = "EIN-99-8877665"
+        @profile.hourly_rate = 125 if @profile.hourly_rate.blank?
+        @profile.currency = "USD" if @profile.currency.blank?
+        @profile.tax_rate = 8.5 if @profile.tax_rate.blank?
+        @profile.payment_instructions = "Please remit payment within 14 days.\nZelle: payments@titan-auto.com\nWire: First National Bank (Routing: 00001234)"
+      end
+    end
 
     def log_params
-      params.require(:log).permit(:client, :time, :date, :due_date, :tasks, :credits, :billing_mode, :discount_tax_rule, :tax_scope, :labor_taxable, :labor_discount_flat, :labor_discount_percent, :global_discount_flat, :global_discount_percent, :global_discount_message, :credit_flat, :credit_reason, :currency, :hourly_rate)
+      params.require(:log).permit(:client, :time, :date, :due_date, :tasks, :credits, :billing_mode, :discount_tax_rule, :tax_scope, :labor_taxable, :labor_discount_flat, :labor_discount_percent, :global_discount_flat, :global_discount_percent, :global_discount_message, :credit_flat, :credit_reason, :currency, :hourly_rate, :accent_color, :raw_summary, :tax_rate, :status, category_ids: [])
     end
 end

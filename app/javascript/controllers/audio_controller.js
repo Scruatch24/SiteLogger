@@ -2,7 +2,7 @@ import { Controller } from "@hotwired/stimulus"
 
 export default class extends Controller {
   // Added currencySymbol target for the Settings page fix we discussed
-  static targets = ["button", "output", "date", "client", "tasks", "materials", "time", "currencySymbol"]
+  static targets = ["button", "output", "date", "client", "tasks", "materials", "time", "currencySymbol", "transcriptContainer"]
 
   static values = {
     currencySymbols: Object
@@ -70,6 +70,10 @@ export default class extends Controller {
       this.buttonTarget.classList.remove("bg-red-600", "ring-4", "ring-red-100")
       this.buttonTarget.classList.add("opacity-50", "cursor-not-allowed")
 
+      if (this.hasTranscriptContainerTarget) {
+        this.transcriptContainerTarget.classList.add("analyzing")
+      }
+
       this.mediaRecorder.stream.getTracks().forEach(track => track.stop())
     }
   }
@@ -116,6 +120,10 @@ export default class extends Controller {
       this.buttonTarget.disabled = false
       this.buttonTarget.classList.remove("opacity-50", "cursor-not-allowed")
       this.buttonTarget.classList.add("bg-orange-600")
+
+      if (this.hasTranscriptContainerTarget) {
+        this.transcriptContainerTarget.classList.remove("analyzing")
+      }
     }
 
     if (this.hasTasksTarget) {

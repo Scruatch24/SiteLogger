@@ -1,0 +1,445 @@
+<% 
+  stats = calculate_log_totals(log, @profile)
+  currency = stats[:currency]
+  suffix ||= "" 
+%>
+
+<div class="log-card group/card relative" 
+     style="z-index: auto;" 
+     data-categories="<%= log.category_ids.to_json %>"
+     data-pinned="<%= log.pinned ? 'true' : 'false' %>"
+     data-log-id="<%= log.id %>">
+  <!-- Hamburger Menu Button (Top Right Corner) -->
+  <div class="absolute -top-3 -right-3 z-30">
+    <button type="button" 
+            onclick="toggleLogMenu(this, event)"
+            class="w-10 h-10 bg-white border-2 border-black rounded-full shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] flex flex-col items-center justify-center hover:bg-gray-50 active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all log-menu-btn">
+      <span class="line line-1 w-5 h-0.5 bg-black mb-1 rounded-full"></span>
+      <span class="line line-2 w-5 h-0.5 bg-black mb-1 rounded-full"></span>
+      <span class="line line-3 w-5 h-0.5 bg-black rounded-full"></span>
+    </button>
+    
+    <!-- Dropdown Menu -->
+    <div class="log-menu-dropdown absolute right-0 mt-2 w-48 bg-white border-2 border-black rounded-2xl shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] overflow-hidden z-50">
+      <div class="flex flex-col">
+        <button type="button" 
+                onclick="handleRecreate(this)"
+                data-recreate='<%= {
+                  client: log.client,
+                  date: log.date,
+                  due_date: log.due_date,
+                  raw_summary: log.raw_summary,
+                  tax_scope: log.tax_scope,
+                  billing_mode: log.billing_mode,
+                  currency: log.currency,
+                  hourly_rate: log.hourly_rate,
+                  tax_rate: log.tax_rate,
+                  labor_taxable: log.labor_taxable,
+                  global_discount_flat: log.global_discount_flat,
+                  global_discount_percent: log.global_discount_percent,
+                  global_discount_message: log.global_discount_message,
+                  credits: log.credits || [],
+                  sections: log.tasks || []
+                }.to_json %>'
+                class="flex items-center gap-3 px-4 py-3 text-left hover:bg-green-50 transition-colors border-b border-gray-100 group/item">
+          <div class="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center text-green-600 group-hover/item:bg-green-600 group-hover/item:text-white transition-colors">
+            <svg class="h-4 w-4 icon-recreate">
+              <use xlink:href="#icon-recreate"></use>
+            </svg>
+          </div>
+          <span class="text-[10px] font-black uppercase tracking-widest text-black">Recreate</span>
+        </button>
+        
+        <button type="button" 
+                id="rename-btn-<%= log.id %><%= suffix %>"
+                onclick="toggleRenameMode(this, event)"
+                class="rename-btn flex items-center gap-3 px-4 py-3 text-left hover:bg-blue-50 transition-colors border-b border-gray-100 group/item <%= 'hidden' if log.status == 'paid' %>">
+          <div class="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 group-hover/item:bg-blue-600 group-hover/item:text-white transition-colors">
+            <svg class="h-4 w-4 icon-rename">
+              <use xlink:href="#icon-rename"></use>
+            </svg>
+          </div>
+          <span class="rename-text text-[10px] font-black uppercase tracking-widest text-black">Rename</span>
+        </button>
+        
+        <% category_count = log.categories.size %>
+        <button type="button" 
+                onclick="openManageCategoriesModal('<%= log.id %>', <%= log.category_ids.to_json %>)"
+                class="flex items-center gap-3 px-4 py-3 text-left hover:bg-orange-50 transition-colors border-b border-gray-100 group/item">
+          <div class="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center text-orange-600 group-hover/item:bg-orange-600 group-hover/item:text-white transition-colors">
+            <% if category_count > 0 %>
+              <!-- Manage Icon -->
+              <svg class="h-4 w-4">
+                <use xlink:href="#<%= category_count > 0 ? 'icon-manage' : 'icon-add' %>"></use>
+              </svg>
+            <% end %>
+          </div>
+          <span class="text-[10px] font-black uppercase tracking-widest text-black">
+            <%= category_count > 0 ? "Manage Categories" : "Add to Category" %>
+          </span>
+        </button>
+        
+        <button type="button" 
+                onclick="handleTogglePin(this, '<%= log.id %>', <%= log.pinned || false %>); event.stopPropagation();"
+                class="flex items-center gap-3 px-4 py-3 text-left hover:bg-yellow-50 transition-colors border-b border-gray-100 group/item">
+          <div class="w-8 h-8 rounded-lg <%= log.pinned ? "bg-yellow-400 text-white" : "bg-yellow-100 text-yellow-600" %> flex items-center justify-center group-hover/item:bg-yellow-400 group-hover/item:text-white transition-colors">
+            <svg class="h-4 w-4 icon-pin" fill="<%= log.pinned ? "currentColor" : "none" %>">
+              <use xlink:href="#icon-pin"></use>
+            </svg>
+          </div>
+          <span class="text-[10px] font-black uppercase tracking-widest text-black"><%= log.pinned ? "Unpin Log" : "Pin Log" %></span>
+        </button>
+        
+        <button type="button" 
+                onclick="openDeleteLogModal('<%= log_path(log) %>', 'INV-<%= log.display_number %>'); event.stopPropagation();"
+                class="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-red-50 transition-colors border-none group/item">
+          <div class="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center text-red-600 group-hover/item:bg-red-600 group-hover/item:text-white transition-colors">
+            <svg class="h-4 w-4">
+              <use xlink:href="#icon-delete"></use>
+            </svg>
+          </div>
+          <span class="text-[10px] font-black uppercase tracking-widest text-black">Delete</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Category Badges (Bottom Left - Outside/Connecting) -->
+  <!-- Category Badges (Bottom Left - Outside/Connecting) -->
+  <div class="absolute top-[calc(100%-2px)] left-6 z-30 flex flex-wrap gap-1.5 pointer-events-none">
+    <% log.categories.each do |cat| %>
+      <div class="flex items-center gap-1.5 px-2.5 py-1 bg-white border-2 rounded-b-lg rounded-t-none text-[9px] font-black uppercase tracking-tighter transition-all"
+           style="border-color: <%= cat.color %>; color: <%= cat.color %>;">
+        <% if cat.icon_type == 'custom' && cat.custom_icon.attached? %>
+          <img src="<%= url_for(cat.custom_icon) %>" class="w-3 h-3 object-cover rounded-sm" loading="lazy">
+        <% else %>
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+            <%= category_icon_map[cat.icon].to_s.html_safe %>
+          </svg>
+        <% end %>
+        <%= cat.name %>
+      </div>
+    <% end %>
+  </div>
+
+  <!-- Pinned Badge (Bottom Right - Outside/Connecting) -->
+  <% if log.pinned %>
+    <div class="absolute top-[calc(100%-2px)] right-6 z-30 flex gap-1.5 pointer-events-none">
+      <div class="flex items-center gap-1 px-2.5 py-1 bg-white border-2 border-amber-400 rounded-b-lg rounded-t-none text-[9px] font-black uppercase tracking-tighter text-amber-600">
+        <svg class="h-2.5 w-2.5 text-amber-500">
+          <use xlink:href="#icon-star-filled"></use>
+        </svg>
+        Pinned
+      </div>
+    </div>
+  <% end %>
+
+  <!-- Status Badge (Top Left - Outside/Connecting) -->
+  <%
+    current_status = log.current_status
+    status_config = {
+      'draft' => { bg: 'bg-gray-50', text: 'text-gray-500', border: 'border-gray-300' },
+      'sent' => { bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-400' },
+      'paid' => { bg: 'bg-green-50', text: 'text-green-600', border: 'border-green-400' },
+      'overdue' => { bg: 'bg-red-50', text: 'text-red-600', border: 'border-red-400' }
+    }[current_status] || { bg: 'bg-gray-50', text: 'text-gray-500', border: 'border-gray-300' }
+  %>
+  <div class="absolute bottom-[calc(100%-2px)] left-6 z-40 group/status">
+    <button type="button" 
+            id="status-badge-<%= log.id %><%= suffix %>"
+            onclick="toggleStatusSelector(this, event)"
+            data-log-id="<%= log.id %>"
+            data-current-status="<%= current_status %>"
+            class="flex items-center gap-1.5 px-3.5 py-1.5 <%= status_config[:bg] %> border-2 <%= status_config[:border] %> rounded-t-lg rounded-b-none text-[10px] font-black uppercase tracking-widest <%= status_config[:text] %> transition-all">
+      <div id="status-dot-<%= log.id %><%= suffix %>" class="w-1.5 h-1.5 rounded-full <%= current_status == 'overdue' ? 'bg-red-500 animate-pulse' : status_config[:text].gsub('text', 'bg') %>"></div>
+      <span id="status-text-<%= log.id %><%= suffix %>"><%= current_status %></span>
+      <svg class="h-3 w-3 opacity-50 status-chevron">
+        <use xlink:href="#icon-chevron-down"></use>
+      </svg>
+    </button>
+
+    <!-- Mini Status Selector Dropdown (Downwards) -->
+    <div class="status-selector-dropdown absolute left-1/2 -translate-x-1/2 top-full mt-1 hidden min-w-[140px] bg-white border-2 border-black rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+      <% 
+        status_options = [
+          { name: 'draft', icon: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5', color: 'text-gray-500', group_hover: 'group-hover:text-gray-700' },
+          { name: 'sent', icon: 'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z', color: 'text-blue-600', group_hover: 'group-hover:text-blue-700' },
+          { name: 'paid', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z', color: 'text-green-600', group_hover: 'group-hover:text-green-700' },
+          { name: 'overdue', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z', color: 'text-red-600', group_hover: 'group-hover:text-red-700' }
+        ]
+      %>
+      <% status_options.each do |opt| %>
+        <button onclick="updateStatusLive('<%= log.id %>', '<%= opt[:name] %>')"
+                id="opt-<%= opt[:name] %>-<%= log.id %><%= suffix %>"
+                class="w-full flex items-center gap-2.5 px-3 py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all border-b border-gray-100 last:border-0 group/opt <%= opt[:name] == current_status ? 'hidden' : '' %>">
+          <div class="w-6 h-6 rounded bg-<%= opt[:color].split('-')[1] %>-100 flex items-center justify-center <%= opt[:color] %> transition-transform group-hover/opt:scale-110">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="<%= opt[:icon] %>" />
+            </svg>
+          </div>
+          <%= opt[:name] %>
+        </button>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="card-inner bg-white border-2 border-black rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden transition-all duration-200 relative">
+    
+    <!-- Header Area -->
+    <div class="bg-gray-50 border-b-2 border-black p-4 pb-3 flex justify-between items-start cursor-pointer hover:bg-gray-100 transition-colors header-main"
+         onclick="handleHeaderClick(this, event)">
+      
+      <div class="flex items-start gap-4 min-w-0 flex-1">
+        <!-- Interactive Controls (Checkbox & Chevron) -->
+        <div class="relative w-6 h-12 shrink-0 mt-0.5">
+          <!-- Selection Checkbox -->
+          <div class="selection-checkbox absolute top-0 left-0 w-6 h-6 rounded-lg border-2 border-black flex items-center justify-center bg-white transition-all scale-0 opacity-0 z-10">
+            <svg class="h-4 w-4 text-white scale-0 transition-transform">
+              <use xlink:href="#icon-check"></use>
+            </svg>
+          </div>
+
+          <!-- Chevron Indicator (Positioned via CSS in history.html.erb) -->
+          <div class="chevron-icon shrink-0" data-toggle-trigger="true">
+            <svg class="h-5 w-5 text-gray-400 pointer-events-none">
+              <use xlink:href="#icon-chevron-down"></use>
+            </svg>
+          </div>
+        </div>
+       
+       <div class="min-w-0 flex-1">
+         <div class="flex flex-wrap items-center gap-2 mb-3">
+           <span class="text-xs sm:text-sm font-black text-orange-600 bg-orange-100 px-2 py-0.5 rounded uppercase tracking-wider whitespace-nowrap">
+             INV-<%= log.display_number %>
+           </span>
+            <div class="flex items-center gap-1 px-2 py-0.5 bg-gray-100 border border-gray-200 rounded text-[9px] sm:text-xs font-black uppercase tracking-tighter text-gray-600 whitespace-nowrap">
+              <svg class="h-2.5 w-2.5 sm:h-3 sm:w-3">
+                <use xlink:href="#icon-calendar"></use>
+              </svg>
+              <%= log.date || log.created_at.strftime("%b %d, %Y") %>
+            </div>
+
+           <% if log.due_date.present? %>
+              <div class="flex items-center gap-1 px-2 py-0.5 bg-red-50 border border-red-100 rounded text-[9px] sm:text-xs font-black uppercase tracking-tighter text-red-600 whitespace-nowrap">
+                <svg class="h-2.5 w-2.5 sm:h-3 sm:w-3">
+                  <use xlink:href="#icon-clock"></use>
+                </svg>
+                Due: <%= log.due_date %>
+              </div>
+           <% end %>
+         </div>
+         <h3 class="text-xl font-black text-black leading-tight break-words mb-0" 
+             style="overflow-wrap: anywhere;"
+             data-editable-type="client" data-log-id="<%= log.id %>">
+           <%= log.client.presence || "Unknown Client" %>
+         </h3>
+       </div>
+    </div>
+    
+    <div class="text-right hidden sm:block">
+      <div class="text-2xl font-black text-orange-600">
+        <%= format_money_ruby(stats[:total_due], @profile, currency) %>
+      </div>
+      <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Balance Due</div>
+    </div>
+  </div>
+
+  <!-- Collapsible Content Wrapper -->
+  <div class="grid grid-rows-[0fr] transition-[grid-template-rows] duration-300 ease-in-out collapsible-content">
+    <div class="overflow-hidden min-h-0">
+    
+      <!-- Items List -->
+      <div class="p-4 space-y-4">
+        <% # LABOR %>
+        <% if stats[:categorized_items][:labor].any? %>
+          <div class="space-y-1">
+            <div class="flex items-center gap-2 pb-1 border-b border-gray-100">
+              <div class="w-5 h-5 bg-orange-100 rounded flex items-center justify-center text-orange-600">
+                <svg class="h-3 w-3">
+                  <use xlink:href="#icon-labor"></use>
+                </svg>
+              </div>
+              <span class="text-xs font-black text-gray-400 uppercase tracking-widest">Labor</span>
+            </div>
+            <% stats[:categorized_items][:labor].each do |item| %>
+              <%= render partial: "home/history_item", locals: { item: item, profile: @profile, currency: currency } %>
+            <% end %>
+          </div>
+        <% end %>
+
+        <% # MATERIALS %>
+        <% if stats[:categorized_items][:material].any? %>
+          <div class="space-y-1 pt-4">
+            <div class="flex items-center gap-2 pb-1 border-b border-gray-100">
+              <div class="w-5 h-5 bg-orange-100 rounded flex items-center justify-center text-orange-600">
+                <svg class="h-3 w-3">
+                  <use xlink:href="#icon-material"></use>
+                </svg>
+              </div>
+              <span class="text-xs font-black text-gray-400 uppercase tracking-widest">Materials</span>
+            </div>
+            <% stats[:categorized_items][:material].each do |item| %>
+              <%= render partial: "home/history_item", locals: { item: item, profile: @profile, currency: currency } %>
+            <% end %>
+          </div>
+        <% end %>
+
+        <% # EXPENSES %>
+        <% if stats[:categorized_items][:expense].any? %>
+          <div class="space-y-1 pt-4">
+            <div class="flex items-center w-full gap-2 pb-1 border-b border-gray-100">
+              <div class="w-5 h-5 bg-red-100 rounded flex items-center justify-center text-red-600">
+                <svg class="h-3 w-3">
+                  <use xlink:href="#icon-expense"></use>
+                </svg>
+              </div>
+              <span class="text-xs font-black text-gray-400 uppercase tracking-widest">Expenses</span>
+            </div>
+            <% stats[:categorized_items][:expense].each do |item| %>
+              <%= render partial: "home/history_item", locals: { item: item, profile: @profile, currency: currency } %>
+            <% end %>
+          </div>
+        <% end %>
+
+        <% # FEES %>
+        <% if stats[:categorized_items][:fee].any? %>
+          <div class="space-y-1 pt-4">
+            <div class="flex items-center w-full gap-2 pb-1 border-b border-gray-100">
+              <div class="w-5 h-5 bg-blue-100 rounded flex items-center justify-center text-blue-600">
+                <svg class="h-3 w-3">
+                  <use xlink:href="#icon-fee"></use>
+                </svg>
+              </div>
+              <span class="text-xs font-black text-gray-400 uppercase tracking-widest">Fees</span>
+            </div>
+            <% stats[:categorized_items][:fee].each do |item| %>
+              <%= render partial: "home/history_item", locals: { item: item, profile: @profile, currency: currency } %>
+            <% end %>
+          </div>
+        <% end %>
+
+        <% # OTHER %>
+        <% if stats[:categorized_items][:other].any? %>
+          <div class="space-y-1 pt-4">
+            <div class="flex items-center w-full gap-2 pb-1 border-b border-gray-100">
+              <div class="w-5 h-5 bg-gray-100 rounded flex items-center justify-center text-gray-600">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+                  <path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd" />
+                </svg>
+              </div>
+              <span class="text-xs font-black text-gray-400 uppercase tracking-widest">Other</span>
+            </div>
+            <% stats[:categorized_items][:other].each do |item| %>
+              <%= render partial: "home/history_item", locals: { item: item, profile: @profile, currency: currency } %>
+            <% end %>
+          </div>
+        <% end %>
+
+        <% # CREDITS %>
+        <% if stats[:credits].any? %>
+          <div class="space-y-2 pt-2">
+            <div class="flex items-center gap-2 pb-1 border-b border-gray-100">
+              <div class="w-5 h-5 bg-red-100 rounded flex items-center justify-center text-red-600">
+                <svg class="h-3 w-3">
+                  <use xlink:href="#icon-credit"></use>
+                </svg>
+              </div>
+              <span class="text-xs font-black text-red-400 uppercase tracking-widest">Credits</span>
+            </div>
+            <% stats[:credits].each do |credit| %>
+              <div class="flex justify-between items-center text-sm">
+                <div class="font-medium text-red-700" 
+                      <%= "data-editable-type='credit' data-log-id='#{log.id}' data-credit-index='#{credit[:credit_index]}'".html_safe if credit[:credit_index] %>>
+                  <%= credit[:reason] %>
+                </div>
+                <div class="font-bold text-red-700">-<%= format_money_ruby(credit[:amount], @profile, currency) %></div>
+              </div>
+            <% end %>
+          </div>
+        <% end %>
+
+    </div> <!-- End Items List -->
+  </div> <!-- End Overflow Hidden -->
+  </div> <!-- End Grid Collapsible -->
+
+  <!-- Summary & Actions (Always Visible, but visually separated) -->
+  <div class="bg-gray-50 border-t-2 border-black p-4">
+    <!-- Totals Breakdown (9-Step) -->
+    <div class="space-y-1.5 mb-4 text-xs font-bold uppercase tracking-tight">
+        
+        <% # 1 & 2. ITEMS TOTAL & ITEM DISCOUNTS (Conditional) %>
+        <% if stats[:item_discount_total] > 0 %>
+          <div class="flex justify-between text-gray-400">
+            <span class="font-black">Items Total</span>
+            <span><%= format_money_ruby(stats[:items_total], @profile, currency) %></span>
+          </div>
+          <div class="flex justify-between text-green-600">
+            <span>Item Discounts</span>
+            <span>-<%= format_money_ruby(stats[:item_discount_total], @profile, currency) %></span>
+          </div>
+          <div class="border-t border-dashed border-gray-300 my-1"></div>
+        <% end %>
+
+        <% # 3. SUBTOTAL %>
+        <div class="flex justify-between text-gray-500">
+          <span class="font-black">Subtotal</span>
+          <span class="text-black"><%= format_money_ruby(stats[:net_items_subtotal], @profile, currency) %></span>
+        </div>
+
+        <% # 4 & 5. INVOICE DISCOUNT & TAXABLE TOTAL (Conditional) %>
+        <% if stats[:global_discount_amount] > 0 %>
+          <div class="flex justify-between text-green-600">
+            <span>Invoice Discount</span>
+            <span>
+              -<%= format_money_ruby(stats[:global_discount_amount], @profile, currency) %>
+              <% if stats[:global_discount_percent] > 0 %>
+                (-<%= clean_num(stats[:global_discount_percent]) %>%)
+              <% end %>
+            </span>
+          </div>
+          <div class="border-t border-dashed border-gray-300 my-1"></div>
+          <div class="flex justify-between text-gray-500">
+            <span class="font-black">Taxable Total</span>
+            <span class="text-black"><%= format_money_ruby(stats[:taxable_total], @profile, currency) %></span>
+          </div>
+        <% end %>
+
+        <% # 6. TAX %>
+        <div class="flex justify-between text-orange-600">
+          <span>Tax</span>
+          <span><%= format_money_ruby(stats[:tax_amount], @profile, currency) %></span>
+        </div>
+
+        <% # 7 & 8. TOTAL BEFORE CREDIT & CREDIT APPLIED (Conditional) %>
+        <% if stats[:total_credits] > 0 %>
+          <div class="border-t border-dashed border-gray-300 my-1"></div>
+          <div class="flex justify-between text-gray-500">
+            <span class="font-black">Total Before Credit</span>
+            <span class="text-black"><%= format_money_ruby(stats[:total_before_credits], @profile, currency) %></span>
+          </div>
+          <div class="flex justify-between text-red-600">
+            <span>Credit Applied</span>
+            <span>-<%= format_money_ruby(stats[:total_credits], @profile, currency) %></span>
+          </div>
+        <% end %>
+
+        <div class="pt-2 mt-2 border-t-2 border-black flex justify-between text-black font-black text-sm">
+          <span>Balance Due</span>
+          <span class="text-orange-600"><%= format_money_ruby(stats[:total_due], @profile, currency) %></span>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="grid grid-cols-1 gap-3">
+      <%= link_to download_pdf_log_path(log), class: "flex items-center justify-center gap-2 bg-orange-600 text-white px-4 py-2 border-2 border-black rounded-lg font-black text-xs uppercase tracking-widest hover:bg-orange-700 transition-all shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] active:scale-95", target: "_blank", onclick: "window.trackEvent('invoice_exported')" do %>
+        <svg class="h-4 w-4">
+          <use xlink:href="#icon-pdf"></use>
+        </svg>
+        PDF
+      <% end %>
+    </div>
+  </div>
+
+  </div> <!-- End Card Border (overflow hidden) -->
+</div> <!-- End Log Card (relative) -->

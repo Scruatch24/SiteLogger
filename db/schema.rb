@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_01_27_101718) do
+ActiveRecord::Schema[8.0].define(version: 2026_01_30_201822) do
   create_schema "auth"
   create_schema "neon_auth"
   create_schema "pgrst"
@@ -47,6 +47,27 @@ ActiveRecord::Schema[8.0].define(version: 2026_01_27_101718) do
     t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
   end
 
+  create_table "categories", force: :cascade do |t|
+    t.string "name"
+    t.string "icon"
+    t.string "icon_type"
+    t.bigint "user_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "color"
+    t.index ["user_id"], name: "index_categories_on_user_id"
+  end
+
+  create_table "log_category_assignments", force: :cascade do |t|
+    t.bigint "log_id", null: false
+    t.bigint "category_id", null: false
+    t.datetime "pinned_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["category_id"], name: "index_log_category_assignments_on_category_id"
+    t.index ["log_id"], name: "index_log_category_assignments_on_log_id"
+  end
+
   create_table "logs", force: :cascade do |t|
     t.string "date"
     t.string "client"
@@ -56,7 +77,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_01_27_101718) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "billing_mode"
-    t.string "tax_scope", default: "total", null: false
+    t.string "tax_scope", default: "labor,materials_only", null: false
     t.boolean "labor_taxable"
     t.decimal "labor_discount_flat"
     t.decimal "labor_discount_percent"
@@ -70,6 +91,18 @@ ActiveRecord::Schema[8.0].define(version: 2026_01_27_101718) do
     t.string "discount_tax_rule"
     t.text "credits"
     t.string "global_discount_message"
+    t.integer "user_id"
+    t.string "accent_color", default: "#EA580C"
+    t.boolean "pinned"
+    t.text "raw_summary"
+    t.decimal "tax_rate"
+    t.integer "invoice_number"
+    t.string "status", default: "draft", null: false
+    t.datetime "pinned_at"
+    t.datetime "favorites_pinned_at"
+    t.index ["status"], name: "index_logs_on_status"
+    t.index ["user_id", "invoice_number"], name: "index_logs_on_user_id_and_invoice_number"
+    t.index ["user_id"], name: "index_logs_on_user_id"
   end
 
   create_table "profiles", force: :cascade do |t|
@@ -85,11 +118,16 @@ ActiveRecord::Schema[8.0].define(version: 2026_01_27_101718) do
     t.decimal "tax_rate"
     t.string "billing_mode"
     t.string "currency"
-    t.string "tax_scope", default: "total", null: false
+    t.string "tax_scope", default: "labor,materials_only", null: false
     t.string "invoice_style"
     t.string "discount_tax_rule", default: "post_tax"
     t.decimal "labor_price"
     t.string "plan", default: "guest"
+    t.integer "user_id"
+    t.string "accent_color", default: "#EA580C"
+    t.boolean "dark_mode", default: false, null: false
+    t.integer "hours_per_workday", default: 8
+    t.index ["user_id"], name: "index_profiles_on_user_id"
   end
 
   create_table "tracking_events", force: :cascade do |t|
@@ -101,6 +139,23 @@ ActiveRecord::Schema[8.0].define(version: 2026_01_27_101718) do
     t.string "ip_address"
   end
 
+  create_table "users", force: :cascade do |t|
+    t.string "email", default: "", null: false
+    t.string "encrypted_password", default: "", null: false
+    t.string "reset_password_token"
+    t.datetime "reset_password_sent_at"
+    t.datetime "remember_created_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "provider"
+    t.string "uid"
+    t.index ["email"], name: "index_users_on_email", unique: true
+    t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
+  end
+
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "categories", "users"
+  add_foreign_key "log_category_assignments", "categories"
+  add_foreign_key "log_category_assignments", "logs"
 end

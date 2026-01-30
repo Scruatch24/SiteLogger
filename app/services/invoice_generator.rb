@@ -91,7 +91,7 @@ class InvoiceGenerator
     @currency_pos = @currency_data ? @currency_data[:p] : "pre"
 
     # Style Palettes
-    @orange_color = "F97316"
+    @orange_color = (@log.try(:accent_color).presence || @profile.try(:accent_color).presence || "F97316").to_s.gsub("#", "")
     @charcoal     = "333333"
     @dark_charcoal = "111111"
     @soft_gray    = "D1D5DB"
@@ -127,6 +127,10 @@ class InvoiceGenerator
 
     add_footer
     @pdf.render
+  end
+
+  def page_count
+    @pdf.page_count
   end
 
   def render_classic
@@ -304,8 +308,45 @@ class InvoiceGenerator
 
   def render_classic_flow_table
     table_width = @pdf.bounds.width
+    @table_widths = calculate_column_widths(table_width)
 
-    widths = calculate_column_widths(table_width)
+    # Ensure there is room for at least the header + a small row cushion
+    check_new_page_needed(60)
+
+    render_table_header(table_width, @table_widths)
+
+    categories = [
+       { key: :labor, title: "Service" },
+       { key: :material, title: "Material" },
+       { key: :fee, title: "Fee" },
+       { key: :expense, title: "Expense" },
+       { key: :other, title: "Other" }
+    ]
+
+    categories.each do |cat|
+      items = @categorized_items[cat[:key]]
+      next if items.empty?
+
+      items.each do |item|
+        render_classic_row(item, table_width, @table_widths[:prod], @table_widths[:desc], @table_widths[:qty], @table_widths[:rate], @table_widths[:disc], @table_widths[:tax], @table_widths[:amnt], cat[:title].upcase)
+      end
+    end
+
+    if @credits.any?
+      @credits.each do |credit|
+        credit_data = {
+          desc: credit[:reason],
+          price: -credit[:amount],
+          qty: 1,
+          computed_tax_amount: 0,
+          item_discount_amount: 0
+        }
+        render_classic_row(credit_data, table_width, @table_widths[:prod], @table_widths[:desc], @table_widths[:qty], @table_widths[:rate], @table_widths[:disc], @table_widths[:tax], @table_widths[:amnt], "CREDIT", is_credit: true)
+      end
+    end
+  end
+
+  def render_table_header(table_width, widths)
     w_prod = widths[:prod]
     w_desc = widths[:desc]
     w_rate = widths[:rate]
@@ -313,9 +354,6 @@ class InvoiceGenerator
     w_amnt = widths[:amnt]
     w_disc = widths[:disc]
     w_tax  = widths[:tax]
-
-    # Ensure there is room for at least the header + a small row cushion
-    check_new_page_needed(60)
 
     # Top Border Line
     @pdf.stroke_color @soft_gray
@@ -381,36 +419,6 @@ class InvoiceGenerator
 
     # Move to the bottom of the header bar (25pt)
     @pdf.move_down 25
-
-    categories = [
-       { key: :labor, title: "Service" },
-       { key: :material, title: "Material" },
-       { key: :fee, title: "Fee" },
-       { key: :expense, title: "Expense" },
-       { key: :other, title: "Other" }
-    ]
-
-    categories.each do |cat|
-      items = @categorized_items[cat[:key]]
-      next if items.empty?
-
-      items.each do |item|
-        render_classic_row(item, table_width, w_prod, w_desc, w_qty, w_rate, w_disc, w_tax, w_amnt, cat[:title].upcase)
-      end
-    end
-
-    if @credits.any?
-      @credits.each do |credit|
-        credit_data = {
-          desc: credit[:reason],
-          price: -credit[:amount],
-          qty: 1,
-          computed_tax_amount: 0,
-          item_discount_amount: 0
-        }
-        render_classic_row(credit_data, table_width, w_prod, w_desc, w_qty, w_rate, w_disc, w_tax, w_amnt, "CREDIT", is_credit: true)
-      end
-    end
   end
 
   def render_classic_row(item, total_width, w_prod, w_desc, w_qty, w_rate, w_disc, w_tax, w_amnt, category_title, is_credit: false)
@@ -639,7 +647,13 @@ class InvoiceGenerator
     rows.pop while rows.last&.dig(:divider)
 
     # 2. Geometry & Spacing Logic
-    row_h = 22
+    # Tighter layout if we have many rows (item discounts + global + credits)
+    # EXCEPTION: If we are not on the first page, we always use normal sizing.
+    is_compact = rows.count > 6 && @pdf.page_number == 1
+    row_h = is_compact ? 17 : 22
+    divider_space = is_compact ? 6 : 10
+    summary_font_size = is_compact ? 8.5 : 9
+
     summary_width = 240
     table_width = @pdf.bounds.width
     instructions_width = table_width - summary_width - 40
@@ -656,31 +670,67 @@ class InvoiceGenerator
     # Calculate required height dynamically
     divider_count = rows.count { |r| r[:divider] }
     content_rows_count = rows.count { |r| !r[:divider] }
-    # grand_total_h: big divider (8) + padding (15) + Balance Due value (approx 30)
-    grand_total_h = 60
-    h_content = (content_rows_count * row_h) + (divider_count * 10) + grand_total_h
+    # Increased grand_total_h to 80 to account for banner (45) + spacing (15) + divider (8) + padding
+    grand_total_h = 80
+    h_totals = (content_rows_count * row_h) + (divider_count * divider_space) + grand_total_h
 
-    # 3. STICKY BOTTOM / PAGE OVERFLOW LOGIC
-    # Prawn cursor '0' is at the bottom of the margin box.
-    bottom_padding = 20 # 20pt above the bottom margin
+    # Calculate instructions height to center it
+    instr_block_h = 0
+    if @profile.payment_instructions.present?
+      @pdf.font("NotoSans") do
+        p_title_h = @pdf.height_of("PAYMENT DETAILS", width: instructions_width, size: 10, style: :bold, character_spacing: 1)
+        p_text_h = @pdf.height_of(@profile.payment_instructions, width: instructions_width, size: 9, leading: 3)
+        instr_block_h = p_title_h + 5 + 2 + 10 + p_text_h
+      end
+    end
 
-    if @pdf.cursor < h_content
-      @pdf.start_new_page
-      render_continuation_header
+    # 3. ADVANCED STICKY & FLOW LOGIC
+    h_sticky = [ h_totals, instr_block_h + 43 ].max
+    h_flow   = [ h_totals, instr_block_h ].max
+
+    item_gap = 50   # 50px (pt) gap from items
+    header_gap = 60 # Gap from continuation header
+    bottom_padding = 7
+
+    is_sticky = false
+    h_final = h_flow
+
+    # Determine if we stick to Page 1 footer or flow
+    if @pdf.page_number == 1 && @pdf.cursor >= (h_sticky + bottom_padding)
+      is_sticky = true
+      h_final = h_sticky
+      target_top = h_final + bottom_padding
+      @pdf.move_cursor_to(target_top) if @pdf.cursor > target_top
     else
-      # If we have enough space to move to the bottom, do it.
-      # Box top should be at (height + footer_padding) to end at footer_padding.
-      target_top = h_content + bottom_padding
-      if @pdf.cursor > target_top
-        @pdf.move_cursor_to(target_top)
+      # FLOW MODE: Page 2+ or overflow from Page 1
+      if @pdf.page_number == 1
+        # Forced to Page 2
+        @pdf.start_new_page
+        render_continuation_header
+        @pdf.move_down header_gap
+      else
+        # Already on Page 2+
+        # Check if items exist on this page (if cursor is near top header area, it's fresh)
+        is_fresh = @pdf.cursor > (@pdf.bounds.top - 50)
+        @pdf.move_down(is_fresh ? header_gap : item_gap)
+
+        # If still doesn't fit after the gap, push to next page
+        if @pdf.cursor < h_flow
+          @pdf.start_new_page
+          render_continuation_header
+          @pdf.move_down header_gap
+        end
       end
     end
 
     # 4. Render Bounding Box
-    @pdf.bounding_box([ 0, @pdf.cursor ], width: table_width, height: h_content) do
-      # -- A. PAYMENT INSTRUCTIONS (Left) --
+    @pdf.bounding_box([ 0, @pdf.cursor ], width: table_width, height: h_final) do
+      # -- A. PAYMENT INSTRUCTIONS --
       if @profile.payment_instructions.present?
-        @pdf.bounding_box([ 0, h_content ], width: instructions_width) do
+        # Sticky (Page 1): Bottom aligned with 43pt offset
+        # Flow (Page 2+): Top aligned ("stick to summary top")
+        y_offset = is_sticky ? (h_final - instr_block_h - 43) : 0
+        @pdf.bounding_box([ 0, h_final - y_offset ], width: instructions_width, height: instr_block_h) do
           @pdf.fill_color @dark_charcoal
           @pdf.font("NotoSans", style: :bold, size: 10) { @pdf.text "PAYMENT DETAILS", character_spacing: 1 }
           @pdf.move_down 5
@@ -693,29 +743,32 @@ class InvoiceGenerator
         end
       end
 
-      # -- B. HIERARCHICAL TOTALS (Right) --
+      # -- B. HIERARCHICAL TOTALS --
       left_x = table_width - summary_width
-      current_y = h_content - 5
+      # Sticky (Page 1): Bottom aligned
+      # Flow (Page 2+): Top aligned
+      totals_y_offset = is_sticky ? (h_final - h_totals) : 0
+      current_y = h_final - totals_y_offset - 5
 
       rows.each do |row|
         if row[:divider]
-          current_y -= 5
+          current_y -= (divider_space / 2.0)
           @pdf.stroke_color "E5E7EB"
           @pdf.line_width(0.5)
           @pdf.stroke_horizontal_line left_x, table_width, at: current_y
-          current_y -= 5
+          current_y -= (divider_space / 2.0)
           next
         end
 
         # Label
         @pdf.fill_color row[:label_color] || @mid_gray
-        @pdf.font("NotoSans", size: 9, style: row[:style] || :normal) do
+        @pdf.font("NotoSans", size: summary_font_size, style: row[:style] || :normal) do
           @pdf.text_box row[:label], at: [ left_x, current_y ], width: 140, height: row_h, align: :left, valign: :center
         end
 
         # Value
         @pdf.fill_color row[:color] || @dark_charcoal
-        @pdf.font("NotoSans", style: :bold, size: 9) do
+        @pdf.font("NotoSans", style: :bold, size: summary_font_size) do
           @pdf.text_box row[:value], at: [ left_x + 100, current_y ], width: 140, height: row_h, align: :right, valign: :center
         end
 
@@ -723,14 +776,14 @@ class InvoiceGenerator
       end
 
       # Grand Total Section (Industrial High-Impact Banner)
-      # 1. Big Divider
-      current_y -= 8
+      # 1. Big Divider (Centering it between the last row and the banner)
+      divider_y = 45 + ((current_y - 45) / 2.0)
       @pdf.stroke_color @charcoal
       @pdf.line_width(1.5)
-      @pdf.stroke_horizontal_line left_x, table_width, at: current_y
+      @pdf.stroke_horizontal_line left_x, table_width, at: divider_y
 
       # 2. Fill Accent Banner
-      current_y -= 15
+      current_y = 45
       banner_h = 45
 
       # Fill Accent Banner
@@ -862,8 +915,7 @@ class InvoiceGenerator
                      @log.tasks || []
     end
 
-    tax_scope = @log.tax_scope.presence || "all"
-    tax_tokens = tax_scope.to_s.split(",").map(&:strip)
+
     global_tax_rate = @profile.try(:tax_rate).to_f
 
     raw_sections.each do |section|
@@ -918,17 +970,9 @@ class InvoiceGenerator
 
             computed_tax = 0.0
             if taxable
-              in_scope = tax_tokens.include?("all") || tax_tokens.include?("total") ||
-                         ((tax_tokens.include?("materials") || tax_tokens.include?("parts") || tax_tokens.include?("materials_only")) && category_key == :material) ||
-                         ((tax_tokens.include?("fees") || tax_tokens.include?("fees_only")) && category_key == :fee) ||
-                         ((tax_tokens.include?("expenses") || tax_tokens.include?("expenses_only")) && category_key == :expense) ||
-                         (tax_tokens.include?("labor") && category_key == :labor)
-
-              if in_scope
-                effective_rate = tax_rate || global_tax_rate
-                computed_tax = ([ gross_price - item_discount_amount, 0.0 ].max * (effective_rate / 100.0)).round(2)
-                @tax_amount += computed_tax
-              end
+              effective_rate = tax_rate || global_tax_rate
+              computed_tax = ([ gross_price - item_discount_amount, 0.0 ].max * (effective_rate / 100.0)).round(2)
+              @tax_amount += computed_tax
             end
 
             @categorized_items[category_key] << {
@@ -983,8 +1027,7 @@ class InvoiceGenerator
     @total_due = @total_before_credits - @total_credits
     @invoice_date = @log.date.presence || Date.today.strftime("%b %d, %Y")
     @due_date = @log.due_date.presence || (Date.parse(@invoice_date) + 14.days rescue Date.today + 14).strftime("%b %d, %Y")
-    next_id = Log.maximum(:id).to_i + 1
-    @invoice_id_display = @log.id.present? ? (1000 + @log.id) : (1000 + next_id)
+    @invoice_id_display = @log.display_number
     @invoice_number = "INV-#{@invoice_id_display}"
   end
 
@@ -994,6 +1037,11 @@ class InvoiceGenerator
     if @pdf.cursor < needed_height
        @pdf.start_new_page
        render_continuation_header
+       # If we are in the middle of a table, repeat the header
+       if @table_widths.present?
+         @pdf.move_down 10
+         render_table_header(@pdf.bounds.width, @table_widths)
+       end
     end
   end
 

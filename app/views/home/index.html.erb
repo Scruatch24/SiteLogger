@@ -22,10 +22,23 @@
     -moz-appearance: textfield;
   }
   
+  /* Subcategory Input hit area fix */
+  .sub-item .flex-1.bg-white {
+    height: auto !important;
+    min-height: 32px;
+  }
+  .sub-input {
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+    line-height: 1.2;
+  }
+  
   /* Prevent removal of first item in any section */
   .labor-item-row:first-of-type .remove-labor-btn { display: none !important; }
   .credit-item-row:first-of-type .remove-credit-btn { display: none !important; }
   .item-row:first-of-type .remove-item-btn { display: none !important; }
+  
+
   
   /* Pulsing glow animation for record button */
   @keyframes pulseGlow {
@@ -152,6 +165,10 @@
   
   .transcript-container.analyzing #mainTranscript {
     border-color: transparent;
+  }
+
+  .transcript-container.analyzing #charCounter span {
+    color: white !important;
   }
   
   @keyframes borderFlow {
@@ -646,6 +663,85 @@
   #mainCalendarPopup, #calendarPopup, #discountInputsPanel, #addMenuDropup {
     z-index: 1000 !important;
   }
+
+  /* Custom Navigation Tooltip */
+  .nav-link-hover {
+    position: relative;
+  }
+  .nav-tooltip {
+    position: absolute;
+    top: calc(100% + 12px);
+    left: 50%;
+    transform: translateX(-50%) translateY(-4px);
+    background: white;
+    border: 2px solid black;
+    border-radius: 10px;
+    padding: 6px 12px;
+    font-size: 9px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: black;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.2s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+    box-shadow: 3px 3px 0px 0px rgba(0,0,0,1);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  /* Connector Arrow */
+  .nav-tooltip::before {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 6px;
+    border-style: solid;
+    border-color: transparent transparent black transparent;
+  }
+  .nav-tooltip::after {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 4px;
+    border-style: solid;
+    border-color: transparent transparent white transparent;
+    margin-bottom: -4px;
+    z-index: 1;
+  }
+  /* Hover Trigger */
+  .nav-link-hover:hover .nav-tooltip {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  /* PDF Modal Custom Selectors */
+  .pdf-selector-dropdown {
+    transition: all 0.3s cubic-bezier(0.19, 1, 0.22, 1);
+    transform: scale(0.95) translateY(-10px);
+    opacity: 0;
+    pointer-events: none;
+    filter: blur(4px);
+    transform-origin: top left;
+    z-index: 300 !important;
+  }
+  .pdf-selector-dropdown.active {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+    filter: blur(0);
+  }
+  .status-chevron {
+    transition: transform 0.3s cubic-bezier(0.19, 1, 0.22, 1);
+  }
+  .status-chevron.rotate-180 {
+    transform: rotate(180deg);
+  }
 </style>
 
 <div class="bg-white text-black font-sans p-4 pb-32 md:pb-10">
@@ -664,23 +760,42 @@
     </div>
     
     <div class="flex gap-1.5 md:gap-3 shrink-0">
-      <%= link_to history_path, class: "p-1.5 md:p-2 bg-white border-2 border-black rounded-xl nav-link-hover transition-all group active:scale-95 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px]", title: "History" do %>
+      <%= link_to history_path, class: "p-1.5 md:p-2 bg-white border-2 border-black rounded-xl nav-link-hover transition-all group active:scale-95 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px]" do %>
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 md:h-6 md:w-6 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
+        <span class="nav-tooltip">History</span>
       <% end %>
-
-      <%= link_to profile_path, class: "p-1.5 md:p-2 bg-white border-2 border-black rounded-xl nav-link-hover transition-all group active:scale-95 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px]", title: "Profile" do %>
+ 
+      <%= link_to profile_path, class: "p-1.5 md:p-2 bg-white border-2 border-black rounded-xl nav-link-hover transition-all group active:scale-95 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px]" do %>
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 md:h-6 md:w-6 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
         </svg>
+        <span class="nav-tooltip">Profile</span>
       <% end %>
-
-      <%= link_to settings_path, class: "p-1.5 md:p-2 bg-white border-2 border-black rounded-xl nav-link-hover transition-all group active:scale-95 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px]", title: "Settings" do %>
+ 
+      <%= link_to settings_path, class: "p-1.5 md:p-2 bg-white border-2 border-black rounded-xl nav-link-hover transition-all group active:scale-95 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px]" do %>
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 md:h-6 md:w-6 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
         </svg>
+        <span class="nav-tooltip">Settings</span>
+      <% end %>
+ 
+      <% if user_signed_in? %>
+        <%= button_to destroy_user_session_path, method: :delete, class: "p-1.5 md:p-2 bg-white border-2 border-black rounded-xl nav-link-hover transition-all group active:scale-95 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px]" do %>
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="h-5 w-5 md:h-6 md:w-6 text-black group-hover:text-red-600">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5.636 5.636a9 9 0 1012.728 0M12 3v9" />
+          </svg>
+          <span class="nav-tooltip">Log Out</span>
+        <% end %>
+      <% else %>
+        <%= link_to new_user_session_path, class: "p-1.5 md:p-2 bg-white border-2 border-black rounded-xl nav-link-hover transition-all group active:scale-95 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px]" do %>
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="h-5 w-5 md:h-6 md:w-6 text-black group-hover:text-orange-600">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
+          </svg>
+          <span class="nav-tooltip">Sign In</span>
+        <% end %>
       <% end %>
     </div>
   </header>
@@ -726,7 +841,7 @@
           <div class="relative">
             <label class="text-xs font-black text-black uppercase tracking-widest">Live Transcript</label>
           </div>
-          <div id="transcriptContainer" class="transcript-container">
+          <div id="transcriptContainer" class="transcript-container" data-audio-target="transcriptContainer">
              <textarea id="mainTranscript" 
                        rows="6"
                        class="w-full bg-white border-2 border-black rounded-xl p-5 text-black text-sm font-medium leading-relaxed resize-none outline-none placeholder:text-gray-400 custom-scrollbar overflow-hidden"
@@ -750,6 +865,109 @@
               </svg>
             </button>
           </div>
+
+          <!-- Previous Clarification Answers -->
+          <div id="previousAnswersSection" class="hidden mt-8 space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div id="previousAnswersList" class="flex flex-col items-end gap-2">
+              <!-- Answers will go here -->
+            </div>
+          </div>
+          
+          <!-- Want to change details? (Green Section) -->
+          <div id="refinementSection" class="hidden mt-8 space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300 overflow-visible p-1">
+            <button type="button" onclick="toggleSection('refinementContent', 'refinementArrow', this)" class="section-toggle-btn flex items-center justify-between w-full bg-emerald-50 border-2 border-black rounded-xl px-4 py-3 shadow-[4px_4px_0px_0px_rgba(16,185,129,1)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all outline-none group hover:bg-emerald-100">
+              <span class="text-[10px] font-black text-emerald-800 uppercase tracking-widest">Want to change details?</span>
+              <div class="w-7 h-7 rounded-lg bg-emerald-500 border-2 border-black flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] group-hover:bg-emerald-600 transition-colors">
+                <svg id="refinementArrow" class="h-3.5 w-3.5 text-white transition-transform duration-300 -rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="4"><path d="M19 9l-7 7-7-7" /></svg>
+              </div>
+            </button>
+            
+            <div id="refinementContent" class="hidden pt-1 pb-4 space-y-4 transition-all duration-300">
+              <div class="flex gap-2">
+                <div class="flex-1 border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,0.05),4px_4px_0px_0px_rgba(16,185,129,1)]">
+                  <textarea id="refinementInput"
+                            rows="2"
+                            class="w-full bg-transparent border-none text-sm font-bold text-black focus:ring-0 p-4 outline-none placeholder:text-gray-400 resize-none rounded-xl"
+                            placeholder="Need to fix something? Tell me here..."
+                            onkeydown="if(event.key==='Enter' && !event.shiftKey) { event.preventDefault(); submitRefinement(); }"></textarea>
+                </div>
+                <div class="flex flex-col gap-2">
+                  <button type="button" 
+                          id="refinementMicBtn"
+                          onclick="startRefinementRecording()"
+                          class="w-11 h-11 rounded-xl bg-emerald-500 border-2 border-black flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all hover:bg-emerald-600"
+                          title="Speak instructions">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                    </svg>
+                  </button>
+                  <button type="button" 
+                          id="refinementSendBtn"
+                          onclick="submitRefinement()"
+                          class="w-11 h-11 rounded-xl bg-emerald-500 border-2 border-black flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all hover:bg-emerald-600"
+                          title="Apply changes">
+                    <svg class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- AI Clarification Questions Section -->
+          <div id="clarificationsSection" class="hidden mt-8 space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300 overflow-visible p-1">
+            <button type="button" onclick="toggleSection('clarificationsContent', 'clarificationsArrow', this)" class="section-toggle-btn flex items-center justify-between w-full bg-orange-50 border-2 border-black rounded-xl px-4 py-3 shadow-[4px_4px_0px_0px_rgba(194,65,12,1)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all outline-none group hover:bg-orange-100">
+              <span class="text-[10px] font-black text-orange-800 uppercase tracking-widest">Quick Questions</span>
+              <div class="w-7 h-7 rounded-lg bg-orange-500 border-2 border-black flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] group-hover:bg-orange-600 transition-colors">
+                <svg id="clarificationsArrow" class="h-3.5 w-3.5 text-white transition-transform duration-300 -rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="4"><path d="M19 9l-7 7-7-7" /></svg>
+              </div>
+            </button>
+            
+            <div id="clarificationsContent" class="hidden pt-1 pb-4 space-y-4 transition-all duration-300">
+              <!-- Questions displayed as a list -->
+              <div id="clarificationsList" class="bg-white border-2 border-black rounded-xl p-4 space-y-3 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+                <!-- Clarification items will be inserted here dynamically -->
+              </div>
+              
+              <!-- Answer Input (styled like transcript input) -->
+              <div class="pb-1">
+                <div class="relative">
+                  <label class="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">Your Answer</label>
+                </div>
+                <div class="flex gap-2">
+                  <div class="flex-1 border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+                    <textarea id="clarificationAnswerInput"
+                              rows="2"
+                              class="w-full bg-transparent border-none text-sm font-bold text-black focus:ring-0 p-4 outline-none placeholder:text-gray-400 resize-none rounded-xl"
+                              placeholder="Type or speak your answer..."
+                              onkeydown="if(event.key==='Enter' && !event.shiftKey) { event.preventDefault(); submitClarifications(); }"></textarea>
+                  </div>
+                  <div class="flex flex-col gap-2">
+                    <button type="button" 
+                            id="clarificationMicBtn"
+                            onclick="startClarificationRecording()"
+                            class="w-11 h-11 rounded-xl bg-orange-500 border-2 border-black flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all hover:bg-orange-600"
+                            title="Answer via voice">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                      </svg>
+                    </button>
+                    <button type="button" 
+                            id="clarificationSendBtn"
+                            onclick="submitClarifications()"
+                            class="w-11 h-11 rounded-xl bg-orange-500 border-2 border-black flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all hover:bg-orange-600"
+                            title="Send answer">
+                      <svg class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -1029,7 +1247,7 @@
                       <div class="absolute left-1 top-1/2 -translate-y-1/2 h-6 w-6 flex items-center justify-center bg-green-600 text-white font-black border-2 border-black rounded-lg text-[10px] pointer-events-none select-none z-10 shadow-sm">
                         <span id="discountCurrencySymbol"><%= currencies_data.find { |c| c[:c] == (@profile.currency.presence || 'USD') }&.dig(:s) || '$' %></span>
                       </div>
-                      <input type="number" id="globalDiscountFlat" placeholder="0.00" 
+                      <input type="number" step="0.01" id="globalDiscountFlat" placeholder="0.00" 
                              class="w-full bg-white border-2 border-black rounded-lg py-2 pl-10 pr-2 text-xs font-bold text-black focus:outline-none focus:ring-1 focus:ring-black transition-all placeholder:text-gray-300 font-mono"
                              oninput="updateTotalsSummary()">
                     </div>
@@ -1040,7 +1258,7 @@
                       <div class="absolute left-1 top-1/2 -translate-y-1/2 h-6 w-6 flex items-center justify-center bg-green-600 text-white font-black border-2 border-black rounded-lg text-[10px] pointer-events-none select-none z-10 shadow-sm">
                         <span>%</span>
                       </div>
-                      <input type="number" id="globalDiscountPercent" placeholder="0" 
+                      <input type="number" step="0.1" id="globalDiscountPercent" placeholder="0" 
                              class="w-full bg-white border-2 border-black rounded-lg py-2 pl-10 pr-2 text-xs font-bold text-black focus:outline-none focus:ring-1 focus:ring-black transition-all placeholder:text-gray-300 font-mono"
                              oninput="updateTotalsSummary()">
                     </div>
@@ -1231,7 +1449,11 @@
 
 <script>
   // Global Tax & Profile Variables
-  let currentLogTaxScope, currentLogBillingMode, currentLogDiscountTaxRule, profileHourlyRate, activeCurrencyCode, activeCurrencySymbol;
+  let currentLogTaxScope, currentLogBillingMode, currentLogDiscountTaxRule, profileHourlyRate, profileTaxRate, activeCurrencyCode, activeCurrencySymbol, currentLogAccentColor;
+  let logAlreadySaved = false;
+  let savedLogId = null;
+  let savedLogDisplayNumber = null;
+  let savedLogClient = null;
 
   function initGlobalVariables() {
     currentLogTaxScope = "<%= @profile.tax_scope %>";
@@ -1240,6 +1462,41 @@
     profileHourlyRate = <%= @profile.hourly_rate.to_f %>;
     activeCurrencyCode = "<%= @profile.currency.presence || 'USD' %>";
     activeCurrencySymbol = CURRENCIES.find(c => c.c === activeCurrencyCode)?.s || "$";
+    profileTaxRate = <%= @profile.tax_rate.to_f %>;
+    currentLogAccentColor = "<%= @profile.accent_color %>";
+  }
+
+  function checkRecreateData() {
+    console.log("[Recreate] checkRecreateData called.");
+    const raw = localStorage.getItem('recreate_log_data');
+    if (!raw) {
+      console.log("[Recreate] No staged data found in localStorage.");
+      return;
+    }
+    
+    try {
+      const data = JSON.parse(raw);
+      localStorage.removeItem('recreate_log_data');
+      console.log("[Recreate] Data parsed from localStorage, preparing injection:", data);
+      
+      // We use a small recursive check or safe delay to ensure updateUI exists and DOM is populated
+      const inject = () => {
+        if (typeof updateUI === 'function') {
+          console.log("[Recreate] updateUI function found, injecting data...");
+          updateUI(data);
+          console.log("[Recreate] Data injection complete.");
+        } else {
+          console.log("[Recreate] updateUI not yet available, retrying in 100ms...");
+          setTimeout(inject, 100);
+        }
+      };
+      
+      // Initial trigger after short delay to let standard scripts init
+      console.log("[Recreate] Initiating data injection with a 400ms delay...");
+      setTimeout(inject, 400);
+    } catch (e) {
+      console.error("[Recreate] Error parsing staged data from localStorage:", e);
+    }
   }
 
   const defaultGlobalTaxRate = "<%= @profile.tax_rate.presence || 0 %>";
@@ -1446,10 +1703,123 @@
   }
 
   // Close menus when clicking outside
-  document.addEventListener('click', () => {
+  document.addEventListener('click', (e) => {
+    // Global Currency Menu
     const menu = document.getElementById('globalCurrencyMenu');
-    if (menu) menu.classList.add('hidden');
+    if (menu && !e.target.closest('#globalCurrencyBtn') && !e.target.closest('#globalCurrencyMenu')) {
+      menu.classList.add('hidden');
+    }
+    
+    // PDF Selectors in Modal
+    if (!e.target.closest('#pdfStatusBadge') && !e.target.closest('#pdfStatusDropdown') && 
+        !e.target.closest('#pdfCategoryBadge') && !e.target.closest('#pdfCategoryDropdown')) {
+      if (typeof closeAllPdfSelectors === 'function') closeAllPdfSelectors();
+    }
   });
+  
+  // PDF Modal Selectors
+  window.togglePdfStatusSelector = function(btn, e) {
+    if (e) e.stopPropagation();
+    const dropdown = document.getElementById('pdfStatusDropdown');
+    const isVisible = dropdown.classList.contains('active');
+    closeAllPdfSelectors();
+    if (!isVisible) {
+       dropdown.classList.add('active');
+       btn.querySelector('.status-chevron').classList.add('rotate-180');
+    }
+  };
+
+  window.setPdfStatus = function(status) {
+    const input = document.getElementById('pdfLogStatus');
+    const badge = document.getElementById('pdfStatusBadge');
+    const dot = badge.querySelector('div');
+    const text = document.getElementById('pdfStatusText');
+    
+    if (!input || !badge || !dot || !text) return;
+    
+    input.value = status;
+    text.innerText = status.charAt(0).toUpperCase() + status.slice(1);
+    
+    // Reset classes
+    badge.className = "flex items-center gap-1.5 px-3.5 py-1.5 border-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none";
+    dot.className = "w-1.5 h-1.5 rounded-full";
+    
+    if (status === 'draft') {
+      badge.classList.add('bg-gray-50', 'border-gray-300', 'text-gray-500');
+      dot.classList.add('bg-gray-500');
+    } else if (status === 'sent') {
+      badge.classList.add('bg-blue-50', 'border-blue-400', 'text-blue-600');
+      dot.classList.add('bg-blue-600');
+    } else if (status === 'paid') {
+      badge.classList.add('bg-green-50', 'border-green-400', 'text-green-600');
+      dot.classList.add('bg-green-600');
+    }
+    
+    closeAllPdfSelectors();
+  };
+
+  window.togglePdfCategorySelector = function(btn, e) {
+    if (e) e.stopPropagation();
+    const dropdown = document.getElementById('pdfCategoryDropdown');
+    const isVisible = dropdown.classList.contains('active');
+    closeAllPdfSelectors();
+    if (!isVisible) {
+       dropdown.classList.add('active');
+       btn.querySelector('.status-chevron').classList.add('rotate-180');
+    }
+  };
+
+  window.setPdfCategory = function(id, name, color, icon = '', iconType = '', customUrl = '') {
+    const input = document.getElementById('pdfLogCategory');
+    const badge = document.getElementById('pdfCategoryBadge');
+    const text = document.getElementById('pdfCategoryText');
+    const iconSpan = document.getElementById('pdfCategoryIcon');
+    
+    if (!input || !badge || !text || !iconSpan) return;
+    
+    input.value = id;
+    text.innerText = name;
+    
+    if (id === '') {
+      badge.style.borderColor = 'black';
+      badge.style.color = 'black';
+      iconSpan.innerHTML = '';
+      iconSpan.classList.add('hidden');
+      text.classList.add('italic', 'text-gray-400');
+    } else {
+      badge.style.borderColor = color;
+      badge.style.color = color;
+      text.classList.remove('italic', 'text-gray-400');
+      iconSpan.classList.remove('hidden');
+      
+      // Update icon display by cloning if via click, or fallback
+      if (window.event && window.event.currentTarget && window.event.currentTarget.querySelector('.w-6')) {
+        const srcIcon = window.event.currentTarget.querySelector('.w-6');
+        iconSpan.innerHTML = srcIcon.innerHTML;
+        const svg = iconSpan.querySelector('svg');
+        if (svg) { svg.classList.remove('h-3', 'w-3'); svg.classList.add('h-3.5', 'w-3.5'); }
+        const img = iconSpan.querySelector('img');
+        if (img) { img.classList.remove('w-3', 'h-3'); img.classList.add('w-3.5', 'h-3.5'); }
+      } else {
+        // Direct set (e.g. from setupSaveButton)
+        if (iconType === 'custom' && customUrl) {
+           iconSpan.innerHTML = `<img src="${customUrl}" class="w-3.5 h-3.5 object-cover rounded-sm">`;
+        } else if (icon) {
+           // We'd need to rebuild the SVG here or just leave blank until interactive
+           // For now, let's just use a simple dot if direct set happens (rare for reset)
+           iconSpan.innerHTML = `<div class="w-1.5 h-1.5 rounded-full" style="background-color: ${color}"></div>`;
+        }
+      }
+    }
+    closeAllPdfSelectors();
+  };
+
+  window.closeAllPdfSelectors = function() {
+    const drops = document.querySelectorAll('.pdf-selector-dropdown');
+    drops.forEach(d => d.classList.remove('active'));
+    const arrows = document.querySelectorAll('#pdfModalContent .status-chevron');
+    arrows.forEach(c => c.classList.remove('rotate-180'));
+  };
 
   window.setGlobalBillingMode = function(mode) {
     if (!mode) return;
@@ -1688,18 +2058,7 @@
                 let discFlat = parseFloat(item.querySelector('.discount-flat-input')?.value) || 0;
                 let discPercent = parseFloat(item.querySelector('.discount-percent-input')?.value) || 0;
                 
-                // Enforce Caps
-                if (discPercent > 100) {
-                    discPercent = 100;
-                    const pctInput = item.querySelector('.discount-percent-input');
-                    if (pctInput) pctInput.value = 100;
-                }
-                if (discFlat > rowGross) {
-                    discFlat = rowGross;
-                    const flatInput = item.querySelector('.discount-flat-input');
-                    if (flatInput) flatInput.value = rowGross;
-                }
-
+                // Discount logic (Math.min below handles capping without destroying user input)
                 const rowDisc = Math.min(rowGross, discFlat + (rowGross * (discPercent / 100)));
                 const rowNet = Math.max(0, rowGross - rowDisc);
 
@@ -1760,14 +2119,18 @@
                 const laborMultiplierBadge = item.querySelector('.badge-multiplier');
                 const isTaxable = item.dataset.taxable === "true";
                 
-                if (isTaxable) {
-                    if (laborPriceBadge) {
+                if (laborPriceBadge) {
+                    if (rowNet > 0) {
                         laborPriceBadge.innerText = getCurrencyFormat(rowNet, rowCurrencyCode);
                         laborPriceBadge.classList.remove('hidden');
+                    } else {
+                        laborPriceBadge.classList.add('hidden');
                     }
+                }
+
+                if (isTaxable) {
                     if (laborMultiplierBadge) laborMultiplierBadge.classList.remove('hidden');
                 } else {
-                    if (laborPriceBadge) laborPriceBadge.classList.add('hidden');
                     if (laborMultiplierBadge) laborMultiplierBadge.classList.add('hidden');
                 }
 
@@ -1834,18 +2197,7 @@
             let discFlat = parseFloat(item.querySelector('.discount-flat-input')?.value) || 0;
             let discPercent = parseFloat(item.querySelector('.discount-percent-input')?.value) || 0;
 
-            // Enforce Caps
-            if (discPercent > 100) {
-                discPercent = 100;
-                const pctInput = item.querySelector('.discount-percent-input');
-                if (pctInput) pctInput.value = 100;
-            }
-            if (discFlat > rowGross) {
-                discFlat = rowGross;
-                const flatInput = item.querySelector('.discount-flat-input');
-                if (flatInput) flatInput.value = rowGross;
-            }
-
+            // Discount logic (Math.min below handles capping without destroying user input)
             const rowDisc = Math.min(rowGross, discFlat + (rowGross * (discPercent / 100)));
             const rowNet = Math.max(0, rowGross - rowDisc);
 
@@ -1906,16 +2258,21 @@
             const itemPriceBadge = item.querySelector('.badge-price');
             const itemMultiplierBadge = item.querySelector('.badge-multiplier');
             const isTaxable = item.dataset.taxable === 'true';
-            if (isTaxable) {
-                if (itemPriceBadge) {
+            if (itemPriceBadge) {
+                if (rowNet > 0) {
                     itemPriceBadge.innerText = getCurrencyFormat(rowNet, rowCurrencyCode);
                     itemPriceBadge.classList.remove('hidden');
+                } else {
+                    itemPriceBadge.classList.add('hidden');
                 }
+            }
+
+            if (isTaxable) {
                 if (itemMultiplierBadge) itemMultiplierBadge.classList.remove('hidden');
             } else {
-                if (itemPriceBadge) itemPriceBadge.classList.add('hidden');
                 if (itemMultiplierBadge) itemMultiplierBadge.classList.add('hidden');
             }
+
 
             // 3. Tax Equation
             const itemTaxBadge = item.querySelector('.badge-tax');
@@ -1945,20 +2302,23 @@
         // 4. Intermediate Totals
         const netSubtotal = Math.max(0, itemsGrossTotal - totalItemDiscounts);
         
-        // 4. Global Invoice Discount
-        let gDiscFlat = parseFloat(document.getElementById('globalDiscountFlat')?.value) || 0;
-        let gDiscPercent = parseFloat(document.getElementById('globalDiscountPercent')?.value) || 0;
+        // Global Invoice Discount Capping
+        let gDiscFlatInput = document.getElementById('globalDiscountFlat');
+        let gDiscPercentInput = document.getElementById('globalDiscountPercent');
         
-        // Enforce Global Caps
-        if (gDiscPercent > 100) {
-            gDiscPercent = 100;
-            const pctInput = document.getElementById('globalDiscountPercent');
-            if (pctInput) pctInput.value = 100;
-        }
-        if (gDiscFlat > netSubtotal) {
-            gDiscFlat = netSubtotal;
-            const flatInput = document.getElementById('globalDiscountFlat');
-            if (flatInput) flatInput.value = netSubtotal;
+        let gDiscFlat = parseFloat(gDiscFlatInput?.value) || 0;
+        let gDiscPercent = parseFloat(gDiscPercentInput?.value) || 0;
+        
+        // Enforce Global Caps (Only if not auto-updating to prevent destructive resets during recreation)
+        if (!window.isAutoUpdating) {
+            if (gDiscPercent > 100) {
+                gDiscPercent = 100;
+                if (gDiscPercentInput) gDiscPercentInput.value = 100;
+            }
+            if (gDiscFlat > netSubtotal) {
+                gDiscFlat = netSubtotal;
+                if (gDiscFlatInput) gDiscFlatInput.value = cleanNum(netSubtotal);
+            }
         }
 
         invoiceDiscount = Math.min(netSubtotal, gDiscFlat + (netSubtotal * (gDiscPercent / 100)));
@@ -2232,7 +2592,8 @@
 document.addEventListener("DOMContentLoaded", () => {
   // Labor Section Initialization (Move to TOP for instant feel)
   const laborContInit = document.getElementById('laborItemsContainer');
-  if (laborContInit && laborContInit.querySelectorAll('.labor-item-row').length === 0) {
+  const hasRecreateData = localStorage.getItem('recreate_log_data');
+  if (laborContInit && laborContInit.querySelectorAll('.labor-item-row').length === 0 && !hasRecreateData) {
       addLaborItem(); 
   }
 
@@ -2262,9 +2623,14 @@ document.addEventListener("DOMContentLoaded", () => {
   let mediaRecorder = null;
   let audioChunks = [];
   let isRecording = false;
+  let isAnalyzing = false;
+  let analysisAbortController = null;
   let recordingStartTime = 0;
   let recordingInterval = null;
   const audioLimit = <%= @profile.audio_limit %>;
+
+  // Initialize recreation check
+  checkRecreateData();
 
 
   // Close menus when clicking outside
@@ -2308,6 +2674,11 @@ document.addEventListener("DOMContentLoaded", () => {
   if (laborIconContainer) randomizeIcon(laborIconContainer);
 
   recordBtn.onclick = async () => {
+    if (isAnalyzing) {
+      if (analysisAbortController) analysisAbortController.abort();
+      return;
+    }
+
     if (!isRecording) {
       // Fix: Clear previous text when starting a new recording
       if (transcriptArea) {
@@ -2323,15 +2694,20 @@ document.addEventListener("DOMContentLoaded", () => {
         mediaRecorder.onstop = processAudio;
         
         mediaRecorder.start();
+        recordingStartTime = 0; // Reset recording start time
         recordingStartTime = Date.now();
 
         // Enforce Guest Limits (tracks 'recording_started')
         if (typeof window.trackEvent === 'function') {
-           window.trackEvent('recording_started');
+           const canProceed = await window.trackEvent('recording_started');
+           if (!canProceed) {
+             resetRecorderUI();
+             return;
+           }
         }
         
         isRecording = true;
-        buttonText.innerText = "STOP";
+        buttonText.innerText = "PROCESS";
         recordBtn.classList.add("recording");
         document.getElementById("recordingWave").classList.remove("hidden");
         document.getElementById("status").innerText = "RECORDING...";
@@ -2380,10 +2756,11 @@ document.addEventListener("DOMContentLoaded", () => {
         return; 
       }
       mediaRecorder.stop();
+      if (mediaRecorder.stream) {
+        mediaRecorder.stream.getTracks().forEach(t => t.stop());
+      }
       isRecording = false;
-      document.getElementById("status").innerText = "PROCESSING...";
-      document.getElementById("recordingWave").classList.add("hidden");
-      mediaRecorder.stream.getTracks().forEach(t => t.stop());
+      startAnalysisUI();
     }
   };
 
@@ -2392,11 +2769,15 @@ document.addEventListener("DOMContentLoaded", () => {
       clearInterval(recordingInterval);
       recordingInterval = null;
     }
+    if (mediaRecorder && mediaRecorder.stream) {
+      mediaRecorder.stream.getTracks().forEach(t => t.stop());
+    }
     document.getElementById("recordingTimer").classList.add("hidden");
     const timerDisplay = document.getElementById("currentAudioTime");
     if (timerDisplay) timerDisplay.classList.remove("text-red-600");
     
     isRecording = false;
+    isAnalyzing = false;
     buttonText.innerText = "TAP TO RECORD";
     recordBtn.classList.remove("recording");
     document.getElementById("status").innerText = "READY";
@@ -2406,14 +2787,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function processAudio() {
-    const transcriptCont = document.getElementById('transcriptContainer');
-    const reviewCont = document.getElementById('reviewContainer');
-    const overlay = document.getElementById('analyzingOverlay');
-    
-    transcriptCont.classList.add('analyzing');
-    reviewCont.classList.add('analyzing');
-    overlay.classList.add('active');
-    
     try {
       const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
       const durationSec = (Date.now() - recordingStartTime) / 1000;
@@ -2421,10 +2794,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const limit = <%= @profile.char_limit %>;
       if (currentText.length >= limit) {
         showError("Your transcript is already at the character limit (" + limit + "). Upgrade to add more text.");
-        transcriptCont.classList.remove('analyzing');
-        reviewCont.classList.remove('analyzing');
-        overlay.classList.remove('active');
-        resetRecorderUI();
+        stopAnalysisUI();
         return;
       }
 
@@ -2436,23 +2806,55 @@ document.addEventListener("DOMContentLoaded", () => {
       const res = await fetch("/process_audio", {
         method: "POST",
         headers: { "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]').content },
-        body: formData
+        body: formData,
+        signal: analysisAbortController?.signal
       });
 
       const data = await res.json();
-      transcriptCont.classList.remove('analyzing');
-      reviewCont.classList.remove('analyzing');
-      overlay.classList.remove('active');
-      resetRecorderUI();
       if (!res.ok || data.error) showError(data.error || "Speech not recognized.");
       else updateUI(data);
+      stopAnalysisUI();
     } catch (e) {
-      transcriptCont.classList.remove('analyzing');
-      reviewCont.classList.remove('analyzing');
-      overlay.classList.remove('active');
-      resetRecorderUI();
-      showError("Network error.");
+      if (e.name === 'AbortError') {
+        console.log("Analysis cancelled by user");
+      } else {
+        showError("Network error.");
+        console.error(e);
+      }
+      stopAnalysisUI();
     }
+  }
+
+  function startAnalysisUI() {
+    isAnalyzing = true;
+    buttonText.innerText = "CANCEL";
+    analysisAbortController = new AbortController();
+    
+    document.getElementById("status").innerText = "PROCESSING...";
+    recordBtn.classList.remove("recording");
+    document.getElementById("recordingWave").classList.add("hidden");
+
+    const transcriptCont = document.getElementById('transcriptContainer');
+    const reviewCont = document.getElementById('reviewContainer');
+    const overlay = document.getElementById('analyzingOverlay');
+    
+    if (transcriptCont) transcriptCont.classList.add('analyzing');
+    if (reviewCont) reviewCont.classList.add('analyzing');
+    if (overlay) overlay.classList.add('active');
+  }
+
+  function stopAnalysisUI() {
+    isAnalyzing = false;
+    analysisAbortController = null;
+    const transcriptCont = document.getElementById('transcriptContainer');
+    const reviewCont = document.getElementById('reviewContainer');
+    const overlay = document.getElementById('analyzingOverlay');
+    
+    if (transcriptCont) transcriptCont.classList.remove('analyzing');
+    if (reviewCont) reviewCont.classList.remove('analyzing');
+    if (overlay) overlay.classList.remove('active');
+    
+    resetRecorderUI();
   }
 
   reParseBtn.onclick = async () => {
@@ -2465,33 +2867,46 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (!text) return;
+
+    // NEW: Clear previous answers if this is a fresh manual click (not via clarification)
+    if (!window.skipTranscriptUpdate) {
+      window.previousClarificationAnswers = [];
+      window.clarificationHistory = [];
+      renderPreviousAnswers();
+    }
     
-    // Add analyzing animation to both containers
-    const transcriptCont = document.getElementById('transcriptContainer');
-    const reviewCont = document.getElementById('reviewContainer');
-    const overlay = document.getElementById('analyzingOverlay');
+    // Enforce Guest Limits (tracks 'invoice_exported' for "EDIT" as requested)
+    if (typeof window.trackEvent === 'function') {
+       const canProceed = await window.trackEvent('invoice_exported');
+       if (!canProceed) return;
+    }
     
-    transcriptCont.classList.add('analyzing');
-    reviewCont.classList.add('analyzing');
-    overlay.classList.add('active');
+    startAnalysisUI();
     
-    const res = await fetch("/process_audio", {
-      method: "POST",
-      headers: { 
-        "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]').content,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ manual_text: text })
-    });
-    const data = await res.json();
-    
-    // Remove analyzing animation
-    transcriptCont.classList.remove('analyzing');
-    reviewCont.classList.remove('analyzing');
-    overlay.classList.remove('active');
-    
-    if (data.error) showError(data.error);
-    else updateUI(data);
+    try {
+      const res = await fetch("/process_audio", {
+        method: "POST",
+        headers: { 
+          "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]').content,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ manual_text: text }),
+        signal: analysisAbortController?.signal
+      });
+      const data = await res.json();
+      
+      if (data.error) showError(data.error);
+      else updateUI(data);
+    } catch (e) {
+      if (e.name === 'AbortError') {
+        console.log("Analysis cancelled by user");
+      } else {
+        showError("Network error.");
+        console.error(e);
+      }
+    } finally {
+      stopAnalysisUI();
+    }
   };
 
   window.gatherLogData = function() {
@@ -2523,14 +2938,15 @@ document.addEventListener("DOMContentLoaded", () => {
            
             const hasVal = desc.trim() !== "" || subs.length > 0;
             const hasPrice = (parseFloat(price) || 0) > 0;
-            if (hasVal || hasPrice) {
-             laborItems.push({ 
-               desc: desc, price: price, rate: rateVal, taxable: taxable,
-               tax_rate: (taxable && taxRate) ? taxRate : null,
-               discount_flat: discFlat || "0", discount_percent: discPercent || "0",
-               discount_message: discMessage, sub_categories: subs
-             });
-           }
+             if (hasVal || hasPrice) {
+              laborItems.push({ 
+                desc: desc, price: price, rate: rateVal, taxable: taxable,
+                mode: row.dataset.billingMode || "hourly",
+                tax_rate: (taxable && taxRate) ? taxRate : null,
+                discount_flat: discFlat || "0", discount_percent: discPercent || "0",
+                discount_message: discMessage, sub_categories: subs
+              });
+            }
        });
        if (laborItems.length > 0) sections.push({ title: "Labor/Service", items: laborItems });
     }
@@ -2594,11 +3010,22 @@ document.addEventListener("DOMContentLoaded", () => {
       currency: typeof activeCurrencyCode !== 'undefined' ? activeCurrencyCode : "USD",
       billing_mode: typeof currentLogBillingMode !== 'undefined' ? currentLogBillingMode : "hourly",
       discount_tax_rule: typeof currentLogDiscountTaxRule !== 'undefined' ? currentLogDiscountTaxRule : "post_tax",
-      hourly_rate: (typeof profileHourlyRate !== 'undefined' ? profileHourlyRate : 0).toString()
+      hourly_rate: (typeof profileHourlyRate !== 'undefined' ? profileHourlyRate : 0).toString(),
+      accent_color: currentLogAccentColor || "#EA580C",
+      raw_summary: document.getElementById("mainTranscript")?.value || "",
+      tax_rate: (typeof profileTaxRate !== 'undefined' ? profileTaxRate : <%= @profile.tax_rate || 0 %>).toString(),
+      status: document.getElementById("pdfLogStatus")?.value || "draft",
+      category_ids: document.getElementById("pdfLogCategory")?.value ? [document.getElementById("pdfLogCategory").value] : []
     };
   }
 
   window.setupSaveButton = async function() {
+    // Enforce Guest Limits (tracks 'invoice_exported' as export attempt)
+    if (typeof window.trackEvent === 'function') {
+       const canProceed = await window.trackEvent('invoice_exported');
+       if (!canProceed) return;
+    }
+
     const data = gatherLogData();
     const modal = document.getElementById('pdfModal');
     const overlay = document.getElementById('pdfModalOverlay');
@@ -2606,9 +3033,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const iframe = document.getElementById('pdfFrame');
     const loading = document.getElementById('pdfLoading');
     
-    // RESET BUTTONS TO INITIAL STATE
+    // RESET BUTTONS TO INITIAL STATE IF NOT SAVED
     const saveBtn = document.getElementById('pdfModalSaveBtn');
-    if (saveBtn) {
+    if (saveBtn && !logAlreadySaved) {
       saveBtn.disabled = false;
       saveBtn.style.pointerEvents = 'auto';
       const saveDiv = saveBtn.querySelector('div');
@@ -2623,12 +3050,22 @@ document.addEventListener("DOMContentLoaded", () => {
         saveLabel.classList.add('text-gray-500');
         saveLabel.classList.remove('text-green-600');
       }
+      
+      // Reset Selectors
+      if (typeof setPdfStatus === 'function') setPdfStatus('draft');
+      if (typeof setPdfCategory === 'function') setPdfCategory('', '- No Category -', '');
+      
+    } else if (saveBtn && logAlreadySaved) {
+      updateSaveButtonToSavedState(saveBtn);
     }
     const shareBtn = document.getElementById('pdfModalShareBtn');
     if (shareBtn) {
        shareBtn.disabled = false;
        shareBtn.style.pointerEvents = 'auto';
     }
+
+     const viewerContainer = document.getElementById('pdfViewerContainer');
+     if (viewerContainer) viewerContainer.scrollTop = 0;
 
     modal.classList.remove('hidden');
     modal.offsetHeight; // force reflow
@@ -2639,10 +3076,26 @@ document.addEventListener("DOMContentLoaded", () => {
     iframe.style.opacity = '0';
     loading.classList.remove('hidden');
 
+    // Clear ID if we are opening a fresh modal and form has changed
+    // (This is a safety check - the event listener usually handles this)
+    if (!logAlreadySaved) {
+       savedLogId = null;
+       savedLogClient = null;
+    }
+
     try {
       const formData = new FormData();
-      for (const key in data) { formData.append(`log[${key}]`, data[key]); }
+      for (const key in data) { 
+        if (Array.isArray(data[key])) {
+          data[key].forEach(val => formData.append(`log[${key}][]`, val));
+        } else {
+          formData.append(`log[${key}]`, data[key]); 
+        }
+      }
       formData.append('authenticity_token', document.querySelector('meta[name="csrf-token"]').content);
+      if (typeof savedLogId !== 'undefined' && savedLogId) {
+        formData.append('log_id', savedLogId);
+      }
 
       const response = await fetch('/logs/generate_preview', {
         method: 'POST',
@@ -2651,9 +3104,23 @@ document.addEventListener("DOMContentLoaded", () => {
       });
 
       if (!response.ok) throw new Error('Preview generation failed');
+      
+      const pageCount = parseInt(response.headers.get('X-PDF-Pages')) || 1;
+      const invNo = response.headers.get('X-INV-No');
+      if (invNo) {
+        savedLogDisplayNumber = invNo;
+      }
+
+      const canvas = document.getElementById('pdfCanvas');
+      if (canvas) {
+          // Calculate height based on actual width and A4 aspect ratio (1.414)
+          const width = canvas.offsetWidth || 800;
+          canvas.style.height = Math.floor(pageCount * width * 1.4142) + 'px';
+      }
+
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
-      iframe.src = url;
+      iframe.src = url + '#toolbar=0';
       iframe.onload = () => {
         loading.classList.add('hidden');
         iframe.classList.remove('hidden');
@@ -2672,16 +3139,50 @@ document.addEventListener("DOMContentLoaded", () => {
     const content = document.getElementById('pdfModalContent');
     overlay.classList.remove('opacity-100');
     content.classList.add('translate-y-full');
+    
+    // Explicitly reset save state on close so changes can be re-saved
+    logAlreadySaved = false;
+    savedLogId = null;
+    savedLogDisplayNumber = null;
+    savedLogClient = null;
+
     setTimeout(() => {
       modal.classList.add('hidden');
       document.getElementById('pdfFrame').src = '';
     }, 500);
   }
+  
+  function updateSaveButtonToSavedState(btn) {
+    const saveDiv = btn.querySelector('div');
+    const saveLabel = btn.querySelector('span');
+    btn.disabled = true;
+    btn.style.pointerEvents = 'none';
+    
+    if (saveDiv) {
+      saveDiv.classList.remove('bg-orange-600', 'hover:bg-orange-700', 'bg-black', 'hover:bg-gray-900');
+      saveDiv.classList.add('bg-green-600');
+      saveDiv.classList.remove('scale-105');
+      saveDiv.style.boxShadow = 'none';
+      saveDiv.style.transform = 'translate(2px, 2px)';
+    }
+    
+    if (saveLabel) {
+      saveLabel.innerText = 'Saved';
+      saveLabel.classList.remove('text-gray-500');
+      saveLabel.classList.add('text-green-600');
+    }
+  }
 
   window.finalSaveLog = async function(options = { redirect: true }) {
     const saveBtn = document.getElementById('pdfModalSaveBtn');
     const shareBtn = document.getElementById('pdfModalShareBtn');
-    if (!saveBtn || saveBtn.disabled) return;
+    
+    if (!saveBtn || saveBtn.disabled) return { id: savedLogId, client: savedLogClient };
+    if (logAlreadySaved) {
+       updateSaveButtonToSavedState(saveBtn); 
+       if (options.redirect) window.location.href = '/history';
+       return { id: savedLogId, client: savedLogClient };
+    }
 
     const saveDiv = saveBtn.querySelector('div');
     const saveLabel = saveBtn.querySelector('span');
@@ -2696,25 +3197,18 @@ document.addEventListener("DOMContentLoaded", () => {
       shareBtn.style.pointerEvents = 'none';
     }
     
-    // UI Change: Transition to a locked 'Saved' state
-    if (saveDiv) {
-      saveDiv.classList.remove('bg-orange-600', 'hover:bg-orange-700', 'bg-black', 'hover:bg-gray-900');
-      saveDiv.classList.add('bg-green-600', 'scale-105');
-      saveDiv.style.boxShadow = 'none';
-      saveDiv.style.transform = 'translate(2px, 2px)';
-      saveDiv.style.transition = 'all 0.3s ease-in-out';
-    }
+    updateSaveButtonToSavedState(saveBtn);
     
-    if (saveLabel) {
-      saveLabel.innerText = 'Saved';
-      saveLabel.classList.remove('text-gray-500');
-      saveLabel.classList.add('text-green-600');
-    }
-
     try {
       const data = gatherLogData();
       const formData = new FormData();
-      for (const key in data) { formData.append(`log[${key}]`, data[key]); }
+      for (const key in data) { 
+        if (Array.isArray(data[key])) {
+          data[key].forEach(val => formData.append(`log[${key}][]`, val));
+        } else {
+          formData.append(`log[${key}]`, data[key]); 
+        }
+      }
       formData.append('authenticity_token', document.querySelector('meta[name="csrf-token"]').content);
 
       const response = await fetch('/logs', {
@@ -2726,16 +3220,39 @@ document.addEventListener("DOMContentLoaded", () => {
         body: formData
       });
 
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+          const text = await response.text();
+          console.error("Expected JSON but got:", text.substring(0, 200));
+          throw new Error(`Server returned ${response.status} ${response.statusText} (likely an error page or redirect).`);
+      }
+
       const resData = await response.json();
       if (resData.success) {
-        window.trackEvent('invoice_exported');
+        logAlreadySaved = true; // Mark as saved
+        savedLogId = resData.id;
+        savedLogDisplayNumber = resData.display_number;
+        savedLogClient = resData.client;
+        
+        // window.trackEvent('invoice_exported'); // Moved to setupSaveButton to count attempt (if using that logic)
         if (options.redirect) {
           window.location.href = '/history';
         } else {
-          // Success but no redirect (e.g. from SHARE)
-          // Keep the 'Saved' state visible
-          saveDiv.classList.remove('scale-105');
+          // Update preview to use the final saved PDF URL (important for correct INV-#)
+          const iframe = document.getElementById('pdfFrame');
+          if (iframe) {
+            const finalSrc = `/logs/${resData.id}/download_pdf#toolbar=0`;
+            if (!iframe.src.includes(`/logs/${resData.id}/download_pdf`)) {
+              iframe.src = finalSrc;
+            }
+          }
+          if (saveDiv) saveDiv.classList.remove('scale-105');
         }
+        return { 
+          id: savedLogId, 
+          display_number: savedLogDisplayNumber,
+          client: savedLogClient 
+        };
       } else {
         throw new Error(resData.errors?.join(', ') || 'Save failed');
       }
@@ -2758,15 +3275,26 @@ document.addEventListener("DOMContentLoaded", () => {
 
   window.sharePdf = async function() {
     const iframe = document.getElementById('pdfFrame');
-    if (!iframe.src) return;
+    if (!iframe.src) {
+        showError("PDF is still loading...");
+        return;
+    }
 
-    // Trigger SAVED state (green/unclickable) immediately
-    finalSaveLog({ redirect: false });
+    // Background Save (quietly) if not already saved
+    if (!logAlreadySaved) {
+        finalSaveLog({ redirect: false }).catch(err => console.error("Background save on share failed", err));
+    }
+
+    // Use cached numbers from preview header or fallback
+    const logNo = savedLogDisplayNumber || "Draft";
+    const clientName = document.getElementById("editClient")?.value?.trim() || "Client";
+    const fileName = `INV-${logNo}_${clientName}.pdf`;
 
     try {
+      // Use current blob from iframe for instant response
       const response = await fetch(iframe.src);
       const blob = await response.blob();
-      const file = new File([blob], `Invoice_${new Date().getTime()}.pdf`, { type: 'application/pdf' });
+      const file = new File([blob], fileName, { type: 'application/pdf' });
 
       if (navigator.share && navigator.canShare({ files: [file] })) {
         await navigator.share({
@@ -2775,24 +3303,39 @@ document.addEventListener("DOMContentLoaded", () => {
           text: 'Here is your invoice.'
         });
       } else {
+        const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
-        link.href = iframe.src;
-        link.download = `Invoice_${new Date().getTime()}.pdf`;
+        link.href = url;
+        link.download = fileName;
         link.click();
+        URL.revokeObjectURL(url);
       }
     } catch (err) {
       console.error('Sharing failed', err);
+      showError("Draft prepared. Click Share again to send.");
+    } finally {
+      const saveBtn = document.getElementById('pdfModalSaveBtn');
+      const shareBtn = document.getElementById('pdfModalShareBtn');
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.style.pointerEvents = 'auto';
+      }
+      if (shareBtn) {
+        shareBtn.disabled = false;
+        shareBtn.style.pointerEvents = 'auto';
+      }
     }
   }
 
   document.addEventListener('turbo:load', () => {
     initGlobalVariables();
+    checkRecreateData(); // Ensure this is called on every turbo:load
   });
   
-  // Also run on DOMContentLoaded for fresh loads
-  document.addEventListener('DOMContentLoaded', () => {
-    // init logic if needed
-  });
+  // Cleanup: Remove individual event calls if we want to centralize
+  // But keeping turbo:load for navigation safety
+  // document.addEventListener('turbo:load', checkRecreateData); // Removed duplicate call
+  // document.addEventListener('turbo:render', checkRecreateData); // Removed duplicate call
 
   // Hydrate initial static items if any
   document.querySelectorAll('.item-row').forEach(row => {
@@ -2801,6 +3344,37 @@ document.addEventListener("DOMContentLoaded", () => {
     updateHamburgerGlow(row);
   });
   
+  // Reset Save state if anything changes in the form
+  const reviewCont = document.getElementById('reviewContainer');
+  if (reviewCont) {
+    reviewCont.addEventListener('input', () => {
+      if (logAlreadySaved) {
+         console.log("Form changed - resetting save state");
+         logAlreadySaved = false;
+         savedLogId = null;
+         savedLogDisplayNumber = null;
+         savedLogClient = null;
+         
+         // Also reset the save button if it was in 'Saved' state
+         const saveBtn = document.getElementById('pdfModalSaveBtn');
+         if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.style.pointerEvents = 'auto';
+            const saveDiv = saveBtn.querySelector('div');
+            const saveLabel = saveBtn.querySelector('span');
+            if (saveDiv) {
+                saveDiv.className = 'w-14 h-14 md:w-16 md:h-16 rounded-[1.25rem] md:rounded-3xl border-2 border-black bg-orange-600 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center group-active:translate-x-[2px] group-active:translate-y-[2px] group-active:shadow-none transition-all hover:bg-orange-700';
+            }
+            if (saveLabel) {
+                saveLabel.innerText = 'Save';
+                saveLabel.classList.remove('text-green-600');
+                saveLabel.classList.add('text-gray-500');
+            }
+         }
+      }
+    });
+  }
+
   // Initialize default due date (14 days)
   updateDueDate(null, null);
 });
@@ -3349,37 +3923,77 @@ function addLaborSection() {
     const container = document.getElementById('laborItemsContainer');
     if (container && container.querySelectorAll('.labor-item-row').length === 0) {
         addLaborItem();
+    } else {
+        updateTotalsSummary();
     }
   }
 }
 
 function removeLaborSection() {
   const group = document.getElementById('laborGroup');
-  if (group) group.classList.add('hidden');
+  if (group) {
+    group.classList.add('hidden');
+    // Clear all labor items when the section is removed
+    const container = document.getElementById('laborItemsContainer');
+    if (container) {
+        container.querySelectorAll('.labor-item-row').forEach(row => row.remove());
+        // Re-add the "Add Item" button if it was removed with the last item
+        if (!container.querySelector('.section-add-btn-container')) {
+            const addButtonContainer = document.createElement('div');
+            addButtonContainer.className = "flex justify-center mt-8 section-add-btn-container";
+            addButtonContainer.innerHTML = `
+               <button type="button" onclick="addLaborItem()" 
+                       class="bg-orange-600 text-white w-8 h-8 rounded-full flex items-center justify-center shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] active:scale-95 btn-add-labor-hover transition-all" title="Add Labor Item">
+                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                   <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                 </svg>
+               </button>
+            `;
+            container.appendChild(addButtonContainer);
+        }
+    }
+  }
   updateTotalsSummary();
 }
 
-function addCreditSection() {
+function addCreditSection(skipDefault = false) {
   const group = document.getElementById('creditGroup');
+  const container = document.getElementById('creditItemsContainer');
   if (group) {
-      group.classList.remove('hidden');
-      // Ensure at least one item if empty (only has add button which is div wrapping button?)
-      // Actually structure is initial item row + add button container.
-      const container = document.getElementById('creditItemsContainer');
-      // Structure: 
-      // 1. Initial Row (could be removed)
-      // 2. Add Button Container
-      // If we unhide, and rows are gone, add one?
-      if (container && container.querySelectorAll('.credit-item-row').length === 0) {
-          addCreditItem('creditItemsContainer');
-      }
+    group.classList.remove('hidden');
+    // If empty (e.g. after removal), add a fresh default item (unless skipDefault is true)
+    if (!skipDefault && container && container.querySelectorAll('.credit-item-row').length === 0) {
+        addCreditItem('creditItemsContainer'); 
+    }
+    group.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 }
 
 function removeCreditSection() {
-  const group = document.getElementById('creditGroup');
-  if (group) group.classList.add('hidden');
-  updateTotalsSummary();
+    const group = document.getElementById('creditGroup');
+    const container = document.getElementById('creditItemsContainer');
+    if (group) {
+        group.classList.add('hidden');
+        // Remove only credit rows, preserving the "Add" button
+        if (container) {
+            container.querySelectorAll('.credit-item-row').forEach(row => row.remove());
+            // Re-add the "Add Item" button if it was removed with the last item
+            if (!container.querySelector('.section-add-btn-container')) {
+                const addButtonContainer = document.createElement('div');
+                addButtonContainer.className = "flex justify-center mt-8 section-add-btn-container";
+                addButtonContainer.innerHTML = `
+                    <button type="button" onclick="addCreditItem('creditItemsContainer')" 
+                            class="bg-red-600 text-white w-8 h-8 rounded-full flex items-center justify-center shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] active:scale-95 hover:bg-red-700 transition-all" title="Add Credit Item">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                      </svg>
+                    </button>
+                `;
+                container.appendChild(addButtonContainer);
+            }
+        }
+    }
+    updateTotalsSummary();
 }
 
 // Add a sub-category bullet point under a Labor/Service item
@@ -3398,7 +4012,7 @@ function addLaborSubCategory(btn) {
     <div class="flex-1 flex items-center border-2 border-black rounded-lg bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-colors relative h-8">
       <input type="text" class="flex-1 bg-transparent border-none text-[11px] font-bold text-black focus:ring-0 py-1 px-3 labor-sub-input placeholder:text-gray-300 min-w-0 outline-none" placeholder="Sub-category...">
     </div>
-    <button type="button" onclick="removeLaborSubCategory(this)" class="w-5 h-8 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors font-bold text-sm flex-shrink-0">×</button>
+    <button type="button" onclick="removeLaborSubCategory(this)" class="w-5 h-8 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors font-bold text-xl flex-shrink-0">×</button>
   `;
   
   subContainer.appendChild(subItem);
@@ -3432,7 +4046,7 @@ function addItemSubCategory(btn) {
     <div class="flex-1 flex items-center border-2 border-black rounded-lg bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-colors relative h-8">
       <input type="text" class="flex-1 bg-transparent border-none text-[11px] font-bold text-black focus:ring-0 py-1 px-3 sub-input placeholder:text-gray-300 min-w-0 outline-none" placeholder="Sub-category...">
     </div>
-    <button type="button" onclick="this.parentElement.remove();" class="w-5 h-8 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors font-bold text-sm flex-shrink-0">×</button>
+    <button type="button" onclick="this.parentElement.remove();" class="w-5 h-8 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors font-bold text-xl flex-shrink-0">×</button>
   `;
   
   subContainer.appendChild(subItem);
@@ -3518,7 +4132,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
   
   const billingMode = initialMode; 
   const defaultRate = rate || profileHourlyRate;
-  const laborPriceVal = (price === "" && billingMode === 'hourly') ? "1" : price;
+  const laborPriceVal = (price === "" || parseFloat(price) === 0) ? (billingMode === 'hourly' ? "1" : "10") : price;
   
   // DEFAULT LABOR NAME
   let finalValue = value;
@@ -3592,7 +4206,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
       <button type="button" onclick="this.closest('.labor-item-row').remove(); updateTotalsSummary();" class="remove-labor-btn w-6 h-10 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors font-bold text-xl flex-shrink-0">×</button>
     </div>
     <!-- Sub-categories container -->
-    <div class="labor-sub-categories pl-6 space-y-2"></div>
+    <div class="labor-sub-categories pl-6 space-y-2 mt-6"></div>
     
        <!-- Price and Tax Row -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-y-8 md:gap-4 mt-2 relative">
@@ -3747,7 +4361,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
        <!-- After Tax -->
         <div class="space-y-1 relative labor-after-tax-container">
             <label class="inline-block text-[9px] font-bold text-gray-500 uppercase ml-1 transition-all">AFTER TAX</label>
-            <div class="border-2 border-black rounded-xl bg-orange-50 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] relative h-[52px] w-max min-w-[120px] max-w-full overflow-visible">
+            <div class="border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] relative h-[52px] w-max min-w-[120px] max-w-full overflow-visible">
                 <!-- Internal Scrollable Area -->
                 <div class="custom-scrollbar overflow-x-auto h-[62px] flex items-start pl-2">
                     <div class="flex items-center gap-0 w-max h-[48px] labor-formula-row">
@@ -3788,13 +4402,13 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
   updateTotalsSummary();
 }
 
-function addCreditSection() {
+function addCreditSection(skipDefault = false) {
   const group = document.getElementById('creditGroup');
   const container = document.getElementById('creditItemsContainer');
   if (group) {
     group.classList.remove('hidden');
-    // If empty (e.g. after removal), add a fresh default item
-    if (container && container.querySelectorAll('.credit-item-row').length === 0) {
+    // If empty (e.g. after removal), add a fresh default item (unless skipDefault is true)
+    if (!skipDefault && container && container.querySelectorAll('.credit-item-row').length === 0) {
         addCreditItem('creditItemsContainer'); 
     }
     group.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -4005,10 +4619,9 @@ function updateBadge(row) {
   // 1. Update Price Badge (Show discounted amount)
   // Logic: Show if BaseTotal > 0.
   // Exception: Hide if Discount is Active AND Not Taxable (Redundant with top equation).
+  // Always show price if > 0 (User Requirement)
   let showPrice = baseTotal > 0;
-  if (discountAmount > 0 && !isTaxable) {
-      showPrice = false;
-  }
+  // if (discountAmount > 0 && !isTaxable) { showPrice = false; } // REMOVED
 
   if (showPrice) {
     priceBadge.innerText = getCurrencyFormat(subtotal, activeCurrencyCode);
@@ -4524,16 +5137,24 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
   
     // Default taxable logic and item naming
     const lowerTitle = (sectionTitle || "").toLowerCase();
-    const isMaterials = /material/.test(lowerTitle);
-    const isExpenses = /expense/.test(lowerTitle);
-    const isFees = /fee/.test(lowerTitle);
+    const isLaborSection = /labor|service|install|diag|repair|maintenance|tech|professional/i.test(lowerTitle);
+    const isMaterialSection = /material|part|item/i.test(lowerTitle);
+    const isFeeSection = /fee|surcharge/i.test(lowerTitle);
+    const isExpenseSection = /expense|reimburse/i.test(lowerTitle);
 
     // DEFAULT ITEM NAME based on section
     if (!finalValue || finalValue.trim() === "") {
-        if (isMaterials) finalValue = "Material";
-        else if (isFees) finalValue = "Fee";
-        else if (isExpenses) finalValue = "Expense";
+        if (isMaterialSection) finalValue = "Material";
+        else if (isFeeSection) finalValue = "Fee";
+        else if (isExpenseSection) finalValue = "Expense";
         else finalValue = "Item";
+    }
+
+    // Default Price for manually added items in these sections
+    if (!price || price === "" || parseFloat(price) === 0) {
+        if (isMaterialSection || isExpenseSection || isFeeSection) {
+            price = "10";
+        }
     }
 
     // Log ALL addItem attempts for diagnostics
@@ -4547,11 +5168,6 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
       
       const taxAll = scope.includes("all") || scope.includes("total") || (scope.length >= 4);
       
-      const isLaborSection = /labor|service|install|diag|repair|maintenance|tech|professional/i.test(lowerTitle);
-      const isMaterialSection = /material|part|item/i.test(lowerTitle);
-      const isFeeSection = /fee|surcharge/i.test(lowerTitle);
-      const isExpenseSection = /expense|reimburse/i.test(lowerTitle);
-
       const hasLaborScope = scope.some(s => s.includes("labor"));
       const hasMaterialScope = scope.some(s => s.includes("material") || s.includes("part"));
       const hasFeeScope = scope.some(s => s.includes("fee") || s.includes("surcharge"));
@@ -4794,13 +5410,13 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
       </button>
     </div>
     <!-- Sub-categories container -->
-    <div class="sub-categories pl-6 space-y-2"></div>
+    <div class="sub-categories pl-6 space-y-2 mt-6"></div>
 
     <!-- Item Subtotal Box -->
     <div class="item-subtotal-container pl-6 mt-4 hidden animate-in fade-in slide-in-from-top-1 duration-300">
       <div class="flex flex-col gap-1">
         <label class="item-subtotal-label text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">AFTER TAX</label>
-        <div class="border-2 border-black rounded-xl bg-orange-50 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] relative h-[52px] w-max min-w-[120px] max-w-full overflow-hidden">
+        <div class="border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] relative h-[52px] w-max min-w-[120px] max-w-full overflow-visible">
             <div class="custom-scrollbar overflow-x-auto h-[62px] flex items-start pl-2">
                 <div class="flex items-center gap-0 w-max h-[48px] item-formula-row">
                     <!-- Formula injected here in updateBadge -->
@@ -4842,15 +5458,22 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
 }
 
 function updateUI(data) {
+  window.isAutoUpdating = true;
+  logAlreadySaved = false;
+  savedLogId = null;
+  savedLogDisplayNumber = null;
+  savedLogClient = null;
   if (!data) return;
   try {
     const transcriptArea = document.getElementById("mainTranscript");
-    if (data.raw_summary) {
+    // Skip transcript update if processing clarification (flag set by submitClarifications)
+    if (data.raw_summary && !window.skipTranscriptUpdate) {
       const limit = <%= @profile.char_limit %>;
       transcriptArea.value = data.raw_summary.substring(0, limit);
       autoResize(transcriptArea);
       if (window.updateCharCount) window.updateCharCount();
     }
+    window.skipTranscriptUpdate = false; // Reset flag after use
     document.getElementById("editClient").value = data.client || "";
     // const laborBox removed
 
@@ -4867,6 +5490,12 @@ function updateUI(data) {
     const billingMode = data.billing_mode || currentLogBillingMode;
     if (data.hourly_rate) {
         profileHourlyRate = parseFloat(data.hourly_rate);
+    }
+    if (data.tax_rate) {
+        profileTaxRate = parseFloat(data.tax_rate);
+    }
+    if (data.accent_color) {
+        currentLogAccentColor = data.accent_color;
     }
     setGlobalBillingMode(billingMode);
 
@@ -4940,13 +5569,13 @@ function updateUI(data) {
         existingRows.forEach(row => row.remove());
         
         if (credits.length > 0) {
-            addCreditSection();
+            addCreditSection(true); // Skip default item
             credits.forEach(c => {
                 addCreditItem('creditItemsContainer', c.reason, c.amount);
             });
         } else if (data.credit_flat && parseFloat(data.credit_flat) > 0) {
             // Legacy/Fallback Support
-            addCreditSection();
+            addCreditSection(true); // Skip default item
             addCreditItem('creditItemsContainer', data.credit_reason || "Courtesy Credit", data.credit_flat);
         } else {
             // If no credits in the explicit array and no legacy credit, hide the section
@@ -5027,7 +5656,505 @@ function updateUI(data) {
 
     // Update totals summary after all items are added
     updateTotalsSummary();
+    
+    // Handle AI Clarification Questions
+    handleClarifications(data.clarifications || []);
+    
+    window.isAutoUpdating = false;
   } catch (e) {
+    window.isAutoUpdating = false;
+    showError("UI Update Error: " + e.message);
+    console.error(e);
+  }
+}
+
+// Store pending clarifications globally
+window.skipTranscriptUpdate = false;
+window.pendingClarifications = [];
+window.originalTranscript = "";
+window.previousClarificationAnswers = [];
+window.clarificationHistory = [];
+
+function handleClarifications(clarifications) {
+  const section = document.getElementById('clarificationsSection');
+  const refinementSection = document.getElementById('refinementSection');
+  const list = document.getElementById('clarificationsList');
+  
+  // Show refinement section once we have any analysis result
+  if (refinementSection) refinementSection.classList.remove('hidden');
+
+  // Filter out already-answered clarifications (if we have answers for them)
+  const unansweredClarifications = clarifications.filter(c => {
+    // Keep questions that haven't been answered yet
+    return c.question && c.question.trim();
+  });
+  
+  if (!unansweredClarifications || unansweredClarifications.length === 0) {
+    if (section) section.classList.add('hidden');
+    if (list) list.innerHTML = '';
+    window.pendingClarifications = [];
+    return;
+  }
+  
+  // Store for later submission
+  window.pendingClarifications = unansweredClarifications;
+  window.originalTranscript = document.getElementById('mainTranscript').value;
+  
+  renderClarifications(unansweredClarifications);
+  section.classList.remove('hidden');
+
+  // No auto-expand, honor user request for collapsed by default
+  const content = document.getElementById('clarificationsContent');
+  const btn = section.querySelector('.section-toggle-btn');
+  if (content && !content.classList.contains('hidden')) {
+    // If it was already open, make sure button state matches
+    if (btn) btn.classList.add('rounded-b-none');
+  }
+  
+  // Clear the input field for fresh answer
+  const answerInput = document.getElementById('clarificationAnswerInput');
+  if (answerInput) answerInput.value = '';
+}
+
+function toggleSection(contentId, arrowId, btn) {
+  const content = document.getElementById(contentId);
+  const arrow = document.getElementById(arrowId);
+  if (!content || !arrow) return;
+
+  if (content.classList.contains('hidden')) {
+    content.classList.remove('hidden');
+    arrow.classList.remove('-rotate-90');
+    if (btn) btn.classList.add('rounded-b-none');
+  } else {
+    content.classList.add('hidden');
+    arrow.classList.add('-rotate-90');
+    if (btn) btn.classList.remove('rounded-b-none');
+  }
+}
+
+// Logic for Refinements (Green Section)
+let refinementRecorder = null;
+let refinementChunks = [];
+
+async function startRefinementRecording() {
+  const btn = document.getElementById('refinementMicBtn');
+  if (!btn) return;
+  
+  if (refinementRecorder && refinementRecorder.state === 'recording') {
+    refinementRecorder.stop();
+    return;
+  }
+  
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    refinementRecorder = new MediaRecorder(stream);
+    refinementChunks = [];
+    
+    refinementRecorder.ondataavailable = (e) => refinementChunks.push(e.data);
+    refinementRecorder.onstop = processRefinementAudio;
+    refinementRecorder.start();
+    
+    btn.classList.remove('bg-emerald-500', 'hover:bg-emerald-600');
+    btn.classList.add('bg-red-500', 'animate-pulse');
+    btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>`;
+    
+    setTimeout(() => {
+      if (refinementRecorder && refinementRecorder.state === 'recording') refinementRecorder.stop();
+    }, 15000);
+  } catch (e) {
+    showError("Microphone access required");
+  }
+}
+
+async function processRefinementAudio() {
+  const btn = document.getElementById('refinementMicBtn');
+  const input = document.getElementById('refinementInput');
+  if (btn) {
+    btn.classList.remove('bg-red-500', 'animate-pulse');
+    btn.classList.add('bg-emerald-500', 'hover:bg-emerald-600');
+    btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>`;
+  }
+  if (refinementRecorder && refinementRecorder.stream) refinementRecorder.stream.getTracks().forEach(t => t.stop());
+  if (refinementChunks.length === 0) return;
+
+  const audioBlob = new Blob(refinementChunks, { type: 'audio/webm' });
+  const formData = new FormData();
+  formData.append("audio", audioBlob);
+  formData.append("transcribe_only", "true");
+
+  try {
+    if (input) input.placeholder = "Transcribing...";
+    const res = await fetch("/process_audio", {
+      method: "POST",
+      headers: { "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]').content },
+      body: formData
+    });
+    const data = await res.json();
+    if (input) {
+      input.placeholder = "Need to fix something? Tell me here...";
+      if (data.raw_summary) {
+        input.value = data.raw_summary.trim();
+        setTimeout(() => submitRefinement(), 300);
+      }
+    }
+  } catch (e) {
+    showError("Transcription failed");
+  }
+}
+
+async function submitRefinement() {
+  const input = document.getElementById('refinementInput');
+  const instruction = input ? input.value.trim() : '';
+  if (!instruction) return showError("Please enter an instruction first");
+
+  // Save for AI history & UI with TYPE
+  if (!window.clarificationHistory) window.clarificationHistory = [];
+  window.clarificationHistory.push({ questions: "User manually refined details", answer: instruction });
+  if (!window.previousClarificationAnswers) window.previousClarificationAnswers = [];
+  window.previousClarificationAnswers.push({ text: instruction, type: 'refinement' });
+  renderPreviousAnswers();
+
+  // Clear input
+  input.value = '';
+
+  let historyText = "";
+  window.clarificationHistory.forEach(h => {
+    historyText += `\n\n[User clarification for "${h.questions}": ${h.answer}]`;
+  });
+
+  window.skipTranscriptUpdate = true;
+  const transcriptArea = document.getElementById('mainTranscript');
+  const originalValue = transcriptArea.value;
+  transcriptArea.value = `${window.originalTranscript}${historyText}`;
+  
+  const applyBtn = document.getElementById('reParseBtn');
+  if (applyBtn) applyBtn.click();
+  
+  // No auto-expand here, honor user request for collapsed by default
+  const content = document.getElementById('refinementContent');
+  const btn = document.getElementById('refinementSection').querySelector('.section-toggle-btn');
+  if (content && !content.classList.contains('hidden')) {
+    if (btn) btn.classList.add('rounded-b-none');
+  }
+
+  transcriptArea.value = originalValue;
+}
+
+function renderClarifications(clarifications) {
+  const list = document.getElementById('clarificationsList');
+  list.innerHTML = '';
+  
+  clarifications.forEach((c, index) => {
+    const div = document.createElement('div');
+    div.className = "clarification-item border-b border-gray-100 pb-3 last:border-0 last:pb-0";
+    div.dataset.index = index;
+    div.dataset.field = c.field || '';
+    div.dataset.guess = c.guess || '';
+    div.dataset.question = c.question || '';
+    
+    // Display "Not specified" for empty/zero guesses
+    const guessDisplay = (c.guess === 0 || c.guess === "0" || c.guess === "" || c.guess === null) 
+      ? "Not specified" 
+      : c.guess;
+    
+    div.innerHTML = `
+      <p class="text-sm font-medium text-black leading-relaxed"><span class="text-orange-600 font-bold">${index + 1}.</span> ${escapeHtml(c.question)}</p>
+      <p class="text-xs text-gray-500 mt-1 ml-4">Current guess: <span class="font-bold text-orange-600">${guessDisplay}</span></p>
+    `;
+    
+    list.appendChild(div);
+  });
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function renderPreviousAnswers() {
+  const section = document.getElementById('previousAnswersSection');
+  const list = document.getElementById('previousAnswersList');
+  
+  if (!section || !list) return;
+
+  if (!window.previousClarificationAnswers || window.previousClarificationAnswers.length === 0) {
+    section.classList.add('hidden');
+    list.innerHTML = '';
+    return;
+  }
+  
+  list.innerHTML = '';
+  window.previousClarificationAnswers.forEach(ans => {
+    const isRefinement = ans.type === 'refinement';
+    const div = document.createElement('div');
+    
+    // Choose colors based on type
+    const bgClass = isRefinement ? 'bg-emerald-50 border-emerald-100' : 'bg-orange-50 border-orange-100';
+    const textClass = isRefinement ? 'text-emerald-700' : 'text-orange-700';
+
+    div.className = `self-end ${bgClass} border-2 rounded-2xl rounded-tr-none px-4 py-2 text-sm font-bold ${textClass} shadow-sm animate-in fade-in slide-in-from-right-2 duration-300 max-w-[80%]`;
+    div.innerText = ans.text;
+    list.appendChild(div);
+  });
+  
+  section.classList.remove('hidden');
+}
+
+// Voice recording for clarification answers - SINGLE MIC for all questions
+let clarificationRecorder = null;
+let clarificationChunks = [];
+
+async function startClarificationRecording() {
+  const btn = document.getElementById('clarificationMicBtn');
+  if (!btn) return;
+  
+  // If already recording, stop
+  if (clarificationRecorder && clarificationRecorder.state === 'recording') {
+    clarificationRecorder.stop();
+    return;
+  }
+  
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    clarificationRecorder = new MediaRecorder(stream);
+    clarificationChunks = [];
+    
+    clarificationRecorder.ondataavailable = (e) => clarificationChunks.push(e.data);
+    clarificationRecorder.onstop = processClarificationAudio;
+    
+    clarificationRecorder.start();
+    
+    // Visual feedback - recording state
+    btn.classList.remove('bg-orange-500', 'hover:bg-orange-600');
+    btn.classList.add('bg-red-500', 'animate-pulse');
+    btn.innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+        <rect x="6" y="6" width="12" height="12" rx="2" />
+      </svg>
+    `;
+    
+    // Auto-stop after 15 seconds
+    setTimeout(() => {
+      if (clarificationRecorder && clarificationRecorder.state === 'recording') {
+        clarificationRecorder.stop();
+      }
+    }, 15000);
+    
+  } catch (e) {
+    showError("Microphone access required");
+    console.error(e);
+  }
+}
+
+async function processClarificationAudio() {
+  const btn = document.getElementById('clarificationMicBtn');
+  const input = document.getElementById('clarificationAnswerInput');
+  
+  // Reset button visual
+  if (btn) {
+    btn.classList.remove('bg-red-500', 'animate-pulse');
+    btn.classList.add('bg-orange-500', 'hover:bg-orange-600');
+    btn.innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+      </svg>
+    `;
+  }
+  
+  // Stop tracks
+  if (clarificationRecorder && clarificationRecorder.stream) {
+    clarificationRecorder.stream.getTracks().forEach(t => t.stop());
+  }
+  
+  if (clarificationChunks.length === 0) return;
+  
+  const audioBlob = new Blob(clarificationChunks, { type: 'audio/webm' });
+  
+  // Send to transcription endpoint
+  const formData = new FormData();
+  formData.append("audio", audioBlob);
+  formData.append("transcribe_only", "true");
+  
+  try {
+    if (input) input.placeholder = "Transcribing...";
+    
+    const res = await fetch("/process_audio", {
+      method: "POST",
+      headers: { "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]').content },
+      body: formData
+    });
+    
+    const data = await res.json();
+    
+    if (input) {
+      input.placeholder = "Type or speak your answer...";
+      if (data.raw_summary) {
+        input.value = data.raw_summary.trim();
+        // Auto-send after voice transcription
+        setTimeout(() => submitClarifications(), 300);
+      }
+    }
+  } catch (e) {
+    if (input) input.placeholder = "Type or speak your answer...";
+    showError("Transcription failed");
+    console.error(e);
+  }
+}
+
+async function submitClarifications() {
+  const answerInput = document.getElementById('clarificationAnswerInput');
+  const userAnswer = answerInput ? answerInput.value.trim() : '';
+  
+  if (!userAnswer) {
+    showError("Please provide an answer first");
+    return;
+  }
+
+  // Save for the AI prompt history (accumulate multi-turn answers)
+  const currentQuestions = window.pendingClarifications.map(c => c.question).join(' ');
+  if (!window.clarificationHistory) window.clarificationHistory = [];
+  window.clarificationHistory.push({ questions: currentQuestions, answer: userAnswer });
+
+  // Save for UI display with TYPE
+  if (!window.previousClarificationAnswers) window.previousClarificationAnswers = [];
+  window.previousClarificationAnswers.push({ text: userAnswer, type: 'clarification' });
+  renderPreviousAnswers();
+  
+  // Build the enhanced prompt with FULL history
+  let historyText = "";
+  window.clarificationHistory.forEach(h => {
+    historyText += `\n\n[User clarification for "${h.questions}": ${h.answer}]`;
+  });
+  
+  const clarificationPrompt = `${window.originalTranscript}${historyText}`;
+  
+  // Set flag to tell updateUI NOT to touch the transcript
+  window.skipTranscriptUpdate = true;
+  
+  // Save transcript area reference
+  const transcriptArea = document.getElementById('mainTranscript');
+  const originalValue = transcriptArea.value;
+  
+  // Temporarily set the transcript with the FULL clarification history
+  transcriptArea.value = clarificationPrompt;
+  
+  // Hide the clarifications section
+  document.getElementById('clarificationsSection').classList.add('hidden');
+  
+  // Click the existing Apply button to trigger the processing
+  const applyBtn = document.getElementById('reParseBtn');
+  if (applyBtn) {
+    applyBtn.click();
+  }
+  
+  // Restore the original transcript immediately after click
+  // The skipTranscriptUpdate flag will prevent it from being overwritten by updateUI
+  transcriptArea.value = originalValue;
+}
+
+// Special version of updateUI that doesn't touch the transcript
+function updateUIWithoutTranscript(data) {
+  window.isAutoUpdating = true;
+  logAlreadySaved = false;
+  savedLogId = null;
+  savedLogDisplayNumber = null;
+  savedLogClient = null;
+  if (!data) return;
+  
+  try {
+    // DON'T update transcript - keep it as is
+    
+    document.getElementById("editClient").value = data.client || document.getElementById("editClient").value || "";
+    
+    // Set tax scope (AI-detected or profile default)
+    currentLogTaxScope = data.tax_scope || currentLogTaxScope || "<%= @profile.tax_scope %>";
+    
+    // Hide all protected sections by default
+    removeLaborSection();
+    removeCreditSection();
+    
+    // Billing Mode Synchronization
+    const billingMode = data.billing_mode || currentLogBillingMode;
+    if (data.hourly_rate) { 
+      document.getElementById("hourlyRateInput").value = data.hourly_rate;
+      currentLogHourlyRate = data.hourly_rate;
+    }
+    if (data.labor_tax_rate) {
+      document.getElementById("defaultTaxInput").value = data.labor_tax_rate;
+    }
+    setGlobalBillingMode(billingMode);
+
+    // Currency Update
+    if (data.currency) {
+      activeCurrencyCode = data.currency.toUpperCase();
+      const curr = allCurrencies.find(c => c.c === activeCurrencyCode);
+      if (curr) {
+        currencySymbol = curr.s;
+        const display = document.getElementById('globalCurrencyDisplay');
+        if (display) {
+          display.innerHTML = `<span class="fi fi-${curr.i} rounded-sm shadow-sm scale-90"></span> <span>${curr.c} (${curr.s})</span>`;
+        }
+      }
+    }
+
+    // Global Discount
+    const gDiscFlat = data.global_discount_flat || "";
+    const gDiscPercent = data.global_discount_percent || "";
+    document.getElementById("globalDiscountFlat").value = gDiscFlat;
+    document.getElementById("globalDiscountPercent").value = gDiscPercent;
+    
+    // Credits
+    if (data.credits && data.credits.length > 0) {
+      showCreditSection();
+      const creditContainer = document.getElementById("creditsItemsContainer");
+      if (creditContainer) {
+        const existingRows = creditContainer.querySelectorAll('.credit-item-row');
+        existingRows.forEach((row, idx) => { if(idx > 0) row.remove(); });
+        
+        data.credits.forEach((credit, idx) => {
+          if (idx === 0) {
+            const firstRow = creditContainer.querySelector('.credit-item-row');
+            if (firstRow) {
+              const amountInput = firstRow.querySelector('input[placeholder*="Amount"], input[id*="credit"]');
+              const reasonInput = firstRow.querySelector('input[placeholder*="reason"], input[placeholder*="Reason"]');
+              if (amountInput) amountInput.value = credit.amount || "";
+              if (reasonInput) reasonInput.value = credit.reason || "";
+            }
+          } else {
+            addCreditItem(credit.amount, credit.reason);
+          }
+        });
+      }
+    }
+
+    // Sections
+    const sectionContainer = document.getElementById("sectionsContainer");
+    sectionContainer.querySelectorAll('.dynamic-section:not([data-protected])').forEach(s => s.remove());
+    
+    if (data.sections && data.sections.length > 0) {
+      data.sections.forEach(sec => addFullSection(sec.title, sec.items));
+    }
+    
+    if (data.labor_service_items && data.labor_service_items.length > 0) {
+      const existingLabor = Array.from(document.querySelectorAll('.section-title')).find(el => el.innerText === "LABOR/SERVICE" || el.value === "Labor/Service");
+      if (!existingLabor) {
+        addFullSection("Labor/Service", data.labor_service_items);
+        const laborSec = sectionContainer.lastElementChild;
+        if(laborSec) sectionContainer.prepend(laborSec);
+      }
+    }
+  
+    document.getElementById("invoicePreview").classList.remove("hidden");
+    
+    updateTotalsSummary();
+    
+    // Handle new clarifications (questions that are still unanswered)
+    handleClarifications(data.clarifications || []);
+    
+    window.isAutoUpdating = false;
+  } catch (e) {
+    window.isAutoUpdating = false;
     showError("UI Update Error: " + e.message);
     console.error(e);
   }
@@ -5237,25 +6364,110 @@ window.toggleCreditBreakdown = function() {
 <!-- PDF Preview Modal -->
 <div id="pdfModal" class="fixed inset-0 z-[200] hidden overflow-hidden flex flex-col items-center justify-center p-0 md:p-6 lg:p-10 pointer-events-none">
     <div class="absolute inset-0 bg-black/60 backdrop-blur-md opacity-0 transition-opacity duration-300 pointer-events-auto" id="pdfModalOverlay"></div>
-    <div class="relative w-full max-w-5xl h-full md:h-[90vh] flex flex-col bg-white md:rounded-[2.5rem] shadow-2xl overflow-hidden border-2 border-black translate-y-full transition-transform duration-500 pointer-events-auto" id="pdfModalContent">
+    <div class="relative w-full max-w-3xl h-full md:h-[85vh] flex flex-col bg-white md:rounded-[2.5rem] shadow-2xl overflow-hidden translate-y-full transition-transform duration-500 pointer-events-auto" id="pdfModalContent">
         <!-- Modal Header -->
-        <div class="flex items-center justify-between px-6 py-4 border-b-2 border-black bg-white shrink-0">
-            <h3 class="text-[10px] font-black uppercase tracking-widest text-black flex items-center gap-2">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-              </svg>
-              Invoice Preview
-            </h3>
-            <button onclick="closePdfModal()" class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 hover:text-black transition-colors hover:bg-gray-200">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-            </button>
+        <div class="flex flex-col border-b-2 border-black bg-white shrink-0">
+            <div class="flex items-center justify-between px-6 py-4">
+                <h3 class="text-[10px] font-black uppercase tracking-widest text-black flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                  Invoice Preview
+                </h3>
+                <button onclick="closePdfModal()" class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 hover:text-black transition-colors hover:bg-gray-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            
+            <div class="flex flex-wrap items-center gap-4 px-6 pb-4">
+                <!-- Status Selector -->
+                <div class="flex flex-col gap-1">
+                    <label class="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-1">Status</label>
+                    <div class="relative">
+                        <input type="hidden" id="pdfLogStatus" value="draft">
+                        <button type="button" 
+                                onclick="togglePdfStatusSelector(this, event)"
+                                id="pdfStatusBadge"
+                                class="flex items-center gap-1.5 px-3.5 py-1.5 bg-gray-50 border-2 border-gray-300 rounded-lg text-[10px] font-black uppercase tracking-widest text-gray-500 transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none">
+                            <div class="w-1.5 h-1.5 rounded-full bg-gray-500"></div>
+                            <span id="pdfStatusText">Draft</span>
+                            <svg class="h-3 w-3 opacity-50 status-chevron transition-transform duration-300">
+                                <use xlink:href="#icon-chevron-down"></use>
+                            </svg>
+                        </button>
+                        
+                        <div id="pdfStatusDropdown" class="pdf-selector-dropdown absolute left-0 top-full mt-2 w-40 bg-white border-2 border-black rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                            <% status_options = [
+                                { name: 'draft', icon: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5', color: 'bg-gray-500' },
+                                { name: 'sent', icon: 'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z', color: 'bg-blue-600' },
+                                { name: 'paid', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z', color: 'bg-green-600' }
+                            ] %>
+                            <% status_options.each do |opt| %>
+                                <button type="button" onclick="setPdfStatus('<%= opt[:name] %>')" 
+                                        class="w-full flex items-center gap-3 px-4 py-3 text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all border-b border-gray-100 last:border-0">
+                                    <div class="w-2 h-2 rounded-full <%= opt[:color] %>"></div>
+                                    <%= opt[:name] %>
+                                </button>
+                            <% end %>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Category Selector -->
+                <div class="flex flex-col gap-1 flex-1 min-w-[180px]">
+                    <label class="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-1">Category</label>
+                    <div class="relative">
+                        <input type="hidden" id="pdfLogCategory" value="">
+                        <button type="button" 
+                                onclick="togglePdfCategorySelector(this, event)"
+                                id="pdfCategoryBadge"
+                                class="w-full flex items-center justify-between px-3.5 py-1.5 bg-white border-2 border-black rounded-lg text-[10px] font-black uppercase tracking-widest text-black transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none h-[34px]">
+                            <div class="flex items-center gap-2 truncate">
+                                <span id="pdfCategoryIcon" class="hidden shrink-0"></span>
+                                <span id="pdfCategoryText" class="truncate">Add to Category</span>
+                            </div>
+                            <svg class="h-3 w-3 opacity-50 status-chevron transition-transform duration-300">
+                                <use xlink:href="#icon-chevron-down"></use>
+                            </svg>
+                        </button>
+                        
+                        <div id="pdfCategoryDropdown" class="pdf-selector-dropdown absolute left-0 right-0 top-full mt-2 bg-white border-2 border-black rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] max-h-60 overflow-y-auto custom-scrollbar">
+                            <button type="button" onclick="setPdfCategory('', '- No Category -', '')" 
+                                    class="w-full flex items-center gap-3 px-4 py-3 text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all border-b border-gray-100 italic text-gray-400">
+                                - No Category -
+                            </button>
+                            <% @categories.each do |category| %>
+                                <button type="button" onclick="setPdfCategory('<%= category.id %>', '<%= category.name %>', '<%= category.color %>', '<%= category.icon %>', '<%= category.icon_type %>', '<%= category.icon_type == 'custom' && category.custom_icon.attached? ? url_for(category.custom_icon) : '' %>')" 
+                                        class="w-full flex items-center gap-3 px-4 py-3 text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all border-b border-gray-100 group/cat">
+                                    <div class="w-6 h-6 rounded flex items-center justify-center border-2 shrink-0 group-hover/cat:scale-110 transition-transform" style="border-color: <%= category.color %>; color: <%= category.color %>;">
+                                        <% if category.icon_type == 'custom' && category.custom_icon.attached? %>
+                                            <img src="<%= url_for(category.custom_icon) %>" class="w-3 h-3 object-cover rounded-sm">
+                                        <% else %>
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                                                <%= category_icon_map[category.icon].to_s.html_safe %>
+                                            </svg>
+                                        <% end %>
+                                    </div>
+                                    <span class="truncate"><%= category.name %></span>
+                                </button>
+                            <% end %>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
         
         <!-- PDF Viewer Container -->
-        <div class="flex-1 bg-gray-100 relative overflow-hidden">
-            <iframe id="pdfFrame" class="w-full h-full border-none hidden opacity-0 transition-opacity duration-500"></iframe>
+        <div class="flex-1 relative overflow-y-auto p-4 md:p-10 custom-scrollbar scroll-smooth" id="pdfViewerContainer" style="background-color: #282828;" oncontextmenu="return false;">
+            <div id="pdfCanvas" class="relative w-full mx-auto bg-white shadow-lg origin-top" style="max-width: 100%;">
+                <iframe id="pdfFrame" class="absolute inset-0 w-full h-full border-none hidden opacity-0 transition-opacity duration-500 origin-top pointer-events-none"></iframe>
+                
+                <!-- Protective Overlay (Blocks right-click and toolbar interaction while allowing parent scroll) -->
+                <div class="absolute inset-0 z-10 bg-transparent cursor-default"></div>
+            </div>
+
             <!-- Loading Indicator -->
-            <div id="pdfLoading" class="absolute inset-0 flex flex-col items-center justify-center bg-gray-100 text-black">
+            <div id="pdfLoading" class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-gray-100 text-black">
                 <div class="analyzing-spinner mb-4"></div>
                 <span class="text-[10px] font-black uppercase tracking-widest animate-pulse">Generating PDF...</span>
             </div>

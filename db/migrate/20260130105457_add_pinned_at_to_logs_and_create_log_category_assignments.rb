@@ -1,0 +1,4 @@
+class AddPinnedAtToLogsAndCreateLogCategoryAssignments < ActiveRecord::Migration[8.0]
+  def change
+  end
+end

@@ -40,14 +40,17 @@ window.trackEvent = async (eventName, userId = null, sessionId = null) => {
         });
 
         const data = await response.json();
-        if (data.status === 'error' && data.message === 'Daily limit reached') {
+        if (data.status === 'error' && data.message === 'Rate limit reached') {
             if (eventName === 'recording_started') {
                 showSoftMessage("Please wait");
             } else {
-                showSoftMessage("Daily limit reached");
+                showSoftMessage("Rate limit reached");
             }
+            return false;
         }
+        return response.ok;
     } catch (e) {
         console.error('Tracking failed:', e);
+        return false;
     }
 };

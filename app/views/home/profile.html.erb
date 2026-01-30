@@ -12,7 +12,7 @@
     </div>
     
     <%# Mobile Save Icon %>
-    <button type="button" onclick="document.getElementById('profileForm').requestSubmit()" class="md:hidden p-2 bg-orange-600 text-white border-2 border-black rounded-xl shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all">
+    <button type="button" onclick="<%= @profile.guest? ? '' : "document.getElementById('profileForm').requestSubmit()" %>" class="<%= @profile.guest? ? 'opacity-20 pointer-events-none' : '' %> md:hidden p-2 bg-orange-600 text-white border-2 border-black rounded-xl shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all">
       <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
         <path stroke-linecap="round" stroke-linejoin="round" d="M17 21v-8H7v8M9 3v5h6V3M10 18h4" />
@@ -29,29 +29,57 @@
     </div>
   </div>
 
+  <% if @profile.guest? %>
+    <div class="max-w-md mx-auto mb-8 bg-orange-50 border-2 border-orange-200 rounded-2xl p-6 shadow-[4px_4px_0px_0px_rgba(249,115,22,0.1)] relative overflow-hidden group">
+      <div class="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+        </svg>
+      </div>
+      <div class="flex items-start gap-4">
+        <div class="w-10 h-10 rounded-full bg-orange-600 flex items-center justify-center shrink-0 shadow-lg">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <div class="space-y-1">
+          <h3 class="text-sm font-black text-black uppercase tracking-tight">Preview Mode (Guest)</h3>
+          <p class="text-[11px] font-bold text-orange-700/80 leading-relaxed uppercase tracking-wider">Sign up to customize your business details and save your settings permanently.</p>
+        </div>
+      </div>
+    </div>
+  <% end %>
+
   <%= form_with model: @profile, url: save_profile_path, id: "profileForm", local: false, class: "max-w-md mx-auto space-y-8" do |f| %>
     <div class="space-y-6 pt-0">
       <div class="space-y-2">
-        <label class="text-[10px] font-black text-orange-600 uppercase tracking-widest ml-1">Company / Name</label>
-        <%= f.text_field :business_name, class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all" %>
+        <div class="flex items-center gap-2">
+          <label class="text-[10px] font-black text-orange-600 uppercase tracking-widest ml-1">Company / Name</label>
+          <span class="bg-orange-100 text-orange-600 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-orange-200">SHOWS UP IN INVOICE</span>
+        </div>
+        <%= f.text_field :business_name, placeholder: "e.g. Acme Industries, Inc.", class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", disabled: @profile.guest? %>
       </div>
 
       <div class="space-y-3">
-        <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1">Business Logo</label>
+        <div class="flex items-center gap-2">
+          <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1">Business Logo</label>
+          <span class="bg-orange-100 text-orange-600 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-orange-200">SHOWS UP IN INVOICE</span>
+        </div>
         <div class="w-full bg-white border-2 border-black rounded-xl p-6 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
           
           <!-- Large Preview Area -->
           <div class="w-full h-48 bg-gray-50 border-2 border-dashed border-gray-200 rounded-lg flex items-center justify-center relative overflow-hidden mb-6 group hover:border-orange-200 transition-colors">
-             <% if @profile.logo.attached? && @profile.logo.persisted? %>
-                <%= image_tag @profile.logo, id: "logo-preview", class: "max-w-full max-h-full object-contain p-4" %>
-             <% else %>
-                <div id="default-logo-icon" class="text-gray-300 flex flex-col items-center gap-3">
-                   <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                   </svg>
-                   <span class="text-xs font-black uppercase tracking-widest text-gray-300">No Logo Set</span>
-                </div>
+             <% logo_present = @profile.logo.attached? && @profile.logo.persisted? %>
+             <% if logo_present %>
+                <%= image_tag @profile.logo, id: "logo-preview", class: "max-w-full max-h-full object-contain p-4 relative z-10" %>
              <% end %>
+             
+             <div id="default-logo-icon" class="<%= logo_present ? 'hidden' : '' %> text-gray-300 flex flex-col items-center gap-3 absolute inset-0 justify-center z-0">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span class="text-xs font-black uppercase tracking-widest text-gray-300">No Logo Set</span>
+             </div>
              <img id="client-preview" class="hidden absolute inset-0 w-full h-full object-contain bg-white p-4" />
           </div>
 
@@ -64,17 +92,17 @@
 
              <div class="flex items-center gap-3 w-full md:w-auto">
                <% if @profile.logo.attached? %>
-                  <button type="button" id="remove_logo_btn" onclick="markLogoForRemoval()" class="flex-1 md:flex-none text-[10px] font-black uppercase tracking-widest text-red-600 border-2 border-red-100 bg-red-50 px-4 py-3 rounded-lg hover:bg-red-100 transition-all text-center">
+                  <button type="button" id="remove_logo_btn" onclick="<%= @profile.guest? ? '' : 'markLogoForRemoval()' %>" class="flex-1 md:flex-none text-[10px] font-black uppercase tracking-widest text-red-600 border-2 border-red-100 bg-red-50 px-4 py-3 rounded-lg hover:bg-red-100 transition-all text-center <%= 'opacity-50 cursor-not-allowed' if @profile.guest? %>">
                     Remove
                   </button>
                   <%= f.hidden_field :remove_logo, value: "0", id: "remove_logo_field" %>
                <% end %>
 
-               <%= f.label :logo, class: "flex-1 md:flex-none cursor-pointer text-xs font-black uppercase tracking-widest text-white border-2 border-black bg-black px-6 py-3 rounded-lg hover:bg-orange-600 hover:border-orange-600 active:translate-y-[1px] transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:shadow-none text-center flex items-center justify-center gap-2 group" do %>
+               <%= f.label :logo, class: "flex-1 md:flex-none cursor-pointer text-xs font-black uppercase tracking-widest text-white border-2 border-black bg-black px-6 py-3 rounded-lg hover:bg-orange-600 hover:border-orange-600 active:translate-y-[1px] transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:shadow-none text-center flex items-center justify-center gap-2 group #{@profile.guest? ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}" do %>
                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
                  <span class="md:hidden">Upload</span>
                  <span class="hidden md:inline">Upload Logo</span>
-                 <%= f.file_field :logo, class: "hidden", accept: "image/png,image/jpeg,image/jpg", onchange: "previewImage(this)" %>
+                 <%= f.file_field :logo, class: "hidden", accept: "image/png,image/jpeg,image/jpg", onchange: "previewImage(this)", disabled: @profile.guest? %>
                <% end %>
              </div>
           </div>
@@ -85,33 +113,54 @@
       <div class="border-t-2 border-dashed border-gray-200"></div>
 
       <div class="space-y-2">
-        <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1">Payment Instructions</label>
-        <%= f.text_area :payment_instructions, rows: 3, class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-medium text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all resize-none custom-scrollbar overflow-hidden", onkeydown: "return checkEnter(event, this, 8)", oninput: "limitLines(this, 8); autoResize(this)", style: "max-height: 300px; field-sizing: content;" %>
+        <div class="flex justify-between items-center">
+          <div class="flex items-center gap-2">
+            <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1">Payment Instructions</label>
+            <span class="bg-orange-100 text-orange-600 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-orange-200">SHOWS UP IN INVOICE</span>
+          </div>
+          <span id="payment_instructions_counter" class="hidden text-[9px] font-black uppercase text-gray-400">max 50 chars / line</span>
+        </div>
+        <%= f.text_area :payment_instructions, rows: 3, placeholder: "e.g. Bank: Chase \nRouting: 123456789 \nAccount: 987654321", class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-medium text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all resize-none custom-scrollbar overflow-hidden disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", onkeydown: "return checkCharLimit(event, this, 50, 8)", oninput: "limitLinesAndChars(this, 50, 8); autoResize(this)", style: "max-height: 300px; field-sizing: content;", disabled: @profile.guest? %>
       </div>
 
       <div class="space-y-2">
-        <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1">Email</label>
-        <%= f.email_field :email, class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all" %>
+        <div class="flex items-center gap-2">
+          <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1">Email</label>
+          <span class="bg-orange-100 text-orange-600 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-orange-200">SHOWS UP IN INVOICE</span>
+        </div>
+        <%= f.email_field :email, placeholder: "e.g. billing@acme.com", class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", disabled: @profile.guest? %>
       </div>
 
       <div class="space-y-2">
-        <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1">Phone</label>
-        <%= f.text_field :phone, class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all" %>
+        <div class="flex items-center gap-2">
+            <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1">Phone</label>
+            <span class="bg-orange-100 text-orange-600 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-orange-200">SHOWS UP IN INVOICE</span>
+        </div>
+        <%= f.text_field :phone, placeholder: "e.g. +1 (555) 123-4567", class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", disabled: @profile.guest? %>
       </div>
 
       <div class="space-y-2">
-        <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1">Address</label>
-        <%= f.text_area :address, rows: 2, class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-medium text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all resize-none custom-scrollbar overflow-hidden", onkeydown: "return checkEnter(event, this, 4)", oninput: "limitLines(this, 4); autoResize(this)", style: "max-height: 200px; field-sizing: content;" %>
+        <div class="flex justify-between items-center">
+          <div class="flex items-center gap-2">
+            <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1">Address</label>
+            <span class="bg-orange-100 text-orange-600 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-orange-200">SHOWS UP IN INVOICE</span>
+          </div>
+          <span id="address_counter" class="hidden text-[9px] font-black uppercase text-gray-400">max 50 chars / line</span>
+        </div>
+        <%= f.text_area :address, rows: 2, placeholder: "e.g. 123 Industrial Parkway\nSuite 200\nChicago, IL 60601", class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-medium text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all resize-none custom-scrollbar overflow-hidden disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", onkeydown: "return checkCharLimit(event, this, 50, 4)", oninput: "limitLinesAndChars(this, 50, 4); autoResize(this)", style: "max-height: 200px; field-sizing: content;", disabled: @profile.guest? %>
       </div>
 
       <div class="space-y-2">
-        <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1">Tax ID</label>
-        <%= f.text_field :tax_id, class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all" %>
+        <div class="flex items-center gap-2">
+            <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1">Tax ID</label>
+            <span class="bg-orange-100 text-orange-600 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-orange-200">SHOWS UP IN INVOICE</span>
+        </div>
+        <%= f.text_field :tax_id, placeholder: "e.g. EIN-12-3456789", class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", disabled: @profile.guest? %>
       </div>
     </div>
 
-    <button type="submit" id="saveProfileBtn" class="hidden md:flex w-full bg-orange-600 text-white border-2 border-black font-black py-4 rounded-xl shadow-[4px_4px_0px_0px_#000000] active:scale-[0.97] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all uppercase text-xs tracking-[0.2em] items-center justify-center gap-3 save-btn-hover">
-      <span id="btnText">Save Profile</span>
+    <button type="submit" id="saveProfileBtn" class="hidden md:flex w-full bg-orange-600 text-white border-2 border-black font-black py-4 rounded-xl shadow-[4px_4px_0px_0px_#000000] active:scale-[0.97] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all uppercase text-xs tracking-[0.2em] items-center justify-center gap-3 save-btn-hover <%= 'opacity-50 cursor-not-allowed pointer-events-none grayscale' if @profile.guest? %>" <%= 'disabled' if @profile.guest? %>>
+      <span id="btnText"><%= @profile.guest? ? "Locked (Guest Only Preview)" : "Save Profile" %></span>
       <div id="btnSpinner" class="hidden">
         <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -167,10 +216,29 @@
     }
   }
 
-  function checkEnter(e, el, max) {
+  function checkCharLimit(e, el, charMax, lineMax) {
+    const lines = el.value.split('\n');
+    const cursorPosition = el.selectionStart;
+    
+    // Find current line index
+    let currentLineIndex = 0;
+    let charsCount = 0;
+    for(let i=0; i<lines.length; i++) {
+      charsCount += lines[i].length + 1; // +1 for \n
+      if(cursorPosition < charsCount) {
+        currentLineIndex = i;
+        break;
+      }
+    }
+
     if (e.key === 'Enter') {
-      const lines = el.value.split('\n').length;
-      if (lines >= max) {
+      if (lines.length >= lineMax) {
+        e.preventDefault();
+        return false;
+      }
+    } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      // Regular character key
+      if (lines[currentLineIndex].length >= charMax) {
         e.preventDefault();
         return false;
       }
@@ -178,10 +246,44 @@
     return true;
   }
 
-  function limitLines(el, max) {
-    const lines = el.value.split('\n');
-    if (lines.length > max) {
-      el.value = lines.slice(0, max).join('\n');
+  function limitLinesAndChars(el, charMax, lineMax) {
+    let lines = el.value.split('\n');
+    let changed = false;
+
+    // Enforce line count
+    if (lines.length > lineMax) {
+      lines = lines.slice(0, lineMax);
+      changed = true;
+    }
+
+    // Enforce char count per line
+    lines = lines.map(line => {
+      if (line.length > charMax) {
+        changed = true;
+        return line.substring(0, charMax);
+      }
+      return line;
+    });
+
+    if (changed) {
+      const start = el.selectionStart;
+      const end = el.selectionEnd;
+      el.value = lines.join('\n');
+      el.setSelectionRange(start, end);
+    }
+
+    // Update counter color
+    const counterId = el.name.includes('address') ? 'address_counter' : 'payment_instructions_counter';
+    const counter = document.getElementById(counterId);
+    if (counter) {
+      const anyOver = lines.some(l => l.length >= charMax);
+      if (anyOver) {
+        counter.classList.remove('text-gray-400');
+        counter.classList.add('text-orange-600');
+      } else {
+        counter.classList.remove('text-orange-600');
+        counter.classList.add('text-gray-400');
+      }
     }
   }
 
@@ -209,19 +311,45 @@
   }
 
   function markLogoForRemoval() {
-    if (confirm("Are you sure you want to remove the logo?")) {
-      const removeField = document.getElementById('remove_logo_field');
-      const logoPreview = document.getElementById('logo-preview');
-      const removeBtn = document.getElementById('remove_logo_btn');
-      
-      if (removeField) removeField.value = "1";
-      if (logoPreview) logoPreview.classList.add('opacity-20'); // Visual feedback
-      if (removeBtn) removeBtn.innerText = "Removed";
-      if (removeBtn) removeBtn.classList.add('opacity-50', 'cursor-not-allowed');
-      
-      // Auto-save strictly preferred? Or let user click save?
-      // Let's verify via the save button to be safe
+    const modal = document.getElementById('removeLogoModal');
+    if (modal) {
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
     }
+  }
+
+  function closeRemoveLogoModal() {
+    const modal = document.getElementById('removeLogoModal');
+    if (modal) {
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+  }
+
+  function confirmRemoveLogo() {
+    const removeField = document.getElementById('remove_logo_field');
+    const logoPreview = document.getElementById('logo-preview');
+    const defaultIcon = document.getElementById('default-logo-icon');
+    const removeBtn = document.getElementById('remove_logo_btn');
+    const clientPreview = document.getElementById('client-preview'); // Ensure this is also hidden
+      
+    if (removeField) removeField.value = "1";
+    
+    // Hide visual image completely
+    if (logoPreview) logoPreview.classList.add('hidden');
+    if (clientPreview) clientPreview.classList.add('hidden');
+    
+    // Show default placeholder
+    if (defaultIcon) defaultIcon.classList.remove('hidden');
+
+    // Update button state
+    if (removeBtn) {
+       removeBtn.innerText = "Removed";
+       removeBtn.classList.add('opacity-50', 'cursor-not-allowed');
+       removeBtn.onclick = null; // Prevent clicking again
+    }
+    
+    closeRemoveLogoModal();
   }
 
   document.addEventListener("DOMContentLoaded", () => {
@@ -278,3 +406,29 @@
     });
   });
 </script>
+
+<!-- Custom Logo Removal Confirmation Modal -->
+<div id="removeLogoModal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeRemoveLogoModal()"></div>
+    <div class="relative bg-white border-4 border-black rounded-3xl p-8 max-w-sm w-full shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] animate-in fade-in zoom-in duration-200">
+        <div class="flex flex-col items-center text-center space-y-6">
+            <div class="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center border-2 border-black">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+            </div>
+            <div class="space-y-2">
+                <h3 class="text-xl font-black uppercase tracking-tighter italic">Remove Logo?</h3>
+                <p class="text-xs font-bold text-gray-500 uppercase tracking-widest leading-relaxed">This action cannot be undone unless you upload a new logo.</p>
+            </div>
+            <div class="flex flex-col w-full gap-3">
+               <button type="button" onclick="confirmRemoveLogo()" class="w-full py-4 bg-red-600 text-white rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-[4px_4px_0px_0px_#991b1b] active:scale-[0.97] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all border-2 border-black hover:bg-red-700">
+                  Yes, Remove It
+               </button>
+               <button type="button" onclick="closeRemoveLogoModal()" class="w-full py-4 bg-white text-black rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-[4px_4px_0px_0px_#000000] active:scale-[0.97] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all border-2 border-black hover:bg-gray-50">
+                  Cancel
+               </button>
+            </div>
+        </div>
+    </div>
+</div>

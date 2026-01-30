@@ -1,25 +1,30 @@
 module LogsHelper
   def calculate_log_totals(log, profile)
-    categorized_items = {
-      labor: [],
-      material: [],
-      fee: [],
-      expense: [],
-      other: []
-    }
+    # Cache based on log and profile updates
+    profile_key = profile.persisted? ? "p-#{profile.id}-#{profile.updated_at.to_i}" : "p-guest"
+    cache_key = "log_totals/#{log.id}-#{log.updated_at.to_i}/#{profile_key}"
 
-    report_sections = [] # For items with price <= 0
+    Rails.cache.fetch(cache_key) do
+      categorized_items = {
+        labor: [],
+        material: [],
+        fee: [],
+        expense: [],
+        other: []
+      }
 
-    # Track totals
-    item_discount_total = 0.0
-    tax_amount = 0.0
+      report_sections = [] # For items with price <= 0
 
-    # Parse logging data (Safe check for serialized vs raw string)
-    raw_sections = if log.tasks.is_a?(String)
-                     JSON.parse(log.tasks || "[]") rescue []
-    else
-                     log.tasks || []
-    end
+      # Track totals
+      item_discount_total = 0.0
+      tax_amount = 0.0
+
+      # Parse logging data (Safe check for serialized vs raw string)
+      raw_sections = if log.tasks.is_a?(String)
+                       JSON.parse(log.tasks || "[]") rescue []
+      else
+                       log.tasks || []
+      end
 
     # Tax configuration
     tax_scope = log.tax_scope.presence || "all"
@@ -27,7 +32,7 @@ module LogsHelper
     global_tax_rate = profile.try(:tax_rate).to_f
     global_hourly_rate = log.try(:hourly_rate).present? ? log.try(:hourly_rate).to_f : profile.hourly_rate.to_f
 
-    raw_sections.each do |section|
+    raw_sections.each_with_index do |section, s_idx|
       title = section["title"].to_s.downcase
       report_items = []
 
@@ -41,7 +46,7 @@ module LogsHelper
       end
 
       if section["items"]
-        section["items"].each do |item|
+        section["items"].each_with_index do |item, i_idx|
           # Input normalization
           raw_desc = item.is_a?(Hash) ? item["desc"] : item
           desc = sanitize_description(raw_desc)
@@ -156,7 +161,10 @@ module LogsHelper
               discount_message: discount_message,
               computed_tax_amount: computed_tax,
               sub_categories: sub_categories,
-              category: category_key
+              category: category_key,
+              section_index: s_idx,
+              item_index: i_idx,
+              log_id: log.id
             }
 
             # Add to Category
@@ -230,12 +238,13 @@ module LogsHelper
     g_flat = log.try(:global_discount_flat).to_f
     g_percent = log.try(:global_discount_percent).to_f
 
-    # Global discount logic: applied on Subtotal (Gross)
-    raw_global_discount = g_flat + (subtotal * (g_percent / 100.0))
+    # Global discount logic: applied on Net Subtotal (Gross - Item Discounts)
+    discountable_base = [ subtotal - item_discount_total, 0 ].max
+    raw_global_discount = g_flat + (discountable_base * (g_percent / 100.0))
     global_discount_amount = raw_global_discount
 
     # Cap global discount
-    global_discount_amount = subtotal if global_discount_amount > subtotal
+    global_discount_amount = discountable_base if global_discount_amount > discountable_base
 
     # Credit Handling
     credits = []
@@ -246,10 +255,10 @@ module LogsHelper
     end
 
     if raw_credits.is_a?(Array) && raw_credits.present?
-      raw_credits.each do |c|
+      raw_credits.each_with_index do |c, c_idx|
         amount = c["amount"].to_f
         next if amount <= 0
-        credits << { reason: c["reason"].presence || "Courtesy Credit", amount: amount }
+        credits << { reason: c["reason"].presence || "Courtesy Credit", amount: amount, credit_index: c_idx, log_id: log.id }
       end
     else
        # Fallback to single fields
@@ -301,6 +310,7 @@ module LogsHelper
       total_due: balance_due,
       currency: log.try(:currency).presence || profile.currency.presence || "USD"
     }
+    end
   end
 
   def sanitize_description(desc)

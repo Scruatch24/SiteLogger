@@ -1,4 +1,5 @@
 Rails.application.routes.draw do
+  devise_for :users, controllers: { omniauth_callbacks: "users/omniauth_callbacks" }
   root "home#index"
 
   post "process_audio", to: "home#process_audio"
@@ -13,14 +14,21 @@ Rails.application.routes.draw do
   resources :logs, only: [ :create, :destroy ] do
     member do
       get "download_pdf"
+      patch "update_entry"
+      patch "update_categories"
+      patch "update_status"
     end
     collection do
       delete "clear_all"
       get "preview_pdf"
       get "preview_pdf_multipage"
       post "generate_preview"
+      patch "bulk_update_categories"
+      patch "bulk_pin"
     end
   end
+
+  resources :categories, only: [ :create, :destroy ]
 
   post "track", to: "tracking#track"
 end

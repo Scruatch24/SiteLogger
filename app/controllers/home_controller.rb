@@ -5,14 +5,40 @@ class HomeController < ApplicationController
   require "json"
   require "base64"
 
-  # This ensures @profile is loaded for every single page so the design doesn't crash
-  before_action :set_profile
+
 
   def index
+    @categories = if user_signed_in?
+      # Ensure Favorites category exists and has correct styling (Self-Healing)
+      fav = current_user.categories.where("name ILIKE ?", "Favorites").first_or_initialize
+      if fav.new_record? || fav.name != "Favorites" || fav.color != "#EAB308" || fav.icon != "star"
+        fav.update(name: "Favorites", color: "#EAB308", icon: "star", icon_type: "premade")
+      end
+
+      current_user.categories.order(name: :asc)
+    else
+      []
+    end
   end
 
   def history
-    @logs = Log.order(created_at: :desc)
+    @logs = if user_signed_in?
+      current_user.logs.eager_load(:categories).order("logs.pinned DESC NULLS LAST, logs.pinned_at DESC NULLS LAST, logs.created_at DESC")
+    else
+      Log.where(user_id: nil).eager_load(:categories).order("logs.pinned DESC NULLS LAST, logs.pinned_at DESC NULLS LAST, logs.created_at DESC")
+    end
+
+    @categories = if user_signed_in?
+      # Ensure Favorites category exists and has correct styling (Self-Healing)
+      fav = current_user.categories.where("name ILIKE ?", "Favorites").first_or_initialize
+      if fav.new_record? || fav.name != "Favorites" || fav.color != "#EAB308" || fav.icon != "star"
+        fav.update(name: "Favorites", color: "#EAB308", icon: "star", icon_type: "premade")
+      end
+
+      current_user.categories.preload(:logs).order(name: :asc)
+    else
+      []
+    end
   end
 
   def settings
@@ -24,6 +50,10 @@ class HomeController < ApplicationController
   end
 
   def save_profile
+    if @profile.guest?
+      return render json: { success: false, errors: [ "Guests cannot save profile settings. Please sign up to unlock." ] }, status: :forbidden
+    end
+
     # Consistent with save_settings but redirects to profile
     @profile.assign_attributes(profile_params)
 
@@ -39,6 +69,10 @@ class HomeController < ApplicationController
   end
 
   def save_settings
+    if @profile.guest?
+      return render json: { success: false, errors: [ "Guests cannot save settings. Please sign up to unlock." ] }, status: :forbidden
+    end
+
     # We use the @profile set by before_action
     @profile.assign_attributes(profile_params)
 
@@ -72,6 +106,40 @@ class HomeController < ApplicationController
       }, status: :unprocessable_entity
     end
 
+    # Transcribe-only mode for clarification answers (quick transcription without full processing)
+    if params[:transcribe_only].present? && params[:audio].present?
+      begin
+        audio = params[:audio]
+        audio_data = Base64.strict_encode64(audio.read)
+
+        uri = URI("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent")
+        http = Net::HTTP.new(uri.host, uri.port)
+        http.use_ssl = true
+        http.read_timeout = 15
+        http.open_timeout = 5
+
+        req = Net::HTTP::Post.new(uri, "Content-Type" => "application/json", "x-goog-api-key" => api_key)
+        req.body = {
+          contents: [ {
+            parts: [
+              { text: "Transcribe this short audio clip. Return ONLY the spoken text, nothing else. If unclear, return your best guess." },
+              { inline_data: { mime_type: audio.content_type, data: audio_data } }
+            ]
+          } ]
+        }.to_json
+
+        res = http.request(req)
+        body = JSON.parse(res.body) rescue {}
+
+        parts = body.dig("candidates", 0, "content", "parts")
+        raw = parts&.map { |p| p["text"] }&.join(" ")&.strip
+
+        return render json: { raw_summary: raw || "" }
+      rescue => e
+        return render json: { error: e.message }, status: 500
+      end
+    end
+
     begin
       instruction = <<~PROMPT
         You are a STRICT data extractor for casual contractors (plumbers, electricians, techs).
@@ -80,7 +148,7 @@ Your job: convert spoken notes or written text into a single valid JSON invoice 
 ----------------------------
 CORE DIRECTIVES (non-negotiable)
 ----------------------------
-1. DO NOT invent data. Only extract facts explicitly stated. Use null for unknown or ambiguous fields instead of erroring, unless the entire input is unrelated to billing or a job.
+1. DO NOT invent data. Only extract facts explicitly stated. Use null for unknown or ambiguous fields instead of erroring, unless the entire input is unrelated to billing or a job. (EXCEPTION: For "clarifications" array, you MAY guess a reasonable placeholder value.)
 2. DO NOT calculate totals. Return raw values (hours, rates, item prices). No multiplication or derived totals.
 3. If user states a specific rate/price it overrides defaults. Provided values ALWAYS take priority.
 4. Respect strict accounting rule: ANY reduction spoken/written as occurring "after tax", "off the total", "from the final bill", "at the end", "off the invoice" must be treated as a CREDIT (credit_flat), NOT a discount (global or otherwise). Item prices and taxes must remain unchanged in this case.
@@ -114,8 +182,10 @@ NATURAL LANGUAGE / SLANG RULESET (pragmatic)
 - Accept trade slang: "bucks", "quid" → count as currency; "knock off", "hook him up" → credit/discount intent; "trip charge", "service call" → fee; common part names ("P-Trap", "SharkBite") → materials.
 - MEASUREMENTS vs QUANTITY: "25 feet of pipe" → Qty: 1, Name/Desc: "25 feet of pipe". Do NOT extract '25' as quantity unless it refers to discrete units (e.g. "25 pipes").
 - If explicit currency word omitted (e.g., "Take 20 off"), treat as CURRENCY (flat amount). Only infer percent if "percent" or "%" is explicitly used.
+- AMBIGUOUS QUANTITY: If user implies a range or uncertainty (e.g. "3 or 4", "maybe 5 or 6"), ALWAYS extract the HIGHER number.
 - If user mentions a rate earlier (e.g., “$90 an hour”) assume it persists for subsequent hourly items until explicitly changed.
 - If user says "usual rate", "standard rate", or "same rate", leave rate fields as NULL (system will apply defaults).
+- DAY REFERENCES: When user mentions "day", "half day", "workday", or "X days" for labor time, convert using #{@profile.hours_per_workday || 8} hours per day. Examples: "three days" = #{(@profile.hours_per_workday || 8) * 3} hours, "half day" = #{(@profile.hours_per_workday || 8) / 2.0} hours.
 
 ----------------------------
 CATEGORY RULES (must map correctly)
@@ -128,9 +198,9 @@ LABOR:
 - Hours + rate → mode "hourly", include hours and rate fields. Flat total → mode "fixed", include price field and set hours=1 or include hours as metadata (per your schema).
 - If user sets multiplier like "time and a half" or "double rate", compute the new rate from the default hourly rate only when no explicit hourly was spoken. If explicit hourly rate spoken — use it.
 - Do not propagate explicit rates to other hours. Only apply explicit rates to the hour they are spoken. For any other hour, use the default rate if unspecified.
-- USE SPECIFIC TITLES for the 'desc' field if provided (e.g., "Monday Service", "Emergency Call Out"). Use generic names ("Labor", "Service") ONLY if no specific description is given.
+- USE SPECIFIC TITLES for the 'desc' field (e.g., "AC Repair", "Emergency Call Out"). ALWAYS use Title Case.
 - Be concise but descriptive.#{' '}
-- Put additional task details into 'sub_categories'.- Put specific work details (e.g., "Fixed leak", "Replaced sensor") into the 'sub_categories' array.
+- Put additional task details into 'sub_categories' ONLY if they add new information.
 
 
 MATERIALS:
@@ -140,11 +210,12 @@ MATERIALS:
 - Extract UNIT PRICE (price per item) into 'unit_price'.
 - DO NOT put "(x2)" or quantity info in the description/name if you are setting the 'qty' field.
 - If user says "2 items at 40 each", 'qty' is 2 and 'unit_price' is 40.
+- If quantity is "3 or 4", "3 to 4", use the HIGHER value (4) for the 'qty' field.
 - Never include internal cost unless explicitly spoken (avoid exposing cost).
 
 AMBIGUOUS ITEMS (Labor vs Materials):
 - "Action + Object + Price" (e.g. "Replaced filter $25", "Cleaned vents $15") -> CLASSIFY AS LABOR/SERVICE. Name it "Filter Replacement" or "Vent Cleaning".
-- REDUNDANCY CHECK: Do NOT add a sub_category that just repeats the main title (e.g. if desc is "Filter Replacement", do not add "Replaced filter" to sub_categories). Only add sub_categories for EXTRA details.
+- REDUNDANCY CHECK: Do NOT add a sub_category that just repeats the main title or is a variation of it. (e.g. if desc is "AC Repair", do NOT add "Repaired AC" as a subcategory). Subcategories are ONLY for additional details (e.g. specific part names, location) not implied by the title.
 - Only classify as Materials if the spoken text purely describes the object (e.g. "The filter cost $25", "New filter: $25").
 - If in doubt, prefer Labor/Service for tasks.
 
@@ -153,13 +224,14 @@ EXPENSES:
 - BUNDLING: If user gives a TOTAL PRICE for "expenses" (plural), create ONE main item named "Expenses" (or specific group name) with that price. List component details in 'sub_categories'.
 
 FEES:
-- Surcharges, disposal, rush fees. Usually taxed unless user says otherwise.
+- Surcharges, disposal, rush fees. Return `taxable: null` to defer to system settings unless user explicitly says "tax this" or "no tax".
 - BUNDLING: Same logic as Materials/Expenses. If a total fee amount is given for multiple fee types, bundle them into one main Fee item with sub-categories.
 
 CREDITS:
-- Each credit reason must be its own entry with its own amount.#{'  '}
-- If user describes multiple reasons with separate amounts, return multiple credit entries.#{'  '}
-- If user describes multiple reasons for a single amount, prefer separate credits (if amounts differ). If user intends combined single amount for multiple reasons, ensure they explicitly said so.
+- Each credit reason must be its own entry with its own amount.
+- If user describes multiple reasons with separate amounts, return multiple credit entries.
+- If user describes a single amount with multiple reasons (or no reason), use "Courtesy Credit" as the default reason. Do NOT return multiple credits for the same amount.
+- Example: "Add a credit for 50" -> { "amount": 50, "reason": "Courtesy Credit" }.
 
 ----------------------------
 DISCOUNT vs CREDIT RULES (explicit)
@@ -196,7 +268,37 @@ TAX SCOPE & RATES
 - TAX RATES: "8% tax" -> tax_rate: 8.0.
 
 ----------------------------
-DISAMBIGUATION RULES (when to ask the user — but in this extractor you must return an error instead of inventing)
+CLARIFICATION QUESTIONS (CRITICAL - ask the user to confirm uncertain or missing values)
+----------------------------
+You MUST ask clarification questions in these cases:
+
+1. MISSING VALUES - When a category is mentioned but NO price/amount is given:
+   - "parts were expensive" -> guess 0 or a placeholder, ask "What was the cost for parts?"
+   - "materials cost a lot" -> ask "What was the total for materials?"
+   - "charged for labor" -> ask "What was the labor charge?"
+
+2. AMBIGUOUS/APPROXIMATE VALUES - When the value is unclear:
+   - "just under 800" -> guess 795, ask "You said 'just under 800'. What's the exact amount?"
+   - "around 500" -> guess 500, ask "You said 'around 500'. Is $500 correct?"
+   - "about 2 hours" -> guess 2, ask "You said 'about 2 hours'. Is 2 hours the exact time?"
+   - "eh, call it five hours" -> guess 5, ask "You said 'call it 5 hours'. Is 5 hours final?"
+   - "a few items" -> guess 3, ask "How many items exactly?"
+
+3. VAGUE DESCRIPTORS instead of numbers:
+   - "expensive", "a lot", "significant amount", "good chunk" -> ALWAYS ask for the actual value
+   - "some hours", "took a while" -> ALWAYS ask for the exact time
+
+FORMAT: { "field": "[category].[field_name]", "guess": [your_best_guess_or_0], "question": "[short direct question]" }
+
+RULES:
+- Limit to 5 clarifications maximum per request (prioritize most impactful ones)
+- Do NOT ask if the value is clear and explicit (e.g., "800 dollars" needs no clarification)
+- Do NOT ask about ANY RATES (hourly rate, team rate, special rate, tax rate) - the system has user-configured defaults
+- ONLY ask about missing PRICES or COSTS (e.g., "parts were expensive" but no dollar amount given)
+- CRITICAL: When you add a clarification with a guess value, you MUST populate the corresponding JSON field with that SAME value. The guess and actual field value must match.
+
+----------------------------
+DISAMBIGUATION RULES
 ----------------------------
 - If a numeric reduction has no currency or percent -> Default to CURRENCY.
 - If hours are spoken with no rate and no default exists -> return hours with hourly_rate = null (system will apply default).
@@ -204,7 +306,7 @@ DISAMBIGUATION RULES (when to ask the user — but in this extractor you must re
 ----------------------------
 OUTPUT & TONE
 ----------------------------
-- Professional Tone: Use context-aware titles for the 'desc' field.
+- Professional Tone & Formatting: Use Title Case for the 'desc' field (e.g. "AC Repair", not "Ac repair").
 - **Brevity Extreme**: Choose primary descriptions ('desc'/'name') and subcategory names to be as short as possible without sacrificing informativeness. Use concise, impactful technical terms.
 - Keep descriptions short and free of parentheses/metadata.
 - Put all specific actions/details into the 'sub_categories' array.
@@ -243,11 +345,14 @@ Return EXACTLY the JSON structure below (use null for unknown numeric, empty arr
     { "name": "", "price": "", "taxable": false, "tax_rate": null, "discount_flat": "", "discount_percent": "", "sub_categories": [] }
   ],
   "fees": [
-    { "name": "", "price": "", "taxable": true, "tax_rate": null, "discount_flat": "", "discount_percent": "", "sub_categories": [] }
+    { "name": "", "price": "", "taxable": null, "tax_rate": null, "discount_flat": "", "discount_percent": "", "sub_categories": [] }
   ],
   "due_days": null,
   "due_date": null,
-  "raw_summary": ""
+  "raw_summary": "",
+  "clarifications": [
+    { "field": "materials.unit_price", "guess": 795, "question": "You said 'just under 800' for parts. What's the exact amount?" }
+  ]
 }
 PROMPT
 
@@ -448,7 +553,7 @@ PROMPT
               inherit_percent_discount = true
 
               {
-                desc: item["desc"].to_s.strip.humanize,
+                desc: item["desc"].to_s.strip,
                 price: item_qty_or_amount,
                 rate: item_rate_val,
                 mode: item_mode,
@@ -462,7 +567,7 @@ PROMPT
               }
             else
               {
-                desc: item.to_s.strip.humanize,
+                desc: item.to_s.strip,
                 price: (idx == 0 ? (json["billing_mode"] == "fixed" ? json["fixed_price"] : json["labor_hours"]) : ""),
                 discount_flat: clean_num(json["labor_discount_flat"].present? ? json["labor_discount_flat"] : ""),
                 discount_percent: clean_num(json["labor_discount_percent"].present? ? json["labor_discount_percent"] : ""),
@@ -512,7 +617,7 @@ PROMPT
             end
 
             {
-              desc: d_text.humanize,
+              desc: d_text,
               qty: q_val || 1,
               price: clean_num(m["unit_price"]),
               taxable: to_bool(m["taxable"]),
@@ -531,7 +636,7 @@ PROMPT
           title: "Expenses",
           items: json["expenses"].map do |e|
             {
-              desc: (e["name"].presence || e["desc"].presence || "").to_s.strip.humanize,
+              desc: (e["name"].presence || e["desc"].presence || "").to_s.strip,
               price: clean_num(e["price"]),
               taxable: to_bool(e["taxable"]), # Default handled in helper if nil logic needed, but strict bool here
               tax_rate: clean_num(e["tax_rate"]),
@@ -549,7 +654,7 @@ PROMPT
           title: "Fees",
           items: json["fees"].map do |f|
             {
-              desc: (f["name"].presence || f["desc"].presence || "").to_s.strip.humanize,
+              desc: (f["name"].presence || f["desc"].presence || "").to_s.strip,
               price: clean_num(f["price"]),
               taxable: to_bool(f["taxable"]), # Default handled in helper if nil logic needed, but strict bool here
               tax_rate: clean_num(f["tax_rate"]),
@@ -564,7 +669,7 @@ PROMPT
       final_response = {
         "client" => json["client"],
         "time" => json["time"],
-        "raw_summary" => json["raw_summary"],
+        "raw_summary" => (is_manual_text ? nil : json["raw_summary"]),
         "sections" => json["sections"],
         "tax_scope" => json["tax_scope"],
         "billing_mode" => json["billing_mode"],
@@ -579,7 +684,8 @@ PROMPT
         "credits" => json["credits"], # Now the only source of truth
         "discount_tax_mode" => json["discount_tax_mode"],
         "due_days" => json["due_days"],
-        "due_date" => json["due_date"]
+        "due_date" => json["due_date"],
+        "clarifications" => Array(json["clarifications"]).select { |c| c.is_a?(Hash) && c["question"].present? }
       }
 
       Rails.logger.info "FINAL NORMALIZED JSON: #{final_response.to_json}"
@@ -591,12 +697,6 @@ PROMPT
     end
   end
 
-
-  private
-
-  def set_profile
-    @profile = Profile.first || Profile.new
-  end
 
   def clean_num(val)
     return nil if val.blank?
@@ -625,6 +725,7 @@ PROMPT
       :address,
       :tax_id,
       :hourly_rate,
+      :hours_per_workday,
       :tax_rate,
       :tax_scope,
       :payment_instructions,
@@ -633,7 +734,8 @@ PROMPT
       :invoice_style,
       :discount_tax_rule,
       :remove_logo,
-      :logo
+      :logo,
+      :accent_color
     )
   end
 end

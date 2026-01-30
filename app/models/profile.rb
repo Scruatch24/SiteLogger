@@ -4,9 +4,13 @@ class Profile < ApplicationRecord
       # attachable.variant :thumb, resize_to_limit: [100, 100]
       # attachable.variant :display, resize_to_limit: [300, 300]
     end
+    belongs_to :user, optional: true
 
     validates :business_name, presence: true
     validates :email, presence: true
+    validates :tax_rate, numericality: { less_than_or_equal_to: 100, allow_nil: true }
+    validates :hourly_rate, numericality: { less_than_or_equal_to: 999999999, allow_nil: true }
+    validates :hours_per_workday, numericality: { greater_than_or_equal_to: 1, less_than_or_equal_to: 24, allow_nil: true }
 
     # These validators now work thanks to the active_storage_validations gem
     validates :logo, content_type: [ "image/png", "image/jpg", "image/jpeg" ],
@@ -15,7 +19,6 @@ class Profile < ApplicationRecord
     attr_accessor :remove_logo
 
     before_save :check_remove_logo
-    before_save :set_free_plan_if_guest
     validate :validate_address_lines
     validate :validate_payment_instructions_lines
 
@@ -59,19 +62,23 @@ class Profile < ApplicationRecord
 
     def validate_address_lines
       return if address.blank?
-      if address.to_s.lines.count > 4
+      lines = address.to_s.lines.map(&:chomp)
+      if lines.count > 4
         errors.add(:address, "cannot exceed 4 lines")
+      end
+      if lines.any? { |l| l.length > 50 }
+        errors.add(:address, "each line cannot exceed 50 characters")
       end
     end
 
     def validate_payment_instructions_lines
       return if payment_instructions.blank?
-      if payment_instructions.to_s.lines.count > 8
+      lines = payment_instructions.to_s.lines.map(&:chomp)
+      if lines.count > 8
         errors.add(:payment_instructions, "cannot exceed 8 lines")
       end
-    end
-
-    def set_free_plan_if_guest
-      self.plan = "free" if plan.blank? || plan == "guest"
+      if lines.any? { |l| l.length > 50 }
+        errors.add(:payment_instructions, "each line cannot exceed 50 characters")
+      end
     end
 end

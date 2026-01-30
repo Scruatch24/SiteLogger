@@ -1,4 +1,69 @@
 class Log < ApplicationRecord
   serialize :tasks, coder: JSON
   serialize :credits, coder: JSON
+  belongs_to :user, optional: true
+
+  has_many :log_category_assignments, dependent: :destroy
+  has_many :categories, through: :log_category_assignments
+
+  STATUSES = %w[draft sent paid overdue].freeze
+
+  def overdue?
+    return false if status == "paid"
+    return true if status == "overdue" # Manually set
+
+    # Auto-check: if sent/draft and past due_date
+    if due_date.present? && (status == "draft" || status == "sent")
+      begin
+        # Attempt to parse due_date. We need to be careful with formatting if it's not ISO.
+        # Home page uses log.date || log.created_at.strftime("%b %d, %Y")
+        # Let's assume due_date is stored in a way we can parse.
+        parsed_due = Date.parse(due_date) rescue nil
+        return parsed_due < Date.today if parsed_due
+      rescue
+        false
+      end
+    end
+    false
+  end
+
+  def current_status
+    overdue? ? "overdue" : status
+  end
+
+  before_create :assign_invoice_number
+
+  def display_number
+    # Use the persisted invoice_number if available (check if method exists to be safe against stale schema cache)
+    if respond_to?(:invoice_number) && invoice_number.present?
+      return invoice_number
+    end
+
+    # Fallback for unsaved records (preview):
+    self.class.next_display_number(user)
+  end
+
+  def self.next_display_number(user = nil)
+    # Find the maximum existing invoice number for this user (or guest)
+    scope = where(user_id: user&.id)
+
+    # Retry logic for stale schema cache
+    begin
+      max_num = scope.maximum(:invoice_number)
+    rescue
+      reset_column_information
+      max_num = scope.maximum(:invoice_number)
+    end
+
+    # If no invoices exist, start at 1001
+    # If invoices exist, increment the highest number
+    (max_num || 1000) + 1
+  end
+
+  private
+
+  def assign_invoice_number
+    # Assign the next number only if not already set
+    self.invoice_number ||= self.class.next_display_number(user)
+  end
 end

@@ -1,9 +1,227 @@
+<%= render "home/svg_symbols" %>
+<style>
+  .log-menu-dropdown {
+    transition: all 0.3s cubic-bezier(0.19, 1, 0.22, 1);
+    transform: scale(0.95) translateY(-20px);
+    opacity: 0;
+    pointer-events: none;
+    filter: blur(10px);
+    transform-origin: top right;
+  }
+  .log-menu-dropdown.active {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+    filter: blur(0);
+  }
+
+  /* Selection Mode Styles */
+  .log-card.selection-mode {
+    cursor: pointer;
+  }
+  .log-card.selected .card-inner {
+    border-color: #f97316 !important;
+    box-shadow: 4px 4px 0px 0px #f97316 !important;
+  }
+  .log-card.selected .selection-checkbox {
+    background-color: #f97316;
+    border-color: #f97316;
+    transform: scale(1);
+  }
+  .log-card.selected .selection-checkbox svg {
+    transform: scale(1);
+  }
+
+  .log-card.selection-mode .selection-checkbox {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  /* Transition the chevron down when selection mode is active */
+  .log-card .chevron-icon {
+    position: absolute;
+    top: 2px;
+    left: 50%;
+    transform: translateX(-50%) rotate(0deg);
+    transition: all 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+  }
+  .log-card .chevron-icon.rotate-180 {
+    transform: translateX(-50%) rotate(180deg);
+  }
+  .log-card.selection-mode .chevron-icon {
+    top: 32px;
+  }
+  /* Selection mode rotation handle - keeping specialized for clarity but general rotate-180 above handles it */
+  .log-card.selection-mode .chevron-icon.rotate-180 {
+    transform: translateX(-50%) rotate(180deg);
+  }
+
+  /* Status Badge Chevron Animation */
+  .status-chevron {
+    transition: transform 0.3s cubic-bezier(0.19, 1, 0.22, 1);
+  }
+  .status-chevron.rotate-180 {
+    transform: rotate(180deg);
+  }
+
+  .bulk-action-bar {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    z-index: 100;
+    transition: all 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+    opacity: 0;
+    pointer-events: none;
+  }
+  .bulk-action-bar.active {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .bulk-action-bar-inner {
+    background-color: #f97316;
+    border: 3px solid black;
+    box-shadow: 8px 8px 0px 0px rgba(0,0,0,1);
+  }
+
+  /* Hamburger to X Morph */
+  .log-menu-btn .line {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-origin: center;
+  }
+  .log-menu-btn.active .line-1 { transform: translateY(6px) rotate(45deg); }
+  .log-menu-btn.active .line-2 { opacity: 0; transform: scaleX(0); }
+  .log-menu-btn.active .line-3 { transform: translateY(-6px) rotate(-45deg); }
+
+  /* Icon Micro-Animations */
+  @keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
+  .group\/item:hover .icon-recreate { animation: spin-slow 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
+
+  @keyframes pen-draw { 
+    0%, 100% { transform: translate(0,0); }
+    50% { transform: translate(2px, -2px); }
+  }
+  .group\/item:hover .icon-rename { animation: pen-draw 0.5s ease-in-out infinite; }
+
+  @keyframes pin-wobble {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(-15deg); }
+    75% { transform: rotate(15deg); }
+  }
+  .group\/item:hover .icon-pin { animation: pin-wobble 0.4s ease-in-out; }
+
+  @keyframes trash-lid {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-3px) rotate(-5deg); }
+  }
+  .group\/item:hover .icon-delete-lid { animation: trash-lid 0.4s ease-in-out; }
+
+  /* Base transition for all potentially editable fields to ensure smooth exit */
+  [data-editable-type] {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    /* Ensure transform origin is useful if we scale */
+    transform-origin: left center;
+  }
+
+  /* Specific tweak for Client Name to move it down visually when editing */
+  h3[data-editable-type][contenteditable="true"] {
+    transform: translateY(6px);
+  }
+
+  [contenteditable="true"] {
+    outline: 2px dashed #3b82f6;
+    outline-offset: 4px;
+    border-radius: 4px;
+    background-color: #eff6ff;
+    cursor: text;
+    padding: 2px 4px;
+    min-width: 20px;
+    /* transition is inherited/cascaded from base rule now, but we keep generic param just in case */
+    margin-bottom: 20px;
+    margin-top: 4px;
+    position: relative;
+    z-index: 10;
+  }
+  [contenteditable="true"]:focus {
+    outline: 2px solid #3b82f6;
+    background-color: white;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    z-index: 20;
+  }
+
+  /* Modal Styles */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  .modal-backdrop.active {
+    display: flex;
+  }
+  .modal-content {
+    background: white;
+    width: 100%;
+    max-width: 400px;
+    border: 3px solid black;
+    border-radius: 24px;
+    box-shadow: 8px 8px 0px 0px rgba(0,0,0,1);
+    padding: 24px;
+    position: relative;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  .icon-option {
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.2s;
+  }
+  .icon-option.selected {
+    border-color: black;
+    background: #f3f4f6;
+  }
+
+  /* Custom Styles for Manage Categories Modal */
+  .manage-category-item.removing-category {
+    background-color: #fef2f2 !important; /* light red */
+  }
+  .manage-category-item.removing-category .check-indicator {
+    background-color: #dc2626 !important; /* dark red */
+    border-color: #dc2626 !important;
+  }
+
+  label:has(input[type="checkbox"]:checked) .check-indicator {
+    background-color: #f97316 !important; /* orange */
+    border-color: #f97316 !important;
+    transform: scale(1.1);
+  }
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #e5e7eb;
+    border-radius: 10px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #d1d5db;
+  }
+</style>
+
 <div class="min-h-screen bg-white text-black font-sans p-4 pb-32">
   <header class="sticky top-0 z-40 bg-white border-b-2 border-black md:border-b-0 md:static md:bg-transparent -mx-4 px-4 py-3 mb-6 md:mb-4 md:pt-4 md:px-1 flex items-center justify-between gap-2 md:gap-4 shadow-sm md:shadow-none">
     <div class="flex items-center gap-3">
       <%= link_to root_path, class: "p-1.5 md:p-2 bg-white border-2 border-black rounded-xl text-black nav-link-hover transition-all active:scale-95 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] shrink-0" do %>
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+        <svg class="h-5 w-5">
+          <use xlink:href="#icon-chevron-down" style="transform: rotate(90deg); transform-origin: center;"></use>
         </svg>
       <% end %>
       <h1 class="text-xl md:text-2xl font-black tracking-tighter text-black uppercase italic truncate pr-2">
@@ -12,16 +230,50 @@
     </div>
   </header>
 
-  <main class="max-w-2xl mx-auto space-y-8">
-    <div class="flex justify-end px-1 -mb-4">
-      <% if @logs.any? %>
-        <button type="button" 
-                onclick="toggleClearModal(true)"
-                class="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 text-[10px] font-black uppercase tracking-widest border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] active:scale-95 transition-all">
-          Clear All
-        </button>
-      <% end %>
+
+
+  <main class="max-w-2xl mx-auto py-8">
+    <!-- Tabs / Selectors -->
+    <div class="mb-8 px-4">
+       <!-- Brutalist Premium View Selector -->
+       <div class="relative flex p-1 bg-white rounded-2xl border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden h-14">
+        <!-- Sliding Highlight Pill (Slim/Inset version) -->
+         <div id="tab-highlight" 
+              class="absolute top-0 bottom-0 left-0 w-1/3 p-2 transition-all duration-500 ease-[cubic-bezier(0.19,1,0.22,1)]">
+           <div class="w-full h-full bg-orange-600 rounded-xl border-2 border-black"></div>
+         </div>
+
+         <button onclick="switchView('all')" id="tab-all" 
+                 class="relative z-10 flex-1 flex items-center justify-center text-xs font-black uppercase tracking-widest text-white transition-colors duration-300">
+           All
+         </button>
+         <button onclick="switchView('categories')" id="tab-categories" 
+                 class="relative z-10 flex-1 flex items-center justify-center text-xs font-bold uppercase tracking-widest text-black/40 transition-colors duration-300">
+           Categories
+         </button>
+         <button onclick="switchView('clients')" id="tab-clients" 
+                 class="relative z-10 flex-1 flex items-center justify-center text-xs font-bold uppercase tracking-widest text-black/40 transition-colors duration-300">
+           Clients
+         </button>
+       </div>
     </div>
+
+    <!-- Search Bar -->
+    <div class="mb-6 px-4">
+      <div class="relative w-full">
+        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+          <svg class="h-5 w-5 text-gray-400">
+            <use xlink:href="#icon-search"></use>
+          </svg>
+        </div>
+        <input type="text" 
+               id="historySearch" 
+               placeholder="Search clients, items, dates..." 
+               autocomplete="off"
+               class="w-full pl-12 pr-4 py-3 bg-white border-2 border-black rounded-xl text-black placeholder-gray-400 font-bold focus:outline-none focus:ring-0 focus:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-shadow">
+      </div>
+    </div>
+
     <% if @logs.empty? %>
       <div class="text-center py-20 opacity-50">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -31,294 +283,1627 @@
         <p class="text-sm">Generate invoices to see them here.</p>
       </div>
     <% else %>
-      <% @logs.each do |log| %>
-        <% stats = calculate_log_totals(log, @profile) %>
-        <% currency = stats[:currency] %>
-        
-        <div class="bg-white border-2 border-black rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-          
-          <!-- Card Header -->
-          <div class="bg-gray-50 border-b-2 border-black p-4 flex justify-between items-start">
-            <div>
-              <div class="flex items-center gap-2 mb-1">
-                <span class="text-xs font-black text-orange-600 bg-orange-100 px-2 py-0.5 rounded uppercase tracking-wider">
-                  INV-<%= 1000 + log.id %>
-                </span>
-                <span class="text-xs font-bold text-gray-500 uppercase tracking-widest">
-                  <%= log.date || log.created_at.strftime("%b %d, %Y") %>
-                </span>
-              </div>
-              <h3 class="text-xl font-black text-black leading-none">
-                <%= log.client.presence || "Unknown Client" %>
-              </h3>
-            </div>
-            <div class="text-right">
-              <div class="text-2xl font-black text-orange-600">
-                <%= format_money_ruby(stats[:total_due], @profile, currency) %>
-              </div>
-              <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Balance Due</div>
-            </div>
-          </div>
 
-          <!-- Items List -->
-          <div class="p-4 space-y-4">
-            
-            <% # LABOR %>
-            <% if stats[:categorized_items][:labor].any? %>
-              <div class="space-y-2">
-                <div class="flex items-center gap-2 pb-1 border-b border-gray-100">
-                  <div class="w-5 h-5 bg-orange-100 rounded flex items-center justify-center text-orange-600">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
-                      <path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd" />
-                    </svg>
-                  </div>
-                  <span class="text-xs font-black text-gray-400 uppercase tracking-widest">Labor</span>
-                </div>
-                <% stats[:categorized_items][:labor].each do |item| %>
-                  <%= render partial: "home/history_item", locals: { item: item, profile: @profile, currency: currency } %>
-                <% end %>
-              </div>
-            <% end %>
-
-            <% # MATERIALS %>
-            <% if stats[:categorized_items][:material].any? %>
-              <div class="space-y-2 pt-2">
-                <div class="flex items-center gap-2 pb-1 border-b border-gray-100">
-                  <div class="w-5 h-5 bg-orange-100 rounded flex items-center justify-center text-orange-600">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M4 3a2 2 0 100 4h12a2 2 0 100-4H4z" />
-                      <path fill-rule="evenodd" d="M3 8h14v7a2 2 0 01-2 2H5a2 2 0 01-2-2V8zm5 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" clip-rule="evenodd" />
-                    </svg>
-                  </div>
-                  <span class="text-xs font-black text-gray-400 uppercase tracking-widest">Materials</span>
-                </div>
-                <% stats[:categorized_items][:material].each do |item| %>
-                  <%= render partial: "home/history_item", locals: { item: item, profile: @profile, currency: currency } %>
-                <% end %>
-              </div>
-            <% end %>
-
-            <% # EXPENSES %>
-            <% if stats[:categorized_items][:expense].any? %>
-              <div class="space-y-2 pt-2">
-                <div class="flex items-center w-full gap-2 pb-1 border-b border-gray-100">
-                  <div class="w-5 h-5 bg-red-100 rounded flex items-center justify-center text-red-600">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                      <path fill-rule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm2 10a1 1 0 100 2h3a1 1 0 100-2H8zm0-3a1 1 0 110-2h3a1 1 0 110 2H8z" clip-rule="evenodd" />
-                    </svg>
-                  </div>
-                  <span class="text-xs font-black text-gray-400 uppercase tracking-widest">Expenses</span>
-                </div>
-                <% stats[:categorized_items][:expense].each do |item| %>
-                  <%= render partial: "home/history_item", locals: { item: item, profile: @profile, currency: currency } %>
-                <% end %>
-              </div>
-            <% end %>
-
-            <% # FEES %>
-            <% if stats[:categorized_items][:fee].any? %>
-              <div class="space-y-2 pt-2">
-                <div class="flex items-center w-full gap-2 pb-1 border-b border-gray-100">
-                  <div class="w-5 h-5 bg-blue-100 rounded flex items-center justify-center text-blue-600">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M17.707 9.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-7-7A.997.997 0 012 10V5a3 3 0 013-3h5c.256 0 .512.098.707.293l7 7zM5 6a1 1 0 100-2 1 1 0 000 2z" />
-                    </svg>
-                  </div>
-                  <span class="text-xs font-black text-gray-400 uppercase tracking-widest">Fees</span>
-                </div>
-                <% stats[:categorized_items][:fee].each do |item| %>
-                  <%= render partial: "home/history_item", locals: { item: item, profile: @profile, currency: currency } %>
-                <% end %>
-              </div>
-            <% end %>
-
-            <% # OTHER %>
-            <% if stats[:categorized_items][:other].any? %>
-              <div class="space-y-2 pt-2">
-                <div class="flex items-center w-full gap-2 pb-1 border-b border-gray-100">
-                  <div class="w-5 h-5 bg-gray-100 rounded flex items-center justify-center text-gray-600">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
-                      <path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd" />
-                    </svg>
-                  </div>
-                  <span class="text-xs font-black text-gray-400 uppercase tracking-widest">Other</span>
-                </div>
-                <% stats[:categorized_items][:other].each do |item| %>
-                  <%= render partial: "home/history_item", locals: { item: item, profile: @profile, currency: currency } %>
-                <% end %>
-              </div>
-            <% end %>
-
-            <% # CREDITS %>
-            <% if stats[:credits].any? %>
-              <div class="space-y-2 pt-2">
-                <div class="flex items-center gap-2 pb-1 border-b border-gray-100">
-                  <div class="w-5 h-5 bg-red-100 rounded flex items-center justify-center text-red-600">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z" />
-                      <path fill-rule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clip-rule="evenodd" />
-                    </svg>
-                  </div>
-                  <span class="text-xs font-black text-red-400 uppercase tracking-widest">Credits</span>
-                </div>
-                <% stats[:credits].each do |credit| %>
-                  <div class="flex justify-between items-center text-sm">
-                    <div class="font-medium text-red-700"><%= credit[:reason] %></div>
-                    <div class="font-bold text-red-700">-<%= format_money_ruby(credit[:amount], @profile, currency) %></div>
-                  </div>
-                <% end %>
-              </div>
-            <% end %>
-
-          </div>
-
-          <!-- Summary & Actions -->
-          <div class="bg-gray-50 border-t-2 border-black p-4">
-            <!-- Totals Breakdown (9-Step) -->
-            <div class="space-y-1.5 mb-4 text-xs font-bold uppercase tracking-tight">
-               
-               <% # 1 & 2. ITEMS TOTAL & ITEM DISCOUNTS (Conditional) %>
-               <% if stats[:item_discount_total] > 0 %>
-                 <div class="flex justify-between text-gray-400">
-                   <span class="font-black">Items Total</span>
-                   <span><%= format_money_ruby(stats[:items_total], @profile, currency) %></span>
-                 </div>
-                 <div class="flex justify-between text-green-600">
-                   <span>Item Discounts</span>
-                   <span>-<%= format_money_ruby(stats[:item_discount_total], @profile, currency) %></span>
-                 </div>
-                 <div class="border-t border-dashed border-gray-300 my-1"></div>
-               <% end %>
-
-               <% # 3. SUBTOTAL %>
-               <div class="flex justify-between text-gray-500">
-                 <span class="font-black">Subtotal</span>
-                 <span class="text-black"><%= format_money_ruby(stats[:net_items_subtotal], @profile, currency) %></span>
-               </div>
-
-               <% # 4 & 5. INVOICE DISCOUNT & TAXABLE TOTAL (Conditional) %>
-               <% if stats[:global_discount_amount] > 0 %>
-                 <div class="flex justify-between text-green-600">
-                   <span>Invoice Discount</span>
-                   <span>
-                     -<%= format_money_ruby(stats[:global_discount_amount], @profile, currency) %>
-                     <% if stats[:global_discount_percent] > 0 %>
-                       (-<%= clean_num(stats[:global_discount_percent]) %>%)
-                     <% end %>
-                   </span>
-                 </div>
-                 <div class="border-t border-dashed border-gray-300 my-1"></div>
-                 <div class="flex justify-between text-gray-500">
-                   <span class="font-black">Taxable Total</span>
-                   <span class="text-black"><%= format_money_ruby(stats[:taxable_total], @profile, currency) %></span>
-                 </div>
-               <% end %>
-
-               <% # 6. TAX %>
-               <div class="flex justify-between text-orange-600">
-                 <span>Tax</span>
-                 <span><%= format_money_ruby(stats[:tax_amount], @profile, currency) %></span>
-               </div>
-
-               <% # 7 & 8. TOTAL BEFORE CREDIT & CREDIT APPLIED (Conditional) %>
-               <% if stats[:total_credits] > 0 %>
-                 <div class="border-t border-dashed border-gray-300 my-1"></div>
-                 <div class="flex justify-between text-gray-500">
-                   <span class="font-black">Total Before Credit</span>
-                   <span class="text-black"><%= format_money_ruby(stats[:total_before_credits], @profile, currency) %></span>
-                 </div>
-                 <div class="flex justify-between text-red-600">
-                   <span>Credit Applied</span>
-                   <span>-<%= format_money_ruby(stats[:total_credits], @profile, currency) %></span>
-                 </div>
-               <% end %>
-
-               <div class="pt-2 mt-2 border-t-2 border-black flex justify-between text-black font-black text-sm">
-                 <span>Balance Due</span>
-                 <span class="text-orange-600"><%= format_money_ruby(stats[:total_due], @profile, currency) %></span>
-               </div>
-            </div>
-
-            <!-- Action Buttons -->
-            <div class="grid grid-cols-2 gap-3">
-              <%= link_to download_pdf_log_path(log), class: "flex items-center justify-center gap-2 bg-orange-600 text-white px-4 py-2 border-2 border-black rounded-lg font-black text-xs uppercase tracking-widest hover:bg-orange-700 transition-all shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] active:scale-95", target: "_blank", onclick: "window.trackEvent('invoice_exported')" do %>
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                PDF
-              <% end %>
-
-              <%= button_to log_path(log), method: :delete, class: "w-full flex items-center justify-center gap-2 bg-white border-2 border-black text-black px-4 py-2 rounded-lg font-black text-xs uppercase tracking-widest hover:bg-red-50 hover:text-red-600 transition-all shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] active:scale-95", form: { data: { turbo_confirm: "Delete this log?" } } do %>
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-                Delete
-              <% end %>
-            </div>
-          </div>
-
+      <!-- VIEW: ALL -->
+      <div id="view-all" class="view-section">
+        <div class="flex flex-col gap-20 px-4 pt-12">
+          <% @logs.each do |log| %>
+            <%= render partial: "home/log_card", locals: { log: log } %>
+          <% end %>
         </div>
-      <% end %>
+      </div>
+
+      <!-- VIEW: CATEGORIES -->
+      <div id="view-categories" class="view-section hidden">
+        <% 
+            # icon_map replaced by centralized category_icon_map helper
+        %>
+
+        <!-- INDEX: GRID OF TILES -->
+        <div id="categories-index" class="px-4">
+          <div class="grid grid-cols-2 gap-4">
+            <!-- Add Category Tile -->
+            <button onclick="openAddCategoryModal()" 
+                    class="aspect-[4/3] border-4 border-black border-dashed rounded-3xl bg-gray-50 flex flex-col items-center justify-center gap-3 hover:bg-white hover:border-solid hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transition-all group active:scale-95">
+              <div class="w-12 h-12 rounded-full bg-black text-white flex items-center justify-center group-hover:scale-110 transition-transform">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+              </div>
+              <span class="text-xs font-black uppercase tracking-widest text-black">New Category</span>
+            </button>
+
+            <!-- Favorites Tile -->
+            <% 
+               fav_cat = @categories.find { |c| c.name == 'Favorites' } 
+               favorites = fav_cat ? fav_cat.logs : []
+            %>
+            <div onclick="enterCategory('favorites')" 
+                 class="aspect-[4/3] border-4 border-black rounded-3xl bg-white shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col items-center justify-center gap-3 cursor-pointer hover:-translate-y-1 hover:shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] transition-all active:scale-95 group">
+              <div class="w-14 h-14 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                </svg>
+              </div>
+              <div class="text-center">
+                <span class="block text-xs font-black uppercase tracking-widest">Favorites</span>
+                <span id="fav-count" class="text-[10px] font-bold text-gray-400 uppercase tracking-widest" data-category-count="favorites"><%= favorites.size %> Items</span>
+              </div>
+            </div>
+
+            <!-- User Categories Tiles -->
+            <% @categories.each do |category| %>
+              <% next if category.name == 'Favorites' %>
+              <div onclick="enterCategory('cat-<%= category.id %>')" 
+                   class="aspect-[4/3] border-4 border-black rounded-3xl bg-white shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col items-center justify-center gap-3 cursor-pointer hover:-translate-y-1 hover:shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] transition-all active:scale-95 group">
+                <div class="w-14 h-14 rounded-2xl flex items-center justify-center overflow-hidden relative group-hover:scale-110 transition-transform"
+                     style="<%= category.color.present? ? "background-color: #{category.color}20; color: #{category.color};" : "background-color: #f3f4f6; color: black;" %>">
+                   <% if category.icon_type == 'custom' && category.custom_icon.attached? %>
+                     <%= image_tag category.custom_icon, class: "w-full h-full object-cover" %>
+                   <% else %>
+                     <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 20 20" fill="currentColor">
+                       <%= category_icon_map[category.icon].to_s.html_safe %>
+                     </svg>
+                   <% end %>
+                </div>
+                <div class="text-center px-2">
+                  <span class="block text-xs font-black uppercase tracking-widest truncate max-w-[120px]"><%= category.name %></span>
+                  <span id="cat-count-<%= category.id %>" class="text-[10px] font-bold text-gray-400 uppercase tracking-widest" data-category-count="cat-<%= category.id %>"><%= category.logs.size %> Items</span>
+                </div>
+              </div>
+            <% end %>
+          </div>
+        </div>
+
+        <!-- DETAILS: INDIVIDUAL VIEWS (HIDDEN) -->
+        <div id="categories-details" class="px-4 hidden">
+          <!-- Back button -->
+          <button onclick="exitCategory()" class="mb-6 flex items-center gap-2 text-black hover:text-orange-600 transition-colors group">
+            <div class="w-8 h-8 rounded-full border-2 border-black flex items-center justify-center group-hover:bg-orange-600 group-hover:text-white transition-all">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+              </svg>
+            </div>
+            <span class="text-xs font-black uppercase tracking-widest">Back to Categories</span>
+          </button>
+
+          <!-- Detail Containers -->
+          <div id="category-detail-favorites" class="category-detail-view hidden">
+            <div class="flex items-center gap-4 mb-10">
+              <div class="w-16 h-16 bg-amber-50 rounded-3xl flex items-center justify-center text-amber-500">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                </svg>
+              </div>
+              <div>
+                <h2 class="text-2xl font-black uppercase italic tracking-tighter">FAVORITES</h2>
+                <p id="fav-detail-count" class="text-xs font-bold text-gray-400 uppercase tracking-widest" data-category-count="favorites"><%= favorites.size %> Items Found</p>
+              </div>
+            </div>
+            <% if favorites.any? %>
+            <div class="flex flex-col gap-20 pt-12">
+                <% favorites.each do |log| %>
+                  <%= render partial: "home/log_card", locals: { log: log, suffix: "-fav" } %>
+                <% end %>
+              </div>
+            <% else %>
+              <div class="py-20 text-center opacity-50">
+                <p class="font-bold">No favorites yet</p>
+              </div>
+            <% end %>
+          </div>
+
+          <% @categories.each do |category| %>
+            <% next if category.name == 'Favorites' %>
+            <div id="category-detail-cat-<%= category.id %>" class="category-detail-view hidden">
+              <div class="flex items-center justify-between mb-10">
+                <div class="flex items-center gap-4">
+                  <div class="w-16 h-16 rounded-3xl flex items-center justify-center overflow-hidden relative"
+                       style="<%= category.color.present? ? "background-color: #{category.color}20; color: #{category.color};" : "background-color: #f3f4f6; color: black;" %>">
+                     <% if category.icon_type == 'custom' && category.custom_icon.attached? %>
+                       <%= image_tag category.custom_icon, class: "w-full h-full object-cover", loading: "lazy" %>
+                     <% else %>
+                       <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" viewBox="0 0 20 20" fill="currentColor">
+                         <%= category_icon_map[category.icon].to_s.html_safe %>
+                       </svg>
+                     <% end %>
+                  </div>
+                  <div>
+                    <h2 class="text-2xl font-black uppercase italic tracking-tighter"><%= category.name %></h2>
+                    <p id="cat-detail-count-<%= category.id %>" class="text-xs font-bold text-gray-400 uppercase tracking-widest" data-category-count="cat-<%= category.id %>"><%= category.logs.size %> Items Found</p>
+                  </div>
+                </div>
+                
+                <%= button_tag type: 'button', 
+                              class: "p-3 bg-red-50 text-red-500 rounded-2xl hover:bg-red-500 hover:text-white transition-all active:scale-90",
+                              data: { category_id: category.id, category_name: category.name },
+                              onclick: "handleDeleteClick(this)" do %>
+                  <svg class="h-5 w-5">
+                    <use xlink:href="#icon-delete"></use>
+                  </svg>
+                <% end %>
+
+                <form id="delete-form-<%= category.id %>" action="<%= category_path(category) %>" method="post" class="hidden">
+                  <input type="hidden" name="_method" value="delete">
+                  <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
+                </form>
+              </div>
+
+              <% if category.logs.any? %>
+                <div class="flex flex-col gap-20 pt-12">
+                  <% category.logs.each do |log| %>
+                    <%= render partial: "home/log_card", locals: { log: log } %>
+                  <% end %>
+                </div>
+              <% else %>
+                <div class="py-20 text-center opacity-50">
+                   <p class="font-bold">No entries in this category</p>
+                </div>
+              <% end %>
+            </div>
+          <% end %>
+        </div>
+      </div>
+
+      <!-- VIEW: CLIENTS -->
+      <div id="view-clients" class="view-section hidden">
+         <div class="text-center py-32 flex flex-col items-center">
+            <div class="w-20 h-20 bg-gray-50 border-4 border-black border-dashed rounded-full flex items-center justify-center text-black/20 mb-6">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+            </div>
+            <h2 class="text-2xl font-black uppercase italic tracking-tighter text-black mb-2">CLIENT CRM <span class="text-orange-600">INBOUND</span></h2>
+            <p class="text-xs font-bold text-gray-400 uppercase tracking-widest">A dedicated space for your clients is under construction.</p>
+         </div>
+      </div>
+
     <% end %>
   </main>
 
-  <!-- Custom Confirmation Modal -->
-  <div id="clearConfirmModal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4">
-    <!-- Backdrop -->
-    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="toggleClearModal(false)"></div>
-    
-    <!-- Modal Content -->
-    <div class="relative bg-white border-4 border-black rounded-3xl p-8 max-w-sm w-full shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] animate-in fade-in zoom-in duration-200">
-      <div class="flex flex-col items-center text-center space-y-6">
-        <!-- Warning Icon -->
-        <div class="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+  <!-- Bulk Action Bar -->
+  <div id="bulkActionBar" class="bulk-action-bar w-[calc(100%-32px)] max-w-lg">
+    <div class="bulk-action-bar-inner w-full text-white rounded-3xl p-4 flex items-center justify-between">
+      <div class="flex flex-col pl-2">
+        <span id="bulkCount" class="text-xl font-black italic tracking-tighter leading-none">0 ITEMS</span>
+        <span class="text-[8px] font-black uppercase tracking-[0.2em] text-white/70">Selected</span>
+      </div>
+      
+      <div class="flex items-center gap-2">
+        <!-- Add to Category -->
+        <button onclick="handleBulkCategory()" class="w-12 h-12 rounded-2xl bg-white text-[#f97316] border-2 border-black flex items-center justify-center hover:bg-gray-100 transition-all group">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
           </svg>
-        </div>
+        </button>
 
-        <div class="space-y-2">
-          <h2 class="text-2xl font-black uppercase italic tracking-tighter">Clear History?</h2>
-          <p class="text-xs font-bold text-gray-400 uppercase tracking-widest leading-relaxed">
-            This will permanently delete all logs. This action cannot be undone.
-          </p>
-        </div>
+        <!-- Pin -->
+        <button onclick="handleBulkPin()" id="bulkPinBtn" class="w-12 h-12 rounded-2xl bg-white text-[#f97316] border-2 border-black flex items-center justify-center hover:bg-gray-100 transition-all group">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+          </svg>
+        </button>
 
-        <div class="flex flex-col w-full gap-3 pt-2">
-          <%= button_to clear_all_logs_path, method: :delete, 
-              class: "w-full py-4 bg-red-600 text-white border-2 border-black rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-[4px_4px_0px_0px_#000000] active:scale-[0.97] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all" do %>
-            Clear Everything
+        <!-- Delete -->
+        <button onclick="handleBulkDelete()" class="w-12 h-12 rounded-2xl bg-red-600 text-white border-2 border-black flex items-center justify-center hover:bg-red-700 transition-all group active:scale-90">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+        </button>
+
+        <div class="w-[1px] h-8 bg-white/20 mx-1"></div>
+
+        <!-- Close Selection Mode -->
+        <button onclick="exitSelectionMode()" class="w-9 h-9 rounded-xl bg-white text-black flex items-center justify-center hover:bg-gray-100 transition-all">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+</div>
+
+<!-- ADD CATEGORY MODAL -->
+<div id="addCategoryModal" class="modal-backdrop" style="z-index: 100;" onclick="closeAddCategoryModal(event)">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <div class="flex justify-between items-center mb-6">
+      <h2 class="text-xl font-black uppercase italic tracking-tighter">NEW <span class="text-orange-600">CATEGORY</span></h2>
+      <button onclick="closeAddCategoryModal()" class="text-gray-400 hover:text-black transition-colors">
+        <svg class="h-6 w-6">
+          <use xlink:href="#icon-delete"></use>
+        </svg>
+      </button>
+    </div>
+
+    <%= form_with(model: Category.new, url: categories_path, local: true, multipart: true, id: "categoryForm") do |f| %>
+      <div class="mb-6 relative">
+        <div class="flex justify-between items-center mb-2">
+          <label class="block text-[10px] font-black uppercase tracking-widest text-gray-500">Category Name</label>
+          <span id="categoryNameError" class="hidden text-[10px] font-black uppercase tracking-widest text-red-500 animate-pulse">Please fill out this field</span>
+        </div>
+        <%= f.text_field :name, id: "categoryNameInput", placeholder: "e.g. Real Estate", 
+            class: "w-full px-4 py-3 bg-white border-2 border-black rounded-xl font-bold focus:outline-none focus:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all" %>
+      </div>
+
+      <div class="mb-6">
+        <label class="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-3">Choose Icon</label>
+        
+        <div class="grid grid-cols-5 gap-3 mb-4" id="premadeIcons">
+          <% [
+            { id: 'briefcase', svg: '<path fill-rule="evenodd" d="M6 3.75A2.75 2.75 0 0 1 8.75 1h2.5A2.75 2.75 0 0 1 14 3.75v.443c.572.055 1.14.122 1.706.2C17.053 4.582 18 5.75 18 7.07v3.469c0 1.126-.694 2.191-1.83 2.54-1.952.599-4.024.921-6.17.921s-4.219-.322-6.17-.921C2.694 12.73 2 11.665 2 10.539V7.07c0-1.321.947-2.489 2.294-2.676A41.047 41.047 0 0 1 6 4.193V3.75Zm6.5 0v.325a41.622 41.622 0 0 0-5 0V3.75c0-.69.56-1.25 1.25-1.25h2.5c.69 0 1.25.56 1.25 1.25ZM10 10a1 1 0 0 0-1 1v.01a1 1 0 0 0 1 1h.01a1 1 0 0 0 1-1V11a1 1 0 0 0-1-1H10Z" clip-rule="evenodd" /><path d="M3 15.055v-.684c.126.053.255.1.39.142 2.092.642 4.313.987 6.61.987 2.297 0 4.518-.345 6.61-.987.135-.041.264-.089.39-.142v.684c0 1.347-.985 2.53-2.363 2.686a41.454 41.454 0 0 1-9.274 0C3.985 17.585 3 16.402 3 15.055Z" />' },
+            { id: 'home', svg: '<path fill-rule="evenodd" d="M9.293 2.293a1 1 0 0 1 1.414 0l7 7A1 1 0 0 1 17 11h-1v6a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1v-3a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v3a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-6H3a1 1 0 0 1-.707-1.707l7-7Z" clip-rule="evenodd" />' },
+            { id: 'star', svg: '<path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />' },
+            { id: 'heart', svg: '<path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd" />' },
+            { id: 'shopping-cart', svg: '<path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 4.632 14 6.414 14H15a1 1 0 000-2H6.414l1-1H14a1 1 0 00.894-.553l3-6A1 1 0 0017 3H6.28l-.31-1.243A1 1 0 005 1H3zM16 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM6.5 18a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" />' },
+            { id: 'tag', svg: '<path fill-rule="evenodd" d="M17.707 9.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-7-7A.997.997 0 012 10V5a3 3 0 013-3h5c.256 0 .512.098.707.293l7 7zM5 6a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />' },
+            { id: 'user', svg: '<path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />' },
+            { id: 'camera', svg: '<path fill-rule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-1.586a1 1 0 01-.707-.293l-1.121-1.121A2 2 0 0011.172 3H8.828a2 2 0 00-1.414.586L6.293 4.707A1 1 0 015.586 5H4zm6 9a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" />' },
+            { id: 'globe', svg: '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM4.332 8.027a6.012 6.012 0 011.912-2.706C6.512 5.73 6.974 6 7.5 6A1.5 1.5 0 019 7.5V8a2 2 0 004 0 2 2 0 014 0 1.499 1.499 0 01.8 2.315c-.322.692-.77 1.341-1.218 1.956L14 14v1a1 1 0 01-1 1h-1a1 1 0 01-1-1v-2h-1a1 1 0 01-1-1v-1a1 1 0 00-1-1H7a1 1 0 01-1-1v-1a1 1 0 00-1-1H4.332z" clip-rule="evenodd" />' },
+            { id: 'lightning', svg: '<path d="M11.983 1.907a.75.75 0 0 0-1.292-.657l-8.5 9.5A.75.75 0 0 0 2.75 12h6.572l-1.305 6.093a.75.75 0 0 0 1.292.657l8.5-9.5A.75.75 0 0 0 17.25 8h-6.572l1.305-6.093Z" />' }
+          ].each do |icon| %>
+            <div data-icon-id="<%= icon[:id] %>" onclick="selectPremadeIcon('<%= icon[:id] %>')"
+                 class="icon-option w-full aspect-square bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 hover:text-black hover:bg-gray-100 transition-all">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+                <%= icon[:svg].html_safe %>
+              </svg>
+            </div>
           <% end %>
-          
-          <button type="button" 
-                  onclick="toggleClearModal(false)"
-                  class="w-full py-4 bg-white text-black border-2 border-black rounded-2xl font-black uppercase text-xs tracking-[0.2em] hover:bg-gray-50 active:scale-[0.97] active:translate-x-[1px] active:translate-y-[1px] transition-all">
-            Cancel
+        </div>
+
+        <%= f.hidden_field :premade_icon, id: "selectedPremadeIcon" %>
+        <%= f.hidden_field :icon_type, id: "selectedIconType", value: "premade" %>
+        <input type="hidden" name="auto_assign_log_id" id="autoAssignLogId">
+      </div>
+
+      <div class="my-8">
+        <label class="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-3">Choose Color</label>
+        <div class="flex flex-wrap gap-3">
+          <% [
+            '#EA580C', '#2563EB', '#9333EA', '#16A34A', 
+            '#DB2777', '#0891B2', '#E11D48', '#000000'
+          ].each do |color| %>
+            <div onclick="selectCategoryColor('<%= color %>')" 
+                 class="color-option w-8 h-8 rounded-full border-2 border-transparent cursor-pointer transition-all hover:scale-110" 
+                 style="background-color: <%= color %>;"
+                 data-color="<%= color %>">
+            </div>
+          <% end %>
+        </div>
+        <%= f.hidden_field :color, id: "selectedCategoryColor", value: "#000000" %>
+      </div>
+
+      <div class="relative mb-8">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">or</span>
+          <div class="flex-1 h-[1px] bg-gray-100"></div>
+        </div>
+        
+        <button type="button" onclick="document.getElementById('customIconInput').click()" 
+                class="w-full py-3 px-4 border-2 border-black border-dashed rounded-xl flex items-center justify-center gap-2 hover:bg-gray-100 transition-all group overflow-hidden relative">
+          <div id="uploadPreview" class="absolute inset-0 bg-white items-center justify-center hidden">
+             <img src="" id="iconPreview" class="h-8 w-8 object-cover rounded shadow-sm">
+             <span class="ml-2 text-xs font-bold text-black truncate max-w-[150px]" id="fileName"></span>
+          </div>
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+          </svg>
+          <span class="text-xs font-bold">Upload Custom Icon (Max 2MB)</span>
+        </button>
+        <%= f.file_field :custom_icon, id: "customIconInput", class: "hidden", accept: "image/*", onchange: "handleIconUpload(this)" %>
+      </div>
+
+      <button type="submit" class="w-full py-4 bg-black text-white rounded-xl font-black uppercase tracking-widest hover:shadow-[4px_4px_0px_0px_rgba(234,88,12,1)] hover:bg-orange-600 transition-all active:scale-[0.98]">
+        Create Category
+      </button>
+    <% end %>
+  </div>
+</div>
+
+
+<!-- MANAGE LOG CATEGORIES MODAL -->
+<div id="manageCategoriesModal" class="modal-backdrop" style="z-index: 300;" onclick="closeManageCategoriesModal(event)">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <div class="flex justify-between items-center mb-6">
+      <h2 class="text-xl font-black uppercase italic tracking-tighter">MANAGE <span class="text-orange-600">CATEGORIES</span></h2>
+      <button onclick="closeManageCategoriesModal()" class="text-gray-400 hover:text-black transition-colors">
+        <svg class="h-6 w-6">
+          <use xlink:href="#icon-delete"></use>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Search/Filter Categories -->
+    <div class="mb-4 relative">
+      <input type="text" 
+             placeholder="Search categories..." 
+             oninput="filterManageCategories(this.value)"
+             class="w-full pl-10 pr-4 py-2 bg-gray-50 border-2 border-black rounded-xl text-sm font-bold focus:outline-none focus:bg-white transition-all">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 absolute left-3 top-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+      </svg>
+    </div>
+
+    <input type="hidden" id="manageLogId">
+    
+    <div id="manageCategoriesList" class="flex flex-col gap-2 max-h-[300px] overflow-y-auto mb-6 pr-1 custom-scrollbar">
+      <% @categories.each do |category| %>
+        <label class="manage-category-item group flex items-center justify-between p-3 rounded-xl border-2 border-transparent bg-gray-50 cursor-pointer hover:bg-gray-100 transition-all"
+               data-id="<%= category.id %>" data-name="<%= category.name %>">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center text-xs"
+                 style="background-color: <%= category.color %>20; color: <%= category.color %>;">
+              <% if category.icon_type == 'custom' && category.custom_icon.attached? %>
+                <img src="<%= url_for(category.custom_icon) %>" class="w-5 h-5 object-cover rounded-sm" loading="lazy">
+              <% else %>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <%= category_icon_map[category.icon].to_s.html_safe %>
+                </svg>
+              <% end %>
+            </div>
+            <span class="font-bold text-sm"><%= category.name %></span>
+          </div>
+          <input type="checkbox" value="<%= category.id %>" class="hidden" 
+                 onchange="toggleCategorySelection(this)" data-state="unchecked">
+          <div class="check-indicator w-6 h-6 rounded-lg border-2 border-black/10 transition-all bg-white relative">
+            <div class="absolute inset-0 flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white hidden check-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <div class="absolute inset-0 flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white hidden remover-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+              </svg>
+            </div>
+          </div>
+        </label>
+      <% end %>
+      <% if @categories.empty? %>
+        <div class="text-center py-6">
+          <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">No categories created yet</p>
+          <button onclick="closeManageCategoriesModal(); openAddCategoryModal(document.getElementById('manageLogId').value);" class="text-[10px] font-black uppercase tracking-widest text-orange-600 hover:text-black transition-colors underline underline-offset-4">
+            Create First Category
           </button>
         </div>
-      </div>
+      <% end %>
+    </div>
+
+    <button id="saveCategoriesBtn" onclick="saveLogCategories()" class="w-full py-4 bg-orange-600 text-white rounded-xl font-black uppercase tracking-widest hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-700 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+      Save Changes
+    </button>
+  </div>
+</div>
+<div id="deleteCategoryModal" class="modal-backdrop" style="z-index: 200;" onclick="closeDeleteModal(event)">
+  <div class="modal-content text-center" onclick="event.stopPropagation()">
+    <div class="w-20 h-20 bg-red-50 text-red-500 rounded-3xl flex items-center justify-center mx-auto mb-6 scale-110">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+      </svg>
+    </div>
+    
+    <h2 class="text-2xl font-black uppercase italic tracking-tighter mb-2">Delete <span class="text-red-600" id="deleteTargetName">Category</span>?</h2>
+    <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-10">This action cannot be undone. All entries in this category will be unlinked.</p>
+
+    <div class="flex flex-col gap-3">
+      <button id="finalDeleteBtn" class="w-full py-4 bg-red-600 text-white rounded-xl font-black uppercase tracking-widest hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-red-700 transition-all active:scale-95">
+        Delete Forever
+      </button>
+      <button onclick="closeDeleteModal()" class="w-full py-4 bg-gray-100 text-black rounded-xl font-black uppercase tracking-widest hover:bg-gray-200 transition-all active:scale-95">
+        Go Back
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE LOG MODAL -->
+<div id="deleteLogModal" class="modal-backdrop" style="z-index: 200;" onclick="closeDeleteLogModal(event)">
+  <div class="modal-content text-center" onclick="event.stopPropagation()">
+    <div class="w-20 h-20 bg-red-50 text-red-500 rounded-3xl flex items-center justify-center mx-auto mb-6 scale-110">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+      </svg>
+    </div>
+    
+    <h2 class="text-2xl font-black uppercase italic tracking-tighter mb-2">Delete <span class="text-red-600" id="deleteLogTargetName">Invoice</span>?</h2>
+    <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-10">This action cannot be undone. This invoice will be permanently lost.</p>
+
+    <div class="flex flex-col gap-3">
+      <form id="deleteLogForm" method="post" action="">
+        <input type="hidden" name="_method" value="delete">
+        <input type="hidden" name="authenticity_token" value="<%= form_authenticity_token %>">
+        <button type="submit" class="w-full py-4 bg-red-600 text-white rounded-xl font-black uppercase tracking-widest hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-red-700 transition-all active:scale-95">
+          Delete Forever
+        </button>
+      </form>
+      <button onclick="closeDeleteLogModal()" class="w-full py-4 bg-gray-100 text-black rounded-xl font-black uppercase tracking-widest hover:bg-gray-200 transition-all active:scale-95">
+        Go Back
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- BULK DELETE MODAL -->
+<div id="bulkDeleteModal" class="modal-backdrop" style="z-index: 200;" onclick="closeBulkDeleteModal(event)">
+  <div class="modal-content text-center" onclick="event.stopPropagation()">
+    <div class="w-20 h-20 bg-red-50 text-red-500 rounded-3xl flex items-center justify-center mx-auto mb-6 scale-110">
+      <svg class="h-10 w-10">
+        <use xlink:href="#icon-delete"></use>
+      </svg>
+    </div>
+    
+    <h2 class="text-2xl font-black uppercase italic tracking-tighter mb-2">Delete <span class="text-red-600" id="bulkDeleteCount">0</span> selected invoices?</h2>
+    <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-10">This action cannot be undone. These invoices will be permanently lost forever.</p>
+
+    <div class="flex flex-col gap-3">
+      <button onclick="performBulkDelete()" class="w-full py-4 bg-red-600 text-white rounded-xl font-black uppercase tracking-widest hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-red-700 transition-all active:scale-95">
+        Delete Forever
+      </button>
+      <button onclick="closeBulkDeleteModal()" class="w-full py-4 bg-gray-100 text-black rounded-xl font-black uppercase tracking-widest hover:bg-gray-200 transition-all active:scale-95">
+        Go Back
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<!-- CONFIRM PAID MODAL -->
+<div id="confirmPaidModal" class="modal-backdrop" style="z-index: 250;" onclick="closeConfirmPaidModal(event)">
+  <div class="modal-content text-center" onclick="event.stopPropagation()">
+    <div class="w-16 h-16 bg-green-50 text-green-500 rounded-2xl flex items-center justify-center mx-auto mb-6 border-2 border-green-100">
+      <svg class="h-8 w-8">
+        <use xlink:href="#icon-check"></use>
+      </svg>
+    </div>
+    
+    <h2 class="text-xl font-black uppercase italic tracking-tighter mb-2">Mark as <span class="text-green-600">Paid</span>?</h2>
+    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-8 leading-relaxed">
+      You won't be able to <span class="text-black">RENAME</span> the invoice<br>after performing this action.
+    </p>
+
+    <div class="flex flex-col gap-2.5">
+      <button id="finalConfirmPaidBtn" class="w-full py-4 bg-green-600 text-white rounded-xl font-black uppercase tracking-widest hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-green-700 transition-all active:scale-95">
+        Yes, Confirm Payment
+      </button>
+      <button onclick="closeConfirmPaidModal()" class="w-full py-3.5 bg-gray-100 text-black rounded-xl font-black uppercase tracking-widest hover:bg-gray-200 transition-all active:scale-95 text-[10px]">
+        Wait, Go Back
+      </button>
     </div>
   </div>
 </div>
 
 <script>
-  function toggleClearModal(show) {
-    const modal = document.getElementById('clearConfirmModal');
-    if (show) {
-      modal.classList.remove('hidden');
-      modal.classList.add('flex');
-      document.body.style.overflow = 'hidden';
-    } else {
-      modal.classList.add('hidden');
-      modal.classList.remove('flex');
-      document.body.style.overflow = '';
+  // Search Functionality
+  const searchInput = document.getElementById('historySearch');
+  if (searchInput) {
+    // Check initial view (Priority: URL Param > localStorage > Default 'all')
+    const urlParams = new URLSearchParams(window.location.search);
+    const viewParam = urlParams.get('view');
+    const savedView = localStorage.getItem('history_active_view');
+    const initialView = viewParam || savedView || 'all';
+    
+    if (initialView && ['all', 'categories', 'clients'].includes(initialView)) {
+      switchView(initialView);
     }
+
+    searchInput.addEventListener('input', (e) => {
+      const term = e.target.value.toLowerCase();
+      document.querySelectorAll('.log-card').forEach(card => {
+        // We can limit content to check if needed, but textContent checks everything visible which is usually accurate enough
+        const content = card.textContent.toLowerCase();
+        if (content.includes(term)) {
+          card.classList.remove('hidden');
+        } else {
+          card.classList.add('hidden');
+        }
+      });
+    });
   }
 
   // Close on ESC
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') toggleClearModal(false);
+    if (e.key === 'Escape') {
+      closeAllLogMenus();
+    }
   });
+
+  function toggleLogMenu(btn, e) {
+    if (isSelectionMode) return;
+    e.stopPropagation();
+    const dropdown = btn.nextElementSibling;
+    const isActive = dropdown.classList.contains('active');
+    
+    // Reset all z-indexes first
+    document.querySelectorAll('.log-card').forEach(c => c.style.zIndex = '0');
+    
+    closeAllLogMenus();
+    
+    if (!isActive) {
+      dropdown.classList.add('active');
+      btn.classList.add('active');
+      // Bring THIS card to front so its menu goes over subsequent cards
+      btn.closest('.log-card').style.zIndex = '50';
+    }
+  }
+
+  function closeAllLogMenus() {
+    document.querySelectorAll('.log-menu-dropdown').forEach(d => d.classList.remove('active'));
+    document.querySelectorAll('.log-menu-btn').forEach(b => b.classList.remove('active'));
+    // Close status selectors
+    document.querySelectorAll('.status-selector-dropdown').forEach(d => d.classList.add('hidden'));
+    document.querySelectorAll('.status-chevron').forEach(c => c.classList.remove('rotate-180'));
+    // Reset z-indexes
+    document.querySelectorAll('.log-card').forEach(c => c.style.zIndex = 'auto');
+  }
+
+  function toggleStatusSelector(btn, e) {
+    if (isSelectionMode) return;
+    if (e) e.stopPropagation();
+    const dropdown = btn.nextElementSibling;
+    const isHidden = dropdown.classList.contains('hidden');
+    const chevron = btn.querySelector('.status-chevron');
+    
+    // Close all others first
+    document.querySelectorAll('.status-selector-dropdown').forEach(d => d.classList.add('hidden'));
+    document.querySelectorAll('.status-chevron').forEach(c => c.classList.remove('rotate-180'));
+    
+    if (isHidden) {
+      dropdown.classList.remove('hidden');
+      if (chevron) chevron.classList.add('rotate-180');
+      // Ensure specific z-index for the card to prevent overlap issues
+      btn.closest('.log-card').style.zIndex = '50';
+    } else {
+      dropdown.classList.add('hidden');
+      if (chevron) chevron.classList.remove('rotate-180');
+      btn.closest('.log-card').style.zIndex = '0';
+    }
+  }
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.log-menu-dropdown') && !e.target.closest('.log-menu-btn') && !e.target.closest('.status-selector-dropdown') && !e.target.closest('button[onclick*="toggleStatusSelector"]')) {
+      closeAllLogMenus();
+    }
+  });
+
+  // --- Category Modal Logic ---
+  let categoryToDelete = null;
+
+  function openAddCategoryModal(logId = null) {
+    closeAllModals();
+    if (logId) {
+      document.getElementById('autoAssignLogId').value = logId;
+    } else {
+      document.getElementById('autoAssignLogId').value = '';
+    }
+    document.getElementById('addCategoryModal').classList.add('active');
+  }
+
+  function closeAllModals() {
+    document.querySelectorAll('.modal-backdrop').forEach(m => m.classList.remove('active'));
+    categoryToDelete = null;
+  }
+
+  function openDeleteLogModal(url, displayName) {
+    // Determine the name to show
+    const name = displayName || 'Invoice';
+    document.getElementById('deleteLogTargetName').textContent = name;
+    
+    // Set form action
+    document.getElementById('deleteLogForm').action = url;
+    
+    // Close log menus
+    closeAllLogMenus();
+    
+    // Show modal
+    document.getElementById('deleteLogModal').classList.add('active');
+  }
+
+  function closeDeleteLogModal(e) {
+    if (e && e.target !== e.currentTarget) return;
+    document.getElementById('deleteLogModal').classList.remove('active');
+  }
+
+  function closeAddCategoryModal(e) {
+    if (e && e.target !== e.currentTarget) return;
+    document.getElementById('addCategoryModal').classList.remove('active');
+    // Reset form
+    document.getElementById('categoryForm').reset();
+    document.getElementById('categoryNameError').classList.add('hidden');
+    document.getElementById('categoryNameInput').classList.remove('border-red-500');
+    document.getElementById('uploadPreview').classList.add('hidden');
+    document.querySelectorAll('.icon-option').forEach(el => el.classList.remove('selected'));
+    document.getElementById('selectedPremadeIcon').value = '';
+    document.getElementById('selectedIconType').value = 'premade';
+  }
+
+  // Handle Category Form Submission
+  document.addEventListener('DOMContentLoaded', () => {
+    const categoryForm = document.getElementById('categoryForm');
+    if (categoryForm) {
+      categoryForm.addEventListener('submit', (e) => {
+        const nameInput = document.getElementById('categoryNameInput');
+        const errorMsg = document.getElementById('categoryNameError');
+        
+        if (!nameInput.value.trim()) {
+          e.preventDefault();
+          errorMsg.classList.remove('hidden');
+          nameInput.classList.add('border-red-500');
+          nameInput.focus();
+          
+          // Flash animation
+          nameInput.style.transform = 'translateX(5px)';
+          setTimeout(() => nameInput.style.transform = 'translateX(-5px)', 50);
+          setTimeout(() => nameInput.style.transform = 'translateX(0)', 100);
+        } else {
+          errorMsg.classList.add('hidden');
+          nameInput.classList.remove('border-red-500');
+        }
+      });
+
+      // Clear error as user types
+      document.getElementById('categoryNameInput').addEventListener('input', (e) => {
+        if (e.target.value.trim()) {
+          document.getElementById('categoryNameError').classList.add('hidden');
+          e.target.classList.remove('border-red-500');
+        }
+      });
+    }
+  });
+
+  function selectPremadeIcon(iconId) {
+    // Update Hidden Fields
+    document.getElementById('selectedPremadeIcon').value = iconId;
+    document.getElementById('selectedIconType').value = 'premade';
+    
+    // Update Selection UI
+    const currentColor = document.getElementById('selectedCategoryColor').value;
+    document.querySelectorAll('.icon-option').forEach(el => {
+      if (el.dataset.iconId === iconId) {
+        el.classList.add('selected');
+        el.style.backgroundColor = currentColor + '20';
+        el.style.color = currentColor;
+      } else {
+        el.classList.remove('selected');
+        el.style.backgroundColor = '';
+        el.style.color = '';
+      }
+    });
+
+    // Hide Custom Upload Preview if it was shown
+    document.getElementById('uploadPreview').classList.add('hidden');
+    // Clear the file input
+    document.getElementById('customIconInput').value = '';
+  }
+
+  function handleIconUpload(input) {
+    if (input.files && input.files[0]) {
+      const file = input.files[0];
+      
+      // Check size (2MB)
+      if (file.size > 2 * 1024 * 1024) {
+        alert("File size must be less than 2MB");
+        input.value = '';
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        document.getElementById('iconPreview').src = e.target.result;
+        document.getElementById('fileName').textContent = file.name;
+        document.getElementById('uploadPreview').classList.remove('hidden');
+        document.getElementById('uploadPreview').classList.add('flex');
+        
+        // Update Icon Type
+        document.getElementById('selectedIconType').value = 'custom';
+        document.getElementById('selectedPremadeIcon').value = '';
+        
+        // Deselect premade icons
+        document.querySelectorAll('.icon-option').forEach(el => el.classList.remove('selected'));
+      }
+      reader.readAsDataURL(file);
+    }
+  }
+
+  function selectCategoryColor(color) {
+    document.getElementById('selectedCategoryColor').value = color;
+    
+    // Update selected icon color in real-time
+    const selectedIcon = document.querySelector('.icon-option.selected');
+    if (selectedIcon) {
+      selectedIcon.style.backgroundColor = color + '20';
+      selectedIcon.style.color = color;
+    }
+
+    document.querySelectorAll('.color-option').forEach(el => {
+      if (el.dataset.color === color) {
+        el.style.borderColor = 'black';
+        el.style.transform = 'scale(1.2)';
+      } else {
+        el.style.borderColor = 'transparent';
+        el.style.transform = 'scale(1)';
+      }
+    });
+  }
+
+  let lastHoldTimestamp = 0;
+
+  function handleHeaderClick(header, e) {
+    if (isSelectionMode) {
+      // Prevent immediate deselect if we just finished a hold-to-enter
+      if (Date.now() - lastHoldTimestamp < 300) return;
+
+      // In selection mode, ONLY the chevron allows toggling content
+      if (e.target.closest('[data-toggle-trigger]')) {
+        toggleLogContent(header, e);
+      } else {
+        // Otherwise, tap toggles selection
+        const cardId = header.closest('.log-card').querySelector('[id^="status-badge-"]').id.split('-').pop();
+        toggleSelection(cardId);
+      }
+      return;
+    }
+    // Normal mode: whole header toggles
+    toggleLogContent(header, e);
+  }
+
+  function toggleLogContent(header, e) {
+    // Prevent toggle if renaming or interacting with buttons
+    if (e.target.closest('[contenteditable="true"]') || e.target.closest('button')) return;
+
+    // Also prevent toggle if we are currently in "Renaming Mode" on this card
+    const card = header.closest('.group\\/card');
+    const renameBtn = card.querySelector('.rename-btn');
+    if (renameBtn && renameBtn.dataset.editing === "true") return;
+
+    const content = card.querySelector('.collapsible-content');
+    const chevron = header.querySelector('.chevron-icon');
+    
+    const isExpanded = content.classList.contains('grid-rows-[1fr]');
+    
+    if (isExpanded) {
+      content.classList.replace('grid-rows-[1fr]', 'grid-rows-[0fr]');
+      chevron.classList.remove('rotate-180');
+    } else {
+      content.classList.replace('grid-rows-[0fr]', 'grid-rows-[1fr]');
+      chevron.classList.add('rotate-180');
+    }
+  }
+
+  function handleRecreate(btn) {
+    try {
+      const data = JSON.parse(btn.dataset.recreate);
+      localStorage.setItem('recreate_log_data', JSON.stringify(data));
+      window.location.href = '<%= root_path %>';
+    } catch (e) {
+      console.error("Recreate error:", e);
+    }
+  }
+
+  function toggleCategoryModal(btn, e) {
+    if (e) e.stopPropagation();
+    console.log("Add to category clicked");
+    // To be implemented
+    closeAllLogMenus();
+  }
+
+  function toggleRenameMode(btn, e) {
+    if (e) e.stopPropagation(); // CRITICAL: Stop click from bubbling to document (which closes menus)
+                                // or to other handlers.
+                                
+    // Determine state
+    const isEditing = btn.dataset.editing === "true";
+    const card = btn.closest('.group\\/card');
+    
+    // Find all editable fields within this card
+    const editables = card.querySelectorAll('[data-editable-type]');
+    
+    const textSpan = btn.querySelector('.rename-text');
+    const iconContainer = btn.firstElementChild;
+    const renameIcon = `
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5" />
+        <path class="icon-rename" stroke-linecap="round" stroke-linejoin="round" d="M18.414 2.586a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+      </svg>
+    `;
+    const doneIcon = `
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+      </svg>
+    `;
+
+    if (isEditing) {
+      // Turn OFF editing
+      btn.dataset.editing = "false";
+      textSpan.textContent = "RENAME";
+      iconContainer.innerHTML = renameIcon;
+      iconContainer.classList.remove('bg-green-100', 'text-green-600', 'group-hover/item:bg-green-600');
+      iconContainer.classList.add('bg-blue-100', 'text-blue-600', 'group-hover/item:bg-blue-600');
+      
+      editables.forEach(el => {
+        el.contentEditable = "false";
+      });
+      
+      // Close the menu
+      // Force a slight delay or just ensure it runs
+      closeAllLogMenus();
+    } else {
+      // Turn ON editing
+      btn.dataset.editing = "true";
+      textSpan.textContent = "DONE";
+      iconContainer.innerHTML = doneIcon;
+      iconContainer.classList.remove('bg-blue-100', 'text-blue-600', 'group-hover/item:bg-blue-600');
+      iconContainer.classList.add('bg-green-100', 'text-green-600', 'group-hover/item:bg-green-600');
+
+      editables.forEach(el => {
+        el.contentEditable = "true";
+        setupEditableListeners(el);
+      });
+      
+      // Close all menus, including the one we are in.
+      closeAllLogMenus();
+    }
+  }
+
+  // --- View Switcher Logic ---
+  function switchView(viewName) {
+    // 1. Hide all view sections
+    document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
+    
+    // 2. Show the selected view
+    document.getElementById(`view-${viewName}`).classList.remove('hidden');
+    
+    // Persist view choice
+    localStorage.setItem('history_active_view', viewName);
+    
+    // 3. Update Tab Highlight Position & Button Styles
+    const highlight = document.getElementById('tab-highlight');
+    const tabs = ['all', 'categories', 'clients'];
+    const idx = tabs.indexOf(viewName);
+    
+    // Move the highlight pill
+    if (highlight) {
+      highlight.style.transform = `translateX(${idx * 100}%)`;
+    }
+
+    tabs.forEach(tab => {
+      const btn = document.getElementById(`tab-${tab}`);
+      if (tab === viewName) {
+        // Active Style
+        btn.classList.add('text-white', 'font-black');
+        btn.classList.remove('text-black/40', 'font-bold');
+      } else {
+        // Inactive Style
+        btn.classList.add('text-black/40', 'font-bold');
+        btn.classList.remove('text-white', 'font-black');
+      }
+    });
+
+    // 4. Update Search Scope?
+    // For now search works on everything in DOM, so it inherently works if we don't remove elements from DOM but only hide parents.
+    // However, if we hide a parent view, the search logic might need to know which items to show/hide within the Active View.
+    // The current search logic toggles .hidden on .log-card globally.
+    // This is meaningful: if I search "Dave", it will unhide Dave cards in ALL views.
+    // This is probably fine for now.
+  }
+
+  // --- Delete Category Logic ---
+  function handleDeleteClick(btn) {
+    const id = btn.dataset.categoryId;
+    const name = btn.dataset.categoryName;
+    confirmDeleteCategory(id, name);
+  }
+
+  function confirmDeleteCategory(id, name) {
+    closeAllModals();
+    categoryToDelete = id;
+    document.getElementById('deleteTargetName').textContent = name;
+    document.getElementById('deleteCategoryModal').classList.add('active');
+  }
+
+  function closeDeleteModal(e) {
+    if (e && e.target !== e.currentTarget) return;
+    document.getElementById('deleteCategoryModal').classList.remove('active');
+    categoryToDelete = null;
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const finalDeleteBtn = document.getElementById('finalDeleteBtn');
+    if (finalDeleteBtn) {
+      finalDeleteBtn.addEventListener('click', () => {
+        if (categoryToDelete) {
+          const form = document.getElementById(`delete-form-${categoryToDelete}`);
+          if (form) form.submit();
+        }
+      });
+    }
+  });
+
+  // --- Category Navigation Logic ---
+  function enterCategory(categoryId) {
+    closeAllModals();
+    // Hide grid
+    document.getElementById('categories-index').classList.add('hidden');
+    // Show details container
+    const detailsContainer = document.getElementById('categories-details');
+    detailsContainer.classList.remove('hidden');
+    
+    // Hide all individual detail views first
+    document.querySelectorAll('.category-detail-view').forEach(v => v.classList.add('hidden'));
+    // Show the targeted one
+    document.getElementById(`category-detail-${categoryId}`).classList.remove('hidden');
+    
+    // Scroll to top of categories section
+    document.getElementById('view-categories').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function exitCategory() {
+    closeAllModals();
+    // Hide details container
+    document.getElementById('categories-details').classList.add('hidden');
+    // Show grid
+    document.getElementById('categories-index').classList.remove('hidden');
+  }
+
+  // --- Category Toggle Logic (DEPRECATED for tiled view) ---
+  function toggleCategory(header) {
+    // No longer used in tiled navigation but kept for compatibility if needed
+  }
+
+
+  function setupEditableListeners(el) {
+    if (el.dataset.listenerAttached) return;
+    
+    el.addEventListener('blur', () => {
+      saveUpdate(el);
+    });
+    
+    el.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        el.blur(); // Triggers save
+        
+        // Find the rename/done button and click it to exit edit mode
+        const card = el.closest('.group\\/card');
+        if (card) {
+          const btn = card.querySelector('.rename-btn');
+          if (btn && btn.dataset.editing === "true") {
+             toggleRenameMode(btn, e);
+          }
+        }
+      }
+    });
+
+    el.dataset.listenerAttached = "true";
+  }
+
+  function saveUpdate(el) {
+    const text = el.innerText.trim();
+    // Prevent empty strings if necessary, though clearing might be valid?
+    // Client name clearing is probably bad.
+    if (!text && el.dataset.editableType === 'client') {
+      // revert?
+      return; 
+    }
+    
+    const data = {
+      id: el.dataset.logId,
+      field: el.dataset.editableType,
+      value: text,
+      section_index: el.dataset.sectionIndex,
+      item_index: el.dataset.itemIndex,
+      subcategory_index: el.dataset.subcategoryIndex,
+      credit_index: el.dataset.creditIndex,
+      authenticity_token: document.querySelector('meta[name="csrf-token"]').content
+    };
+    
+    fetch(`/logs/${data.id}/update_entry`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': data.authenticity_token
+      },
+      body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(res => {
+      if (res.success) {
+        // Update the Recreate button data locally so valid data is used if clicked immediately
+        try {
+          const card = el.closest('.group\\/card');
+          const recreateBtn = card.querySelector('button[data-recreate]');
+          if (recreateBtn) {
+            const recreateData = JSON.parse(recreateBtn.dataset.recreate);
+            
+            if (data.field === 'client') {
+              recreateData.client = data.value;
+            } else if (data.field === 'item') {
+              const item = recreateData.sections[data.section_index].items[data.item_index];
+              if (typeof item === 'string') {
+                recreateData.sections[data.section_index].items[data.item_index] = data.value;
+              } else {
+                item.desc = data.value;
+              }
+            } else if (data.field === 'subcategory') {
+              const item = recreateData.sections[data.section_index].items[data.item_index];
+               if (item && item.sub_categories) {
+                 item.sub_categories[data.subcategory_index] = data.value;
+               }
+            } else if (data.field === 'credit') {
+              if (recreateData.credits && recreateData.credits[data.credit_index]) {
+                recreateData.credits[data.credit_index].reason = data.value;
+              }
+            }
+
+            recreateBtn.dataset.recreate = JSON.stringify(recreateData);
+            console.log("Recreate data updated locally");
+          }
+        } catch (err) {
+          console.error("Failed to update local recreate data:", err);
+        }
+
+      } else {
+        console.error('Save failed', res.errors);
+        el.style.color = '#dc2626'; // Red
+      }
+    })
+    .catch(err => {
+      console.error('Save error', err);
+      el.style.color = '#dc2626';
+    });
+  }
+  function openManageCategoriesModal(logIds, initialStates) {
+    // logIds can be a single ID or an array of IDs
+    const ids = Array.isArray(logIds) ? logIds : [logIds];
+    const modal = document.getElementById('manageCategoriesModal');
+    const logIdInput = document.getElementById('manageLogId');
+    const categoriesList = document.getElementById('manageCategoriesList');
+    const modalTitle = modal.querySelector('h2');
+    
+    logIdInput.value = JSON.stringify(ids);
+    modalTitle.innerHTML = ids.length > 1 ? `BULK <span class="text-orange-600">MANAGE</span>` : `MANAGE <span class="text-orange-600">CATEGORIES</span>`;
+
+    // Process initial states
+    // If multiple logs, only check categories that are present in ALL logs
+    const isArray = Array.isArray(initialStates);
+    categoriesList.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      const catId = cb.value;
+      let state = 'unchecked';
+      
+      if (isArray) {
+        // Single log case: initialStates is an array of IDs
+        const found = initialStates.some(id => id.toString() === catId.toString());
+        state = found ? 'checked' : 'unchecked';
+      } else {
+        // Bulk case: initialStates is a mapping object { id: state }
+        state = initialStates[catId] || 'unchecked';
+      }
+      
+      cb.dataset.state = state;
+      updateCheckboxUI(cb);
+    });
+
+    closeAllLogMenus();
+    modal.classList.add('active');
+  }
+
+  function toggleCategorySelection(cb) {
+    const currentState = cb.dataset.state || 'unchecked';
+    let nextState = 'unchecked';
+
+    // 3-State Logic: Unchecked -> Checked -> Removing -> Checked (skip unchecked after first click)
+    if (currentState === 'unchecked') nextState = 'checked';
+    else if (currentState === 'checked') nextState = 'removing';
+    else nextState = 'checked';
+
+    cb.dataset.state = nextState;
+    updateCheckboxUI(cb);
+  }
+
+  function updateCheckboxUI(cb) {
+    const state = cb.dataset.state;
+    const label = cb.closest('label');
+    const checkIcon = label.querySelector('.check-icon');
+    const removeIcon = label.querySelector('.remover-icon');
+    
+    // Reset all
+    label.classList.remove('removing-category');
+    cb.checked = false;
+    if (checkIcon) checkIcon.classList.add('hidden');
+    if (removeIcon) removeIcon.classList.add('hidden');
+
+    if (state === 'checked') {
+      cb.checked = true;
+      if (checkIcon) checkIcon.classList.remove('hidden');
+    } else if (state === 'removing') {
+      label.classList.add('removing-category');
+      if (removeIcon) removeIcon.classList.remove('hidden');
+    }
+  }
+
+  function filterManageCategories(term) {
+    const items = document.querySelectorAll('.manage-category-item');
+    term = term.toLowerCase();
+    items.forEach(item => {
+      const name = item.dataset.name.toLowerCase();
+      if (name.includes(term)) {
+        item.classList.remove('hidden');
+      } else {
+        item.classList.add('hidden');
+      }
+    });
+  }
+
+  function saveLogCategories() {
+    let logIds;
+    try {
+      logIds = JSON.parse(document.getElementById('manageLogId').value);
+    } catch(e) {
+      logIds = [document.getElementById('manageLogId').value];
+    }
+
+    const checkboxes = document.querySelectorAll('#manageCategoriesList input[type="checkbox"]');
+    const addedIds = [];
+    const removedIds = [];
+    let pinnedAction = null;
+
+    checkboxes.forEach(cb => {
+      const state = cb.dataset.state;
+      const val = cb.value;
+
+      if (state === 'checked') {
+        addedIds.push(val);
+      } else if (state === 'removing') {
+        removedIds.push(val);
+      }
+    });
+
+    const btn = document.getElementById('saveCategoriesBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="animate-pulse">Saving...</span>';
+
+    fetch('/logs/bulk_update_categories', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content
+      },
+      body: JSON.stringify({ 
+        log_ids: logIds, 
+        added_category_ids: addedIds, 
+        removed_category_ids: removedIds
+      })
+    })
+    .then(response => response.json())
+    .then(res => {
+      if (res.success) {
+        window.location.reload();
+      } else {
+        alert("Failed to save changes.");
+        btn.disabled = false;
+        btn.textContent = "Save Changes";
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      alert("An error occurred while saving.");
+      btn.disabled = false;
+      btn.textContent = "Save Changes";
+    });
+  }
+
+  function closeManageCategoriesModal(e) {
+    if (e && e.target !== e.currentTarget) return;
+    document.getElementById('manageCategoriesModal').classList.remove('active');
+  }
+
+  function updateStatusLive(logId, newStatus) {
+    if (newStatus === 'paid') {
+      const modal = document.getElementById('confirmPaidModal');
+      const btn = document.getElementById('finalConfirmPaidBtn');
+      btn.onclick = () => {
+        performStatusUpdate(logId, 'paid');
+        closeConfirmPaidModal();
+      };
+      modal.classList.add('active');
+      return;
+    }
+    performStatusUpdate(logId, newStatus);
+  }
+
+  function performStatusUpdate(logId, newStatus) {
+    fetch(`/logs/${logId}/update_status`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content
+      },
+      body: JSON.stringify({ status: newStatus })
+    })
+    .then(response => response.json())
+    .then(res => {
+      if (res.success) {
+        // UI Update Logic (No refresh!)
+        const badge = document.getElementById(`status-badge-${logId}`);
+        const dot = document.getElementById(`status-dot-${logId}`);
+        const text = document.getElementById(`status-text-${logId}`);
+        const oldStatus = badge.dataset.currentStatus;
+
+        // Configuration map
+        const configs = {
+          'draft': { bg: 'bg-gray-50', border: 'border-gray-300', text: 'text-gray-500', dot: 'bg-gray-500' },
+          'sent': { bg: 'bg-blue-50', border: 'border-blue-400', text: 'text-blue-600', dot: 'bg-blue-600' },
+          'paid': { bg: 'bg-green-50', border: 'border-green-400', text: 'text-green-600', dot: 'bg-green-600' },
+          'overdue': { bg: 'bg-red-50', border: 'border-red-400', text: 'text-red-600', dot: 'bg-red-600' }
+        };
+
+        const config = configs[newStatus];
+
+        // Update Badge Classes (matching new smaller size)
+        badge.className = `flex items-center gap-1.5 px-3.5 py-1.5 ${config.bg} border-2 ${config.border} rounded-t-lg rounded-b-none text-[10px] font-black uppercase tracking-widest ${config.text} transition-all`;
+        
+        // Update Dot
+        dot.className = `w-1.5 h-1.5 rounded-full ${config.dot} ${newStatus === 'overdue' ? 'animate-pulse' : ''}`;
+        
+        // Update Text
+        text.textContent = newStatus;
+        badge.dataset.currentStatus = newStatus;
+
+        // Update Dropdown Options (Swap visible items)
+        document.getElementById(`opt-${oldStatus}-${logId}`).classList.remove('hidden');
+        document.getElementById(`opt-${newStatus}-${logId}`).classList.add('hidden');
+
+        // Hide Dropdown
+        badge.nextElementSibling.classList.add('hidden');
+
+        // Rule: If Paid, hide Rename button; otherwise show it
+        const renameBtn = document.getElementById(`rename-btn-${logId}`);
+        if (renameBtn) {
+          if (newStatus === 'paid') {
+            renameBtn.classList.add('hidden');
+          } else {
+            renameBtn.classList.remove('hidden');
+          }
+        }
+
+      } else {
+        alert("Failed to update status: " + res.errors.join(", "));
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      alert("An error occurred while updating status.");
+    });
+  }
+
+  function closeConfirmPaidModal(e) {
+    if (e && e.target !== e.currentTarget) return;
+    document.getElementById('confirmPaidModal').classList.remove('active');
+  }
+
+  // Selection Mode Logic
+  let isSelectionMode = false;
+  let selectedLogIds = []; // Changed to Array to preserve selection order
+  let holdTimer;
+  const HOLD_DURATION = 600; // ms
+
+  function initSelectionListeners() {
+    document.querySelectorAll('.log-card').forEach(card => {
+      // Use data-log-id from the card wrapper (added in recent partial update)
+      const cardId = card.dataset.logId;
+      if (!cardId) return;
+      
+      if (card.dataset.selectionInit) return;
+      card.dataset.selectionInit = "true";
+
+      card.oncontextmenu = (e) => {
+        if (isSelectionMode || holdTimer) {
+          e.preventDefault();
+          return false;
+        }
+      };
+
+      let holdTriggeredSelection = false;
+
+      const handlePress = (e) => {
+        if (isSelectionMode) return; 
+        holdTriggeredSelection = false;
+        
+        if (e.target.closest('button') || e.target.closest('input') || e.target.closest('[contenteditable="true"]')) return;
+
+        holdTimer = setTimeout(() => {
+          enterSelectionMode(cardId);
+          holdTimer = null;
+          holdTriggeredSelection = true;
+        }, HOLD_DURATION);
+      };
+
+      const handleRelease = () => {
+        if (holdTimer) {
+          clearTimeout(holdTimer);
+          holdTimer = null;
+        } else if (holdTriggeredSelection) {
+          // The hold just finished. Update timestamp to ignore the trailing click.
+          lastHoldTimestamp = Date.now();
+          holdTriggeredSelection = false;
+        }
+      };
+
+      card.addEventListener('mousedown', handlePress);
+      card.addEventListener('touchstart', handlePress, { passive: false });
+      card.addEventListener('mouseup', handleRelease);
+      card.addEventListener('mouseleave', handleRelease);
+      card.addEventListener('touchend', handleRelease);
+    });
+  }
+
+  function enterSelectionMode(firstCardId) {
+    isSelectionMode = true;
+    lastHoldTimestamp = Date.now();
+    document.querySelectorAll('.log-card').forEach(c => c.classList.add('selection-mode'));
+    toggleSelection(firstCardId);
+    document.getElementById('bulkActionBar').classList.add('active');
+  }
+
+  function toggleSelection(cardId) {
+    const stringId = cardId.toString();
+    const cards = document.querySelectorAll(`.log-card[data-log-id="${cardId}"]`);
+    const index = selectedLogIds.indexOf(stringId);
+    const isSelected = index !== -1;
+
+    if (isSelected) {
+      selectedLogIds.splice(index, 1);
+      cards.forEach(c => c.classList.remove('selected'));
+    } else {
+      selectedLogIds.push(stringId);
+      cards.forEach(c => c.classList.add('selected'));
+    }
+    
+    updateBulkUI();
+    
+    if (selectedLogIds.length === 0) {
+      exitSelectionMode();
+    }
+  }
+
+  function updateBulkUI() {
+    const bulkBar = document.getElementById('bulkActionBar');
+    if (selectedLogIds.length === 0) {
+      exitSelectionMode();
+      return;
+    }
+    
+    document.getElementById('bulkCount').textContent = `${selectedLogIds.length} ${selectedLogIds.length === 1 ? 'ITEM' : 'ITEMS'}`;
+    
+    // Update Pin Icon 
+    const isAllPinned = selectedLogIds.every(id => {
+      const card = document.querySelector(`.log-card[data-log-id="${id}"]`);
+      return card && card.dataset.pinned === 'true';
+    });
+    
+    const pinBtn = document.getElementById('bulkPinBtn');
+    if (pinBtn) {
+      const svg = pinBtn.querySelector('svg');
+      if (isAllPinned) {
+        svg.setAttribute('fill', 'currentColor');
+        svg.setAttribute('stroke-width', '1');
+      } else {
+        svg.setAttribute('fill', 'none');
+        svg.setAttribute('stroke-width', '2.5');
+      }
+    }
+  }
+
+  function exitSelectionMode() {
+    isSelectionMode = false;
+    selectedLogIds = [];
+    document.querySelectorAll('.log-card').forEach(c => {
+      c.classList.remove('selection-mode');
+      c.classList.remove('selected');
+    });
+    document.getElementById('bulkActionBar').classList.remove('active');
+  }
+
+  function handleBulkDelete() {
+    if (selectedLogIds.length === 0) return;
+    document.getElementById('bulkDeleteCount').textContent = selectedLogIds.length;
+    document.getElementById('bulkDeleteModal').classList.add('active');
+  }
+
+  function closeBulkDeleteModal(e) {
+    if (e && e.target !== e.currentTarget) return;
+    document.getElementById('bulkDeleteModal').classList.remove('active');
+  }
+
+  function performBulkDelete() {
+    const idsToDelete = [...selectedLogIds];
+    let deletedCount = 0;
+    const btn = document.querySelector('#bulkDeleteModal button[onclick="performBulkDelete()"]');
+    
+    btn.disabled = true;
+    btn.innerHTML = '<span class="animate-pulse">Deleting...</span>';
+
+    idsToDelete.forEach(id => {
+      fetch(`/logs/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content
+        }
+      }).then(() => {
+        deletedCount++;
+        // Remove from UI (all instances)
+        const cards = document.querySelectorAll(`.log-card[data-log-id="${id}"]`);
+        cards.forEach(c => c.remove());
+        
+        if (deletedCount === idsToDelete.length) {
+          closeBulkDeleteModal();
+          exitSelectionMode();
+          refreshCategoryCounts();
+          // Optionally show a toast or reset button state if needed (though UI is gone)
+        }
+      });
+    });
+  }
+
+  function refreshCategoryCounts() {
+    // Collect all elements that display a count
+    // They are marked with data-category-count="favorites" or "cat-ID"
+    const countElements = document.querySelectorAll('[data-category-count]');
+    
+    // We can group them by the category key
+    const categories = {};
+    countElements.forEach(el => {
+      const key = el.dataset.categoryCount;
+      if (!categories[key]) categories[key] = [];
+      categories[key].push(el);
+    });
+
+    // Update each category group
+    for (const [key, elements] of Object.entries(categories)) {
+      // Find the detail container for this category to count visible cards
+      const detailView = document.getElementById(`category-detail-${key}`);
+      if (detailView) {
+        const count = detailView.querySelectorAll('.log-card').length;
+        elements.forEach(el => {
+          // Check if it's a detail header or a tile count based on class or ID
+          if (el.id.includes('detail')) {
+            el.textContent = `${count} Items Found`;
+          } else {
+            el.textContent = `${count} Items`;
+          }
+        });
+      }
+    }
+  }
+
+  function handleBulkPin() {
+    if (selectedLogIds.length === 0) return;
+    
+    // Determine context (Category vs Global)
+    let categoryId = null;
+    const urlHash = window.location.hash;
+    if (urlHash.startsWith('#cat-')) {
+      categoryId = urlHash.replace('#cat-', '');
+    }
+
+    const logIds = [...selectedLogIds];
+    
+    // Logic: If ALL are pinned, we unpin all. Otherwise, we pin all.
+    const isAllPinned = selectedLogIds.every(id => {
+      const card = document.querySelector(`.log-card[data-log-id="${id}"]`);
+      return card && card.dataset.pinned === 'true';
+    });
+
+    const shouldPin = !isAllPinned;
+    
+    fetch('/logs/bulk_pin', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content
+      },
+      body: JSON.stringify({
+        log_ids: logIds,
+        category_id: categoryId,
+        pin: shouldPin
+      })
+    })
+    .then(response => response.json())
+    .then(res => {
+      if (res.success) {
+        window.location.reload();
+      } else {
+        alert("Failed to update pinning.");
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      alert("An error occurred.");
+    });
+  }
+
+  function handleTogglePin(btn, logId, currentlyPinned) {
+    const shouldPin = !currentlyPinned;
+    const iconContainer = btn.querySelector('div');
+    const svg = btn.querySelector('svg');
+    const text = btn.querySelector('span');
+    
+    // Optimistic UI update
+    if (shouldPin) {
+      iconContainer.classList.add('bg-yellow-400', 'text-white');
+      iconContainer.classList.remove('bg-yellow-100', 'text-yellow-600');
+      svg.setAttribute('fill', 'currentColor');
+      text.textContent = "Unpin Log";
+    } else {
+      iconContainer.classList.remove('bg-yellow-400', 'text-white');
+      iconContainer.classList.add('bg-yellow-100', 'text-yellow-600');
+      svg.setAttribute('fill', 'none');
+      text.textContent = "Pin Log";
+    }
+
+    fetch('/logs/bulk_pin', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content
+      },
+      body: JSON.stringify({
+        log_ids: [logId],
+        pin: shouldPin
+      })
+    })
+    .then(response => response.json())
+    .then(res => {
+      if (res.success) {
+        // Reload to update sort order (optional but recommended for UX clarity)
+        window.location.reload();
+      } else {
+        alert("Failed to update pinning.");
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      alert("An error occurred.");
+    });
+  }
+
+  function handleBulkCategory() {
+    if (selectedLogIds.size === 0) return;
+    
+    // Get all selected log cards
+    const selectedCards = Array.from(selectedLogIds).map(id => 
+      document.querySelector(`.log-card[data-log-id="${id}"]`)
+    ).filter(c => !!c);
+
+    // Calculate initial states
+    // 1. All logs checked for a category -> 'checked'
+    // 2. Some logs checked -> 'unchecked' (but can be toggled to 'checked' or 'removing' if present)
+    const logCategories = selectedCards.map(c => JSON.parse(c.dataset.categories || '[]'));
+    const logPinneds = selectedCards.map(c => c.dataset.pinned === 'true');
+
+    const allCategoryIds = [...new Set(logCategories.flat())];
+    const initialStates = {};
+
+    allCategoryIds.forEach(catId => {
+      const presentInAll = logCategories.every(cats => cats.includes(parseInt(catId)));
+      if (presentInAll) {
+        initialStates[catId] = 'checked';
+      } else {
+        initialStates[catId] = 'unchecked';
+      }
+    });
+
+    // Handle initial state for Pinned/Favorites
+    // DEPRECATED: Pinned is now decoupled from Favorites. 
+    // Favorites category check is handled by the generic logic above.
+
+    openManageCategoriesModal(Array.from(selectedLogIds), initialStates);
+  }
+
+  // Initialize on load and after search/filters
+  document.addEventListener('DOMContentLoaded', initSelectionListeners);
+  // Re-init after any live updates that might replace content
+  const observer = new MutationObserver(initSelectionListeners);
+  observer.observe(document.body, { childList: true, subtree: true });
 </script>
