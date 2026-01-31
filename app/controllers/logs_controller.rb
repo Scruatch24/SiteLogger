@@ -19,12 +19,26 @@ class LogsController < ApplicationController
         @log.ip_address = request.remote_ip
         @log.session_id = params[:session_id]
 
-        # Guest limit: 2 per IP per day (Counts ALL logs created, including discarded ones)
+        Rails.logger.info "Checking Guest Limit: IP=#{request.remote_ip}, Session=#{params[:session_id]}"
+
+        # Guest limit: 2 per IP OR per Session per day (Counts ALL logs created, including discarded ones)
         limit = Profile::EXPORT_LIMITS["guest"] || 2
-        count = Log.where(user_id: nil, ip_address: request.remote_ip)
-                   .where("created_at > ?", 24.hours.ago)
-                   .count
-        if count >= limit
+
+        # Check by IP
+        count_ip = Log.where(user_id: nil, ip_address: request.remote_ip)
+                      .where("created_at > ?", 24.hours.ago)
+                      .count
+
+        # Check by Session ID (Stronger than IP)
+        count_session = 0
+        if params[:session_id].present? && params[:session_id] != "null"
+           count_session = Log.where(user_id: nil, session_id: params[:session_id])
+                              .where("created_at > ?", 24.hours.ago)
+                              .count
+        end
+
+        if count_ip >= limit || count_session >= limit
+           Rails.logger.info "Limit HIT: IP Count=#{count_ip}, Session Count=#{count_session}"
            return render json: { status: "error", success: false, message: "Rate limit reached", errors: [ "Guest limit reached (2 per day). Signup to unlock!" ] }, status: :too_many_requests
         end
       end
