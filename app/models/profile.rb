@@ -23,23 +23,33 @@ class Profile < ApplicationRecord
     validate :validate_payment_instructions_lines
 
     PLAN_LIMITS = {
-      "guest" => 200,
-      "free" => 2000,
+      "guest" => 150,
+      "free" => 400,
       "paid" => 10000
     }.freeze
 
     AUDIO_LIMITS = {
       "guest" => 30,
-      "free" => 120,
-      "paid" => 600
+      "free" => 60,
+      "paid" => 300
+    }.freeze
+
+    EXPORT_LIMITS = {
+      "guest" => 2,   # per day, per IP
+      "free" => 5,    # per day, per account
+      "paid" => nil   # unlimited
     }.freeze
 
     def char_limit
-      PLAN_LIMITS[plan.presence || "guest"] || 200
+      PLAN_LIMITS[plan.presence || "guest"] || 150
     end
 
     def audio_limit
       AUDIO_LIMITS[plan.presence || "guest"] || 30
+    end
+
+    def export_limit
+      EXPORT_LIMITS[plan.presence || "guest"]
     end
 
     def guest?

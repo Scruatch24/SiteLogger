@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_01_30_201822) do
+ActiveRecord::Schema[8.0].define(version: 2026_01_31_181151) do
   create_schema "auth"
   create_schema "neon_auth"
   create_schema "pgrst"
@@ -100,6 +100,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_01_30_201822) do
     t.string "status", default: "draft", null: false
     t.datetime "pinned_at"
     t.datetime "favorites_pinned_at"
+    t.string "ip_address"
+    t.string "session_id"
+    t.datetime "deleted_at"
+    t.index ["deleted_at"], name: "index_logs_on_deleted_at"
     t.index ["status"], name: "index_logs_on_status"
     t.index ["user_id", "invoice_number"], name: "index_logs_on_user_id_and_invoice_number"
     t.index ["user_id"], name: "index_logs_on_user_id"
@@ -137,6 +141,17 @@ ActiveRecord::Schema[8.0].define(version: 2026_01_30_201822) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "ip_address"
+    t.string "target_id"
+  end
+
+  create_table "usage_events", force: :cascade do |t|
+    t.bigint "user_id"
+    t.string "ip_address"
+    t.string "event_type"
+    t.string "session_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id"], name: "index_usage_events_on_user_id"
   end
 
   create_table "users", force: :cascade do |t|
@@ -158,4 +173,5 @@ ActiveRecord::Schema[8.0].define(version: 2026_01_30_201822) do
   add_foreign_key "categories", "users"
   add_foreign_key "log_category_assignments", "categories"
   add_foreign_key "log_category_assignments", "logs"
+  add_foreign_key "usage_events", "users"
 end

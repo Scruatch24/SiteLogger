@@ -143,6 +143,8 @@
     margin-top: 4px;
     position: relative;
     z-index: 10;
+    user-select: text !important;
+    -webkit-user-select: text !important;
   }
   [contenteditable="true"]:focus {
     outline: 2px solid #3b82f6;
@@ -513,7 +515,7 @@
       <h2 class="text-xl font-black uppercase italic tracking-tighter">NEW <span class="text-orange-600">CATEGORY</span></h2>
       <button onclick="closeAddCategoryModal()" class="text-gray-400 hover:text-black transition-colors">
         <svg class="h-6 w-6">
-          <use xlink:href="#icon-delete"></use>
+          <use xlink:href="#icon-close"></use>
         </svg>
       </button>
     </div>
@@ -610,7 +612,7 @@
       <h2 class="text-xl font-black uppercase italic tracking-tighter">MANAGE <span class="text-orange-600">CATEGORIES</span></h2>
       <button onclick="closeManageCategoriesModal()" class="text-gray-400 hover:text-black transition-colors">
         <svg class="h-6 w-6">
-          <use xlink:href="#icon-delete"></use>
+          <use xlink:href="#icon-close"></use>
         </svg>
       </button>
     </div>
@@ -824,7 +826,7 @@
       dropdown.classList.add('active');
       btn.classList.add('active');
       // Bring THIS card to front so its menu goes over subsequent cards
-      btn.closest('.log-card').style.zIndex = '50';
+      btn.closest('.log-card').style.zIndex = '1000';
     }
   }
 
@@ -853,7 +855,7 @@
       dropdown.classList.remove('hidden');
       if (chevron) chevron.classList.add('rotate-180');
       // Ensure specific z-index for the card to prevent overlap issues
-      btn.closest('.log-card').style.zIndex = '50';
+      btn.closest('.log-card').style.zIndex = '1000';
     } else {
       dropdown.classList.add('hidden');
       if (chevron) chevron.classList.remove('rotate-180');
@@ -1148,6 +1150,14 @@
 
   // --- View Switcher Logic ---
   function switchView(viewName) {
+    <% if @profile.guest? %>
+    if (viewName === 'categories') {
+        if (window.showPremiumModal) window.showPremiumModal();
+        switchView('all');
+        return;
+    }
+    <% end %>
+
     // 1. Hide all view sections
     document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
     
@@ -1605,11 +1615,18 @@
       };
 
       let holdTriggeredSelection = false;
+      let startX = 0;
+      let startY = 0;
 
       const handlePress = (e) => {
         if (isSelectionMode) return; 
         holdTriggeredSelection = false;
         
+        // Track starting position
+        const touch = e.touches ? e.touches[0] : e;
+        startX = touch.screenX;
+        startY = touch.screenY;
+
         if (e.target.closest('button') || e.target.closest('input') || e.target.closest('[contenteditable="true"]')) return;
 
         holdTimer = setTimeout(() => {
@@ -1617,6 +1634,20 @@
           holdTimer = null;
           holdTriggeredSelection = true;
         }, HOLD_DURATION);
+      };
+
+      const handleMove = (e) => {
+        if (!holdTimer) return;
+        
+        const touch = e.touches ? e.touches[0] : e;
+        const deltaX = Math.abs(touch.screenX - startX);
+        const deltaY = Math.abs(touch.screenY - startY);
+        
+        // If moved more than 10px, cancel the hold
+        if (deltaX > 10 || deltaY > 10) {
+          clearTimeout(holdTimer);
+          holdTimer = null;
+        }
       };
 
       const handleRelease = () => {
@@ -1631,11 +1662,22 @@
       };
 
       card.addEventListener('mousedown', handlePress);
-      card.addEventListener('touchstart', handlePress, { passive: false });
+      card.addEventListener('touchstart', handlePress, { passive: true });
+      card.addEventListener('mousemove', handleMove);
+      card.addEventListener('touchmove', handleMove, { passive: true });
       card.addEventListener('mouseup', handleRelease);
       card.addEventListener('mouseleave', handleRelease);
       card.addEventListener('touchend', handleRelease);
+      card.addEventListener('touchcancel', handleRelease);
     });
+
+    // Extra safety (Outside loop): cancel hold if window scrolls
+    window.addEventListener('scroll', () => {
+      if (holdTimer) {
+        clearTimeout(holdTimer);
+        holdTimer = null;
+      }
+    }, { passive: true });
   }
 
   function enterSelectionMode(firstCardId) {

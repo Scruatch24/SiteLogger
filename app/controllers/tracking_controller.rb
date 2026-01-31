@@ -5,15 +5,17 @@ class TrackingController < ApplicationController
 
   def track
     event_name = params[:event_name]
-    user_id = params[:user_id].presence
+    user_id = params[:user_id].to_s
+    user_id = nil if user_id.blank? || user_id == "null"
     session_id = params[:session_id].presence
+    target_id = params[:target_id].presence
     ip_address = request.remote_ip
 
     unless ALLOWED_EVENTS.include?(event_name)
       return render json: { status: "error", message: "Invalid event name" }, status: :bad_request
     end
 
-    if limit_reached?(event_name, user_id, ip_address)
+    if limit_reached?(event_name, user_id, ip_address, target_id)
       return render json: { status: "error", message: "Rate limit reached" }, status: :too_many_requests
     end
 
@@ -21,7 +23,8 @@ class TrackingController < ApplicationController
       event_name: event_name,
       user_id: user_id,
       session_id: session_id,
-      ip_address: ip_address
+      ip_address: ip_address,
+      target_id: target_id
     )
 
     render json: { status: "success" }, status: :ok
@@ -31,10 +34,10 @@ class TrackingController < ApplicationController
 
   private
 
-  def limit_reached?(event_name, user_id, ip_address)
+  def limit_reached?(event_name, user_id, ip_address, target_id = nil)
     case event_name
     when "invoice_exported"
-      check_export_limit(user_id, ip_address)
+      check_export_limit(user_id, ip_address, target_id)
     when "recording_started"
       check_recording_limit(user_id, ip_address)
     else
@@ -42,19 +45,39 @@ class TrackingController < ApplicationController
     end
   end
 
-  def check_export_limit(user_id, ip_address)
+  def check_export_limit(user_id, ip_address, target_id = nil)
     if user_id.blank?
-      # Guest user: 2 per IP per minute
-      count = TrackingEvent.where(event_name: "invoice_exported", ip_address: ip_address)
-                          .where("created_at > ?", 1.minute.ago)
-                          .count
-      count >= 2
+      # Guest user limit
+      limit = Profile::EXPORT_LIMITS["guest"] || 2
+
+      # If they are exporting an EXISTING log that belongs to them, allow it (don't count again)
+      if target_id.present? && Log.exists?(id: target_id, user_id: nil, ip_address: ip_address)
+        return false
+      end
+
+      # Otherwise, count how many invoices they have created today
+      count = Log.where(user_id: nil, ip_address: ip_address)
+                 .where("created_at > ?", 24.hours.ago)
+                 .count
+
+      count >= limit
     else
-      # Free user: 5 per user per day
+      # Check user's plan tier
+      user = User.find_by(id: user_id)
+      return false unless user  # If user not found, allow
+
+      profile = user.profile
+      plan = profile&.plan || "free"
+      limit = Profile::EXPORT_LIMITS[plan]
+
+      # Paid users have unlimited exports (nil limit)
+      return false if limit.nil?
+
+      # Free users: X per account per day
       count = TrackingEvent.where(event_name: "invoice_exported", user_id: user_id)
                           .where("created_at > ?", 24.hours.ago)
                           .count
-      count >= 5
+      count >= limit
     end
   end
 

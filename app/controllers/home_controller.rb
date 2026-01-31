@@ -23,9 +23,10 @@ class HomeController < ApplicationController
 
   def history
     @logs = if user_signed_in?
-      current_user.logs.eager_load(:categories).order("logs.pinned DESC NULLS LAST, logs.pinned_at DESC NULLS LAST, logs.created_at DESC")
+      current_user.logs.kept.eager_load(:categories).order("logs.pinned DESC NULLS LAST, logs.pinned_at DESC NULLS LAST, logs.created_at DESC")
     else
-      Log.where(user_id: nil).eager_load(:categories).order("logs.pinned DESC NULLS LAST, logs.pinned_at DESC NULLS LAST, logs.created_at DESC")
+      # Guest history is private to the IP adress
+      Log.kept.where(user_id: nil, ip_address: request.remote_ip).eager_load(:categories).order("logs.pinned DESC NULLS LAST, logs.pinned_at DESC NULLS LAST, logs.created_at DESC")
     end
 
     @categories = if user_signed_in?
@@ -43,10 +44,12 @@ class HomeController < ApplicationController
 
   def settings
     # @profile is already set by the before_action
+    # Guests can view but fields are disabled in the view
   end
 
   def profile
     @is_new_profile = !@profile.persisted?
+    # Guests can view but fields are disabled in the view
   end
 
   def save_profile
@@ -100,9 +103,9 @@ class HomeController < ApplicationController
 
     # Character Limit Check
     current_length = params[:manual_text].to_s.length
-    if current_length >= limit
+    if current_length > limit
       return render json: {
-        error: "Your transcript is already at the character limit (#{limit}). Upgrade to add more text."
+        error: "Your transcript exceeds the character limit (#{limit}). Upgrade to add more text."
       }, status: :unprocessable_entity
     end
 
@@ -125,7 +128,10 @@ class HomeController < ApplicationController
               { text: "Transcribe this short audio clip. Return ONLY the spoken text, nothing else. If unclear, return your best guess." },
               { inline_data: { mime_type: audio.content_type, data: audio_data } }
             ]
-          } ]
+          } ],
+          generationConfig: {
+            thinkingConfig: { thinkingBudget: 0 }
+          }
         }.to_json
 
         res = http.request(req)
@@ -383,7 +389,12 @@ PROMPT
       http.open_timeout = 10
 
       req = Net::HTTP::Post.new(uri, "Content-Type" => "application/json", "x-goog-api-key" => api_key)
-      req.body = { contents: [ { parts: prompt_parts } ] }.to_json
+      req.body = {
+        contents: [ { parts: prompt_parts } ],
+        generationConfig: {
+          thinkingConfig: { thinkingBudget: 0 }
+        }
+      }.to_json
 
       res = http.request(req)
       body = JSON.parse(res.body) rescue {}

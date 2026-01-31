@@ -4,22 +4,25 @@
 # See the Securing Rails Applications Guide for more information:
 # https://guides.rubyonrails.org/security.html#content-security-policy-header
 
-# Rails.application.configure do
-#   config.content_security_policy do |policy|
-#     policy.default_src :self, :https
-#     policy.font_src    :self, :https, :data
-#     policy.img_src     :self, :https, :data
-#     policy.object_src  :none
-#     policy.script_src  :self, :https
-#     policy.style_src   :self, :https
-#     # Specify URI for violation reports
-#     # policy.report_uri "/csp-violation-report-endpoint"
-#   end
-#
-#   # Generate session nonces for permitted importmap, inline scripts, and inline styles.
-#   config.content_security_policy_nonce_generator = ->(request) { request.session.id.to_s }
-#   config.content_security_policy_nonce_directives = %w(script-src style-src)
-#
-#   # Report violations without enforcing the policy.
-#   # config.content_security_policy_report_only = true
-# end
+Rails.application.configure do
+  config.content_security_policy do |policy|
+    policy.default_src :self, :https
+    policy.font_src    :self, :https, :data
+    policy.img_src     :self, :https, :data, :blob
+    policy.object_src  :self, :blob  # For PDF previews
+    policy.frame_src   :self, :blob  # For PDF iframes
+    policy.media_src   :self, :blob  # For audio recording
+    policy.script_src  :self, :https, :unsafe_inline, :unsafe_eval  # Needed for inline JS
+    policy.style_src   :self, :https, :unsafe_inline  # Needed for inline styles
+    policy.connect_src :self, :https, "https://generativelanguage.googleapis.com"  # Gemini API
+
+    # External CDN for flag icons
+    policy.style_src   :self, :https, :unsafe_inline, "https://cdn.jsdelivr.net"
+    policy.font_src    :self, :https, :data, "https://cdn.jsdelivr.net"
+    policy.img_src     :self, :https, :data, :blob, "https://cdn.jsdelivr.net"
+  end
+
+  # Report violations without enforcing the policy (safe rollout).
+  # Once verified working, change this to false to enforce.
+  config.content_security_policy_report_only = true
+end

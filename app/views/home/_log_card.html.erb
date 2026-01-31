@@ -10,7 +10,7 @@
      data-pinned="<%= log.pinned ? 'true' : 'false' %>"
      data-log-id="<%= log.id %>">
   <!-- Hamburger Menu Button (Top Right Corner) -->
-  <div class="absolute -top-3 -right-3 z-30">
+  <div class="absolute -top-3 -right-3 z-[60]">
     <button type="button" 
             onclick="toggleLogMenu(this, event)"
             class="w-10 h-10 bg-white border-2 border-black rounded-full shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] flex flex-col items-center justify-center hover:bg-gray-50 active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all log-menu-btn">
@@ -20,7 +20,7 @@
     </button>
     
     <!-- Dropdown Menu -->
-    <div class="log-menu-dropdown absolute right-0 mt-2 w-48 bg-white border-2 border-black rounded-2xl shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] overflow-hidden z-50">
+    <div class="log-menu-dropdown absolute right-0 mt-2 w-48 bg-white border-2 border-black rounded-2xl shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] overflow-hidden z-[100]">
       <div class="flex flex-col">
         <button type="button" 
                 onclick="handleRecreate(this)"
@@ -67,12 +67,9 @@
                 onclick="openManageCategoriesModal('<%= log.id %>', <%= log.category_ids.to_json %>)"
                 class="flex items-center gap-3 px-4 py-3 text-left hover:bg-orange-50 transition-colors border-b border-gray-100 group/item">
           <div class="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center text-orange-600 group-hover/item:bg-orange-600 group-hover/item:text-white transition-colors">
-            <% if category_count > 0 %>
-              <!-- Manage Icon -->
-              <svg class="h-4 w-4">
-                <use xlink:href="#<%= category_count > 0 ? 'icon-manage' : 'icon-add' %>"></use>
-              </svg>
-            <% end %>
+            <svg class="h-4 w-4">
+              <use xlink:href="#<%= category_count > 0 ? 'icon-manage' : 'icon-add' %>"></use>
+            </svg>
           </div>
           <span class="text-[10px] font-black uppercase tracking-widest text-black">
             <%= category_count > 0 ? "Manage Categories" : "Add to Category" %>
@@ -144,7 +141,7 @@
       'overdue' => { bg: 'bg-red-50', text: 'text-red-600', border: 'border-red-400' }
     }[current_status] || { bg: 'bg-gray-50', text: 'text-gray-500', border: 'border-gray-300' }
   %>
-  <div class="absolute bottom-[calc(100%-2px)] left-6 z-40 group/status">
+  <div class="absolute bottom-[calc(100%-2px)] left-6 z-[50] group/status">
     <button type="button" 
             id="status-badge-<%= log.id %><%= suffix %>"
             onclick="toggleStatusSelector(this, event)"
@@ -186,7 +183,7 @@
   <div class="card-inner bg-white border-2 border-black rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden transition-all duration-200 relative">
     
     <!-- Header Area -->
-    <div class="bg-gray-50 border-b-2 border-black p-4 pb-3 flex justify-between items-start cursor-pointer hover:bg-gray-100 transition-colors header-main"
+    <div class="bg-gray-50 border-b-2 border-black p-4 pb-3 flex justify-between items-start cursor-pointer hover:bg-gray-100 transition-colors header-main select-none"
          onclick="handleHeaderClick(this, event)">
       
       <div class="flex items-start gap-4 min-w-0 flex-1">
@@ -208,27 +205,27 @@
         </div>
        
        <div class="min-w-0 flex-1">
-         <div class="flex flex-wrap items-center gap-2 mb-3">
-           <span class="text-xs sm:text-sm font-black text-orange-600 bg-orange-100 px-2 py-0.5 rounded uppercase tracking-wider whitespace-nowrap">
+         <div class="flex flex-wrap items-center gap-1 sm:gap-2 mb-3">
+           <span class="h-5 sm:h-6 flex items-center text-[9px] sm:text-sm font-black text-orange-600 bg-orange-100 px-2 rounded uppercase tracking-wider whitespace-nowrap leading-none">
              INV-<%= log.display_number %>
            </span>
-            <div class="flex items-center gap-1 px-2 py-0.5 bg-gray-100 border border-gray-200 rounded text-[9px] sm:text-xs font-black uppercase tracking-tighter text-gray-600 whitespace-nowrap">
-              <svg class="h-2.5 w-2.5 sm:h-3 sm:w-3">
+            <div class="h-5 sm:h-6 flex items-center gap-1 px-2 bg-gray-100 border border-gray-200 rounded text-[9px] sm:text-xs font-black uppercase tracking-tighter text-gray-600 whitespace-nowrap">
+              <svg class="h-2.5 w-2.5 sm:h-3 sm:w-3 shrink-0">
                 <use xlink:href="#icon-calendar"></use>
               </svg>
-              <%= log.date || log.created_at.strftime("%b %d, %Y") %>
+              <span class="leading-none"><%= log.date || log.created_at.strftime("%b %d, %Y") %></span>
             </div>
 
            <% if log.due_date.present? %>
-              <div class="flex items-center gap-1 px-2 py-0.5 bg-red-50 border border-red-100 rounded text-[9px] sm:text-xs font-black uppercase tracking-tighter text-red-600 whitespace-nowrap">
-                <svg class="h-2.5 w-2.5 sm:h-3 sm:w-3">
+              <div class="h-5 sm:h-6 flex items-center gap-1 px-2 bg-red-50 border border-red-100 rounded text-[9px] sm:text-xs font-black uppercase tracking-tighter text-red-600 whitespace-nowrap">
+                <svg class="h-2.5 w-2.5 sm:h-3 sm:w-3 shrink-0">
                   <use xlink:href="#icon-clock"></use>
                 </svg>
-                Due: <%= log.due_date %>
+                <span class="leading-none">Due: <%= log.due_date %></span>
               </div>
            <% end %>
          </div>
-         <h3 class="text-xl font-black text-black leading-tight break-words mb-0" 
+         <h3 class="text-xl font-black text-black leading-tight break-words mb-0 select-none" 
              style="overflow-wrap: anywhere;"
              data-editable-type="client" data-log-id="<%= log.id %>">
            <%= log.client.presence || "Unknown Client" %>
@@ -432,7 +429,7 @@
 
     <!-- Action Buttons -->
     <div class="grid grid-cols-1 gap-3">
-      <%= link_to download_pdf_log_path(log), class: "flex items-center justify-center gap-2 bg-orange-600 text-white px-4 py-2 border-2 border-black rounded-lg font-black text-xs uppercase tracking-widest hover:bg-orange-700 transition-all shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] active:scale-95", target: "_blank", onclick: "window.trackEvent('invoice_exported')" do %>
+      <%= link_to download_pdf_log_path(log), class: "flex items-center justify-center gap-2 bg-orange-600 text-white px-4 py-2 border-2 border-black rounded-lg font-black text-xs uppercase tracking-widest hover:bg-orange-700 transition-all shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] active:scale-95", target: "_blank", onclick: "window.trackEvent('invoice_exported', #{user_signed_in? ? current_user.id : 'null'}, null, '#{log.id}')" do %>
         <svg class="h-4 w-4">
           <use xlink:href="#icon-pdf"></use>
         </svg>

@@ -8,6 +8,17 @@ class Log < ApplicationRecord
 
   STATUSES = %w[draft sent paid overdue].freeze
 
+  scope :kept, -> { where(deleted_at: nil) }
+  scope :discarded, -> { where.not(deleted_at: nil) }
+
+  def discard
+    update(deleted_at: Time.current)
+  end
+
+  def discarded?
+    deleted_at.present?
+  end
+
   def overdue?
     return false if status == "paid"
     return true if status == "overdue" # Manually set
@@ -40,15 +51,22 @@ class Log < ApplicationRecord
     end
 
     # Fallback for unsaved records (preview):
-    self.class.next_display_number(user)
+    self.class.next_display_number(user, ip_address)
   end
 
-  def self.next_display_number(user = nil)
+  def self.next_display_number(user = nil, ip_address = nil)
     # Find the maximum existing invoice number for this user (or guest)
-    scope = where(user_id: user&.id)
+    scope = if user
+      where(user_id: user.id)
+    elsif ip_address
+      where(user_id: nil, ip_address: ip_address)
+    else
+      where(user_id: nil)
+    end
 
     # Retry logic for stale schema cache
     begin
+      # We include deleted ones in the max ID check to avoid reusable IDs
       max_num = scope.maximum(:invoice_number)
     rescue
       reset_column_information
@@ -64,6 +82,6 @@ class Log < ApplicationRecord
 
   def assign_invoice_number
     # Assign the next number only if not already set
-    self.invoice_number ||= self.class.next_display_number(user)
+    self.invoice_number ||= self.class.next_display_number(user, ip_address)
   end
 end

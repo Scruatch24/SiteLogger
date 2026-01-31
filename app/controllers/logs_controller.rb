@@ -14,6 +14,19 @@ class LogsController < ApplicationController
       profile = @profile # using the one from HomeController before_filter or set manually
       if !user_signed_in?
         profile = Profile.where(user_id: nil).first || Profile.new
+
+        # Set guest IP for ID scoping
+        @log.ip_address = request.remote_ip
+        @log.session_id = params[:session_id]
+
+        # Guest limit: 2 per IP per day (Counts ALL logs created, including discarded ones)
+        limit = Profile::EXPORT_LIMITS["guest"] || 2
+        count = Log.where(user_id: nil, ip_address: request.remote_ip)
+                   .where("created_at > ?", 24.hours.ago)
+                   .count
+        if count >= limit
+           return render json: { status: "error", success: false, message: "Rate limit reached", errors: [ "Guest limit reached (2 per day). Signup to unlock!" ] }, status: :too_many_requests
+        end
       end
       @log.billing_mode = profile.billing_mode || "hourly" if @log.billing_mode.blank?
 
@@ -43,19 +56,19 @@ class LogsController < ApplicationController
 
     def destroy
       @log = if user_signed_in?
-        current_user.logs.find(params[:id])
+        current_user.logs.kept.find(params[:id])
       else
-        Log.where(user_id: nil).find(params[:id])
+        Log.kept.where(user_id: nil, ip_address: request.remote_ip).find(params[:id])
       end
-      @log.destroy
+      @log.discard
       redirect_to history_path
     end
 
     def update_entry
       @log = if user_signed_in?
-        current_user.logs.find(params[:id])
+        current_user.logs.kept.find(params[:id])
       else
-        Log.where(user_id: nil).find(params[:id])
+        Log.kept.where(user_id: nil, ip_address: request.remote_ip).find(params[:id])
       end
 
       # Rule: Paid invoices should be locked: no RENAME available
@@ -119,9 +132,9 @@ class LogsController < ApplicationController
 
     def update_status
       @log = if user_signed_in?
-        current_user.logs.find(params[:id])
+        current_user.logs.kept.find(params[:id])
       else
-        Log.where(user_id: nil).find(params[:id])
+        Log.kept.where(user_id: nil, ip_address: request.remote_ip).find(params[:id])
       end
 
       status = params[:status]
@@ -139,9 +152,9 @@ class LogsController < ApplicationController
 
     def update_categories
       @log = if user_signed_in?
-        current_user.logs.find(params[:id])
+        current_user.logs.kept.find(params[:id])
       else
-        Log.where(user_id: nil).find(params[:id])
+        Log.kept.where(user_id: nil, ip_address: request.remote_ip).find(params[:id])
       end
 
       category_ids = params[:category_ids] || []
@@ -162,9 +175,9 @@ class LogsController < ApplicationController
       # pinned_action is no longer handled here, use bulk_pin instead
 
       logs = if user_signed_in?
-        current_user.logs.where(id: log_ids)
+        current_user.logs.kept.where(id: log_ids)
       else
-        Log.where(user_id: nil, id: log_ids)
+        Log.kept.where(user_id: nil, ip_address: request.remote_ip, id: log_ids)
       end
 
       errors = []
@@ -193,9 +206,9 @@ class LogsController < ApplicationController
       should_pin = params[:pin] == true
 
       if user_signed_in?
-        current_user.logs.where(id: log_ids)
+        current_user.logs.kept.where(id: log_ids)
       else
-        Log.where(user_id: nil, id: log_ids)
+        Log.kept.where(user_id: nil, ip_address: request.remote_ip, id: log_ids)
       end
 
       if category_id.present?
@@ -224,9 +237,9 @@ class LogsController < ApplicationController
 
     def clear_all
       if user_signed_in?
-        current_user.logs.destroy_all
+        current_user.logs.kept.update_all(deleted_at: Time.current)
       else
-        Log.where(user_id: nil).destroy_all
+        Log.kept.where(user_id: nil, ip_address: request.remote_ip).update_all(deleted_at: Time.current)
       end
       redirect_to history_path
     end
@@ -235,9 +248,9 @@ class LogsController < ApplicationController
 
     def download_pdf
       log = if user_signed_in?
-        current_user.logs.find(params[:id])
+        current_user.logs.kept.find(params[:id])
       else
-        Log.where(user_id: nil).find(params[:id])
+        Log.kept.where(user_id: nil, ip_address: request.remote_ip).find(params[:id])
       end
 
       profile = if log.user
@@ -424,6 +437,7 @@ class LogsController < ApplicationController
         else
           log = Log.new(p)
           log.user = current_user if user_signed_in?
+          log.ip_address = request.remote_ip if !user_signed_in?
         end
 
         if log.accent_color.blank? || log.accent_color == "#EA580C"
@@ -461,6 +475,6 @@ class LogsController < ApplicationController
     end
 
     def log_params
-      params.require(:log).permit(:client, :time, :date, :due_date, :tasks, :credits, :billing_mode, :discount_tax_rule, :tax_scope, :labor_taxable, :labor_discount_flat, :labor_discount_percent, :global_discount_flat, :global_discount_percent, :global_discount_message, :credit_flat, :credit_reason, :currency, :hourly_rate, :accent_color, :raw_summary, :tax_rate, :status, category_ids: [])
+      params.require(:log).permit(:client, :time, :date, :due_date, :tasks, :credits, :billing_mode, :discount_tax_rule, :tax_scope, :labor_taxable, :labor_discount_flat, :labor_discount_percent, :global_discount_flat, :global_discount_percent, :global_discount_message, :credit_flat, :credit_reason, :currency, :hourly_rate, :accent_color, :raw_summary, :tax_rate, :status, :session_id, category_ids: [])
     end
 end
