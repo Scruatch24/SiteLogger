@@ -3305,7 +3305,13 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
       formData.append('authenticity_token', document.querySelector('meta[name="csrf-token"]').content);
-      formData.append('log[session_id]', sessionStorage.getItem('tracking_session_id'));
+      const sid = sessionStorage.getItem('tracking_session_id');
+      formData.append('log[session_id]', sid);
+      
+      // Persist Session ID in Cookie for History & Rate Limiting (cross-IP support)
+      if (sid) {
+          document.cookie = `guest_session_id=${sid}; path=/; max-age=31536000; SameSite=Lax`;
+      }
 
       const response = await fetch('/logs', {
         method: 'POST',
