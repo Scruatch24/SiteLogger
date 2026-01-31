@@ -448,15 +448,18 @@ class LogsController < ApplicationController
         set_preview_profile
         profile = @profile
 
+        # Normalize Token for security check and assignment
+        raw_token = p[:session_id] || params[:session_id] || cookies[:guest_token]
+        safe_token = (raw_token.present? && raw_token != "null") ? raw_token : nil
+
         if params[:log_id].present? && params[:log_id] != "null"
           log_id = params[:log_id].to_i
           log = if user_signed_in?
             current_user.logs.kept.find_by(id: log_id)
           else
             # Guest Security Fix: Ensure we ONLY load logs that match Token or IP
-            token = params[:session_id] || cookies[:guest_token]
             Log.kept.where(user_id: nil)
-               .where("session_id = ? OR ip_address = ?", token, request.remote_ip)
+               .where("session_id = ? OR ip_address = ?", safe_token, request.remote_ip)
                .find_by(id: log_id)
           end
 
@@ -473,7 +476,7 @@ class LogsController < ApplicationController
           log.user = current_user if user_signed_in?
           if !user_signed_in?
             log.ip_address = request.remote_ip
-            log.session_id = p[:session_id] || cookies[:guest_token]
+            log.session_id = safe_token
           end
         end
 
