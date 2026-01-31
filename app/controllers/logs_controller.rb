@@ -471,7 +471,10 @@ class LogsController < ApplicationController
         else
           log = Log.new(p)
           log.user = current_user if user_signed_in?
-          log.ip_address = request.remote_ip if !user_signed_in?
+          if !user_signed_in?
+            log.ip_address = request.remote_ip
+            log.session_id = p[:session_id] || cookies[:guest_token]
+          end
         end
 
         if log.accent_color.blank? || log.accent_color == "#EA580C"

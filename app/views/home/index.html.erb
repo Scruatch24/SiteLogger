@@ -3097,6 +3097,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
       formData.append('authenticity_token', document.querySelector('meta[name="csrf-token"]').content);
+      formData.append('log[session_id]', localStorage.getItem('guest_token'));
       if (typeof savedLogId !== 'undefined' && savedLogId) {
         formData.append('log_id', savedLogId);
       }
