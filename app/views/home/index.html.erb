@@ -3125,14 +3125,25 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const canvas = document.getElementById('pdfCanvas');
       if (canvas) {
-          // Calculate height based on actual width and A4 aspect ratio (1.414)
-          const width = canvas.offsetWidth || 800;
-          canvas.style.height = Math.floor(pageCount * width * 1.4142) + 'px';
+          // Small delay to ensure modal has finished transitioning and has valid dimensions
+          setTimeout(() => {
+            const rect = canvas.getBoundingClientRect();
+            const width = rect.width || canvas.offsetWidth || 800;
+            const calculatedHeight = Math.floor(pageCount * width * 1.4142);
+            const finalHeight = (calculatedHeight > 0 ? calculatedHeight : 1100) + 'px';
+            
+            canvas.style.height = finalHeight;
+            const iframe = document.getElementById('pdfFrame');
+            if (iframe) iframe.style.height = finalHeight;
+            
+            console.log("PDF Canvas calculated:", { width, pageCount, height: finalHeight });
+          }, 100);
       }
 
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       iframe.src = url + '#toolbar=0';
+      iframe.setAttribute('scrolling', 'no'); // Prevent iOS auto-expansion issues
       iframe.onload = () => {
         loading.classList.add('hidden');
         iframe.classList.remove('hidden');
@@ -6472,7 +6483,7 @@ window.toggleCreditBreakdown = function() {
         <!-- PDF Viewer Container -->
         <div class="flex-1 relative overflow-y-auto p-4 md:p-10 custom-scrollbar scroll-smooth" id="pdfViewerContainer" style="background-color: #282828;" oncontextmenu="return false;">
             <div id="pdfCanvas" class="relative w-full mx-auto bg-white shadow-lg origin-top" style="max-width: 100%;">
-                <iframe id="pdfFrame" class="absolute inset-0 w-full h-full border-none hidden opacity-0 transition-opacity duration-500 origin-top pointer-events-none"></iframe>
+                <iframe id="pdfFrame" class="absolute inset-0 w-full h-full border-none hidden opacity-0 transition-opacity duration-500 origin-top"></iframe>
                 
                 <!-- Protective Overlay (Blocks right-click and toolbar interaction while allowing parent scroll) -->
                 <div class="absolute inset-0 z-10 bg-transparent cursor-default"></div>
