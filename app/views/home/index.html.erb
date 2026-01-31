@@ -3305,13 +3305,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
       formData.append('authenticity_token', document.querySelector('meta[name="csrf-token"]').content);
-      const sid = sessionStorage.getItem('tracking_session_id');
-      formData.append('log[session_id]', sid);
-      
-      // Persist Session ID in Cookie for History & Rate Limiting (cross-IP support)
-      if (sid) {
-          document.cookie = `guest_session_id=${sid}; path=/; max-age=31536000; SameSite=Lax`;
-      }
+      formData.append('log[session_id]', sessionStorage.getItem('tracking_session_id'));
 
       const response = await fetch('/logs', {
         method: 'POST',
@@ -3376,6 +3370,24 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (err) {
       if (err.isLimit || err.message === 'Limit reached' || err.message.toLowerCase().includes("limit reached")) {
           updateSaveButtonToLimitState(saveBtn);
+          // Also disable share button and update its appearance
+          if (shareBtn) {
+              shareBtn.disabled = true;
+              shareBtn.style.pointerEvents = 'none';
+              const shareDiv = shareBtn.querySelector('div');
+              const shareLabel = shareBtn.querySelector('span');
+              if (shareDiv) {
+                  shareDiv.classList.remove('bg-black', 'hover:bg-gray-900');
+                  shareDiv.classList.add('bg-red-600');
+                  shareDiv.style.boxShadow = 'none';
+                  shareDiv.style.transform = 'translate(2px, 2px)';
+              }
+              if (shareLabel) {
+                  shareLabel.innerText = 'Limit';
+                  shareLabel.classList.remove('text-gray-500');
+                  shareLabel.classList.add('text-red-600');
+              }
+          }
           window.showPremiumModal?.();
           return { error: 'Limit reached' };
       }
@@ -3417,8 +3429,12 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const shareBtn = document.getElementById('pdfModalShareBtn');
+    const saveBtn = document.getElementById('pdfModalSaveBtn');
     const shareLabel = shareBtn?.querySelector('span');
     const originalShareText = shareLabel?.innerText || "Share";
+
+    // Track if limit was hit to prevent re-enabling buttons
+    let limitWasHit = false;
 
     if (shareBtn) {
         shareBtn.disabled = true;
@@ -3428,7 +3444,15 @@ document.addEventListener("DOMContentLoaded", () => {
     // Background Save (quietly) if not already saved
     if (!logAlreadySaved) {
         // Use silent: true to prevent preview flicker/disappearance
-        await finalSaveLog({ redirect: false, silent: true });
+        const saveResult = await finalSaveLog({ redirect: false, silent: true });
+        
+        // Check if limit was reached - finalSaveLog returns { error: 'Limit reached' } on limit
+        if (saveResult?.error === 'Limit reached') {
+            limitWasHit = true;
+            // Buttons already updated in finalSaveLog, do NOT re-enable
+            return;
+        }
+        
         if (!logAlreadySaved) {
             if (shareBtn) {
                 shareBtn.disabled = false;
@@ -3441,11 +3465,10 @@ document.addEventListener("DOMContentLoaded", () => {
         // Even if already saved, check/record the share action
         const canExport = await window.trackEvent('invoice_exported', <%= user_signed_in? ? current_user.id : 'null' %>, null, savedLogId);
         if (canExport === false) { // Explicitly false means limit hit
-            if (shareBtn) {
-                shareBtn.disabled = false;
-                shareBtn.style.pointerEvents = 'auto';
-                if (shareLabel) shareLabel.innerText = originalShareText;
-            }
+            limitWasHit = true;
+            // Keep buttons disabled - limit reached
+            if (saveBtn) updateSaveButtonToLimitState(saveBtn);
+            // Don't re-enable share button
             return;
         }
     }
@@ -3488,7 +3511,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     } catch (err) {
       if (err.isLimit || err.message === 'Limit reached' || err.message.toLowerCase().includes("limit reached")) {
-          const saveBtn = document.getElementById('pdfModalSaveBtn');
+          limitWasHit = true;
           if (saveBtn) updateSaveButtonToLimitState(saveBtn);
           window.showPremiumModal?.();
           return;
@@ -3496,18 +3519,20 @@ document.addEventListener("DOMContentLoaded", () => {
       console.error('Sharing failed', err);
       showError("Draft prepared. Click Share again to send.");
     } finally {
-      const saveBtn = document.getElementById('pdfModalSaveBtn');
-      const shareBtn = document.getElementById('pdfModalShareBtn');
-      if (saveBtn) {
-        saveBtn.disabled = false;
-        saveBtn.style.pointerEvents = 'auto';
-      }
-      if (shareBtn) {
-        shareBtn.disabled = false;
-        shareBtn.style.pointerEvents = 'auto';
+      // Only re-enable buttons if limit was NOT hit
+      if (!limitWasHit) {
+        if (saveBtn && !logAlreadySaved) {
+          saveBtn.disabled = false;
+          saveBtn.style.pointerEvents = 'auto';
+        }
+        if (shareBtn) {
+          shareBtn.disabled = false;
+          shareBtn.style.pointerEvents = 'auto';
+        }
       }
     }
   }
+
 
   document.addEventListener('turbo:load', () => {
     initGlobalVariables();

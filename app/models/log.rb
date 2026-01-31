@@ -51,19 +51,20 @@ class Log < ApplicationRecord
     end
 
     # Fallback for unsaved records (preview):
-    self.class.next_display_number(user, ip_address, respond_to?(:session_id) ? session_id : nil)
+    self.class.next_display_number(user, ip_address, session_id)
   end
 
   def self.next_display_number(user = nil, ip_address = nil, session_id = nil)
     # Find the maximum existing invoice number for this user (or guest)
     scope = if user
       where(user_id: user.id)
-    elsif session_id.present? && session_id != "null"
-      # Robust Guest Scope: Check BOTH Session ID (stable) AND IP (backup)
-      # This prevents "INV-1001" resets when IP rotates but session persists
-      where(user_id: nil).where("session_id = ? OR ip_address = ?", session_id, ip_address)
-    elsif ip_address
+    elsif ip_address.present? && session_id.present?
+      # For guests, use both IP and session_id with OR to find their invoices
+      where(user_id: nil).where("ip_address = ? OR session_id = ?", ip_address, session_id)
+    elsif ip_address.present?
       where(user_id: nil, ip_address: ip_address)
+    elsif session_id.present?
+      where(user_id: nil, session_id: session_id)
     else
       where(user_id: nil)
     end
