@@ -36,9 +36,9 @@
     </style>
 
     <script>
-      // Ensure tracking session ID exists (Persistent Guest Token)
-      if (!localStorage.getItem('guest_token')) {
-          localStorage.setItem('guest_token', 'gt_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now());
+      // Ensure tracking session ID exists
+      if (!sessionStorage.getItem('tracking_session_id')) {
+          sessionStorage.setItem('tracking_session_id', 'sess_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now());
       }
       
       let lastPremiumShowTime = 0;
@@ -81,7 +81,7 @@
                   body: JSON.stringify({
                       event_name: eventName,
                       user_id: userId,
-                       session_id: sessionId || localStorage.getItem('guest_token') || ('gt_' + Math.random().toString(36).substr(2, 9)),
+                      session_id: sessionId || sessionStorage.getItem('tracking_session_id') || ('sess_' + Math.random().toString(36).substr(2, 9)),
                       target_id: targetId
                   })
               });

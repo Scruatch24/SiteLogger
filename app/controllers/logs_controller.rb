@@ -15,30 +15,30 @@ class LogsController < ApplicationController
       if !user_signed_in?
         profile = Profile.where(user_id: nil).first || Profile.new
 
-        # Set guest IP and persistent Session for ID scoping
+        # Set guest IP for ID scoping
         @log.ip_address = request.remote_ip
-        @log.session_id = params[:session_id] || cookies[:guest_token]
+        @log.session_id = params[:session_id]
 
-        token = @log.session_id
-        Rails.logger.info "Checking Guest Limit: IP=#{request.remote_ip}, Token=#{token}"
+        Rails.logger.info "Checking Guest Limit: IP=#{request.remote_ip}, Session=#{params[:session_id]}"
 
+        # Guest limit: 2 per IP OR per Session per day (Counts ALL logs created, including discarded ones)
         limit = Profile::EXPORT_LIMITS["guest"] || 2
 
-        # Primary check: Token (Strongest)
-        # Secondary check: IP address (Backup for incognito/cleared cookies)
-        count_token = 0
-        if token.present? && token != "null"
-           count_token = Log.where(user_id: nil, session_id: token)
-                            .where("created_at > ?", 24.hours.ago)
-                            .count
-        end
-
+        # Check by IP
         count_ip = Log.where(user_id: nil, ip_address: request.remote_ip)
                       .where("created_at > ?", 24.hours.ago)
                       .count
 
-        if count_token >= limit || count_ip >= limit
-           Rails.logger.info "Limit HIT: Token Count=#{count_token}, IP Count=#{count_ip}"
+        # Check by Session ID (Stronger than IP)
+        count_session = 0
+        if params[:session_id].present? && params[:session_id] != "null"
+           count_session = Log.where(user_id: nil, session_id: params[:session_id])
+                              .where("created_at > ?", 24.hours.ago)
+                              .count
+        end
+
+        if count_ip >= limit || count_session >= limit
+           Rails.logger.info "Limit HIT: IP Count=#{count_ip}, Session Count=#{count_session}"
            return render json: { status: "error", success: false, message: "Rate limit reached", errors: [ "Guest limit reached (2 per day). Signup to unlock!" ] }, status: :too_many_requests
         end
       end
@@ -72,9 +72,7 @@ class LogsController < ApplicationController
       @log = if user_signed_in?
         current_user.logs.kept.find(params[:id])
       else
-        Log.kept.where(user_id: nil)
-           .where("session_id = ? OR ip_address = ?", params[:session_id] || cookies[:guest_token], request.remote_ip)
-           .find(params[:id])
+        Log.kept.where(user_id: nil, ip_address: request.remote_ip).find(params[:id])
       end
       @log.discard
       redirect_to history_path
@@ -84,9 +82,7 @@ class LogsController < ApplicationController
       @log = if user_signed_in?
         current_user.logs.kept.find(params[:id])
       else
-        Log.kept.where(user_id: nil)
-           .where("session_id = ? OR ip_address = ?", params[:session_id] || cookies[:guest_token], request.remote_ip)
-           .find(params[:id])
+        Log.kept.where(user_id: nil, ip_address: request.remote_ip).find(params[:id])
       end
 
       # Rule: Paid invoices should be locked: no RENAME available
@@ -152,9 +148,7 @@ class LogsController < ApplicationController
       @log = if user_signed_in?
         current_user.logs.kept.find(params[:id])
       else
-        Log.kept.where(user_id: nil)
-           .where("session_id = ? OR ip_address = ?", params[:session_id] || cookies[:guest_token], request.remote_ip)
-           .find(params[:id])
+        Log.kept.where(user_id: nil, ip_address: request.remote_ip).find(params[:id])
       end
 
       status = params[:status]
@@ -174,9 +168,7 @@ class LogsController < ApplicationController
       @log = if user_signed_in?
         current_user.logs.kept.find(params[:id])
       else
-        Log.kept.where(user_id: nil)
-           .where("session_id = ? OR ip_address = ?", params[:session_id] || cookies[:guest_token], request.remote_ip)
-           .find(params[:id])
+        Log.kept.where(user_id: nil, ip_address: request.remote_ip).find(params[:id])
       end
 
       category_ids = params[:category_ids] || []
@@ -199,9 +191,7 @@ class LogsController < ApplicationController
       logs = if user_signed_in?
         current_user.logs.kept.where(id: log_ids)
       else
-        Log.kept.where(user_id: nil)
-           .where("session_id = ? OR ip_address = ?", params[:session_id] || cookies[:guest_token], request.remote_ip)
-           .where(id: log_ids)
+        Log.kept.where(user_id: nil, ip_address: request.remote_ip, id: log_ids)
       end
 
       errors = []
@@ -232,9 +222,7 @@ class LogsController < ApplicationController
       if user_signed_in?
         current_user.logs.kept.where(id: log_ids)
       else
-        Log.kept.where(user_id: nil)
-           .where("session_id = ? OR ip_address = ?", params[:session_id] || cookies[:guest_token], request.remote_ip)
-           .where(id: log_ids)
+        Log.kept.where(user_id: nil, ip_address: request.remote_ip, id: log_ids)
       end
 
       if category_id.present?
@@ -265,9 +253,7 @@ class LogsController < ApplicationController
       if user_signed_in?
         current_user.logs.kept.update_all(deleted_at: Time.current)
       else
-        Log.kept.where(user_id: nil)
-           .where("session_id = ? OR ip_address = ?", params[:session_id] || cookies[:guest_token], request.remote_ip)
-           .update_all(deleted_at: Time.current)
+        Log.kept.where(user_id: nil, ip_address: request.remote_ip).update_all(deleted_at: Time.current)
       end
       redirect_to history_path
     end
@@ -278,9 +264,7 @@ class LogsController < ApplicationController
       log = if user_signed_in?
         current_user.logs.kept.find(params[:id])
       else
-        Log.kept.where(user_id: nil)
-           .where("session_id = ? OR ip_address = ?", params[:session_id] || cookies[:guest_token], request.remote_ip)
-           .find(params[:id])
+        Log.kept.where(user_id: nil, ip_address: request.remote_ip).find(params[:id])
       end
 
       profile = if log.user
@@ -448,38 +432,30 @@ class LogsController < ApplicationController
         set_preview_profile
         profile = @profile
 
-        # Normalize Token for security check and assignment
-        raw_token = p[:session_id] || params[:session_id] || cookies[:guest_token]
-        safe_token = (raw_token.present? && raw_token != "null") ? raw_token : nil
-
         if params[:log_id].present? && params[:log_id] != "null"
           log_id = params[:log_id].to_i
           log = if user_signed_in?
             current_user.logs.kept.find_by(id: log_id)
           else
-            # Guest Security Fix: Ensure we ONLY load logs that match Token or IP
+            # Guest Security Fix: Ensure we ONLY load logs that match IP or Session
+            # AND explicitly filter out deleted ones using kept
             Log.kept.where(user_id: nil)
-               .where("session_id = ? OR ip_address = ?", safe_token, request.remote_ip)
+               .where("ip_address = ? OR session_id = ?", request.remote_ip, params[:session_id])
                .find_by(id: log_id)
           end
 
           if log
             log.assign_attributes(p)
-            log.session_id = safe_token if !user_signed_in?
           else
             # Fallback if ID provided but not found
             log = Log.new(p)
             log.user = current_user if user_signed_in?
-            log.session_id = safe_token if !user_signed_in?
             log.id = log_id
           end
         else
           log = Log.new(p)
           log.user = current_user if user_signed_in?
-          if !user_signed_in?
-            log.ip_address = request.remote_ip
-            log.session_id = safe_token
-          end
+          log.ip_address = request.remote_ip if !user_signed_in?
         end
 
         if log.accent_color.blank? || log.accent_color == "#EA580C"

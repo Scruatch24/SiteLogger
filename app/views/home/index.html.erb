@@ -3023,8 +3023,7 @@ document.addEventListener("DOMContentLoaded", () => {
       raw_summary: document.getElementById("mainTranscript")?.value || "",
       tax_rate: (typeof profileTaxRate !== 'undefined' ? profileTaxRate : <%= @profile.tax_rate || 0 %>).toString(),
       status: document.getElementById("pdfLogStatus")?.value || "draft",
-      category_ids: document.getElementById("pdfLogCategory")?.value ? [document.getElementById("pdfLogCategory").value] : [],
-      session_id: localStorage.getItem('guest_token')
+      category_ids: document.getElementById("pdfLogCategory")?.value ? [document.getElementById("pdfLogCategory").value] : []
     };
   }
 
@@ -3098,7 +3097,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
       formData.append('authenticity_token', document.querySelector('meta[name="csrf-token"]').content);
-      formData.append('log[session_id]', localStorage.getItem('guest_token'));
       if (typeof savedLogId !== 'undefined' && savedLogId) {
         formData.append('log_id', savedLogId);
       }
@@ -3307,7 +3305,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
       formData.append('authenticity_token', document.querySelector('meta[name="csrf-token"]').content);
-      formData.append('log[session_id]', localStorage.getItem('guest_token'));
+      formData.append('log[session_id]', sessionStorage.getItem('tracking_session_id'));
 
       const response = await fetch('/logs', {
         method: 'POST',

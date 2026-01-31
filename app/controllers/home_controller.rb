@@ -25,12 +25,8 @@ class HomeController < ApplicationController
     @logs = if user_signed_in?
       current_user.logs.kept.eager_load(:categories).order("logs.pinned DESC NULLS LAST, logs.pinned_at DESC NULLS LAST, logs.created_at DESC")
     else
-      # Guest history is private to the Token (primary) or IP (backup)
-      token = cookies[:guest_token]
-      Log.kept.where(user_id: nil)
-         .where("session_id = ? OR ip_address = ?", token, request.remote_ip)
-         .eager_load(:categories)
-         .order("logs.pinned DESC NULLS LAST, logs.pinned_at DESC NULLS LAST, logs.created_at DESC")
+      # Guest history is private to the IP adress
+      Log.kept.where(user_id: nil, ip_address: request.remote_ip).eager_load(:categories).order("logs.pinned DESC NULLS LAST, logs.pinned_at DESC NULLS LAST, logs.created_at DESC")
     end
 
     @categories = if user_signed_in?

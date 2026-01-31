@@ -51,23 +51,15 @@ class Log < ApplicationRecord
     end
 
     # Fallback for unsaved records (preview):
-    self.class.next_display_number(user, ip_address, session_id)
+    self.class.next_display_number(user, ip_address)
   end
 
-  def self.next_display_number(user = nil, ip_address = nil, session_id = nil)
-    # Filter out empty or "null" (JavaScript fallback) values
-    safe_ip = (ip_address.present? && ip_address != "null") ? ip_address : nil
-    safe_sid = (session_id.present? && session_id != "null") ? session_id : nil
-
+  def self.next_display_number(user = nil, ip_address = nil)
     # Find the maximum existing invoice number for this user (or guest)
     scope = if user
       where(user_id: user.id)
-    elsif safe_sid && safe_ip
-      where(user_id: nil).where("session_id = ? OR ip_address = ?", safe_sid, safe_ip)
-    elsif safe_sid
-      where(user_id: nil, session_id: safe_sid)
-    elsif safe_ip
-      where(user_id: nil, ip_address: safe_ip)
+    elsif ip_address
+      where(user_id: nil, ip_address: ip_address)
     else
       where(user_id: nil)
     end
@@ -90,6 +82,6 @@ class Log < ApplicationRecord
 
   def assign_invoice_number
     # Assign the next number only if not already set
-    self.invoice_number ||= self.class.next_display_number(user, ip_address, session_id)
+    self.invoice_number ||= self.class.next_display_number(user, ip_address)
   end
 end
