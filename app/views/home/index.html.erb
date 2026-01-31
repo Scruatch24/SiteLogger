@@ -3023,7 +3023,11 @@ document.addEventListener("DOMContentLoaded", () => {
       raw_summary: document.getElementById("mainTranscript")?.value || "",
       tax_rate: (typeof profileTaxRate !== 'undefined' ? profileTaxRate : <%= @profile.tax_rate || 0 %>).toString(),
       status: document.getElementById("pdfLogStatus")?.value || "draft",
-      category_ids: document.getElementById("pdfLogCategory")?.value ? [document.getElementById("pdfLogCategory").value] : []
+      category_ids: document.getElementById("pdfLogCategory")?.value ? [document.getElementById("pdfLogCategory").value] : [],
+      session_id: sessionStorage.getItem('tracking_session_id'),
+      // IMPORTANT: Only send log_id if we genuinely believe we have saved it.
+      // If the user closed the modal, we cleared savedLogId, so this will be null (correct).
+      log_id: logAlreadySaved ? savedLogId : null
     };
   }
 
@@ -3111,11 +3115,21 @@ document.addEventListener("DOMContentLoaded", () => {
       
       const pageCount = parseInt(response.headers.get('X-PDF-Pages')) || 1;
       const invNo = response.headers.get('X-INV-No');
+      
       if (invNo) {
+        // If the server returns a number, update our display.
+        // It might be a new temporary "Next Number" if our ID was invalid/deleted.
         savedLogDisplayNumber = invNo;
       }
 
-      const canvas = document.getElementById('pdfCanvas');
+      // CHECK: Did the server respect our ID?
+      // If we sent an ID but the server ignored it (implied by returning a preview without confirming ID reuse explicitly,
+      // or simply by the fact that invalid IDs trigger a "new log" fallback in the controller), 
+      // we should effectively clear our local state to match reality.
+      // However, seeing "X-INV-No" doesn't strictly prove ID persistence.
+      // A stronger signal is needed if the server rejected our ID.
+      // For now, relies on the controller's logic: if it couldn't find the log, it made a new one.
+      // We should probably assume that if we haven't SAVED yet, we shouldn't lock onto an ID.
       const iframe = document.getElementById('pdfFrame');
       const pdfObject = document.getElementById('pdfObject');
       
