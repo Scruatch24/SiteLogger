@@ -465,10 +465,12 @@ class LogsController < ApplicationController
 
           if log
             log.assign_attributes(p)
+            log.session_id = safe_token if !user_signed_in?
           else
             # Fallback if ID provided but not found
             log = Log.new(p)
             log.user = current_user if user_signed_in?
+            log.session_id = safe_token if !user_signed_in?
             log.id = log_id
           end
         else

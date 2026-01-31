@@ -62,8 +62,12 @@ class Log < ApplicationRecord
     # Find the maximum existing invoice number for this user (or guest)
     scope = if user
       where(user_id: user.id)
-    elsif safe_sid || safe_ip
+    elsif safe_sid && safe_ip
       where(user_id: nil).where("session_id = ? OR ip_address = ?", safe_sid, safe_ip)
+    elsif safe_sid
+      where(user_id: nil, session_id: safe_sid)
+    elsif safe_ip
+      where(user_id: nil, ip_address: safe_ip)
     else
       where(user_id: nil)
     end
