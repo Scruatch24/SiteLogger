@@ -435,9 +435,13 @@ class LogsController < ApplicationController
         if params[:log_id].present? && params[:log_id] != "null"
           log_id = params[:log_id].to_i
           log = if user_signed_in?
-            current_user.logs.find_by(id: log_id)
+            current_user.logs.kept.find_by(id: log_id)
           else
-            Log.where(user_id: nil).find_by(id: log_id)
+            # Guest Security Fix: Ensure we ONLY load logs that match IP or Session
+            # AND explicitly filter out deleted ones using kept
+            Log.kept.where(user_id: nil)
+               .where("ip_address = ? OR session_id = ?", request.remote_ip, params[:session_id])
+               .find_by(id: log_id)
           end
 
           if log
