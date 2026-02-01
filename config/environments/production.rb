@@ -65,10 +65,15 @@ Rails.application.configure do
   config.action_mailer.perform_deliveries = true
   config.action_mailer.raise_delivery_errors = true
 
-  # The ZeptoMail gem has a bug where it crashes if the region is just 'EU'
-  # It expects the full host string. Let's fix it automatically if needed.
+  # The ZeptoMail gem has a few bugs we need to work around:
+  # 1. It crashes if the region is just 'EU' (it needs the full host)
   if ENV["ZOHO_ZEPTOMAIL_HOSTED_REGION"] == "EU" || ENV["ZOHO_ZEPTOMAIL_HOSTED_REGION"].blank?
     ENV["ZOHO_ZEPTOMAIL_HOSTED_REGION"] = "zeptomail.zoho.eu"
+  end
+
+  # 2. It needs the 'Zoho-enczapikey ' prefix on the token if it's not there
+  if ENV["ZOHO_ZEPTOMAIL_API_KEY_TOKEN"].present? && !ENV["ZOHO_ZEPTOMAIL_API_KEY_TOKEN"].start_with?("Zoho-enczapikey")
+    ENV["ZOHO_ZEPTOMAIL_API_KEY_TOKEN"] = "Zoho-enczapikey #{ENV["ZOHO_ZEPTOMAIL_API_KEY_TOKEN"]}"
   end
 
   config.action_mailer.zohozeptomail_settings = {
