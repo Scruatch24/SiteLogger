@@ -55,6 +55,7 @@ class TrackingController < ApplicationController
                           .where("created_at > ?", 24.hours.ago)
                           .count
 
+      Rails.logger.info "[GUEST LIMIT CHECK] IP=#{ip_address}, Count=#{count}, Limit=#{limit}, Exceeded=#{count >= limit}"
       count >= limit
     else
       # Check user's plan tier
