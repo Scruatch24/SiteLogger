@@ -25,5 +25,19 @@ module ZohozeptomailRails
       # BUG FIX: We removed the .gsub(/<\/?[^>]*>/, '') which was stripping all HTML tags!
       html_parts.join("<br>").strip
     end
+
+    # BUG FIX: The gem ignores the 'from' name. Let's force it to find the name.
+    def self.rails_from_addr(from_addrs)
+      # In ActionMailer, the first from address usually holds our 'TalkInvoice' name
+      # We check the first one and try to extract address and name
+      if from_addrs.is_a?(Array)
+        email = from_addrs[0]
+        # We hardcode the name for now to be 100% sure it works,
+        # as the gem's access to the Mail object here is limited.
+        { name: "TalkInvoice", address: email }
+      else
+        { address: from_addrs }
+      end
+    end
   end
 end
