@@ -3028,6 +3028,8 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   window.setupSaveButton = async function() {
+    // Generate a unique ID for this specific preview session
+    window.currentPreviewId = 'prev_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
 
     const data = gatherLogData();
     const modal = document.getElementById('pdfModal');
@@ -3466,7 +3468,8 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         <% else %>
             // For guests, we cannot save, but we MUST explicitly check/track the export limit
-            const canExport = await window.trackEvent('invoice_exported', null, null, null);
+            // We pass window.currentPreviewId to allow multiple shares of the SAME preview session
+            const canExport = await window.trackEvent('invoice_exported', null, null, window.currentPreviewId);
             if (canExport === false) { // Explicitly false means limit hit
                 limitWasHit = true;
                 if (saveBtn) updateSaveButtonToLimitState(saveBtn);
