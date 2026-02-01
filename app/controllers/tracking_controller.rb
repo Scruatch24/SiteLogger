@@ -55,10 +55,10 @@ class TrackingController < ApplicationController
         return false
       end
 
-      # Otherwise, count how many invoices they have created today
-      count = Log.where(user_id: nil, ip_address: ip_address)
-                 .where("created_at > ?", 24.hours.ago)
-                 .count
+      # Otherwise, count how many invoices they have exported today
+      count = TrackingEvent.where(event_name: "invoice_exported", user_id: nil, ip_address: ip_address)
+                           .where("created_at > ?", 24.hours.ago)
+                           .count
 
       count >= limit
     else

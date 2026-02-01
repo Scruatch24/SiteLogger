@@ -13,33 +13,29 @@ class LogsController < ApplicationController
 
       profile = @profile # using the one from HomeController before_filter or set manually
       if !user_signed_in?
-        profile = Profile.where(user_id: nil).first || Profile.new
+        # Guests cannot save invoices - they can only preview/export
+        Rails.logger.info "Guest save blocked: IP=#{request.remote_ip}, Session=#{params[:session_id]}"
+        return render json: {
+          status: "error",
+          success: false,
+          message: "Guests cannot save invoices",
+          errors: [ "Sign up for a FREE account to save invoices to your history!" ]
+        }, status: :forbidden
+      else
+        # Signed-in user limit check
+        profile = current_user.profile || Profile.new
+        plan = profile.plan.presence || "free"
+        limit = Profile::EXPORT_LIMITS[plan]
 
-        # Set guest IP for ID scoping
-        @log.ip_address = request.remote_ip
-        @log.session_id = params[:session_id]
+        # Only check if there's a limit (paid users have nil = unlimited)
+        if limit.present?
+          count = current_user.logs.where("created_at > ?", 24.hours.ago).count
+          Rails.logger.info "Checking User Limit: Plan=#{plan}, Count=#{count}, Limit=#{limit}"
 
-        Rails.logger.info "Checking Guest Limit: IP=#{request.remote_ip}, Session=#{params[:session_id]}"
-
-        # Guest limit: 2 per IP OR per Session per day (Counts ALL logs created, including discarded ones)
-        limit = Profile::EXPORT_LIMITS["guest"] || 2
-
-        # Check by IP
-        count_ip = Log.where(user_id: nil, ip_address: request.remote_ip)
-                      .where("created_at > ?", 24.hours.ago)
-                      .count
-
-        # Check by Session ID (Stronger than IP)
-        count_session = 0
-        if params[:session_id].present? && params[:session_id] != "null"
-           count_session = Log.where(user_id: nil, session_id: params[:session_id])
-                              .where("created_at > ?", 24.hours.ago)
-                              .count
-        end
-
-        if count_ip >= limit || count_session >= limit
-           Rails.logger.info "Limit HIT: IP Count=#{count_ip}, Session Count=#{count_session}"
-           return render json: { status: "error", success: false, message: "Rate limit reached", errors: [ "Guest limit reached (2 per day). Signup to unlock!" ] }, status: :too_many_requests
+          if count >= limit
+            Rails.logger.info "User Limit HIT: Count=#{count} >= Limit=#{limit}"
+            return render json: { status: "error", success: false, message: "Rate limit reached", errors: [ "Daily limit reached (#{limit} per day). Upgrade to Pro for unlimited!" ] }, status: :too_many_requests
+          end
         end
       end
       @log.billing_mode = profile.billing_mode || "hourly" if @log.billing_mode.blank?

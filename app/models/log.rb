@@ -45,6 +45,9 @@ class Log < ApplicationRecord
   before_create :assign_invoice_number
 
   def display_number
+    # Guest users always see INV-1001 (they can't save anyway)
+    return 1001 if user.nil?
+
     # Use the persisted invoice_number if available (check if method exists to be safe against stale schema cache)
     if respond_to?(:invoice_number) && invoice_number.present?
       return invoice_number

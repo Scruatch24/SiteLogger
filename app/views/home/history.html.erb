@@ -236,7 +236,7 @@
 
   <main class="max-w-2xl mx-auto py-8">
     <!-- Tabs / Selectors -->
-    <div class="mb-8 px-4">
+    <div class="mb-4 px-4 <%= 'opacity-30 grayscale pointer-events-none select-none' if @profile.guest? %>">
        <!-- Brutalist Premium View Selector -->
        <div class="relative flex p-1 bg-white rounded-2xl border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden h-14">
         <!-- Sliding Highlight Pill (Slim/Inset version) -->
@@ -261,7 +261,7 @@
     </div>
 
     <!-- Search Bar -->
-    <div class="mb-6 px-4">
+    <div class="mb-6 px-4 <%= 'opacity-40 grayscale pointer-events-none select-none' if @profile.guest? %>">
       <div class="relative w-full">
         <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
           <svg class="h-5 w-5 text-gray-400">
@@ -276,23 +276,98 @@
       </div>
     </div>
 
-    <% if @logs.empty? %>
-      <div class="text-center py-20 opacity-50">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-        </svg>
-        <p class="text-lg font-bold">No history found</p>
-        <p class="text-sm">Generate invoices to see them here.</p>
+    <% if @profile.guest? %>
+    <!-- Guest: Modal-style Benefits Banner -->
+    <div class="px-4 mb-8">
+      <div class="relative bg-black/90 md:bg-black/80 backdrop-blur-xl rounded-[28px] md:rounded-[32px] border border-white/10 overflow-hidden">
+        <!-- Glow effects -->
+        <div class="absolute -top-12 -right-12 w-32 h-32 bg-orange-600/20 rounded-full blur-[60px]"></div>
+        <div class="absolute -bottom-12 -left-12 w-32 h-32 bg-orange-600/10 rounded-full blur-[60px]"></div>
+        
+        <div class="relative p-5 md:p-8">
+          <!-- Header: Centered & More Title-like -->
+          <div class="flex flex-col items-center justify-center gap-2 mb-8 text-center">
+            <div class="w-12 h-12 rounded-2xl bg-orange-600/20 border border-orange-500/30 flex items-center justify-center mb-1">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+            <h3 class="text-2xl md:text-3xl font-black italic tracking-tighter uppercase leading-none text-white">Free Account</h3>
+            <p class="text-[10px] font-black uppercase tracking-[0.2em] text-orange-500/80">Premium Features</p>
+          </div>
+          
+          <!-- Benefits Grid: 2x2 on mobile, 4x1 on desktop -->
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 mb-5">
+            <!-- Benefit 1: Save -->
+            <div class="flex items-center gap-2 p-2.5 md:p-3 bg-white/5 border border-white/5 rounded-xl md:rounded-2xl">
+              <div class="w-6 h-6 md:w-7 md:h-7 rounded-lg bg-orange-600/20 border border-orange-500/30 flex items-center justify-center shrink-0">
+                <svg class="w-3 h-3 md:w-3.5 md:h-3.5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                </svg>
+              </div>
+              <span class="text-[9px] md:text-[10px] font-black text-white/70 uppercase tracking-wide">Save</span>
+            </div>
+            
+            <!-- Benefit 2: Track -->
+            <div class="flex items-center gap-2 p-2.5 md:p-3 bg-white/5 border border-white/5 rounded-xl md:rounded-2xl">
+              <div class="w-6 h-6 md:w-7 md:h-7 rounded-lg bg-orange-600/20 border border-orange-500/30 flex items-center justify-center shrink-0">
+                <svg class="w-3 h-3 md:w-3.5 md:h-3.5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                </svg>
+              </div>
+              <span class="text-[9px] md:text-[10px] font-black text-white/70 uppercase tracking-wide">Track</span>
+            </div>
+            
+            <!-- Benefit 3: Organize -->
+            <div class="flex items-center gap-2 p-2.5 md:p-3 bg-white/5 border border-white/5 rounded-xl md:rounded-2xl">
+              <div class="w-6 h-6 md:w-7 md:h-7 rounded-lg bg-orange-600/20 border border-orange-500/30 flex items-center justify-center shrink-0">
+                <svg class="w-3 h-3 md:w-3.5 md:h-3.5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                </svg>
+              </div>
+              <span class="text-[9px] md:text-[10px] font-black text-white/70 uppercase tracking-wide">Organize</span>
+            </div>
+            
+            <!-- Benefit 4: Sync -->
+            <div class="flex items-center gap-2 p-2.5 md:p-3 bg-white/5 border border-white/5 rounded-xl md:rounded-2xl">
+              <div class="w-6 h-6 md:w-7 md:h-7 rounded-lg bg-orange-600/20 border border-orange-500/30 flex items-center justify-center shrink-0">
+                <svg class="w-3 h-3 md:w-3.5 md:h-3.5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </div>
+              <span class="text-[9px] md:text-[10px] font-black text-white/70 uppercase tracking-wide">Sync</span>
+            </div>
+          </div>
+          
+          <!-- CTA Button -->
+          <%= link_to new_user_registration_path, class: "group flex items-center justify-center gap-2 w-full py-3.5 md:py-4 bg-orange-600 hover:bg-orange-700 rounded-xl md:rounded-2xl text-[10px] md:text-xs font-black text-white uppercase tracking-widest transition-all active:scale-[0.98] shadow-lg shadow-orange-600/20" do %>
+            Sign Up Free
+            <svg class="w-3 h-3 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+            </svg>
+          <% end %>
+        </div>
       </div>
-    <% else %>
+    </div>
+    <% end %>
 
       <!-- VIEW: ALL -->
       <div id="view-all" class="view-section">
-        <div class="flex flex-col gap-20 px-4 pt-12">
-          <% @logs.each do |log| %>
-            <%= render partial: "home/log_card", locals: { log: log } %>
-          <% end %>
-        </div>
+        <% if @logs.empty? %>
+          <div class="text-center py-20 opacity-50">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            <p class="text-lg font-bold">No history found</p>
+            <p class="text-sm">Generate invoices to see them here.</p>
+          </div>
+        <% else %>
+          <div class="flex flex-col gap-20 px-4 pt-12">
+            <% @logs.each do |log| %>
+              <%= render partial: "home/log_card", locals: { log: log } %>
+            <% end %>
+          </div>
+        <% end %>
       </div>
 
       <!-- VIEW: CATEGORIES -->
@@ -460,7 +535,7 @@
          </div>
       </div>
 
-    <% end %>
+
   </main>
 
   <!-- Bulk Action Bar -->
@@ -1911,10 +1986,10 @@
   }
 
   function handleBulkCategory() {
-    if (selectedLogIds.size === 0) return;
+    if (selectedLogIds.length === 0) return;
     
     // Get all selected log cards
-    const selectedCards = Array.from(selectedLogIds).map(id => 
+    const selectedCards = selectedLogIds.map(id => 
       document.querySelector(`.log-card[data-log-id="${id}"]`)
     ).filter(c => !!c);
 
