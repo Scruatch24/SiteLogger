@@ -65,9 +65,15 @@ Rails.application.configure do
   config.action_mailer.perform_deliveries = true
   config.action_mailer.raise_delivery_errors = true
 
+  # The ZeptoMail gem has a bug where it crashes if the region is just 'EU'
+  # It expects the full host string. Let's fix it automatically if needed.
+  if ENV["ZOHO_ZEPTOMAIL_HOSTED_REGION"] == "EU" || ENV["ZOHO_ZEPTOMAIL_HOSTED_REGION"].blank?
+    ENV["ZOHO_ZEPTOMAIL_HOSTED_REGION"] = "zeptomail.zoho.eu"
+  end
+
   config.action_mailer.zohozeptomail_settings = {
     api_key: ENV["ZOHO_ZEPTOMAIL_API_KEY_TOKEN"],
-    region:  ENV["ZOHO_ZEPTOMAIL_HOSTED_REGION"] || "EU"
+    region:  ENV["ZOHO_ZEPTOMAIL_HOSTED_REGION"]
   }
 
   # Enable locale fallbacks for I18n (makes lookups for any locale fall back to
