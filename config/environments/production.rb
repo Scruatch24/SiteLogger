@@ -58,7 +58,7 @@ Rails.application.configure do
 
   # Set host to be used by links generated in mailer templates.
   config.action_mailer.default_url_options = { host: "talkinvoice.online", protocol: "https" }
-  config.action_mailer.default_options = { from: "TalkInvoice <#{ENV['SMTP_USERNAME']}>" }
+  config.action_mailer.default_options = { from: ENV["SMTP_USERNAME"] }
 
   # Specify outgoing email server (ZeptoMail API over HTTPS)
   config.action_mailer.delivery_method = :zohozeptomail
