@@ -60,21 +60,14 @@ Rails.application.configure do
   config.action_mailer.default_url_options = { host: "talkinvoice.online", protocol: "https" }
   config.action_mailer.default_options = { from: "TalkInvoice <#{ENV['SMTP_USERNAME']}>" }
 
-  # Specify outgoing SMTP server.
-  config.action_mailer.delivery_method = :smtp
+  # Specify outgoing email server (ZeptoMail API over HTTPS)
+  config.action_mailer.delivery_method = :zohozeptomail
   config.action_mailer.perform_deliveries = true
   config.action_mailer.raise_delivery_errors = true
 
-  config.action_mailer.smtp_settings = {
-    address:              "smtp.zoho.eu", # Standard Zoho EU endpoint
-    port:                 2525,           # Alternative port to bypass firewall blocks
-    domain:               "talkinvoice.online",
-    user_name:            ENV["SMTP_USERNAME"],
-    password:             ENV["SMTP_PASSWORD"],
-    authentication:       :login,
-    enable_starttls_auto: true,
-    open_timeout:         10,
-    read_timeout:         10
+  config.action_mailer.zohozeptomail_settings = {
+    api_key: ENV["ZOHO_ZEPTOMAIL_API_KEY_TOKEN"],
+    region:  ENV["ZOHO_ZEPTOMAIL_HOSTED_REGION"] || "EU"
   }
 
   # Enable locale fallbacks for I18n (makes lookups for any locale fall back to
