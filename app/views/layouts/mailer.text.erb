@@ -1,1 +1,5 @@
 <%= yield %>
+
+---
+ID: <%= SecureRandom.hex(4) %>
+<%# Unique ID to prevent Gmail collapsing repeated emails %>
