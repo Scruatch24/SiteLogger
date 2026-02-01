@@ -67,14 +67,12 @@ Rails.application.configure do
 
   config.action_mailer.smtp_settings = {
     address:              ENV["SMTP_ADDRESS"] || "smtppro.zoho.eu",
-    port:                 465, # Explicitly use 465 for Zoho SSL
-    domain:               ENV["SMTP_DOMAIN"] || "zoho.eu",
+    port:                 587, # Modern standard for cloud apps
+    domain:               "talkinvoice.online",
     user_name:            ENV["SMTP_USERNAME"],
     password:             ENV["SMTP_PASSWORD"],
     authentication:       :login,
-    ssl:                  true,
-    tls:                  true,
-    enable_starttls_auto: false # Disable for Port 465
+    enable_starttls_auto: true # Required for Port 587
   }
 
   # Enable locale fallbacks for I18n (makes lookups for any locale fall back to
