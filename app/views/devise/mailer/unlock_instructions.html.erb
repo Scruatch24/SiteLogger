@@ -1,7 +1,17 @@
-<p>Hello <%= @resource.email %>!</p>
+<div style="text-align: center;">
+  <h2 style="margin: 0 0 20px 0; font-family: sans-serif; font-size: 20px; font-weight: 900; text-transform: uppercase; font-style: italic; letter-spacing: -0.02em; color: #000000;">
+    Account Locked
+  </h2>
+  
+  <p style="margin: 0 0 24px 0; font-size: 16px; color: #374151;">
+    Your account has been locked due to multiple failed sign-in attempts. Click the button below to unlock your account.
+  </p>
 
-<p>Your account has been locked due to an excessive number of unsuccessful sign in attempts.</p>
+  <div style="margin: 32px 0;">
+    <%= link_to 'Unlock My Account', unlock_url(@resource, unlock_token: @token), class: "btn", style: "display: inline-block; padding: 16px 32px; background-color: #ea580c; color: #ffffff; text-decoration: none; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; border: 2px solid #000000; border-radius: 12px; box-shadow: 4px 4px 0px 0px #000000;" %>
+  </div>
 
-<p>Click the link below to unlock your account:</p>
-
-<p><%= link_to 'Unlock my account', unlock_url(@resource, unlock_token: @token) %></p>
+  <p style="margin: 0; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #9ca3af;">
+    Thank you for keeping your account secure.
+  </p>
+</div>
