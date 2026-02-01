@@ -26,7 +26,7 @@ class HomeController < ApplicationController
       current_user.logs.kept.eager_load(:categories).order("logs.pinned DESC NULLS LAST, logs.pinned_at DESC NULLS LAST, logs.created_at DESC")
     else
       # Guest history is private to the IP adress
-      Log.kept.where(user_id: nil, ip_address: request.remote_ip).eager_load(:categories).order("logs.pinned DESC NULLS LAST, logs.pinned_at DESC NULLS LAST, logs.created_at DESC")
+      Log.kept.where(user_id: nil, ip_address: client_ip).eager_load(:categories).order("logs.pinned DESC NULLS LAST, logs.pinned_at DESC NULLS LAST, logs.created_at DESC")
     end
 
     @categories = if user_signed_in?

@@ -34,4 +34,9 @@ class ApplicationController < ActionController::Base
       tax_scope: "labor,materials_only"
     )
   end
+
+  # Get real client IP (handles Render.com reverse proxy)
+  def client_ip
+    request.env["HTTP_X_FORWARDED_FOR"]&.split(",")&.first&.strip || request.remote_ip
+  end
 end

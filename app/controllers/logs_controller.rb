@@ -14,7 +14,7 @@ class LogsController < ApplicationController
       profile = @profile # using the one from HomeController before_filter or set manually
       if !user_signed_in?
         # Guests cannot save invoices - they can only preview/export
-        Rails.logger.info "Guest save blocked: IP=#{request.remote_ip}, Session=#{params[:session_id]}"
+        Rails.logger.info "Guest save blocked: IP=#{client_ip}, Session=#{params[:session_id]}"
         return render json: {
           status: "error",
           success: false,
@@ -68,7 +68,7 @@ class LogsController < ApplicationController
       @log = if user_signed_in?
         current_user.logs.kept.find(params[:id])
       else
-        Log.kept.where(user_id: nil, ip_address: request.remote_ip).find(params[:id])
+        Log.kept.where(user_id: nil, ip_address: client_ip).find(params[:id])
       end
       @log.discard
       redirect_to history_path
@@ -78,7 +78,7 @@ class LogsController < ApplicationController
       @log = if user_signed_in?
         current_user.logs.kept.find(params[:id])
       else
-        Log.kept.where(user_id: nil, ip_address: request.remote_ip).find(params[:id])
+        Log.kept.where(user_id: nil, ip_address: client_ip).find(params[:id])
       end
 
       # Rule: Paid invoices should be locked: no RENAME available
@@ -144,7 +144,7 @@ class LogsController < ApplicationController
       @log = if user_signed_in?
         current_user.logs.kept.find(params[:id])
       else
-        Log.kept.where(user_id: nil, ip_address: request.remote_ip).find(params[:id])
+        Log.kept.where(user_id: nil, ip_address: client_ip).find(params[:id])
       end
 
       status = params[:status]
@@ -164,7 +164,7 @@ class LogsController < ApplicationController
       @log = if user_signed_in?
         current_user.logs.kept.find(params[:id])
       else
-        Log.kept.where(user_id: nil, ip_address: request.remote_ip).find(params[:id])
+        Log.kept.where(user_id: nil, ip_address: client_ip).find(params[:id])
       end
 
       category_ids = params[:category_ids] || []
@@ -187,7 +187,7 @@ class LogsController < ApplicationController
       logs = if user_signed_in?
         current_user.logs.kept.where(id: log_ids)
       else
-        Log.kept.where(user_id: nil, ip_address: request.remote_ip, id: log_ids)
+        Log.kept.where(user_id: nil, ip_address: client_ip, id: log_ids)
       end
 
       errors = []
@@ -218,7 +218,7 @@ class LogsController < ApplicationController
       if user_signed_in?
         current_user.logs.kept.where(id: log_ids)
       else
-        Log.kept.where(user_id: nil, ip_address: request.remote_ip, id: log_ids)
+        Log.kept.where(user_id: nil, ip_address: client_ip, id: log_ids)
       end
 
       if category_id.present?
@@ -249,7 +249,7 @@ class LogsController < ApplicationController
       if user_signed_in?
         current_user.logs.kept.update_all(deleted_at: Time.current)
       else
-        Log.kept.where(user_id: nil, ip_address: request.remote_ip).update_all(deleted_at: Time.current)
+        Log.kept.where(user_id: nil, ip_address: client_ip).update_all(deleted_at: Time.current)
       end
       redirect_to history_path
     end
@@ -260,7 +260,7 @@ class LogsController < ApplicationController
       log = if user_signed_in?
         current_user.logs.kept.find(params[:id])
       else
-        Log.kept.where(user_id: nil, ip_address: request.remote_ip).find(params[:id])
+        Log.kept.where(user_id: nil, ip_address: client_ip).find(params[:id])
       end
 
       profile = if log.user
@@ -436,7 +436,7 @@ class LogsController < ApplicationController
             # Guest Security Fix: Ensure we ONLY load logs that match IP or Session
             # AND explicitly filter out deleted ones using kept
             Log.kept.where(user_id: nil)
-               .where("ip_address = ? OR session_id = ?", request.remote_ip, params[:session_id])
+               .where("ip_address = ? OR session_id = ?", client_ip, params[:session_id])
                .find_by(id: log_id)
           end
 
@@ -452,7 +452,7 @@ class LogsController < ApplicationController
           log = Log.new(p)
           log.user = current_user if user_signed_in?
           if !user_signed_in?
-            log.ip_address = request.remote_ip
+            log.ip_address = client_ip
             log.session_id = params[:session_id]
           end
         end

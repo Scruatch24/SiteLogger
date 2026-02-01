@@ -9,7 +9,8 @@ class TrackingController < ApplicationController
     user_id = nil if user_id.blank? || user_id == "null"
     session_id = params[:session_id].presence
     target_id = params[:target_id].presence
-    ip_address = request.remote_ip
+    ip_address = client_ip
+    Rails.logger.info "[TRACKING] Event=#{event_name}, IP=#{ip_address}"
 
     unless ALLOWED_EVENTS.include?(event_name)
       return render json: { status: "error", message: "Invalid event name" }, status: :bad_request
