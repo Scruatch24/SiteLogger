@@ -50,24 +50,10 @@ class TrackingController < ApplicationController
       # Guest user limit
       limit = Profile::EXPORT_LIMITS["guest"] || 2
 
-      # If they are exporting an EXISTING log that belongs to them, allow it (don't count again)
-      if target_id.present? && Log.exists?(id: target_id, user_id: nil, ip_address: ip_address)
-        return false
-      end
-
-      # Allow re-sharing of the same preview UID without counting it as a new export
-      if target_id.present? && TrackingEvent.exists?(event_name: "invoice_exported", user_id: nil, ip_address: ip_address, target_id: target_id)
-        return false
-      end
-
-      # Count how many UNIQUE invoices/previews they have exported today
-      # We count total exports but treat records with the same target_id as 1.
-      # For null target_ids (legacy/fallback), we treat each as unique.
-      exported_events = TrackingEvent.where(event_name: "invoice_exported", user_id: nil, ip_address: ip_address)
-                                     .where("created_at > ?", 24.hours.ago)
-
-      count = exported_events.where.not(target_id: nil).distinct.count(:target_id)
-      count += exported_events.where(target_id: nil).count
+      # Count how many invoice_exported events they have in the last 24h
+      count = TrackingEvent.where(event_name: "invoice_exported", ip_address: ip_address)
+                          .where("created_at > ?", 24.hours.ago)
+                          .count
 
       count >= limit
     else
