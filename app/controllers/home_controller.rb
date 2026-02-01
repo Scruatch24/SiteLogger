@@ -22,19 +22,24 @@ class HomeController < ApplicationController
   end
 
   def history
-    unless user_signed_in?
-      return redirect_to root_path, alert: "Sign up for a FREE account to save invoices to your history!"
+    @logs = if user_signed_in?
+      current_user.logs.kept.eager_load(:categories).order("logs.pinned DESC NULLS LAST, logs.pinned_at DESC NULLS LAST, logs.created_at DESC")
+    else
+      # Guest history is private to the IP adress - return empty as requested
+      []
     end
 
-    @logs = current_user.logs.kept.eager_load(:categories).order("logs.pinned DESC NULLS LAST, logs.pinned_at DESC NULLS LAST, logs.created_at DESC")
+    @categories = if user_signed_in?
+      # Ensure Favorites category exists and has correct styling (Self-Healing)
+      fav = current_user.categories.where("name ILIKE ?", "Favorites").first_or_initialize
+      if fav.new_record? || fav.name != "Favorites" || fav.color != "#EAB308" || fav.icon != "star"
+        fav.update(name: "Favorites", color: "#EAB308", icon: "star", icon_type: "premade")
+      end
 
-    # Ensure Favorites category exists and has correct styling (Self-Healing)
-    fav = current_user.categories.where("name ILIKE ?", "Favorites").first_or_initialize
-    if fav.new_record? || fav.name != "Favorites" || fav.color != "#EAB308" || fav.icon != "star"
-      fav.update(name: "Favorites", color: "#EAB308", icon: "star", icon_type: "premade")
+      current_user.categories.preload(:logs).order(name: :asc)
+    else
+      []
     end
-
-    @categories = current_user.categories.preload(:logs).order(name: :asc)
   end
 
   def settings
