@@ -57,18 +57,19 @@ Rails.application.configure do
   # config.action_mailer.raise_delivery_errors = false
 
   # Set host to be used by links generated in mailer templates.
-  config.action_mailer.default_url_options = { host: "talkinvoice.online" }
+  config.action_mailer.default_url_options = { host: "talkinvoice.online", protocol: "https" }
 
   # Specify outgoing SMTP server.
   config.action_mailer.delivery_method = :smtp
   config.action_mailer.smtp_settings = {
-    address:              ENV["SMTP_ADDRESS"] || "smtp.gmail.com",
-    port:                 ENV["SMTP_PORT"] || 587,
+    address:              ENV["SMTP_ADDRESS"] || "smtppro.zoho.eu",
+    port:                 ENV["SMTP_PORT"] || 465,
     domain:               ENV["SMTP_DOMAIN"] || "talkinvoice.online",
     user_name:            ENV["SMTP_USERNAME"],
     password:             ENV["SMTP_PASSWORD"],
-    authentication:       "plain",
-    enable_starttls_auto: true
+    authentication:       :login,
+    ssl:                  true, # Required for Port 465
+    tls:                  true  # Required for Port 465
   }
 
   # Enable locale fallbacks for I18n (makes lookups for any locale fall back to
