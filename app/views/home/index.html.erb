@@ -2884,12 +2884,6 @@ document.addEventListener("DOMContentLoaded", () => {
       renderPreviousAnswers();
     }
     
-    // Enforce Guest Limits (tracks 'invoice_exported' for "EDIT" as requested)
-    if (typeof window.trackEvent === 'function') {
-       const canProceed = await window.trackEvent('invoice_exported');
-       if (!canProceed) return;
-    }
-    
     startAnalysisUI();
     
     try {
