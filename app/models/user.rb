@@ -18,4 +18,10 @@ class User < ApplicationRecord
       # user.avatar_url = auth.info.image # assuming the user model has an image
     end
   end
+  # If a user resets their password, they have proven they own the email.
+  # We should confirm them automatically so they aren't stuck.
+  def after_password_reset
+    super
+    confirm unless confirmed?
+  end
 end
