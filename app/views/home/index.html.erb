@@ -3628,9 +3628,16 @@ function updateDueDate(dueDays, dueDate) {
     today.setHours(0, 0, 0, 0);
     targetDate.setHours(0, 0, 0, 0);
     daysUntil = Math.ceil((targetDate - today) / (1000 * 60 * 60 * 24));
+    
+    // Clear offset if hard date pick
+    window.currentDueOffset = null;
   } else {
     // Use days (default to 14 if not provided)
     daysUntil = dueDays !== null && dueDays !== undefined ? parseInt(dueDays) : 14;
+    
+    // Store original offset
+    window.currentDueOffset = daysUntil;
+    
     // Use selected main date as base (not today)
     targetDate = window.selectedMainDate ? new Date(window.selectedMainDate) : new Date();
     targetDate.setDate(targetDate.getDate() + daysUntil);
@@ -3778,13 +3785,8 @@ function selectCalendarDate(dateStr) {
   const parts = dateStr.split('-');
   const selectedDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
   
-  // Calculate days until
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  selectedDate.setHours(0, 0, 0, 0);
-  const daysUntil = Math.ceil((selectedDate - today) / (1000 * 60 * 60 * 24));
-  
-  updateDueDate(daysUntil, null);
+  // Use specific date pick (clears NET offset)
+  updateDueDate(null, selectedDate);
   setTimeout(() => renderCalendar(), 0); // Defer to prevent "click outside" close
 }
 
@@ -3877,6 +3879,11 @@ function selectMainCalendarDate(dateStr) {
   document.getElementById('dateDisplay').innerText = selectedDate.toLocaleDateString('en-US', { 
     month: 'short', day: 'numeric', year: 'numeric' 
   });
+  
+  // Re-calculate Due Date if it's currently based on a NET offset
+  if (window.currentDueOffset !== null && window.currentDueOffset !== undefined) {
+    updateDueDate(window.currentDueOffset, null);
+  }
   
   setTimeout(() => renderMainCalendar(), 0);
 }
@@ -5845,6 +5852,7 @@ function updateUI(data) {
       dateVal = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     }
     document.getElementById("dateDisplay").innerText = dateVal;
+    window.selectedMainDate = new Date(dateVal);
   
     // Due Date Logic
     updateDueDate(data.due_days, data.due_date);
