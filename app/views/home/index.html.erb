@@ -783,12 +783,12 @@
       <% end %>
  
       <% if user_signed_in? %>
-        <%= button_to destroy_user_session_path, method: :delete, class: "p-1.5 md:p-2 bg-white border-2 border-black rounded-xl nav-link-hover transition-all group active:scale-95 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px]" do %>
+        <button type="button" onclick="window.showLogoutModal()" class="p-1.5 md:p-2 bg-white border-2 border-black rounded-xl nav-link-hover transition-all group active:scale-95 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px]">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="h-5 w-5 md:h-6 md:w-6 text-black group-hover:text-red-600">
             <path stroke-linecap="round" stroke-linejoin="round" d="M5.636 5.636a9 9 0 1012.728 0M12 3v9" />
           </svg>
           <span class="nav-tooltip">Log Out</span>
-        <% end %>
+        </button>
       <% else %>
         <%= link_to new_user_session_path, class: "p-1.5 md:p-2 bg-white border-2 border-black rounded-xl nav-link-hover transition-all group active:scale-95 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px]" do %>
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="h-5 w-5 md:h-6 md:w-6 text-black group-hover:text-orange-600">
@@ -1444,7 +1444,7 @@
     </div> <!-- End Grid Container -->
   </div> <!-- End Max-Width Container -->
 
-  <div id="errorToast" class="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
+  <div id="errorToast" class="fixed bottom-10 left-1/2 -translate-x-1/2 z-[50000] hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
     <div class="bg-white text-black px-6 py-4 rounded-xl shadow-2xl border-2 border-red-500 flex items-center gap-4">
       <div class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
       <span id="errorMessage" class="text-xs font-bold uppercase tracking-widest">Error Message</span>

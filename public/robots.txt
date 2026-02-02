@@ -1,1 +1,8 @@
 # See https://www.robotstxt.org/robotstxt.html for documentation on how to use the robots.txt file
+
+User-agent: *
+Allow: /
+Disallow: /rails/
+
+# Sitemap (optional - add when you have one)
+# Sitemap: https://talkinvoice.online/sitemap.xml

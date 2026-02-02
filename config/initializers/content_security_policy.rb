@@ -14,7 +14,7 @@ Rails.application.configure do
     policy.media_src   :self, :blob  # For audio recording
     policy.script_src  :self, :https, :unsafe_inline, :unsafe_eval  # Needed for inline JS
     policy.style_src   :self, :https, :unsafe_inline  # Needed for inline styles
-    policy.connect_src :self, :https, "https://generativelanguage.googleapis.com"  # Gemini API
+    policy.connect_src :self, :https, "https://generativelanguage.googleapis.com", "https://www.google-analytics.com", "https://www.googletagmanager.com"  # Gemini API + Google Analytics
 
     # External CDN for flag icons
     policy.style_src   :self, :https, :unsafe_inline, "https://cdn.jsdelivr.net"
