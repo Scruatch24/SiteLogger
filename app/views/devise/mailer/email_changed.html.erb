@@ -1,7 +1,19 @@
-<p>Hello <%= @email %>!</p>
+<div style="text-align: center;">
+  <h2 style="margin: 0 0 20px 0; font-family: sans-serif; font-size: 20px; font-weight: 900; text-transform: uppercase; font-style: italic; letter-spacing: -0.02em; color: #000000;">
+    Email Security Alert
+  </h2>
+  
+  <% if @resource.try(:unconfirmed_email?) %>
+    <p style="margin: 0 0 24px 0; font-size: 16px; color: #374151;">
+      Hello! We're contacting you to notify you that your TalkInvoice account email is being changed to <strong><%= @resource.unconfirmed_email %></strong>.
+    </p>
+  <% else %>
+    <p style="margin: 0 0 24px 0; font-size: 16px; color: #374151;">
+      Hello! We're contacting you to notify you that your TalkInvoice account email has been changed to <strong><%= @resource.email %></strong>.
+    </p>
+  <% end %>
 
-<% if @resource.try(:unconfirmed_email?) %>
-  <p>We're contacting you to notify you that your email is being changed to <%= @resource.unconfirmed_email %>.</p>
-<% else %>
-  <p>We're contacting you to notify you that your email has been changed to <%= @resource.email %>.</p>
-<% end %>
+  <p style="margin: 0; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #9ca3af;">
+    If you didn't authorize this change, please contact support or reset your password immediately.
+  </p>
+</div>

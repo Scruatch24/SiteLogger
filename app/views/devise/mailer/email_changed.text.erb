@@ -1,0 +1,10 @@
+Hello!
+
+<% if @resource.try(:unconfirmed_email?) %>
+We're contacting you to notify you that your TalkInvoice account email is being changed to <%= @resource.unconfirmed_email %>.
+<% else %>
+We're contacting you to notify you that your TalkInvoice account email has been changed to <%= @resource.email %>.
+<% end %>
+
+If you didn't authorize this change, please contact support or reset your password immediately.
+<%# The layout will add the unique ID footer %>
