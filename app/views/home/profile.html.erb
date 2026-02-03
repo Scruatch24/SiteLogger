@@ -1,3 +1,4 @@
+<% is_guest = @profile.guest? && !user_signed_in? %>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.2.3/css/flag-icons.min.css" />
 
 <div class="min-h-screen bg-white text-black font-sans p-4 pb-24 md:pb-4">
@@ -12,7 +13,7 @@
     </div>
     
     <%# Mobile Save Icon %>
-    <button type="button" id="mobileSaveBtn" onclick="<%= @profile.guest? ? '' : "document.getElementById('profileForm').requestSubmit()" %>" class="<%= @profile.guest? ? 'opacity-20 pointer-events-none' : '' %> md:hidden flex items-center gap-2 px-3 py-2 bg-orange-600 text-white border-2 border-black rounded-xl shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all">
+    <button type="button" id="mobileSaveBtn" onclick="<%= is_guest ? '' : "document.getElementById('profileForm').requestSubmit()" %>" class="<%= is_guest ? 'opacity-20 pointer-events-none' : '' %> md:hidden flex items-center gap-2 px-3 py-2 bg-orange-600 text-white border-2 border-black rounded-xl shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all">
       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
         <path stroke-linecap="round" stroke-linejoin="round" d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
         <path stroke-linecap="round" stroke-linejoin="round" d="M17 21v-8H7v8M9 3v5h6V3M10 18h4" />
@@ -30,7 +31,8 @@
     </div>
   </div>
 
-  <% if @profile.guest? %>
+
+  <% if is_guest %>
     <!-- Guest: Modal-style Profile Benefits Banner -->
     <div class="px-0 mb-8 max-w-md mx-auto">
       <div class="relative zenith-container rounded-[32px]">
@@ -105,14 +107,14 @@
     </div>
   <% end %>
 
-  <%= form_with model: @profile, url: save_profile_path, id: "profileForm", local: false, class: "max-w-md mx-auto space-y-8 #{@profile.guest? ? 'opacity-40 grayscale pointer-events-none select-none' : ''}" do |f| %>
+  <%= form_with model: @profile, url: save_profile_path, id: "profileForm", local: false, class: "max-w-md mx-auto space-y-8 #{is_guest ? 'opacity-40 grayscale pointer-events-none select-none' : ''}" do |f| %>
     <div class="space-y-6 pt-0">
       <div class="space-y-2">
         <div class="flex items-center gap-2">
           <label class="text-[10px] font-black text-orange-600 uppercase tracking-widest ml-1">Company / Name</label>
           <span class="bg-orange-100 text-orange-600 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-orange-200">SHOWS UP IN INVOICE</span>
         </div>
-        <%= f.text_field :business_name, placeholder: "e.g. Acme Industries, Inc.", class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", disabled: @profile.guest? %>
+        <%= f.text_field :business_name, placeholder: "e.g. Acme Industries, Inc.", class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", disabled: is_guest %>
       </div>
 
       <div class="space-y-3">
@@ -147,17 +149,17 @@
 
              <div class="flex items-center gap-3 w-full md:w-auto">
                <% if @profile.logo.attached? %>
-                  <button type="button" id="remove_logo_btn" onclick="<%= @profile.guest? ? '' : 'markLogoForRemoval()' %>" class="flex-1 md:flex-none text-[10px] font-black uppercase tracking-widest text-red-600 border-2 border-red-100 bg-red-50 px-4 py-3 rounded-lg hover:bg-red-100 transition-all text-center <%= 'opacity-50 cursor-not-allowed' if @profile.guest? %>">
+                  <button type="button" id="remove_logo_btn" onclick="<%= is_guest ? '' : 'markLogoForRemoval()' %>" class="flex-1 md:flex-none text-[10px] font-black uppercase tracking-widest text-red-600 border-2 border-red-100 bg-red-50 px-4 py-3 rounded-lg hover:bg-red-100 transition-all text-center <%= 'opacity-50 cursor-not-allowed' if is_guest %>">
                     Remove
                   </button>
                   <%= f.hidden_field :remove_logo, value: "0", id: "remove_logo_field" %>
                <% end %>
 
-               <%= f.label :logo, class: "flex-1 md:flex-none cursor-pointer text-xs font-black uppercase tracking-widest text-white border-2 border-black bg-black px-6 py-3 rounded-lg hover:bg-orange-600 hover:border-orange-600 active:translate-y-[1px] transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:shadow-none text-center flex items-center justify-center gap-2 group #{@profile.guest? ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}" do %>
+               <%= f.label :logo, class: "flex-1 md:flex-none cursor-pointer text-xs font-black uppercase tracking-widest text-white border-2 border-black bg-black px-6 py-3 rounded-lg hover:bg-orange-600 hover:border-orange-600 active:translate-y-[1px] transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:shadow-none text-center flex items-center justify-center gap-2 group #{is_guest ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}" do %>
                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
                  <span class="md:hidden">Upload</span>
                  <span class="hidden md:inline">Upload Logo</span>
-                 <%= f.file_field :logo, class: "hidden", accept: "image/png,image/jpeg,image/jpg", onchange: "previewImage(this)", disabled: @profile.guest? %>
+                 <%= f.file_field :logo, class: "hidden", accept: "image/png,image/jpeg,image/jpg", onchange: "previewImage(this)", disabled: is_guest %>
                <% end %>
              </div>
           </div>
@@ -175,7 +177,7 @@
           </div>
           <span id="payment_instructions_counter" class="hidden text-[9px] font-black uppercase text-gray-400">max 50 chars / line</span>
         </div>
-        <%= f.text_area :payment_instructions, rows: 3, placeholder: "e.g. Bank: Chase \nRouting: 123456789 \nAccount: 987654321", class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-medium text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all resize-none custom-scrollbar disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", onkeydown: "return checkCharLimit(event, this, 50, 8)", oninput: "limitLinesAndChars(this, 50, 8); autoResize(this)", style: "min-height: 120px; max-height: 300px;", disabled: @profile.guest? %>
+        <%= f.text_area :payment_instructions, rows: 3, placeholder: "e.g. Bank: Chase \nRouting: 123456789 \nAccount: 987654321", class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-medium text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all resize-none custom-scrollbar disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", onkeydown: "return checkCharLimit(event, this, 50, 8)", oninput: "limitLinesAndChars(this, 50, 8); autoResize(this)", style: "min-height: 120px; max-height: 300px;", disabled: is_guest %>
       </div>
 
       <div class="space-y-2">
@@ -183,7 +185,7 @@
           <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1">Email</label>
           <span class="bg-orange-100 text-orange-600 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-orange-200">SHOWS UP IN INVOICE</span>
         </div>
-        <%= f.email_field :email, placeholder: "e.g. billing@acme.com", class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", disabled: @profile.guest? %>
+        <%= f.email_field :email, placeholder: "e.g. billing@acme.com", class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", disabled: is_guest %>
       </div>
 
       <div class="space-y-2">
@@ -191,7 +193,7 @@
             <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1">Phone</label>
             <span class="bg-orange-100 text-orange-600 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-orange-200">SHOWS UP IN INVOICE</span>
         </div>
-        <%= f.text_field :phone, placeholder: "e.g. +1 (555) 123-4567", class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", disabled: @profile.guest? %>
+        <%= f.text_field :phone, placeholder: "e.g. +1 (555) 123-4567", class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", disabled: is_guest %>
       </div>
 
       <div class="space-y-2">
@@ -202,7 +204,7 @@
           </div>
           <span id="address_counter" class="hidden text-[9px] font-black uppercase text-gray-400">max 50 chars / line</span>
         </div>
-        <%= f.text_area :address, rows: 3, placeholder: "e.g. 123 Industrial Parkway\nSuite 200\nChicago, IL 60601", class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-medium text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all resize-none custom-scrollbar disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", onkeydown: "return checkCharLimit(event, this, 50, 4)", oninput: "limitLinesAndChars(this, 50, 4); autoResize(this)", style: "min-height: 100px; max-height: 200px;", disabled: @profile.guest? %>
+        <%= f.text_area :address, rows: 3, placeholder: "e.g. 123 Industrial Parkway\nSuite 200\nChicago, IL 60601", class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-medium text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all resize-none custom-scrollbar disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", onkeydown: "return checkCharLimit(event, this, 50, 4)", oninput: "limitLinesAndChars(this, 50, 4); autoResize(this)", style: "min-height: 100px; max-height: 200px;", disabled: is_guest %>
       </div>
 
       <div class="space-y-2">
@@ -210,19 +212,19 @@
             <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1">Tax ID</label>
             <span class="bg-orange-100 text-orange-600 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-orange-200">SHOWS UP IN INVOICE</span>
         </div>
-        <%= f.text_field :tax_id, placeholder: "e.g. EIN-12-3456789", class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", disabled: @profile.guest? %>
+        <%= f.text_field :tax_id, placeholder: "e.g. EIN-12-3456789", class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", disabled: is_guest %>
       </div>
     </div>
 
-    <div onclick="<%= @profile.guest? ? 'window.showPremiumModal?.()' : '' %>" 
-         class="md:flex w-full bg-orange-600/40 text-white/60 border-2 border-white/10 font-black py-4 rounded-xl transition-all uppercase text-xs tracking-[0.2em] items-center justify-center gap-3 cursor-pointer shadow-none <%= @profile.guest? ? 'flex' : 'hidden' %>">
+    <div onclick="<%= is_guest ? 'window.showPremiumModal?.()' : '' %>" 
+         class="w-full bg-orange-600/40 text-white/60 border-2 border-white/10 font-black py-4 rounded-xl transition-all uppercase text-xs tracking-[0.2em] items-center justify-center gap-3 cursor-pointer shadow-none <%= is_guest ? 'flex' : 'hidden' %>">
       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
         <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
       </svg>
       <span>Sign Up to Save</span>
     </div>
 
-    <button type="submit" id="saveProfileBtn" class="<%= @profile.guest? ? 'hidden' : 'hidden md:flex' %> w-full bg-orange-600 text-white border-2 border-black font-black py-4 rounded-xl shadow-[4px_4px_0px_0px_#000000] active:scale-[0.97] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all uppercase text-xs tracking-[0.2em] items-center justify-center gap-3 save-btn-hover">
+    <button type="submit" id="saveProfileBtn" class="<%= is_guest ? 'hidden' : 'flex' %> w-full bg-orange-600 text-white border-2 border-black font-black py-4 rounded-xl shadow-[4px_4px_0px_0px_#000000] active:scale-[0.97] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all uppercase text-xs tracking-[0.2em] items-center justify-center gap-3 save-btn-hover">
       <span id="btnText">Save Profile</span>
       <div id="btnSpinner" class="hidden">
         <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

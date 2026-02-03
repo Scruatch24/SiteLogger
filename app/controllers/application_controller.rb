@@ -6,6 +6,11 @@ class ApplicationController < ActionController::Base
   def set_profile
     if user_signed_in?
       @profile = current_user.profile || ensure_profile_exists!(current_user)
+      # Upgrade legacy/inherited guest profiles to free for signed-in users
+      if @profile.plan.blank? || @profile.plan == "guest"
+        @profile.update_columns(plan: "free")
+        @profile.reload
+      end
     else
       @profile = Profile.new(
         business_name: "ACME Contracting LTD",

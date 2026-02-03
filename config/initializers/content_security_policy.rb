@@ -24,5 +24,5 @@ Rails.application.configure do
 
   # Report violations without enforcing the policy (safe rollout).
   # Once verified working, change this to false to enforce.
-  config.content_security_policy_report_only = true
+  config.content_security_policy_report_only = false
 end

@@ -1,4 +1,4 @@
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.2.3/css/flag-icons.min.css" />
+<% is_guest = @profile.guest? && !user_signed_in? %>
 
 <div class="min-h-screen bg-white text-black font-sans p-4 pb-24 md:pb-4">
   <header class="sticky top-0 z-40 bg-white border-b-2 border-black md:border-b-0 md:static md:bg-transparent -mx-4 px-4 py-3 mb-2 md:mb-10 md:pt-4 md:px-1 flex items-center justify-between shadow-sm md:shadow-none">
@@ -42,7 +42,7 @@
     </div>
   <% end %>
 
-  <% if @profile.guest? %>
+  <% if @profile.guest? && !user_signed_in? %>
     <!-- Guest: Modal-style Settings Benefits Banner -->
     <div class="px-0 mb-8 max-w-md mx-auto">
       <div class="relative zenith-container rounded-[32px]">
@@ -117,7 +117,7 @@
     </div>
   <% end %>
 
-  <%= form_with model: @profile, url: save_settings_path, id: "settingsForm", local: false, class: "max-w-md mx-auto space-y-8 #{@profile.guest? ? 'opacity-40 grayscale pointer-events-none select-none' : ''}" do |f| %>
+  <%= form_with model: @profile, url: save_settings_path, id: "settingsForm", local: false, class: "max-w-md mx-auto space-y-8 #{is_guest ? 'opacity-40 grayscale pointer-events-none select-none' : ''}" do |f| %>
     <div class="space-y-6">
 
 
@@ -128,7 +128,7 @@
         <%= f.hidden_field :invoice_style, id: "invoice_style_input", value: @profile.invoice_style.presence || "classic" %>
         <%= f.hidden_field :accent_color, id: "accent_color_input", value: @profile.accent_color.presence || "#F97316" %>
         
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:items-center">
           <div class="space-y-3">
             <% ["classic", "professional", "modern", "bold", "minimal"].each do |style| %>
               <% is_active = (@profile.invoice_style.presence || "classic") == style %>
@@ -180,7 +180,7 @@
                </div>
 
                <object id="pdfPreviewObject" data="about:blank" type="application/pdf" class="hidden w-full h-full border-none pointer-events-none" style="-webkit-user-select: none; user-select: none; -webkit-touch-callout: none;"></object>
-               <iframe id="pdfPreviewFrame" data-src="<%= preview_pdf_logs_path(style: @profile.invoice_style.presence || "classic") %>#toolbar=0&view=FitH" src="about:blank" scrolling="no" class="w-full h-full border-none pointer-events-none scale-[1.02] transform-origin-center" style="-webkit-user-select: none; user-select: none; -webkit-touch-callout: none;" onload="document.getElementById('previewLoading').classList.add('hidden')"></iframe>
+               <iframe id="pdfPreviewFrame" src="<%= preview_pdf_logs_path(style: (@profile.invoice_style.presence || "classic"), accent_color: (@profile.accent_color.presence || "#F97316"), t: Time.now.to_i) %>#toolbar=0&view=FitH" scrolling="no" class="w-full h-full border-none pointer-events-none scale-[1.02] transform-origin-center" style="-webkit-user-select: none; user-select: none; -webkit-touch-callout: none;" onload="document.getElementById('previewLoading').classList.add('hidden')"></iframe>
              </div>
              <div class="mt-2 flex justify-center">
                 <span class="inline-block px-1.5 py-0.5 bg-gray-50 text-gray-400 text-[8px] font-black uppercase tracking-widest rounded-md border border-gray-200">Based on your profile information</span>
@@ -223,7 +223,7 @@
         <div class="relative">
           <%= f.hidden_field :currency, id: "currency_hidden_field", value: @profile.currency.presence || "USD" %>
           
-          <button type="button" id="currencySelectBtn" class="w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black text-left flex justify-between items-center shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:outline-none transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none z-10 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed" <%= 'disabled' if @profile.guest? %>>
+          <button type="button" id="currencySelectBtn" onclick="toggleCurrencyMenu(event)" class="w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black text-left flex justify-between items-center shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:outline-none transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none z-10 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed" <%= 'disabled' if @profile.guest? %>>
             <% current_currency = currencies_data.find { |c| c[:c] == (@profile.currency.presence || "USD") } || currencies_data.first %>
             <span id="selectedCurrencyDisplay" class="flex items-center gap-2">
               <span class="fi fi-<%= current_currency[:i] %> rounded-sm shadow-sm"></span> 
@@ -250,13 +250,13 @@
         <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1">Default Billing Model</label>
         <div class="flex gap-2 h-12">
           <%= f.label :billing_mode_hourly, class: "flex-1 h-full cursor-pointer #{@profile.guest? ? 'pointer-events-none' : ''}" do %>
-            <%= f.radio_button :billing_mode, "hourly", class: "peer hidden", checked: @profile.billing_mode != "fixed", disabled: @profile.guest? %>
+            <%= f.radio_button :billing_mode, "hourly", class: "peer hidden", checked: @profile.billing_mode != "fixed", disabled: @profile.guest?, onchange: "updateRateLabel()" %>
             <div class="h-full border-2 border-black rounded-xl flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all peer-checked:bg-orange-600 peer-checked:text-white peer-checked:shadow-none peer-checked:translate-x-[2px] peer-checked:translate-y-[2px] bg-white text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 peer-disabled:bg-gray-50 peer-disabled:text-gray-400">
               Hourly Rate
             </div>
           <% end %>
           <%= f.label :billing_mode_fixed, class: "flex-1 h-full cursor-pointer #{@profile.guest? ? 'pointer-events-none' : ''}" do %>
-            <%= f.radio_button :billing_mode, "fixed", class: "peer hidden", checked: @profile.billing_mode == "fixed", disabled: @profile.guest? %>
+            <%= f.radio_button :billing_mode, "fixed", class: "peer hidden", checked: @profile.billing_mode == "fixed", disabled: @profile.guest?, onchange: "updateRateLabel()" %>
             <div class="h-full border-2 border-black rounded-xl flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all peer-checked:bg-orange-600 peer-checked:text-white peer-checked:shadow-none peer-checked:translate-x-[2px] peer-checked:translate-y-[2px] bg-white text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 peer-disabled:bg-gray-50 peer-disabled:text-gray-400">
               Fixed Price
             </div>
@@ -277,7 +277,7 @@
           <% current_symbol = current_currency[:s] %>
           <%= @profile.billing_mode == "fixed" ? "Default Price (#{current_symbol})" : "Default Rate (#{current_symbol}/hr)" %>
         </label>
-        <%= f.number_field :hourly_rate, step: 0.01, max: 999999999, oninput: "if(this.value > 999999999) this.value = 999999999", class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", disabled: @profile.guest? %>
+        <%= f.number_field :hourly_rate, step: 0.01, max: 999999999, oninput: "if(this.value > 999999999) this.value = 999999999", class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", disabled: is_guest %>
         <button type="button" onclick="showSettingsInfo('Default Rate', 'This rate is used automatically for labor. If you mention a different rate or a fixed price in your instructions, it will override this value.')" class="flex items-center gap-1.5 px-1.5 py-0.5 bg-gray-50 text-gray-400 text-[8px] font-black uppercase tracking-widest rounded-md border border-gray-200 ml-1 mt-1 hover:bg-orange-50 hover:text-orange-600 transition-colors">
           <span>Unless Mentioned Otherwise</span>
           <div class="w-3 h-3 rounded-full bg-gray-200 flex items-center justify-center text-[7px] text-gray-500 font-black">!</div>
@@ -286,7 +286,7 @@
 
       <div class="space-y-2">
         <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1">Hours Per Workday</label>
-        <%= f.number_field :hours_per_workday, step: 1, min: 1, max: 24, oninput: "if(this.value > 24) this.value = 24; if(this.value < 1) this.value = 1", class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", disabled: @profile.guest? %>
+        <%= f.number_field :hours_per_workday, step: 1, min: 1, max: 24, oninput: "if(this.value > 24) this.value = 24; if(this.value < 1) this.value = 1", class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", disabled: is_guest %>
         <button type="button" onclick="showSettingsInfo('Hours Per Workday', 'Used to convert day-based references into hours. For example: half day becomes 4 hours, three days becomes 24 hours (with default of 8). Values: 1-24.')" class="flex items-center gap-1.5 px-1.5 py-0.5 bg-gray-50 text-gray-400 text-[8px] font-black uppercase tracking-widest rounded-md border border-gray-200 ml-1 mt-1 hover:bg-orange-50 hover:text-orange-600 transition-colors">
           <span>Day = X Hours</span>
           <div class="w-3 h-3 rounded-full bg-gray-200 flex items-center justify-center text-[7px] text-gray-500 font-black">!</div>
@@ -334,7 +334,7 @@
 
       <div class="space-y-2">
         <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1">Default Tax Rate (%)</label>
-        <%= f.number_field :tax_rate, step: 0.1, max: 100, oninput: "if(this.value > 100) this.value = 100", class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", disabled: @profile.guest? %>
+        <%= f.number_field :tax_rate, step: 0.1, max: 100, oninput: "if(this.value > 100) this.value = 100", class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", disabled: is_guest %>
         <button type="button" onclick="showSettingsInfo('Tax Rate', 'The default tax percentage. Different tax rates can be used for different items (Labor, Materials, Expenses, or Fees) if explicitly mentioned in your instructions.')" class="flex items-center gap-1.5 px-1.5 py-0.5 bg-gray-50 text-gray-400 text-[8px] font-black uppercase tracking-widest rounded-md border border-gray-200 ml-1 mt-1 hover:bg-orange-50 hover:text-orange-600 transition-colors">
           <span>Unless Mentioned Otherwise</span>
           <div class="w-3 h-3 rounded-full bg-gray-200 flex items-center justify-center text-[7px] text-gray-500 font-black">!</div>
@@ -346,23 +346,25 @@
 
     </div>
 
-    <div onclick="<%= @profile.guest? ? 'window.showPremiumModal?.()' : '' %>" 
-         class="md:flex w-full bg-orange-600/40 text-white/60 border-2 border-white/10 font-black py-4 rounded-xl transition-all uppercase text-xs tracking-[0.2em] items-center justify-center gap-3 cursor-pointer shadow-none <%= @profile.guest? ? 'flex' : 'hidden' %>">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-      </svg>
-      <span>Sign Up to Save</span>
-    </div>
-
-    <button type="submit" id="saveSettingsBtn" class="<%= @profile.guest? ? 'hidden' : 'hidden md:flex' %> w-full bg-orange-600 text-white border-2 border-black font-black py-4 rounded-xl shadow-[4px_4px_0px_0px_#000000] active:scale-[0.97] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all uppercase text-xs tracking-[0.2em] items-center justify-center gap-3 save-btn-hover">
-      <span id="btnText">Save Settings</span>
-      <div id="btnSpinner" class="hidden">
-        <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+    <% if @profile.guest? && !user_signed_in? %>
+      <div onclick="window.showPremiumModal?.()" 
+           class="flex w-full bg-orange-600/40 text-white/60 border-2 border-white/10 font-black py-4 rounded-xl transition-all uppercase text-xs tracking-[0.2em] items-center justify-center gap-3 cursor-pointer shadow-none">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
         </svg>
+        <span>Sign Up to Save</span>
       </div>
-    </button>
+    <% else %>
+      <button type="submit" id="saveSettingsBtn" class="w-full bg-orange-600 text-white border-2 border-black font-black py-4 rounded-xl shadow-[4px_4px_0px_0px_#000000] active:scale-[0.97] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all uppercase text-xs tracking-[0.2em] flex items-center justify-center gap-3 save-btn-hover">
+        <span id="btnText">Save Settings</span>
+        <div id="btnSpinner" class="hidden">
+          <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+        </div>
+      </button>
+    <% end %>
   <% end %>
 </div>
 
@@ -400,7 +402,13 @@
 </style>
 
 <script>
+  // --- Global State ---
+  const currencies = <%== currencies_data.to_json %>;
+  let activeTokens = [];
+  let selectedCurrency = currencies[0];
+  window.previewTimeout = null;
 
+  // --- Global Functions ---
   function autoResize(el) {
     if (!el) return;
     el.style.height = '1px';
@@ -415,8 +423,6 @@
       el.style.overflowY = 'hidden';
     }
   }
-
-  const currencies = <%= json_escape(currencies_data.to_json) %>;
 
   function previewImage(input) {
     const file = input.files[0];
@@ -437,80 +443,51 @@
     }
   }
 
-  document.addEventListener("DOMContentLoaded", () => {
-    // Auto-resize areas on load
-    document.querySelectorAll('textarea[oninput="autoResize(this)"]').forEach(el => autoResize(el));
-
-    const hiddenField = document.getElementById('currency_hidden_field');
-    const selectBtn = document.getElementById('currencySelectBtn');
-    const display = document.getElementById('selectedCurrencyDisplay');
-    const menu = document.getElementById('currencyMenu');
-    const search = document.getElementById('currencySearch');
-    const list = document.getElementById('currencyList');
-    const rateLabel = document.getElementById('rateLabel');
-    const hourlyRadio = document.getElementById('profile_billing_mode_hourly');
-    const fixedRadio = document.getElementById('profile_billing_mode_fixed');
-    const scopeHidden = document.getElementById('tax_scope_hidden');
-    const scopeToggles = document.querySelectorAll('.scope-toggle');
-    const scopeAllBtn = document.getElementById('scope_all_btn');
-    const scopeNoneBtn = document.getElementById('scope_none_btn');
-
-    // Initialize Tax Scope tokens from hidden field
-    let activeTokens = scopeHidden.value ? scopeHidden.value.split(',').filter(t => t) : [];
+  window.toggleScopeToken = function(btn) {
+    const hidden = document.getElementById('tax_scope_hidden');
+    if (!hidden) return;
+    const token = btn.dataset.scope;
     
-    // Migration: if value is "total" or old format, convert to all tokens
-    if (activeTokens.length === 1 && activeTokens[0] === "total") {
-      activeTokens = ["labor", "materials_only", "fees_only", "expenses_only"];
-      scopeHidden.value = activeTokens.join(',');
+    if (activeTokens.includes(token)) {
+      activeTokens = activeTokens.filter(t => t !== token);
+    } else {
+      activeTokens.push(token);
     }
-    // Migrate old "tasks_only" to "fees_only"
-    if (activeTokens.includes("tasks_only")) {
-      activeTokens = activeTokens.filter(t => t !== "tasks_only");
-      if (!activeTokens.includes("fees_only")) activeTokens.push("fees_only");
-      scopeHidden.value = activeTokens.join(',');
-    }
-    
+    hidden.value = activeTokens.join(',');
     updateScopeUI();
+  };
 
-    window.toggleScopeToken = function(btn) {
+  window.setScopeAll = function() {
+    const hidden = document.getElementById('tax_scope_hidden');
+    activeTokens = ["labor", "materials_only", "fees_only", "expenses_only"];
+    if (hidden) hidden.value = activeTokens.join(',');
+    updateScopeUI();
+  };
+
+  window.setScopeNone = function() {
+    const hidden = document.getElementById('tax_scope_hidden');
+    activeTokens = [];
+    if (hidden) hidden.value = "";
+    updateScopeUI();
+  };
+
+  function updateScopeUI() {
+    document.querySelectorAll('.scope-toggle').forEach(btn => {
       const token = btn.dataset.scope;
       if (activeTokens.includes(token)) {
-        activeTokens = activeTokens.filter(t => t !== token);
+        btn.classList.add('bg-orange-600', 'text-white', 'shadow-none', 'translate-x-[2px]', 'translate-y-[2px]');
+        btn.classList.remove('bg-white', 'text-black', 'shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]', 'hover:bg-orange-50');
       } else {
-        activeTokens.push(token);
+        btn.classList.remove('bg-orange-600', 'text-white', 'shadow-none', 'translate-x-[2px]', 'translate-y-[2px]');
+        btn.classList.add('bg-white', 'text-black', 'shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]', 'hover:bg-orange-50');
       }
-      scopeHidden.value = activeTokens.join(',');
-      updateScopeUI();
-    };
+    });
 
-    window.setScopeAll = function() {
-      activeTokens = ["labor", "materials_only", "fees_only", "expenses_only"];
-      scopeHidden.value = activeTokens.join(',');
-      updateScopeUI();
-    };
-
-    window.setScopeNone = function() {
-      activeTokens = [];
-      scopeHidden.value = "";
-      updateScopeUI();
-    };
-
-    function updateScopeUI() {
-      scopeToggles.forEach(btn => {
-        const token = btn.dataset.scope;
-        if (activeTokens.includes(token)) {
-          btn.classList.add('bg-orange-600', 'text-white', 'shadow-none', 'translate-x-[2px]', 'translate-y-[2px]');
-          btn.classList.remove('bg-white', 'text-black', 'shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]', 'hover:bg-orange-50');
-        } else {
-          btn.classList.remove('bg-orange-600', 'text-white', 'shadow-none', 'translate-x-[2px]', 'translate-y-[2px]');
-          btn.classList.add('bg-white', 'text-black', 'shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]', 'hover:bg-orange-50');
-        }
-      });
-
-      // Update All/None highlights
+    const scopeAllBtn = document.getElementById('scope_all_btn');
+    const scopeNoneBtn = document.getElementById('scope_none_btn');
+    
+    if (scopeAllBtn) {
       const allActive = activeTokens.length === 4;
-      const noneActive = activeTokens.length === 0;
-
       if (allActive) {
         scopeAllBtn.classList.add('bg-orange-600', 'text-white', 'shadow-none', 'translate-x-[2px]', 'translate-y-[2px]');
         scopeAllBtn.classList.remove('bg-white', 'text-black', 'shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]', 'hover:bg-orange-50');
@@ -518,7 +495,10 @@
         scopeAllBtn.classList.remove('bg-orange-600', 'text-white', 'shadow-none', 'translate-x-[2px]', 'translate-y-[2px]');
         scopeAllBtn.classList.add('bg-white', 'text-black', 'shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]', 'hover:bg-orange-50');
       }
-
+    }
+    
+    if (scopeNoneBtn) {
+      const noneActive = activeTokens.length === 0;
       if (noneActive) {
         scopeNoneBtn.classList.add('bg-orange-600', 'text-white', 'shadow-none', 'translate-x-[2px]', 'translate-y-[2px]');
         scopeNoneBtn.classList.remove('bg-white', 'text-black', 'shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]', 'hover:bg-orange-50');
@@ -527,215 +507,199 @@
         scopeNoneBtn.classList.add('bg-white', 'text-black', 'shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]', 'hover:bg-orange-50');
       }
     }
+  }
 
-    let selectedCurrency = currencies.find(c => c.c === (hiddenField ? hiddenField.value : 'USD')) || currencies[0];
-
-    function updateDisplay(currency) {
-      selectedCurrency = currency;
+  function updateCurrencyDisplay(currency) {
+    const display = document.getElementById('selectedCurrencyDisplay');
+    selectedCurrency = currency;
+    if (display) {
       display.innerHTML = `<span class="fi fi-${currency.i} rounded-sm shadow-sm"></span> <span class="ml-1">${currency.c} (${currency.s})</span>`;
-      updateRateLabel();
     }
+    updateRateLabel();
+  }
 
-    function updateRateLabel() {
-      const symbol = selectedCurrency.s;
-      if (fixedRadio && fixedRadio.checked) {
-        rateLabel.innerText = `Default Price (${symbol})`;
-      } else if (rateLabel) {
-        rateLabel.innerText = `Default Rate (${symbol}/hr)`;
-      }
+  function updateRateLabel() {
+    const rateLabel = document.getElementById('rateLabel');
+    const fixedRadio = document.getElementById('profile_billing_mode_fixed');
+    if (!rateLabel) return;
+    const symbol = selectedCurrency.s;
+    if (fixedRadio && fixedRadio.checked) {
+      rateLabel.innerText = `Default Price (${symbol})`;
+    } else {
+      rateLabel.innerText = `Default Rate (${symbol}/hr)`;
     }
+  }
 
-    function renderList(filter = "") {
-      if (!list) return;
-      list.innerHTML = "";
-      const filtered = currencies.filter(c => 
-        c.n.toLowerCase().includes(filter.toLowerCase()) || 
-        c.c.toLowerCase().includes(filter.toLowerCase())
-      );
-
-      filtered.forEach(c => {
-        const div = document.createElement('div');
-        div.className = "px-4 py-4 currency-item-hover cursor-pointer flex items-center justify-between border-b border-gray-100 last:border-0 transition-colors";
-        div.innerHTML = `
-          <div class="flex items-center gap-3">
-            <span class="fi fi-${c.i} rounded-sm shadow-sm w-5 h-4"></span>
-            <span class="text-sm font-bold text-black">${c.n}</span>
-          </div>
-          <span class="text-xs font-black text-orange-600 bg-orange-50 px-2 py-1 rounded-md border border-orange-100">${c.s}</span>
-        `;
-        div.onclick = (e) => {
-          e.stopPropagation();
-          hiddenField.value = c.c;
-          updateDisplay(c);
-          menu.classList.add('hidden');
-        };
-        list.appendChild(div);
-      });
-    }
-
-    if (selectBtn) {
-      selectBtn.onclick = (e) => {
-        e.stopPropagation();
-        menu.classList.toggle('hidden');
-        if (!menu.classList.contains('hidden')) {
-          search.value = "";
-          renderList("");
-          search.focus();
-        }
-      };
-    }
-    
-    if (search) {
-      search.onclick = (e) => e.stopPropagation();
-      search.oninput = (e) => renderList(e.target.value);
-    }
-    
-    if (hourlyRadio) hourlyRadio.addEventListener('change', updateRateLabel);
-    if (fixedRadio) fixedRadio.addEventListener('change', updateRateLabel);
-
-    renderList();
-
-    document.addEventListener('click', () => {
-      if (menu) menu.classList.add('hidden');
+  window.selectInvoiceStyle = function(style) {
+    document.getElementById('invoice_style_input').value = style;
+    document.querySelectorAll('.invoice-style-btn').forEach(btn => {
+      btn.classList.remove('bg-orange-600', 'text-white', 'translate-x-[2px]', 'translate-y-[2px]', 'shadow-none');
+      btn.classList.add('bg-white', 'text-black', 'shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]', 'hover:bg-orange-50');
+      btn.querySelector('.indicator')?.classList.add('hidden');
     });
-
-    window.selectInvoiceStyle = function(style) {
-      document.getElementById('invoice_style_input').value = style;
-      
-      // Update UI
-      document.querySelectorAll('.invoice-style-btn').forEach(btn => {
-        btn.classList.remove('bg-orange-600', 'text-white', 'translate-x-[2px]', 'translate-y-[2px]', 'shadow-none');
-        btn.classList.add('bg-white', 'text-black', 'shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]', 'hover:bg-orange-50');
-        btn.querySelector('.indicator').classList.add('hidden');
-      });
-      
-      const activeBtn = document.getElementById('style_btn_' + style);
-      if (activeBtn) {
-        activeBtn.classList.remove('bg-white', 'text-black', 'shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]', 'hover:bg-orange-50');
-        activeBtn.classList.add('bg-orange-600', 'text-white', 'translate-x-[2px]', 'translate-y-[2px]', 'shadow-none');
-        activeBtn.querySelector('.indicator').classList.remove('hidden');
-      }
-
-      // Show/Hide Color Picker
-      const colorPicker = document.getElementById('classicColorPicker');
-      if (style === 'classic') {
-          colorPicker.classList.remove('hidden');
-      } else {
-          colorPicker.classList.add('hidden');
-      }
-      
-      refreshPdfPreview();
-    };
-
-    window.selectAccentColor = function(color) {
-        document.getElementById('accent_color_input').value = color;
-        
-        // Visual Update
-        document.querySelectorAll('.color-swatch').forEach(btn => {
-           if (btn.dataset.color === color) {
-              btn.classList.add('ring-2', 'ring-offset-1', 'ring-black', 'scale-110', 'z-10');
-           } else {
-              btn.classList.remove('ring-2', 'ring-offset-1', 'ring-black', 'scale-110', 'z-10');
-           }
-        });
-
-        refreshPdfPreview();
-    };
-
-    function refreshPdfPreview() {
-      const style = document.getElementById('invoice_style_input').value;
-      const color = document.getElementById('accent_color_input').value;
-      
-      // Detect iOS
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-                    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-      
-      clearTimeout(window.previewTimeout);
-      window.previewTimeout = setTimeout(() => {
-        const iframe = document.getElementById('pdfPreviewFrame');
-        const pdfObject = document.getElementById('pdfPreviewObject');
-        const url = "/logs/preview_pdf?style=" + style + "&accent_color=" + encodeURIComponent(color) + "&t=" + new Date().getTime() + "#toolbar=0&view=FitH";
-        
-        document.getElementById('previewLoading').classList.remove('hidden');
-        
-        if (isIOS && pdfObject) {
-            // iOS: Use object tag
-            iframe.classList.add('hidden');
-            pdfObject.data = url;
-            pdfObject.classList.remove('hidden');
-            pdfObject.onload = () => document.getElementById('previewLoading').classList.add('hidden');
-            // Fallback timeout in case onload doesn't fire
-            setTimeout(() => document.getElementById('previewLoading').classList.add('hidden'), 1500);
-        } else if (iframe) {
-            // Desktop/Android: Use iframe
-            if (pdfObject) pdfObject.classList.add('hidden');
-            iframe.classList.remove('hidden');
-            iframe.src = url;
-        }
-      }, 200);
-    }
     
-    // --- Initialization ---
-    const iStyle = document.getElementById('invoice_style_input').value || 'classic';
-    const initBtn = document.getElementById('style_btn_' + iStyle);
-    if (initBtn) {
-      initBtn.classList.remove('bg-white', 'text-black', 'shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]', 'hover:bg-orange-50');
-      initBtn.classList.add('bg-orange-600', 'text-white', 'translate-x-[2px]', 'translate-y-[2px]', 'shadow-none');
-      initBtn.querySelector('.indicator').classList.remove('hidden');
+    const activeBtn = document.getElementById('style_btn_' + style);
+    if (activeBtn) {
+      activeBtn.classList.remove('bg-white', 'text-black', 'shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]', 'hover:bg-orange-50');
+      activeBtn.classList.add('bg-orange-600', 'text-white', 'translate-x-[2px]', 'translate-y-[2px]', 'shadow-none');
+      activeBtn.querySelector('.indicator')?.classList.remove('hidden');
     }
-    const colorPickerInit = document.getElementById('classicColorPicker');
-    if (iStyle === 'classic' && colorPickerInit) colorPickerInit.classList.remove('hidden');
 
-    // Lazy load the iframe after page render
+    const colorPicker = document.getElementById('classicColorPicker');
+    if (colorPicker) colorPicker.classList.toggle('hidden', style !== 'classic');
+    refreshPdfPreview();
+  };
+
+  window.selectAccentColor = function(color) {
+      document.getElementById('accent_color_input').value = color;
+      document.querySelectorAll('.color-swatch').forEach(btn => {
+         btn.classList.toggle('ring-2', btn.dataset.color === color);
+         btn.classList.toggle('scale-110', btn.dataset.color === color);
+      });
+      refreshPdfPreview();
+  };
+
+  function refreshPdfPreview() {
+    const styleEl = document.getElementById('invoice_style_input');
+    const colorEl = document.getElementById('accent_color_input');
+    if (!styleEl || !colorEl) return;
+
+    clearTimeout(window.previewTimeout);
+    window.previewTimeout = setTimeout(() => {
+      const iframe = document.getElementById('pdfPreviewFrame');
+      const pdfObject = document.getElementById('pdfPreviewObject');
+      const url = "/logs/preview_pdf?style=" + styleEl.value + "&accent_color=" + encodeURIComponent(colorEl.value) + "&t=" + new Date().getTime() + "#toolbar=0&view=FitH";
+      
+      document.getElementById('previewLoading')?.classList.remove('hidden');
+      
+      if (iframe) iframe.src = url;
+      if (pdfObject) pdfObject.data = url;
+    }, 200);
+  }
+
+  // --- Event Bindings ---
+  function initSettings() {
+    const scopeHidden = document.getElementById('tax_scope_hidden');
+    if (scopeHidden) {
+      activeTokens = scopeHidden.value ? scopeHidden.value.split(',').filter(t => t) : [];
+      updateScopeUI();
+    }
+
+    const hiddenField = document.getElementById('currency_hidden_field');
+    if (hiddenField) {
+      const curr = currencies.find(c => c.c === hiddenField.value) || currencies[0];
+      updateCurrencyDisplay(curr);
+    }
+
+    document.querySelectorAll('textarea[oninput="autoResize(this)"]').forEach(el => autoResize(el));
+    
+    const iStyle = document.getElementById('invoice_style_input')?.value || 'classic';
+    window.selectInvoiceStyle(iStyle);
+
+    renderCurrencyList("");
+    
+    // Final UI sanity check for labels
+    updateRateLabel();
+
+    // Lazy load the iframe after page render to handle Turbo timing
     setTimeout(() => {
         refreshPdfPreview();
-    }, 500);
+    }, 300);
+  }
+
+  function renderCurrencyList(filter = "") {
+    const list = document.getElementById('currencyList');
+    const hiddenField = document.getElementById('currency_hidden_field');
+    const menu = document.getElementById('currencyMenu');
+    if (!list) return;
+    list.innerHTML = "";
+    const filtered = currencies.filter(c => 
+      c.n.toLowerCase().includes(filter.toLowerCase()) || 
+      c.c.toLowerCase().includes(filter.toLowerCase())
+    );
+
+    filtered.forEach(c => {
+      const div = document.createElement('div');
+      div.className = "px-4 py-4 currency-item-hover cursor-pointer flex items-center justify-between border-b border-gray-100 last:border-0 transition-colors";
+      div.innerHTML = `<div class="flex items-center gap-3"><span class="fi fi-${c.i} rounded-sm shadow-sm w-5 h-4"></span><span class="text-sm font-bold text-black">${c.n}</span></div><span class="text-xs font-black text-orange-600 bg-orange-50 px-2 py-1 rounded-md border border-orange-100">${c.s}</span>`;
+      div.onclick = (e) => {
+        e.stopPropagation();
+        if (hiddenField) hiddenField.value = c.c;
+        updateCurrencyDisplay(c);
+        menu?.classList.add('hidden');
+      };
+      list.appendChild(div);
+    });
+  }
+
+  document.addEventListener("turbo:load", initSettings);
+  
+  // Also run on raw DOMContentLoaded as a fallback
+  document.addEventListener("DOMContentLoaded", initSettings);
+  
+  // Force immediate execution if script loads late
+  if (document.readyState === "complete" || document.readyState === "interactive") {
+    initSettings();
+  }
+  
+  // Toggle Currency Menu
+  window.toggleCurrencyMenu = function(e) {
+    if (e) e.stopPropagation();
+    const menu = document.getElementById('currencyMenu');
+    const search = document.getElementById('currencySearch');
+    if (!menu) return;
+    menu.classList.toggle('hidden');
+    if (!menu.classList.contains('hidden') && search) {
+      search.value = "";
+      renderCurrencyList("");
+      search.focus();
+    }
+  };
+
+  document.addEventListener('click', () => {
+    document.getElementById('currencyMenu')?.classList.add('hidden');
   });
 
-  // PDF Modal Functions
+  // PDF Modal
   window.openPdfModal = function() {
     const modal = document.getElementById('pdfModal');
-    const modalFrame = document.getElementById('pdfModalFrame');
-    const modalObject = document.getElementById('pdfModalObject');
-    
-    const style = document.getElementById('invoice_style_input').value || "professional";
-    const color = document.getElementById('accent_color_input').value;
+    const style = document.getElementById('invoice_style_input')?.value || "professional";
+    const color = document.getElementById('accent_color_input')?.value || "";
     const url = "/logs/preview_pdf?style=" + style + "&accent_color=" + encodeURIComponent(color) + "&t=" + new Date().getTime() + "#toolbar=0&view=FitH";
     
-    // Detect iOS
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    
-    document.getElementById('modalLoading').classList.remove('hidden');
-    
-    if (isIOS && modalObject) {
-        // iOS: Use object tag
-        modalFrame.classList.add('hidden');
-        modalObject.data = url;
-        modalObject.classList.remove('hidden');
-        modalObject.onload = () => document.getElementById('modalLoading').classList.add('hidden');
-        setTimeout(() => document.getElementById('modalLoading').classList.add('hidden'), 1500);
-    } else {
-        // Desktop/Android: Use iframe
-        if (modalObject) modalObject.classList.add('hidden');
-        modalFrame.classList.remove('hidden');
-        modalFrame.src = url;
-    }
-    
+    document.getElementById('pdfModalFrame').src = url;
+    document.getElementById('pdfModalObject').data = url;
     modal.classList.remove('hidden');
     modal.classList.add('flex');
     document.body.style.overflow = 'hidden';
   };
 
-  function closePdfModal(event) {
+  window.closePdfModal = function() {
     const modal = document.getElementById('pdfModal');
-    
     modal.classList.add('hidden');
     modal.classList.remove('flex');
-    
-    // Restore body scroll
     document.body.style.overflow = '';
-  }
+  };
+
+  window.showSettingsInfo = function(title, message) {
+    document.getElementById('infoModalTitle').innerText = title;
+    document.getElementById('infoModalMessage').innerText = message;
+    const modal = document.getElementById('infoModal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+    document.body.style.overflow = 'hidden';
+  };
+
+  window.closeInfoModal = function() {
+    const modal = document.getElementById('infoModal');
+    if (modal) {
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+    document.body.style.overflow = '';
+  };
 
   // --- AJAX Settings Save (Fetch-based) ---
   document.getElementById('settingsForm').addEventListener('submit', async (e) => {
@@ -815,25 +779,6 @@
     }
   });
 
-  function showSettingsInfo(title, message) {
-    const modal = document.getElementById('infoModal');
-    const titleEl = document.getElementById('infoModalTitle');
-    const msgEl = document.getElementById('infoModalMessage');
-    
-    titleEl.innerText = title;
-    msgEl.innerText = message;
-    
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-    document.body.style.overflow = 'hidden';
-  }
-
-  function closeInfoModal() {
-    const modal = document.getElementById('infoModal');
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
-    document.body.style.overflow = '';
-  }
 </script>
 
 <!-- Settings Info Modal -->

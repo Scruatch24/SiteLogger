@@ -213,30 +213,34 @@ class LogsController < ApplicationController
     def bulk_pin
       log_ids = params[:log_ids] || []
       category_id = params[:category_id] # nil for global, ID for category
-      should_pin = params[:pin] == true
+      should_pin = ActiveModel::Type::Boolean.new.cast(params[:pin])
 
-      if user_signed_in?
-        current_user.logs.kept.where(id: log_ids)
-      else
-        Log.kept.where(user_id: nil, ip_address: client_ip, id: log_ids)
+      if category_id == "favorites" && user_signed_in?
+        fav = current_user.categories.where("name ILIKE ?", "Favorites").first
+        category_id = fav&.id
       end
+
+      # Scope check
+      base_scope = if user_signed_in?
+        current_user.logs.kept
+      else
+        Log.kept.where(user_id: nil, ip_address: client_ip)
+      end
+
+      # Final filtered and ordered logs based on input selection
+      authorized_logs = base_scope.where(id: log_ids).index_by(&:id)
+      ordered_logs = log_ids.map { |id| authorized_logs[id.to_i] }.compact
 
       if category_id.present?
         # Category-specific pinning
-        # Process sequentialy to ensure distinct timestamps based on selection order
-        logs_ordered = log_ids.map { |id| Log.find(id) }
-        logs_ordered.each_with_index do |log, index|
+        ordered_logs.each_with_index do |log, index|
           assignment = LogCategoryAssignment.find_or_create_by(log_id: log.id, category_id: category_id)
-          # Add micro-delay to ensure database timestamps are distinct if needed,
-          # but usually Time.current is enough if processed in a loop.
-          # Explicitly setting slightly different times to be safe for sorting.
           ts = should_pin ? (Time.current + index.seconds) : nil
           assignment.update(pinned_at: ts)
         end
       else
         # Global pinning
-        logs_ordered = log_ids.map { |id| Log.find(id) }
-        logs_ordered.each_with_index do |log, index|
+        ordered_logs.each_with_index do |log, index|
           ts = should_pin ? (Time.current + index.seconds) : nil
           log.update(pinned: should_pin, pinned_at: ts)
         end

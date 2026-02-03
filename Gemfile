@@ -67,7 +67,11 @@ group :test do
   gem "selenium-webdriver"
 end
 
-gem "dotenv-rails", "~> 3.2"
+group :development, :test do
+  gem "dotenv-rails", "~> 3.2"
+end
+
+gem "rack-attack"
 gem "prawn"
 gem "prawn-table"
 gem "matrix"

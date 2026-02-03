@@ -23,7 +23,7 @@ class HomeController < ApplicationController
 
   def history
     @logs = if user_signed_in?
-      current_user.logs.kept.eager_load(:categories).order("logs.pinned DESC NULLS LAST, logs.pinned_at DESC NULLS LAST, logs.created_at DESC")
+      current_user.logs.kept.eager_load(:categories).order("logs.pinned DESC NULLS LAST, logs.pinned_at ASC NULLS LAST, logs.created_at DESC")
     else
       # Guest history is private to the IP adress - return empty as requested
       []
@@ -145,7 +145,8 @@ class HomeController < ApplicationController
 
         return render json: { raw_summary: raw || "" }
       rescue => e
-        return render json: { error: e.message }, status: 500
+        Rails.logger.error "TRANCRIPTION ERROR: #{e.message}\n#{e.backtrace.join("\n")}"
+        return render json: { error: "Failed to transcribe audio." }, status: 500
       end
     end
 
@@ -707,7 +708,8 @@ PROMPT
       render json: final_response
 
     rescue => e
-      render json: { error: e.message }, status: 500
+      Rails.logger.error "AUDIO PROCESSING ERROR: #{e.message}\n#{e.backtrace.join("\n")}"
+      render json: { error: "An unexpected error occurred during processing. Please try again." }, status: 500
     end
   end
 

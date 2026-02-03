@@ -309,13 +309,18 @@
               });
 
               if (response.status === 429) {
-                  window.showPremiumModal();
+                  // Ignore limit modal on history page for downloads/exports as per user request
+                  if (!(eventName === 'invoice_exported' && window.location.pathname.includes('/history'))) {
+                      window.showPremiumModal();
+                  }
                   return false;
               }
 
               const data = await response.json();
               if (data.status === 'error' && data.message === 'Rate limit reached') {
-                  window.showPremiumModal();
+                  if (!(eventName === 'invoice_exported' && window.location.pathname.includes('/history'))) {
+                      window.showPremiumModal();
+                  }
                   return false;
               }
               return response.ok;

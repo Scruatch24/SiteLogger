@@ -868,6 +868,20 @@
       switchView(initialView);
     }
 
+    // Check for hash on load to enter specific category folder
+    const checkHash = () => {
+      const hash = window.location.hash;
+      if (hash && (hash.startsWith('#cat-') || hash === '#favorites')) {
+        const catId = hash.substring(1); // remove #
+        enterCategory(catId);
+      } else if (!hash && !document.getElementById('categories-details').classList.contains('hidden')) {
+        exitCategory();
+      }
+    };
+    
+    checkHash();
+    window.addEventListener('hashchange', checkHash);
+
     searchInput.addEventListener('input', (e) => {
       const term = e.target.value.toLowerCase();
       document.querySelectorAll('.log-card').forEach(card => {
@@ -1311,6 +1325,10 @@
   // --- Category Navigation Logic ---
   function enterCategory(categoryId) {
     closeAllModals();
+    
+    // Update hash for context
+    window.location.hash = categoryId;
+
     // Hide grid
     document.getElementById('categories-index').classList.add('hidden');
     // Show details container
@@ -1328,6 +1346,10 @@
 
   function exitCategory() {
     closeAllModals();
+    // Clear hash
+    if (window.location.hash) {
+      history.replaceState(null, null, ' '); // Cleaner way to clear hash without jump
+    }
     // Hide details container
     document.getElementById('categories-details').classList.add('hidden');
     // Show grid
@@ -1905,6 +1927,8 @@
     const urlHash = window.location.hash;
     if (urlHash.startsWith('#cat-')) {
       categoryId = urlHash.replace('#cat-', '');
+    } else if (urlHash === '#favorites') {
+      categoryId = 'favorites';
     }
 
     const logIds = [...selectedLogIds];
@@ -1962,6 +1986,15 @@
       text.textContent = "Pin Log";
     }
 
+    // Determine context
+    let categoryId = null;
+    const urlHash = window.location.hash;
+    if (urlHash.startsWith('#cat-')) {
+      categoryId = urlHash.replace('#cat-', '');
+    } else if (urlHash === '#favorites') {
+      categoryId = 'favorites';
+    }
+
     fetch('/logs/bulk_pin', {
       method: 'PATCH',
       headers: {
@@ -1970,6 +2003,7 @@
       },
       body: JSON.stringify({
         log_ids: [logId],
+        category_id: categoryId,
         pin: shouldPin
       })
     })
