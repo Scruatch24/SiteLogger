@@ -78,3 +78,5 @@ gem "omniauth-rails_csrf_protection", "~> 1.0"
 gem "zoho_zeptomail-rails"
 gem "zoho_zeptomail-ruby"
 gem "http"
+
+gem "aws-sdk-s3", "~> 1.213"
