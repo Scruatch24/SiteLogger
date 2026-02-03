@@ -103,9 +103,12 @@ class HomeController < ApplicationController
 
     # Character Limit Check
     current_length = params[:manual_text].to_s.length
-    if current_length > limit
+    # We allow a 250-character buffer on the server to account for the overhead
+    # of [User clarification...] tags added during refinements.
+    # The frontend strictly enforces the raw user limit of #{limit}.
+    if current_length > (limit + 250)
       return render json: {
-        error: "Your transcript exceeds the character limit (#{limit}). Upgrade to add more text."
+        error: "Your transcript exceeds the character limit including refinements (#{limit + 250})."
       }, status: :unprocessable_entity
     end
 

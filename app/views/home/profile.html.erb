@@ -33,12 +33,15 @@
   <% if @profile.guest? %>
     <!-- Guest: Modal-style Profile Benefits Banner -->
     <div class="px-0 mb-8 max-w-md mx-auto">
-      <div class="relative bg-black/90 backdrop-blur-xl rounded-[32px] border border-white/10 overflow-hidden shadow-2xl">
-        <!-- Glow effects -->
-        <div class="absolute -top-12 -right-12 w-32 h-32 bg-orange-600/20 rounded-full blur-[60px]"></div>
-        <div class="absolute -bottom-12 -left-12 w-32 h-32 bg-orange-600/10 rounded-full blur-[60px]"></div>
-        
-        <div class="relative p-6 md:p-8">
+      <div class="relative zenith-container rounded-[32px]">
+        <div class="zenith-bg"></div>
+        <div class="zenith-grid"></div>
+        <div class="zenith-trace">
+          <svg preserveAspectRatio="none">
+            <rect x="0" y="0" width="100%" height="100%" rx="32" ry="32" />
+          </svg>
+        </div>
+        <div class="zenith-content p-6 md:p-8">
           <!-- Header: Centered & Title-like -->
           <div class="flex flex-col items-center justify-center gap-2 mb-8 text-center">
             <div class="w-12 h-12 rounded-2xl bg-orange-600/20 border border-orange-500/30 flex items-center justify-center mb-1">

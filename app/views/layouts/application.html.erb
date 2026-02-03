@@ -76,6 +76,185 @@
       .animate-logout {
         animation: logout-slide 1.5s ease-in-out infinite;
       }
+
+      /* ---------------------------------------------------- */
+      /* NEW: Smooth High-FPS Modal Animation & Electric Border */
+      /* ---------------------------------------------------- */
+      
+      /* 1. Smooth, hardware-accelerated entrance */
+      @keyframes smoothPop {
+        0% { 
+          opacity: 0;
+          transform: scale(0.92) translate3d(0, 10px, 0);
+          filter: blur(4px);
+        }
+        100% { 
+          opacity: 1; 
+          transform: scale(1) translate3d(0, 0, 0);
+          filter: blur(0);
+        }
+      }
+
+      .modal-smooth-enter {
+        animation: smoothPop 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        will-change: transform, opacity, filter;
+        backface-visibility: hidden; /* Reduces shifting */
+      }
+
+      /* 2. Electric Border Container */
+      .electric-border-container {
+        position: relative;
+        border-radius: 24px; /* Default smaller for mobile */
+        isolation: isolate;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+        padding: 2px;
+        background: transparent;
+        overflow: hidden;
+      }
+      
+      @media (min-width: 768px) {
+        .electric-border-container {
+          border-radius: 40px; /* Larger for desktop */
+        }
+      }
+
+      /* The rotating gradient */
+      .electric-border-container::before {
+        content: "";
+        position: absolute;
+        inset: -150%; /* Larger inset for mobile to smooth out the gradient edges */
+        width: 400%;  /* Much larger to center the gradient better */
+        height: 400%;
+        background: conic-gradient(
+          transparent, 
+          transparent, 
+          transparent, 
+          #FF6B00 30%, 
+          #FFB800 50%, 
+          #FF6B00 70%, 
+          transparent, 
+          transparent,
+          transparent
+        );
+        animation: rotateElectric 2.5s linear infinite;
+        transform-origin: center;
+        z-index: -1;
+        opacity: 0.5; /* Reduced intensity for mobile */
+        filter: blur(20px); /* Soften the edges */
+      }
+
+      @media (min-width: 768px) {
+        .electric-border-container::before {
+          inset: -50%;
+          width: 200%;
+          height: 200%;
+          opacity: 1;
+          filter: none;
+        }
+      }
+
+      /* Inner background */
+      .electric-border-content {
+        background: #000000; /* Solid black on mobile to hide center hub */
+        backdrop-filter: blur(24px);
+        border-radius: 22px; /* Matches container-2px */
+        height: 100%;
+        width: 100%;
+        position: relative;
+        z-index: 1;
+      }
+      
+      @media (min-width: 768px) {
+        .electric-border-content {
+          background: rgba(0, 0, 0, 0.85); /* Restore transparency on desktop */
+          border-radius: 38px;
+        }
+      }
+
+      @keyframes rotateElectric {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+
+      /* 3. The Zenith Trace (Ultra-Premium Inline Box) */
+      .zenith-container {
+        position: relative;
+        overflow: hidden;
+        background: #050505;
+        isolation: isolate;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        box-shadow: 
+          0 10px 30px -10px rgba(0, 0, 0, 0.5),
+          0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+      }
+      
+      /* The "Laser" Spark */
+      .zenith-trace {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 10;
+      }
+
+      .zenith-trace svg {
+        width: 100%;
+        height: 100%;
+        fill: none;
+      }
+
+      .zenith-trace rect {
+        width: 100%;
+        height: 100%;
+        stroke: #f97316;
+        stroke-width: 2;
+        stroke-dasharray: 60 1000; /* Short energy burst */
+        stroke-dashoffset: 0;
+        animation: zenith-spark 3s linear infinite;
+        filter: drop-shadow(0 0 4px #f97316) drop-shadow(0 0 1px #fff);
+      }
+
+      @keyframes zenith-spark {
+        from { stroke-dashoffset: 0; }
+        to { stroke-dashoffset: -1060; } /* Matches a typical path length ratio */
+      }
+
+      /* Moving Mesh Background */
+      .zenith-bg {
+        position: absolute;
+        inset: 0;
+        opacity: 0.4;
+        background: 
+          radial-gradient(circle at 0% 0%, #1a1a1a 0%, transparent 50%),
+          radial-gradient(circle at 100% 100%, #111111 0%, transparent 50%),
+          radial-gradient(circle at 50% 50%, #1a1005 0%, transparent 50%);
+        filter: blur(40px);
+        animation: zenith-bg-shift 10s ease-in-out infinite alternate;
+        z-index: -1;
+      }
+
+      @keyframes zenith-bg-shift {
+        0% { transform: scale(1) translate(0, 0); }
+        100% { transform: scale(1.2) translate(-5%, -5%); }
+      }
+
+      /* Grid Texture Overlay */
+      .zenith-grid {
+        position: absolute;
+        inset: 0;
+        background-image: 
+          linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+        background-size: 20px 20px;
+        z-index: 0;
+        opacity: 0.5;
+        mask-image: radial-gradient(circle at center, black, transparent 80%);
+      }
+
+      .zenith-content {
+        position: relative;
+        z-index: 2;
+        background: transparent;
+      }
     </style>
 
     <script>
@@ -180,16 +359,18 @@
     <!-- Premium Tier Modal (Futuristic Industrial Glassmorphism) -->
     <div id="premiumTierModal" class="fixed inset-0 h-[100dvh] z-[20000] hidden items-center justify-center p-4 overflow-hidden overscroll-none">
       <!-- Immersive Dark Blur Backdrop -->
-      <div class="absolute inset-0 bg-black/80 backdrop-blur-xl touch-none"></div>
+      <div class="absolute inset-0 bg-black/80 backdrop-blur-xl touch-none transition-opacity duration-500 ease-out"></div>
       
-      <div class="relative w-full max-w-4xl bg-black/40 border-2 border-white/10 rounded-[40px] shadow-[0_0_100px_rgba(0,0,0,1)] overflow-hidden flex flex-col max-h-[90dvh] md:max-h-[95vh] animate-in fade-in zoom-in duration-500">
+      <!-- Electric Border Wrapper -->
+      <div class="electric-border-container w-full max-w-4xl max-h-[85dvh] md:max-h-[95vh] modal-smooth-enter flex flex-col">
+        <div class="electric-border-content flex flex-col overflow-hidden">
         
-        <!-- Animated Background Glows -->
-        <div class="absolute -top-24 -right-24 w-64 h-64 bg-orange-600/20 rounded-full blur-[100px] animate-pulse"></div>
-        <div class="absolute -bottom-24 -left-24 w-64 h-64 bg-indigo-600/20 rounded-full blur-[100px] animate-pulse delay-700"></div>
+        <!-- Animated Background Glows (Inside the masked content now) -->
+        <div class="absolute -top-24 -right-24 w-64 h-64 bg-orange-600/20 rounded-full blur-[100px] animate-pulse pointer-events-none"></div>
+        <div class="absolute -bottom-24 -left-24 w-64 h-64 bg-indigo-600/20 rounded-full blur-[100px] animate-pulse delay-700 pointer-events-none"></div>
 
         <!-- Tier Grid Body: Glass Panels (Header Moved Inside to Scroll Together) -->
-        <div class="relative overflow-y-auto custom-scrollbar flex-1 p-6 md:p-8 pt-0">
+        <div class="relative overflow-y-auto custom-scrollbar flex-1 p-4 md:p-8 pt-0 overscroll-contain">
           
           <!-- Header: Sleek & Minimal -->
           <div class="relative pt-2 pb-6 text-center md:text-left flex flex-col md:flex-row md:items-end justify-between items-center gap-4">
@@ -223,7 +404,10 @@
                 <div class="flex items-center justify-between p-3 bg-white/5 border border-white/5 rounded-2xl">
                   <div class="flex items-center gap-3">
                     <div class="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-                      <lord-icon src="https://cdn.lordicon.com/dicvhxpz.json" trigger="hover" stroke="100" colors="primary:#808080,secondary:#808080" style="width:22px;height:22px;filter:drop-shadow(0.3px 0 0 #808080) drop-shadow(-0.3px 0 0 #808080) drop-shadow(0 0.3px 0 #808080) drop-shadow(0 -0.3px 0 #808080);"></lord-icon>
+                      <svg class="w-5 h-5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
                     </div>
                     <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest">Preview</span>
                   </div>
@@ -297,7 +481,10 @@
                 <div class="flex items-center justify-between p-3 bg-orange-50 border border-orange-100 rounded-2xl">
                   <div class="flex items-center gap-3">
                     <div class="w-8 h-8 rounded-xl bg-orange-500 text-white flex items-center justify-center shrink-0 shadow-lg shadow-orange-500/20">
-                      <lord-icon src="https://cdn.lordicon.com/dicvhxpz.json" trigger="hover" stroke="100" colors="primary:#ffffff,secondary:#ffffff" style="width:22px;height:22px;filter:drop-shadow(0.3px 0 0 #ffffff) drop-shadow(-0.3px 0 0 #ffffff) drop-shadow(0 0.3px 0 #ffffff) drop-shadow(0 -0.3px 0 #ffffff);"></lord-icon>
+                      <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
                     </div>
                     <span class="text-[9px] font-black text-orange-600 uppercase tracking-widest">Preview</span>
                   </div>
@@ -379,7 +566,35 @@
                 <div class="flex items-center justify-between p-3 bg-orange-500/5 border border-orange-500/10 rounded-2xl">
                   <div class="flex items-center gap-3">
                     <div class="w-8 h-8 rounded-xl bg-orange-600/20 border border-orange-500/30 text-orange-500 flex items-center justify-center shrink-0">
-                      <lord-icon src="https://cdn.lordicon.com/dicvhxpz.json" trigger="loop" delay="1000" stroke="100" colors="primary:#f97316,secondary:#f97316" style="width:22px;height:22px;filter:drop-shadow(0.3px 0 0 #f97316) drop-shadow(-0.3px 0 0 #f97316) drop-shadow(0 0.3px 0 #f97316) drop-shadow(0 -0.3px 0 #f97316);"></lord-icon>
+                      <div class="w-full h-full flex items-center justify-center" style="animation: eyeBlink 4s infinite ease-in-out;">
+                         <svg class="w-5 h-5 text-orange-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <!-- Almond Shape -->
+                            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                            <!-- Pupil (Hollow) -->
+                            <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" style="animation: eyeLook 4s infinite ease-in-out;" />
+                         </svg>
+                      </div>
+                       <style>
+                         /* 
+                            Strict Sync: Total 4s.
+                            0-2s: Active (50%)
+                            2s-4s: Pause (50%)
+                         */
+                         @keyframes eyeLook {
+                           0%, 10% { transform: translate(0, 0); }
+                           15% { transform: translate(-3px, 0); } /* Move Left */
+                           20% { transform: translate(-3px, 0); } /* Hold Left */
+                           25% { transform: translate(3px, 0); }  /* Move Right */
+                           30% { transform: translate(3px, 0); }  /* Hold Right */
+                           35% { transform: translate(0, 0); }    /* Return Center */
+                           100% { transform: translate(0, 0); }   /* Wait */
+                         }
+                         @keyframes eyeBlink {
+                           0%, 40% { transform: scaleY(1); }
+                           43% { transform: scaleY(0.1); }
+                           46%, 100% { transform: scaleY(1); }
+                         }
+                       </style>
                     </div>
                     <span class="text-[9px] font-black text-orange-500 uppercase tracking-widest">Preview</span>
                   </div>
@@ -397,16 +612,18 @@
                           </clipPath>
                         </defs>
                         <g clip-path="url(#transcriptClip)">
-                          <line x1="4" y1="6" x2="20" y2="6" stroke-width="2.5" stroke-linecap="round" style="animation: transcriptScrollPulse 2.5s infinite ease-in-out;"/>
-                          <line x1="4" y1="12" x2="12" y2="12" stroke-width="2.5" stroke-linecap="round" style="animation: transcriptScrollPulse 2.5s infinite ease-in-out 0.2s;"/>
-                          <line x1="4" y1="18" x2="20" y2="18" stroke-width="2.5" stroke-linecap="round" style="animation: transcriptScrollPulse 2.5s infinite ease-in-out 0.1s;"/>
+                          <line x1="4" y1="6" x2="20" y2="6" stroke-width="2.5" stroke-linecap="round" style="animation: transcriptScrollPulse 4s infinite ease-in-out;"/>
+                          <line x1="4" y1="12" x2="12" y2="12" stroke-width="2.5" stroke-linecap="round" style="animation: transcriptScrollPulse 4s infinite ease-in-out 0.2s;"/>
+                          <line x1="4" y1="18" x2="20" y2="18" stroke-width="2.5" stroke-linecap="round" style="animation: transcriptScrollPulse 4s infinite ease-in-out 0.1s;"/>
                         </g>
                         <style>
                           @keyframes transcriptScrollPulse {
-                            0%, 40% { transform: translateX(0); opacity: 1; }
-                            50% { transform: translateX(-24px); opacity: 0; }
-                            51% { transform: translateX(24px); opacity: 0; }
-                            60%, 100% { transform: translateX(0); opacity: 1; }
+                            0% { transform: translateX(0); opacity: 1; }
+                            15% { transform: translateX(-24px); opacity: 0; }
+                            15.1% { transform: translateX(24px); opacity: 0; }
+                            30% { transform: translateX(0); opacity: 1; }
+                            50% { transform: translateX(0); opacity: 1; } /* End Active phase at 2s */
+                            100% { transform: translateX(0); opacity: 1; } /* Wait 2s */
                           }
                         </style>
                       </svg>
@@ -431,20 +648,21 @@
                         <path class="wave-r-2" d="M20 2c1.2 1.2 1.2 4.5 0 6" opacity="0" />
                       </svg>
                       <style>
-                        .wave-l-1 { animation: waveLEffect 1.8s infinite; }
-                        .wave-l-2 { animation: waveLEffect 1.8s infinite 0.4s; }
-                        .wave-r-1 { animation: waveREffect 1.8s infinite; }
-                        .wave-r-2 { animation: waveREffect 1.8s infinite 0.4s; }
+                        /* Active phase 0-50% (0-2s) */
+                        .wave-l-1 { animation: waveLEffect 4s infinite; }
+                        .wave-l-2 { animation: waveLEffect 4s infinite 0.4s; }
+                        .wave-r-1 { animation: waveREffect 4s infinite; }
+                        .wave-r-2 { animation: waveREffect 4s infinite 0.4s; }
                         @keyframes waveLEffect {
                           0% { opacity: 0; transform: translateX(1px); }
-                          30% { opacity: 0.8; transform: translateX(0); }
-                          60% { opacity: 0; transform: translateX(-1.5px); }
+                          10% { opacity: 0.8; transform: translateX(0); }
+                          20% { opacity: 0; transform: translateX(-1.5px); }
                           100% { opacity: 0; transform: translateX(-1.5px); }
                         }
                         @keyframes waveREffect {
                           0% { opacity: 0; transform: translateX(-1px); }
-                          30% { opacity: 0.8; transform: translateX(0); }
-                          60% { opacity: 0; transform: translateX(1.5px); }
+                          10% { opacity: 0.8; transform: translateX(0); }
+                          20% { opacity: 0; transform: translateX(1.5px); }
                           100% { opacity: 0; transform: translateX(1.5px); }
                         }
                       </style>
@@ -467,9 +685,10 @@
                       <style>
                         @keyframes exportSlide {
                           0% { transform: translateY(-4px); opacity: 0; }
-                          30% { transform: translateY(0); opacity: 1; }
-                          60% { transform: translateY(0); opacity: 1; }
-                          100% { transform: translateY(8px); opacity: 0; }
+                          10% { transform: translateY(0); opacity: 1; }   /* Appear */
+                          40% { transform: translateY(0); opacity: 1; }   /* Hold */
+                          50% { transform: translateY(8px); opacity: 0; } /* Drop out by 2s */
+                          100% { transform: translateY(8px); opacity: 0; } /* Wait */
                         }
                       </style>
                     </div>
@@ -500,7 +719,7 @@
         </div>
 
         <!-- Footer: Clean Login & Dismiss -->
-        <div class="relative p-5 md:p-8 bg-black/40 border-t border-white/10 shrink-0">
+        <div class="relative p-5 md:p-8 border-t border-white/10 shrink-0 bg-black/20">
           <div class="flex flex-col md:flex-row items-center justify-between gap-4 md:gap-6">
             <div class="text-center md:text-left">
               <span class="block text-[10px] font-black uppercase text-gray-500 tracking-widest mb-0.5 md:mb-1">Already have a pro account?</span>
@@ -515,6 +734,7 @@
           </div>
         </div>
 
+      </div>
       </div>
     </div>
     <!-- Logout Confirmation Modal -->

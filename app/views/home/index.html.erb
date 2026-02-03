@@ -847,11 +847,11 @@
                        class="w-full bg-white border-2 border-black rounded-xl p-5 text-black text-sm font-medium leading-relaxed resize-none outline-none placeholder:text-gray-400 custom-scrollbar overflow-hidden"
                        style="max-height: 800px; field-sizing: content;"
                        maxlength="<%= @profile.char_limit %>"
-                       oninput="autoResize(this); updateCharCount(); if(this.value.length >= <%= @profile.char_limit %> && window.showPremiumModal) window.showPremiumModal()"
+                       oninput="autoResize(this); updateDynamicCountersCheck(this)"
                        placeholder="Paste text or type notes here..."></textarea>
             <div id="charCounter" class="flex justify-end mt-1 px-1">
               <span class="text-[9px] font-black text-gray-400 uppercase tracking-widest">
-                <span id="currentCharCount">0</span> / <%= @profile.char_limit %>
+                <span id="currentCharCount">0</span> / <span id="mainTranscriptMax"><%= @profile.char_limit %></span>
               </span>
             </div>
           </div>
@@ -884,14 +884,19 @@
             
             <div id="refinementContent" class="hidden pt-1 pb-4 space-y-4 transition-all duration-300">
               <div class="flex gap-2">
-                <div class="flex-1 border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,0.05),4px_4px_0px_0px_rgba(16,185,129,1)]">
+                <div class="flex-1 border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,0.05),4px_4px_0px_0px_rgba(16,185,129,1)] flex flex-col">
                   <textarea id="refinementInput"
                             rows="2"
                             maxlength="<%= @profile.char_limit %>"
-                            oninput="if(this.value.length >= <%= @profile.char_limit %> && window.showPremiumModal) window.showPremiumModal()"
+                            oninput="updateDynamicCountersCheck(this)"
                             class="w-full bg-transparent border-none text-sm font-bold text-black focus:ring-0 p-4 outline-none placeholder:text-gray-400 resize-none rounded-xl"
                             placeholder="Need to fix something? Tell me here..."
                             onkeydown="if(event.key==='Enter' && !event.shiftKey) { event.preventDefault(); submitRefinement(); }"></textarea>
+                  <div class="flex justify-end px-3 pb-2">
+                    <span class="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                       <span id="refinementCharCount">0</span> / <span id="refinementMax"><%= @profile.char_limit %></span>
+                    </span>
+                 </div>
                 </div>
                 <div class="flex flex-col gap-2">
                   <button type="button" 
@@ -938,14 +943,19 @@
                   <label class="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">Your Answer</label>
                 </div>
                 <div class="flex gap-2">
-                  <div class="flex-1 border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+                  <div class="flex-1 border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] flex flex-col">
                     <textarea id="clarificationAnswerInput"
                               rows="2"
                               maxlength="<%= @profile.char_limit %>"
-                              oninput="if(this.value.length >= <%= @profile.char_limit %> && window.showPremiumModal) window.showPremiumModal()"
+                              oninput="updateDynamicCountersCheck(this)"
                               class="w-full bg-transparent border-none text-sm font-bold text-black focus:ring-0 p-4 outline-none placeholder:text-gray-400 resize-none rounded-xl"
                               placeholder="Type or speak your answer..."
                               onkeydown="if(event.key==='Enter' && !event.shiftKey) { event.preventDefault(); submitClarifications(); }"></textarea>
+                     <div class="flex justify-end px-3 pb-2">
+                        <span class="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                           <span id="clarificationCharCount">0</span> / <span id="clarificationMax"><%= @profile.char_limit %></span>
+                        </span>
+                     </div>
                   </div>
                   <div class="flex flex-col gap-2">
                     <button type="button" 
@@ -1461,6 +1471,95 @@
   let savedLogDisplayNumber = null;
   let savedLogClient = null;
   let shareTrackedThisSession = false; // Tracks if share was already counted for this preview popup
+
+  // Check historical usage
+  window.calculateHistoricalChars = function() {
+    if (!window.clarificationHistory || window.clarificationHistory.length === 0) return 0;
+    let total = 0;
+    window.clarificationHistory.forEach(h => {
+        // Count ONLY the user's actual text length, ignoring prompt overhead
+        // This ensures math like "290 limit - 200 used = 90 remaining" holds true
+        total += (h.answer ? h.answer.length : 0);
+    });
+    return total;
+  };
+
+  // Dynamic Character Counter Logic
+  window.updateDynamicCounters = function() {
+    const limit = <%= @profile.char_limit %>;
+    
+    // Get Elements
+    const elT = document.getElementById('mainTranscript');
+    const elR = document.getElementById('refinementInput');
+    const elC = document.getElementById('clarificationAnswerInput');
+    
+    // Get Lengths
+    const lenT = elT ? elT.value.length : 0;
+    const lenR = elR ? elR.value.length : 0;
+    const lenC = elC ? elC.value.length : 0;
+    const lenHistory = window.calculateHistoricalChars();
+    
+    const totalUsed = lenT + lenR + lenC + lenHistory;
+    const remaining = Math.max(0, limit - totalUsed);
+    
+    // Update Transcript Counter (T) - FIXED at global limit
+    const valT = document.getElementById('currentCharCount');
+    const maxT = document.getElementById('mainTranscriptMax');
+    if (valT && maxT) {
+      valT.innerText = lenT;
+      maxT.innerText = limit;
+      if (elT) elT.maxLength = limit;
+    }
+    
+    // Update Refinement Counter (R)
+    const valR = document.getElementById('refinementCharCount');
+    const maxR = document.getElementById('refinementMax');
+    if (valR && maxR) {
+      valR.innerText = lenR;
+      const allowedR = lenR + remaining;
+      maxR.innerText = Math.max(0, limit - lenT - lenC - lenHistory);
+      if (elR) elR.maxLength = allowedR;
+    }
+
+    // Update Clarification Counter (C)
+    const valC = document.getElementById('clarificationCharCount');
+    const maxC = document.getElementById('clarificationMax');
+    if (valC && maxC) {
+      valC.innerText = lenC;
+      const allowedC = lenC + remaining;
+      maxC.innerText = Math.max(0, limit - lenT - lenR - lenHistory);
+      if (elC) elC.maxLength = allowedC;
+    }
+    
+    return totalUsed;
+  };
+  
+  window.updateDynamicCountersCheck = function(el) {
+    const total = window.updateDynamicCounters();
+    const limit = <%= @profile.char_limit %>;
+    
+    // Check if we specifically tripped the limit on the Transcript vs the shared fields
+    const isTranscript = (el && el.id === 'mainTranscript');
+    const isOverflow = isTranscript ? (el.value.length > limit) : (total > limit);
+
+    if (isOverflow) {
+       // Trim the input that caused the overflow
+       if (isTranscript) {
+          el.value = el.value.slice(0, limit);
+       } else {
+          let excess = total - limit;
+          if (el && excess > 0) {
+             el.value = el.value.slice(0, -excess);
+          }
+       }
+       window.updateDynamicCounters(); // Re-update after trim
+       if (window.showPremiumModal) window.showPremiumModal();
+    }
+  };
+
+  // Initialize checks on load
+  document.addEventListener('turbo:load', window.updateDynamicCounters);
+  document.addEventListener('DOMContentLoaded', window.updateDynamicCounters); 
 
   function initGlobalVariables() {
     currentLogTaxScope = "<%= @profile.tax_scope %>";
@@ -2690,7 +2789,14 @@ document.addEventListener("DOMContentLoaded", () => {
       // Fix: Clear previous text when starting a new recording
       if (transcriptArea) {
          transcriptArea.value = "";
-         updateCharCount(); // Also reset character counter
+         window.previousClarificationAnswers = [];
+         window.clarificationHistory = [];
+         renderPreviousAnswers();
+         const refInput = document.getElementById('refinementInput');
+         const clarInput = document.getElementById('clarificationAnswerInput');
+         if (refInput) refInput.value = '';
+         if (clarInput) clarInput.value = '';
+         if (window.updateDynamicCounters) window.updateDynamicCounters();
       }
 
       // Enforce Guest/Free Limits BEFORE starting
@@ -2870,9 +2976,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const text = transcriptArea.value;
     const limit = <%= @profile.char_limit %>;
 
-    if (text.length > limit) {
-      showError("Your transcript would exceed your character limit (" + limit + "). Upgrade to generate longer transcripts.");
-      return;
+    // Use total user-content limit check only for manual re-parse
+    // Refinements and Clarifications have their own pre-validation
+    if (!window.skipTranscriptUpdate) {
+      if (text.length > limit) {
+        showError("Your transcript would exceed your character limit (" + limit + "). Upgrade to generate longer transcripts.");
+        return;
+      }
     }
 
     if (!text) return;
@@ -2882,6 +2992,13 @@ document.addEventListener("DOMContentLoaded", () => {
       window.previousClarificationAnswers = [];
       window.clarificationHistory = [];
       renderPreviousAnswers();
+      
+      // Reset refinement/clarification inputs
+      const refInput = document.getElementById('refinementInput');
+      const clarInput = document.getElementById('clarificationAnswerInput');
+      if (refInput) refInput.value = '';
+      if (clarInput) clarInput.value = '';
+      if (window.updateDynamicCounters) window.updateDynamicCounters();
     }
     
     startAnalysisUI();
@@ -5721,7 +5838,17 @@ function updateUI(data) {
       const limit = <%= @profile.char_limit %>;
       transcriptArea.value = data.raw_summary.substring(0, limit);
       autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
+      
+      // Since this is a fresh transcript, reset refinements/clarifications
+      window.previousClarificationAnswers = [];
+      window.clarificationHistory = [];
+      renderPreviousAnswers();
+      const refInput = document.getElementById('refinementInput');
+      const clarInput = document.getElementById('clarificationAnswerInput');
+      if (refInput) refInput.value = '';
+      if (clarInput) clarInput.value = '';
+
+      if (window.updateDynamicCounters) window.updateDynamicCounters();
     }
     window.skipTranscriptUpdate = false; // Reset flag after use
     document.getElementById("editClient").value = data.client || "";
@@ -6058,15 +6185,32 @@ async function submitRefinement() {
   const instruction = input ? input.value.trim() : '';
   if (!instruction) return showError("Please enter an instruction first");
 
+  // PRE-VALIDATION: Check limits BEFORE modifying history
+  const limit = <%= @profile.char_limit %>;
+  const historyChars = (window.calculateHistoricalChars ? window.calculateHistoricalChars() : 0);
+  const transcriptChars = document.getElementById('mainTranscript')?.value.length || 0;
+  
+  // Calculate prospective addition
+  // Revised: Ignore overhead to match user expectation of "What I type is what I spend"
+  const projectedTotal = transcriptChars + historyChars + instruction.length;
+
+  if (projectedTotal > limit) {
+      if (window.showPremiumModal) window.showPremiumModal();
+      else showError(`Limit Reached (${limit}). Upgrade to add more.`);
+      return; 
+  }
+
   // Save for AI history & UI with TYPE
   if (!window.clarificationHistory) window.clarificationHistory = [];
   window.clarificationHistory.push({ questions: "User manually refined details", answer: instruction });
   if (!window.previousClarificationAnswers) window.previousClarificationAnswers = [];
   window.previousClarificationAnswers.push({ text: instruction, type: 'refinement' });
-  renderPreviousAnswers();
-
-  // Clear input
+  
+  // Clear input and Update counters IMMEDIATELY for real-time visual feedback
   input.value = '';
+  if (window.updateDynamicCounters) window.updateDynamicCounters();
+
+  renderPreviousAnswers();
 
   let historyText = "";
   window.clarificationHistory.forEach(h => {
@@ -6076,10 +6220,17 @@ async function submitRefinement() {
   window.skipTranscriptUpdate = true;
   const transcriptArea = document.getElementById('mainTranscript');
   const originalValue = transcriptArea.value;
-  transcriptArea.value = `${window.originalTranscript}${historyText}`;
+  transcriptArea.value = `${window.originalTranscript || originalValue}${historyText}`;
   
   const applyBtn = document.getElementById('reParseBtn');
-  if (applyBtn) applyBtn.click();
+  if (applyBtn) {
+      // Temporarily override the click handler validation because we ALREADY validated above
+      // and we crafted the value manually. We just want the fetch to happen.
+      // Actually, reParseBtn.click() triggers the CLICK handler which resets Validation?
+      // The click handler checks transcriptArea.value.length.
+      // If we crafted it correctly, it should pass.
+      applyBtn.click();
+  }
   
   // No auto-expand here, honor user request for collapsed by default
   const content = document.getElementById('refinementContent');
@@ -6262,23 +6413,43 @@ async function submitClarifications() {
     return;
   }
 
-  // Save for the AI prompt history (accumulate multi-turn answers)
+  // Pre-calculate Question text for overhead check
   const currentQuestions = window.pendingClarifications.map(c => c.question).join(' ');
+  
+  // PRE-VALIDATION
+  const limit = <%= @profile.char_limit %>;
+  const historyChars = (window.calculateHistoricalChars ? window.calculateHistoricalChars() : 0);
+  const transcriptChars = document.getElementById('mainTranscript')?.value.length || 0;
+  // Revised: Ignore overhead
+  const projectedTotal = transcriptChars + historyChars + userAnswer.length;
+
+  if (projectedTotal > limit) {
+      if (window.showPremiumModal) window.showPremiumModal();
+      else showError(`Limit Reached (${limit}). Upgrade to add more.`);
+      return; 
+  }
+
+  // Save for the AI prompt history (accumulate multi-turn answers)
   if (!window.clarificationHistory) window.clarificationHistory = [];
   window.clarificationHistory.push({ questions: currentQuestions, answer: userAnswer });
 
   // Save for UI display with TYPE
   if (!window.previousClarificationAnswers) window.previousClarificationAnswers = [];
   window.previousClarificationAnswers.push({ text: userAnswer, type: 'clarification' });
-  renderPreviousAnswers();
   
+  // Clear Input and update counters IMMEDIATELY
+  answerInput.value = '';
+  if (window.updateDynamicCounters) window.updateDynamicCounters();
+
+  renderPreviousAnswers();
+
   // Build the enhanced prompt with FULL history
   let historyText = "";
   window.clarificationHistory.forEach(h => {
     historyText += `\n\n[User clarification for "${h.questions}": ${h.answer}]`;
   });
   
-  const clarificationPrompt = `${window.originalTranscript}${historyText}`;
+  const clarificationPrompt = `${window.originalTranscript || document.getElementById('mainTranscript')?.value}${historyText}`;
   
   // Set flag to tell updateUI NOT to touch the transcript
   window.skipTranscriptUpdate = true;
