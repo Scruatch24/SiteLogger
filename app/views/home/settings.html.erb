@@ -180,7 +180,7 @@
                </div>
 
                <object id="pdfPreviewObject" data="about:blank" type="application/pdf" class="hidden w-full h-full border-none pointer-events-none" style="-webkit-user-select: none; user-select: none; -webkit-touch-callout: none;"></object>
-               <iframe id="pdfPreviewFrame" src="<%= preview_pdf_logs_path(style: (@profile.invoice_style.presence || "classic"), accent_color: (@profile.accent_color.presence || "#F97316"), t: Time.now.to_i) %>#toolbar=0&view=FitH" scrolling="no" class="w-full h-full border-none pointer-events-none scale-[1.02] transform-origin-center" style="-webkit-user-select: none; user-select: none; -webkit-touch-callout: none;" onload="document.getElementById('previewLoading').classList.add('hidden')"></iframe>
+               <iframe id="pdfPreviewFrame" src="<%= preview_pdf_logs_path(style: (@profile.invoice_style.presence || "classic"), accent_color: (@profile.accent_color.presence || "#F97316"), t: Time.now.to_i) %>#toolbar=0&view=Fit" scrolling="no" class="w-full h-full border-none pointer-events-none" style="-webkit-user-select: none; user-select: none; -webkit-touch-callout: none;" onload="document.getElementById('previewLoading').classList.add('hidden')"></iframe>
              </div>
              <div class="mt-2 flex justify-center">
                 <span class="inline-block px-1.5 py-0.5 bg-gray-50 text-gray-400 text-[8px] font-black uppercase tracking-widest rounded-md border border-gray-200">Based on your profile information</span>
@@ -568,7 +568,7 @@
     window.previewTimeout = setTimeout(() => {
       const iframe = document.getElementById('pdfPreviewFrame');
       const pdfObject = document.getElementById('pdfPreviewObject');
-      const url = "/logs/preview_pdf?style=" + styleEl.value + "&accent_color=" + encodeURIComponent(colorEl.value) + "&t=" + new Date().getTime() + "#toolbar=0&view=FitH";
+      const url = "/logs/preview_pdf?style=" + styleEl.value + "&accent_color=" + encodeURIComponent(colorEl.value) + "&t=" + new Date().getTime() + "#toolbar=0&view=Fit";
       
       document.getElementById('previewLoading')?.classList.remove('hidden');
       
