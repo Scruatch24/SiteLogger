@@ -1,4 +1,14 @@
 <% is_guest = @profile.guest? && !user_signed_in? %>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+  (function() {
+    const lib = window['pdfjs-dist/build/pdf'] || window.pdfjsLib;
+    if (lib) {
+      window.pdfjsLib = lib;
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+  })();
+</script>
 
 <div class="min-h-screen bg-white text-black font-sans p-4 pb-24 md:pb-4">
   <header class="sticky top-0 z-40 bg-white border-b-2 border-black md:border-b-0 md:static md:bg-transparent -mx-4 px-4 py-3 mb-2 md:mb-10 md:pt-4 md:px-1 flex items-center justify-between shadow-sm md:shadow-none">
@@ -180,7 +190,12 @@
                </div>
 
                <object id="pdfPreviewObject" data="about:blank" type="application/pdf" class="hidden w-full h-full border-none pointer-events-none" style="-webkit-user-select: none; user-select: none; -webkit-touch-callout: none;"></object>
-               <iframe id="pdfPreviewFrame" src="<%= preview_pdf_logs_path(style: (@profile.invoice_style.presence || "classic"), accent_color: (@profile.accent_color.presence || "#F97316"), t: Time.now.to_i) %>#toolbar=0&view=Fit" scrolling="no" class="w-full h-full border-none pointer-events-none" style="-webkit-user-select: none; user-select: none; -webkit-touch-callout: none;" onload="document.getElementById('previewLoading').classList.add('hidden')"></iframe>
+               
+               <!-- Desktop Iframe -->
+               <iframe id="pdfPreviewFrame" src="<%= preview_pdf_logs_path(style: (@profile.invoice_style.presence || "classic"), accent_color: (@profile.accent_color.presence || "#F97316"), t: Time.now.to_i) %>#toolbar=0&view=Fit" scrolling="no" class="hidden md:block w-full h-full border-none pointer-events-none" style="-webkit-user-select: none; user-select: none; -webkit-touch-callout: none;" onload="document.getElementById('previewLoading').classList.add('hidden')"></iframe>
+               
+               <!-- Mobile Canvas (PDF.js) -->
+               <canvas id="mobilePdfCanvas" class="md:hidden w-full h-full object-contain pointer-events-none"></canvas>
              </div>
              <div class="mt-2 flex justify-center">
                 <span class="inline-block px-1.5 py-0.5 bg-gray-50 text-gray-400 text-[8px] font-black uppercase tracking-widest rounded-md border border-gray-200">Based on your profile information</span>
@@ -565,15 +580,57 @@
     if (!styleEl || !colorEl) return;
 
     clearTimeout(window.previewTimeout);
-    window.previewTimeout = setTimeout(() => {
+    window.previewTimeout = setTimeout(async () => {
       const iframe = document.getElementById('pdfPreviewFrame');
-      const pdfObject = document.getElementById('pdfPreviewObject');
-      const url = "/logs/preview_pdf?style=" + styleEl.value + "&accent_color=" + encodeURIComponent(colorEl.value) + "&t=" + new Date().getTime() + "#toolbar=0&view=Fit";
+      const canvas = document.getElementById('mobilePdfCanvas');
+      const loading = document.getElementById('previewLoading');
       
-      document.getElementById('previewLoading')?.classList.remove('hidden');
+      const baseUrl = "/logs/preview_pdf?style=" + styleEl.value + "&accent_color=" + encodeURIComponent(colorEl.value) + "&t=" + new Date().getTime();
       
-      if (iframe) iframe.src = url;
-      if (pdfObject) pdfObject.data = url;
+      loading?.classList.remove('hidden');
+
+      if (window.innerWidth < 768) {
+        // Mobile: PDF.js to Canvas
+        iframe?.classList.add('hidden');
+        canvas?.classList.remove('hidden');
+        
+        try {
+          const loadingTask = pdfjsLib.getDocument(baseUrl);
+          const pdf = await loadingTask.promise;
+          const page = await pdf.getPage(1);
+          
+          if (!canvas) return;
+          const context = canvas.getContext('2d');
+          
+          // Get dimensions
+          const pixelRatio = window.devicePixelRatio || 1;
+          const containerWidth = canvas.clientWidth * pixelRatio;
+          const viewport = page.getViewport({ scale: 1 });
+          const scale = containerWidth / viewport.width;
+          const scaledViewport = page.getViewport({ scale });
+
+          canvas.width = scaledViewport.width;
+          canvas.height = scaledViewport.height;
+          
+          const renderContext = {
+            canvasContext: context,
+            viewport: scaledViewport
+          };
+          
+          await page.render(renderContext).promise;
+          loading?.classList.add('hidden');
+          
+        } catch (error) {
+          console.error("PDF.js Render Error:", error);
+          loading?.classList.add('hidden');
+        }
+        
+      } else {
+        // Desktop: Iframe
+        canvas?.classList.add('hidden');
+        iframe?.classList.remove('hidden');
+        iframe.src = baseUrl + "#toolbar=0&view=Fit";
+      }
     }, 200);
   }
 
