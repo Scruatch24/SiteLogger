@@ -1275,7 +1275,9 @@ document.addEventListener("DOMContentLoaded", () => {
         window.recordingStartTime = Date.now();
 
         isRecording = true;
-        buttonText.innerText = "PROCESS";
+        buttonText.innerText = "STOP";
+        document.getElementById("micIcon").innerHTML = '<rect x="7" y="7" width="10" height="10" rx="1" fill="currentColor" />';
+
         recordBtn.classList.add("recording");
         document.getElementById("recordingWave").classList.remove("hidden");
         document.getElementById("status").innerText = "RECORDING...";
@@ -1357,7 +1359,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
     isRecording = false;
     isAnalyzing = false;
+    // Restore Mic Icon
+    const micIcon = document.getElementById("micIcon");
+    if (micIcon) {
+      micIcon.style.display = ""; // Ensure visible
+      micIcon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />`;
+    }
+
     buttonText.innerText = "TAP TO RECORD";
+    buttonText.classList.replace("text-xl", "text-[9px]"); // Restore size
+
     recordBtn.classList.remove("recording");
     document.getElementById("status").innerText = "READY";
     document.getElementById("status").classList.replace("text-red-600", "text-orange-600");
@@ -1410,7 +1421,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function startAnalysisUI() {
     isAnalyzing = true;
+
+    // UI: Big Text "CANCEL", No Icon
     buttonText.innerText = "CANCEL";
+    buttonText.classList.replace("text-[9px]", "text-xl");
+    const micIcon = document.getElementById("micIcon");
+    if (micIcon) micIcon.style.display = "none";
+
     analysisAbortController = new AbortController();
 
     document.getElementById("status").innerText = "PROCESSING...";
