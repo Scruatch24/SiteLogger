@@ -304,13 +304,17 @@
                       
                       setTimeout(() => {
                           let animationId;
-                          let currentScrollPos = 0; // Accumulator to avoid iOS int rounding
-                          const speed = 0.8; // Slightly increased speed
+                          let startTimestamp = null;
+                          const pixelsPerSecond = 50; // Constant speed ~50px/sec
                           
-                          const scrollStep = () => {
+                          const scrollStep = (timestamp) => {
+                              if (!startTimestamp) startTimestamp = timestamp;
+                              const elapsed = timestamp - startTimestamp;
+                              const currentScrollPos = (elapsed / 1000) * pixelsPerSecond;
+                              
                               const maxScroll = scrollContainer.scrollHeight - scrollContainer.clientHeight;
+                              
                               if (currentScrollPos < maxScroll) {
-                                  currentScrollPos += speed;
                                   scrollContainer.scrollTop = currentScrollPos;
                                   animationId = requestAnimationFrame(scrollStep);
                               }
@@ -326,7 +330,7 @@
                           scrollContainer.addEventListener('wheel', stopAutoScroll, { passive: true });
                           
                           animationId = requestAnimationFrame(scrollStep);
-                      }, 500); 
+                      }, 500);
                   }
               }
           }
