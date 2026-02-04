@@ -4731,6 +4731,7 @@ async function startRefinementRecording() {
   }
 
   try {
+    const input = document.getElementById('refinementInput');
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     refinementRecorder = new MediaRecorder(stream);
     refinementChunks = [];
@@ -4738,7 +4739,7 @@ async function startRefinementRecording() {
     refinementRecorder.ondataavailable = (e) => refinementChunks.push(e.data);
     refinementRecorder.onstop = processRefinementAudio;
     refinementRecorder.start();
-    startLiveTranscription(input);
+    if (input) startLiveTranscription(input);
 
     btn.classList.remove('bg-emerald-500', 'hover:bg-emerald-600');
     btn.classList.add('bg-red-500', 'animate-pulse');
@@ -4748,7 +4749,12 @@ async function startRefinementRecording() {
       if (refinementRecorder && refinementRecorder.state === 'recording') refinementRecorder.stop();
     }, 15000);
   } catch (e) {
-    showError("Microphone access required");
+    console.error("Refinement Recording Error:", e);
+    if (e.name === 'NotAllowedError' || e.name === 'NotFoundError') {
+      showError("Microphone access required");
+    } else {
+      showError("Recording failed: " + e.message);
+    }
   }
 }
 
@@ -4930,6 +4936,7 @@ async function startClarificationRecording() {
   }
 
   try {
+    const input = document.getElementById('clarificationAnswerInput');
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     clarificationRecorder = new MediaRecorder(stream);
     clarificationChunks = [];
@@ -4938,7 +4945,7 @@ async function startClarificationRecording() {
     clarificationRecorder.onstop = processClarificationAudio;
 
     clarificationRecorder.start();
-    startLiveTranscription(input);
+    if (input) startLiveTranscription(input);
 
     // Visual feedback - recording state
     btn.classList.remove('bg-orange-500', 'hover:bg-orange-600');
@@ -4957,8 +4964,12 @@ async function startClarificationRecording() {
     }, 15000);
 
   } catch (e) {
-    showError("Microphone access required");
-    console.error(e);
+    console.error("Clarification Recording Error:", e);
+    if (e.name === 'NotAllowedError' || e.name === 'NotFoundError') {
+      showError("Microphone access required");
+    } else {
+      showError("Recording failed: " + e.message);
+    }
   }
 }
 
