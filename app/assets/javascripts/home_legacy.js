@@ -4754,7 +4754,15 @@ async function startRefinementRecording() {
     const audioLimit = window.profileAudioLimit || 120;
     const timeLeft = audioLimit - (window.totalVoiceUsed || 0);
 
+    // Immediate Feedback: "Starting..." state
+    btn.classList.remove('bg-emerald-500', 'hover:bg-emerald-600');
+    btn.classList.add('bg-yellow-400', 'animate-pulse');
+
     if (timeLeft <= 0) {
+      // Revert UI if limit hit
+      btn.classList.remove('bg-yellow-400', 'animate-pulse');
+      btn.classList.add('bg-emerald-500', 'hover:bg-emerald-600');
+
       if (window.showPremiumModal) window.showPremiumModal();
       else showError("Voice limit reached for this session.");
       return;
@@ -4770,8 +4778,11 @@ async function startRefinementRecording() {
     refinementRecorder.start();
     if (input) startLiveTranscription(input);
 
-    btn.classList.remove('bg-emerald-500', 'hover:bg-emerald-600');
-    btn.classList.add('bg-red-500', 'animate-pulse');
+    refinementRecorder.start();
+    if (input) startLiveTranscription(input);
+
+    btn.classList.remove('bg-yellow-400'); // Remove "Starting..."
+    btn.classList.add('bg-red-500'); // Add "Recording"
     btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>`;
 
     // Timer UI
@@ -4830,6 +4841,13 @@ async function processRefinementAudio() {
 
   if (refinementRecorder && refinementRecorder.stream) refinementRecorder.stream.getTracks().forEach(t => t.stop());
   if (refinementChunks.length === 0) return;
+
+  // OPTIMIZATION: If live transcription already captured text, skip server call
+  // OPTIMIZATION: If live transcription already captured text, skip server call
+  if (input && input.value.trim().length > 5) {
+    submitRefinement();
+    return;
+  }
 
   const audioBlob = new Blob(refinementChunks, { type: 'audio/webm' });
   const formData = new FormData();
@@ -4997,7 +5015,15 @@ async function startClarificationRecording() {
     const audioLimit = window.profileAudioLimit || 120;
     const timeLeft = audioLimit - (window.totalVoiceUsed || 0);
 
+    // Immediate Feedback: "Starting..." state
+    btn.classList.remove('bg-orange-500', 'hover:bg-orange-600');
+    btn.classList.add('bg-yellow-400', 'animate-pulse');
+
     if (timeLeft <= 0) {
+      // Revert UI if limit hit
+      btn.classList.remove('bg-yellow-400', 'animate-pulse');
+      btn.classList.add('bg-orange-500', 'hover:bg-orange-600');
+
       if (window.showPremiumModal) window.showPremiumModal();
       else showError("Voice limit reached for this session.");
       return;
@@ -5015,8 +5041,9 @@ async function startClarificationRecording() {
     if (input) startLiveTranscription(input);
 
     // Visual feedback - recording state
-    btn.classList.remove('bg-orange-500', 'hover:bg-orange-600');
-    btn.classList.add('bg-red-500', 'animate-pulse');
+    // Visual feedback - recording state
+    btn.classList.remove('bg-yellow-400'); // Remove "Starting..."
+    btn.classList.add('bg-red-500'); // Add "Recording"
     btn.innerHTML = `
       <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="currentColor" viewBox="0 0 24 24">
         <rect x="6" y="6" width="12" height="12" rx="2" />
@@ -5092,6 +5119,13 @@ async function processClarificationAudio() {
   }
 
   if (clarificationChunks.length === 0) return;
+
+  // OPTIMIZATION: If live transcription already captured text, skip server call
+  // OPTIMIZATION: If live transcription already captured text, skip server call
+  if (input && input.value.trim().length > 5) {
+    submitClarifications();
+    return;
+  }
 
   const audioBlob = new Blob(clarificationChunks, { type: 'audio/webm' });
 
