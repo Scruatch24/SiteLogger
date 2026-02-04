@@ -4361,7 +4361,7 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
         
         <!-- Top Badges Scrollable Area (Discount) -->
       <div class="absolute -top-[31px] left-[10px] right-[8px] h-[30px] pointer-events-none z-[90] overflow-visible">
-          <div class="custom-scrollbar overflow-x-auto h-full pointer-events-auto flex" style="direction: rtl; transform: rotateX(180deg);">
+          <div class="custom-scrollbar badges-scrollbar overflow-x-auto overflow-y-hidden h-full pointer-events-auto flex" style="direction: rtl; transform: rotateX(180deg);">
               <div class="flex items-center gap-1 shrink-0 h-[24px] px-0.5" style="direction: ltr; min-width: 100%; justify-content: flex-end;">
                   <!-- Formula: Original - Discount = Final -->
                   
@@ -4394,7 +4394,7 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
       
       <!-- Bottom Badges Scrollable Area -->
       <div class="absolute -bottom-[31px] left-[10px] right-[8px] h-[30px] pointer-events-none z-[90] overflow-visible">
-          <div class="custom-scrollbar overflow-x-auto h-full pointer-events-auto flex" style="direction: rtl;">
+          <div class="custom-scrollbar badges-scrollbar overflow-x-auto overflow-y-hidden h-full pointer-events-auto flex" style="direction: rtl;">
               <div class="flex items-center gap-1 shrink-0 h-[24px] px-0.5" style="direction: ltr; min-width: 100%; justify-content: flex-end;">
                   <span class="badge badge-price hidden shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] border border-black bg-orange-600 text-white"></span>
                   <div class="badge-operator badge-multiplier hidden flex items-center justify-center">
