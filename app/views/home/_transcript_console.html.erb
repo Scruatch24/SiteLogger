@@ -1,0 +1,38 @@
+<div id="textSection" class="space-y-3 transition-all duration-500">
+  <div class="relative">
+    <label data-nosnippet class="text-xs font-black text-black uppercase tracking-widest">Live Transcript</label>
+  </div>
+  <div id="transcriptContainer" class="transcript-container" data-audio-target="transcriptContainer">
+     <textarea id="mainTranscript" 
+               rows="6"
+               class="w-full bg-white border-2 border-black rounded-xl p-5 text-black text-sm font-medium leading-relaxed resize-none outline-none placeholder:text-gray-400 custom-scrollbar overflow-hidden"
+               style="max-height: 800px; field-sizing: content;"
+               oninput="autoResize(this); updateDynamicCountersCheck(this)"
+               placeholder="Paste text or type notes here..."></textarea>
+    <div id="charCounter" class="flex justify-end mt-1 px-1">
+      <span data-nosnippet class="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+        <span id="currentCharCount">0</span> / <span id="mainTranscriptMax"><%= @profile.char_limit %></span>
+      </span>
+    </div>
+  </div>
+  
+  <!-- Apply Action Button -->
+  <div class="flex justify-end pr-1">
+    <button id="reParseBtn" class="flex items-center gap-2 px-4 py-2 bg-orange-500 border-2 border-black text-white rounded-xl active:scale-95 transition-all apply-btn-hover shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]" title="Analyze Text">
+      <span class="text-[10px] font-black uppercase tracking-widest">Apply</span>
+      <svg class="h-3.5 w-3.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+      </svg>
+    </button>
+  </div>
+
+  <!-- Previous Clarification Answers -->
+  <div id="previousAnswersSection" class="hidden mt-8 space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
+    <div id="previousAnswersList" class="flex flex-col items-end gap-2">
+      <!-- Answers will go here -->
+    </div>
+  </div>
+  
+  <%= render 'refinement_section' %>
+  <%= render 'clarifications_section' %>
+</div>

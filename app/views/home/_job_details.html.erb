@@ -1,0 +1,40 @@
+<div class="flex justify-between items-center pb-4 border-b-2 border-dashed border-gray-200">
+  <h2 class="text-sm font-black uppercase tracking-widest text-black">Job Details</h2>
+  <div class="flex items-center gap-2 relative">
+    <span id="dateDisplay" data-nosnippet class="text-xs font-bold text-orange-600"><%= Time.now.strftime("%b %d, %Y") %></span>
+    <button type="button" onclick="toggleMainCalendar(this)" class="w-7 h-7 border-2 border-black rounded-lg bg-white btn-icon-hover transition-all flex items-center justify-center group active:scale-95 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px]">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+      </svg>
+    </button>
+    <!-- Main Date Calendar Popup -->
+    <div id="mainCalendarPopup" class="hidden absolute top-full right-0 mt-2 bg-white border-2 border-black rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] z-[100] p-4 min-w-[280px]">
+      <div class="flex justify-between items-center mb-3">
+        <button type="button" onclick="changeMainCalendarMonth(-1)" class="w-8 h-8 border-2 border-black rounded-lg md:hover:bg-orange-50 flex items-center justify-center font-black text-lg transition-all active:scale-95 active:translate-x-[1px] active:translate-y-[1px] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none bg-white leading-none pb-0.5 active:bg-orange-600 active:text-white">‹</button>
+        <span id="mainCalendarMonthYear" class="text-sm font-black uppercase tracking-widest text-black"></span>
+        <button type="button" onclick="changeMainCalendarMonth(1)" class="w-8 h-8 border-2 border-black rounded-lg md:hover:bg-orange-50 flex items-center justify-center font-black text-lg transition-all active:scale-95 active:translate-x-[1px] active:translate-y-[1px] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none bg-white leading-none pb-0.5 active:bg-orange-600 active:text-white">›</button>
+      </div>
+      <div data-nosnippet class="grid grid-cols-7 gap-1 mb-2">
+        <span class="text-[9px] font-bold text-gray-400 text-center">SU</span>
+        <span class="text-[9px] font-bold text-gray-400 text-center">MO</span>
+        <span class="text-[9px] font-bold text-gray-400 text-center">TU</span>
+        <span class="text-[9px] font-bold text-gray-400 text-center">WE</span>
+        <span class="text-[9px] font-bold text-gray-400 text-center">TH</span>
+        <span class="text-[9px] font-bold text-gray-400 text-center">FR</span>
+        <span class="text-[9px] font-bold text-gray-400 text-center">SA</span>
+      </div>
+      <div id="mainCalendarDays" class="grid grid-cols-7 gap-1"></div>
+    </div>
+  </div>
+</div>
+
+<div class="space-y-6">
+  <div class="space-y-1">
+    <label class="block text-[9px] font-bold text-gray-500 uppercase ml-1">Client Name</label>
+    <div class="border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] relative h-[52px] flex items-center">
+      <input type="text" id="editClient" 
+             class="w-full bg-transparent border-none text-base font-black text-black focus:ring-0 py-3 px-3 outline-none placeholder:text-gray-300"
+             placeholder="Enter client name...">
+    </div>
+  </div>
+</div>

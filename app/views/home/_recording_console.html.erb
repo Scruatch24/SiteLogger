@@ -1,0 +1,28 @@
+<div class="flex flex-col items-center justify-center pt-4">
+  <div id="recordingWave" class="hidden absolute w-48 h-48 border-4 border-orange-200 rounded-full animate-ping"></div>
+  
+  <button id="recordButton" class="relative w-40 h-40 rounded-full flex flex-col items-center justify-center transition-all duration-300 active:scale-95 group"
+          style="background: linear-gradient(145deg, #f97316, #ea580c); box-shadow: 0 8px 32px rgba(249, 115, 22, 0.4), 0 4px 12px rgba(0,0,0,0.1), inset 0 2px 0 rgba(255,255,255,0.2);">
+    <!-- Outer glow ring -->
+    <div class="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+         style="box-shadow: 0 0 40px rgba(249, 115, 22, 0.5);"></div>
+    <!-- Inner highlight -->
+    <div class="absolute inset-2 rounded-full border-2 border-white/20"></div>
+    
+    <svg id="micIcon" class="w-12 h-12 text-white mb-2 group-hover:scale-110 transition-transform drop-shadow-lg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+    </svg>
+    <span id="buttonText" class="text-white text-[9px] font-black uppercase tracking-[0.15em] text-center px-4 drop-shadow-md">TAP TO RECORD</span>
+  </button>
+  
+  <p id="status" data-nosnippet class="mt-6 text-xs font-bold text-orange-600 bg-orange-50 px-3 py-1 rounded-full uppercase tracking-widest border border-orange-100">Ready</p>
+  
+  <div id="recordingTimer" data-nosnippet class="hidden mt-3 flex items-center gap-2 bg-white border-2 border-black rounded-lg px-3 py-1.5 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] animate-in zoom-in-95 duration-200">
+    <div class="w-2 h-2 rounded-full bg-red-600 rec-dot"></div>
+    <div class="flex items-baseline gap-1">
+      <span id="currentAudioTime" class="text-sm font-black text-black font-mono">0</span>
+      <span class="text-[9px] font-black text-gray-400 uppercase tracking-widest">/ <%= @profile.audio_limit %>s</span>
+    </div>
+    <div class="ml-1 pl-2 border-l border-gray-100 text-[9px] font-black text-red-600 tracking-tighter uppercase">REC</div>
+  </div>
+</div>

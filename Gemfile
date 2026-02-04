@@ -65,6 +65,7 @@ group :test do
   # Use system testing [https://guides.rubyonrails.org/testing.html#system-testing]
   gem "capybara"
   gem "selenium-webdriver"
+  gem "sqlite3"
 end
 
 group :development, :test do
@@ -84,3 +85,6 @@ gem "zoho_zeptomail-ruby"
 gem "http"
 
 gem "aws-sdk-s3", "~> 1.213"
+
+gem "sentry-ruby", "~> 6.3"
+gem "sentry-rails", "~> 6.3"

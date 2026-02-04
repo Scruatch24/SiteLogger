@@ -1,0 +1,154 @@
+<div class="relative">
+  <!-- Discount Badge -->
+  <div class="absolute -top-3 left-3 z-[200] w-48">
+    <button type="button" id="discountToggleBtn" onclick="toggleGlobalDiscountPanel(this)" 
+            class="flex items-center justify-center gap-1.5 w-full py-1.5 bg-white border-2 border-black rounded-xl text-black transition-all shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] active:scale-95">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+      </svg>
+      <span class="text-[9px] font-black uppercase tracking-widest">Invoice Discount</span>
+    </button>
+    
+    <div id="discountInputsPanel" class="hidden absolute left-1/2 -translate-x-1/2 bottom-full mb-4 w-[280px] bg-white border-2 border-black rounded-xl p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] z-[201] animate-in fade-in slide-in-from-bottom-2 duration-200">
+      <div class="space-y-4">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1.5 ml-1 text-left">Fixed amount</label>
+            <div class="relative group">
+              <div class="absolute left-1 top-1/2 -translate-y-1/2 h-6 w-6 flex items-center justify-center bg-green-600 text-white font-black border-2 border-black rounded-lg text-[10px] pointer-events-none select-none z-10 shadow-sm">
+                <span id="discountCurrencySymbol"><%= currencies_data.find { |c| c[:c] == (@profile.currency.presence || 'USD') }&.dig(:s) || '$' %></span>
+              </div>
+              <input type="number" step="0.01" id="globalDiscountFlat" placeholder="0.00" 
+                     class="w-full bg-white border-2 border-black rounded-lg py-2 pl-10 pr-2 text-xs font-bold text-black focus:outline-none focus:ring-1 focus:ring-black transition-all placeholder:text-gray-300 font-mono"
+                     oninput="updateTotalsSummary()">
+            </div>
+          </div>
+          <div>
+            <label class="block text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1.5 ml-1 text-left">Percentage</label>
+            <div class="relative group">
+              <div class="absolute left-1 top-1/2 -translate-y-1/2 h-6 w-6 flex items-center justify-center bg-green-600 text-white font-black border-2 border-black rounded-lg text-[10px] pointer-events-none select-none z-10 shadow-sm">
+                <span>%</span>
+              </div>
+              <input type="number" step="0.1" id="globalDiscountPercent" placeholder="0" 
+                     class="w-full bg-white border-2 border-black rounded-lg py-2 pl-10 pr-2 text-xs font-bold text-black focus:outline-none focus:ring-1 focus:ring-black transition-all placeholder:text-gray-300 font-mono"
+                     oninput="updateTotalsSummary()">
+            </div>
+          </div>
+        </div>
+        <div>
+          <label class="block text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1.5 ml-1">Discount message:</label>
+          <input type="text" id="globalDiscountMessage" placeholder="Reason for discount..." 
+                 class="w-full bg-white border-2 border-black rounded-lg py-2 px-3 text-sm font-bold text-black focus:outline-none focus:ring-1 focus:ring-black transition-all placeholder:text-gray-300">
+        </div>
+      </div>
+      <div class="absolute -bottom-[10px] md:-bottom-[11px] left-1/2 -translate-x-1/2 w-6 h-3 pointer-events-none">
+        <svg viewBox="0 0 24 12" class="w-full h-full overflow-visible">
+          <path d="M0 0 L12 12 L24 0" fill="white" stroke="black" stroke-width="2" stroke-linejoin="round" />
+          <rect x="-2" y="-3" width="28" height="4" fill="white" />
+        </svg>
+      </div>
+    </div>
+  </div>
+  
+  <div id="totalsSummary" class="bg-gray-50 border-2 border-black rounded-xl p-4 pt-7 space-y-2">
+    <!-- 1. ITEMS TOTAL Row -->
+    <div id="itemsTotalRow" class="flex flex-col gap-1">
+      <div class="flex justify-between items-center cursor-pointer group select-none" onclick="toggleItemsTotalBreakdown()">
+        <div class="flex items-center gap-1.5">
+          <span class="text-[10px] font-black uppercase tracking-widest text-gray-500">Items Total</span>
+          <svg id="itemsTotalChevron" class="w-2.5 h-2.5 text-gray-500 transition-transform duration-200 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="4">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
+        <span id="summaryItemsTotal" class="text-sm font-black text-black"><%= format_money_ruby(0, @profile) %></span>
+      </div>
+      <div id="itemsTotalBreakdown" class="hidden flex flex-col gap-1 pl-2 pr-1 pb-1 animate-in slide-in-from-top-1 duration-200"></div>
+    </div>
+
+    <!-- 2. ITEM DISCOUNTS Row -->
+    <div id="itemDiscountsRow" class="hidden flex-col gap-1">
+      <div class="flex justify-between items-center cursor-pointer group select-none" onclick="toggleItemDiscountsBreakdown()">
+        <div class="flex items-center gap-1.5">
+          <span class="text-[10px] font-black uppercase tracking-widest text-green-600">Item Discounts</span>
+          <svg id="itemDiscountsChevron" class="w-2.5 h-2.5 text-green-600 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="4">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
+        <span id="summaryItemDiscountsTotal" class="text-sm font-black text-green-600"></span>
+      </div>
+      <div id="itemDiscountsBreakdown" class="hidden flex flex-col gap-1 pl-2 pr-1 pb-1 animate-in slide-in-from-top-1 duration-200"></div>
+    </div>
+
+    <div id="sepSubtotal" class="border-t-2 border-dashed border-gray-300 my-1 hidden"></div>
+
+    <!-- 3. SUBTOTAL (Net) -->
+    <div id="subtotalRow" class="flex flex-col gap-1">
+      <div class="flex justify-between items-center cursor-pointer group select-none" onclick="toggleSubtotalBreakdown()">
+        <div class="flex items-center gap-1.5">
+          <span id="subtotalLabel" class="text-[10px] font-black uppercase tracking-widest text-gray-500">Subtotal</span>
+          <svg id="subtotalChevron" class="w-2.5 h-2.5 text-gray-500 transition-transform duration-200 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="4">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
+        <span id="summarySubtotal" class="text-sm font-black text-black"></span>
+      </div>
+      <div id="subtotalBreakdown" class="hidden flex flex-col gap-1 pl-2 pr-1 pb-1 animate-in slide-in-from-top-1 duration-200"></div>
+    </div>
+
+    <!-- 4. INVOICE DISCOUNT -->
+    <div id="invoiceDiscountRow" class="hidden justify-between items-center">
+      <span class="text-[10px] font-black uppercase tracking-widest text-green-600">Invoice Discount</span>
+      <span id="summaryInvoiceDiscount" class="text-sm font-black text-green-600"></span>
+    </div>
+
+    <div id="sepTaxable" class="border-t-2 border-dashed border-gray-300 my-1 hidden"></div>
+
+    <!-- 5. TAXABLE TOTAL -->
+    <div id="taxableTotalRow" class="hidden justify-between items-center">
+      <span class="text-[10px] font-black uppercase tracking-widest text-black">Taxable Total</span>
+      <span id="summaryTaxableTotal" class="text-sm font-black text-black"></span>
+    </div>
+
+    <!-- 6. TAX Row -->
+    <div id="taxRow" class="flex flex-col gap-1">
+      <div class="flex justify-between items-center cursor-pointer group select-none" onclick="toggleTaxBreakdown()">
+        <div class="flex items-center gap-1.5">
+          <span class="text-[10px] font-black uppercase tracking-widest text-orange-600">Tax</span>
+          <svg id="taxChevron" class="w-2.5 h-2.5 text-orange-600 transition-transform duration-200 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="4">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
+        <span id="summaryTax" class="text-sm font-black text-orange-600"><%= format_money_ruby(0, @profile) %></span>
+      </div>
+       <div id="taxBreakdown" class="hidden flex flex-col gap-1 pl-2 pr-1 pb-1 animate-in slide-in-from-top-1 duration-200"></div>
+    </div>
+
+    <div id="sepCredit" class="border-t-2 border-dashed border-gray-300 my-1 hidden"></div>
+
+    <!-- 7. TOTAL BEFORE CREDIT -->
+    <div id="totalBeforeCreditRow" class="hidden justify-between items-center">
+      <span class="text-[10px] font-black uppercase tracking-widest text-black">Total Before Credit</span>
+      <span id="summaryTotalBeforeCredit" class="text-sm font-black text-black"></span>
+    </div>
+
+    <!-- 8. CREDIT Row -->
+    <div id="summaryCreditRow" class="hidden flex-col gap-1">
+      <div class="flex justify-between items-center cursor-pointer group select-none" onclick="toggleCreditBreakdown()">
+        <div class="flex items-center gap-1.5">
+          <span class="text-[10px] font-black uppercase tracking-widest text-red-600">Credit Applied</span>
+          <svg id="creditChevron" class="w-2.5 h-2.5 text-red-600 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="4">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
+        <span id="summaryCreditTotal" class="text-sm font-black text-red-600"></span>
+      </div>
+      <div id="creditBreakdown" class="hidden flex flex-col gap-1 pl-2 pr-1 pb-1 animate-in slide-in-from-top-1 duration-200"></div>
+    </div>
+
+    <!-- 9. FINAL BALANCE Row -->
+    <div id="finalTotalSeparator" class="flex justify-between items-center pt-2 border-t-2 border-dashed border-gray-300">
+      <span id="summaryTotalLabel" class="text-xs font-black uppercase tracking-widest text-black">Balance Due</span>
+      <span id="summaryTotal" class="text-lg font-black text-black"><%= format_money_ruby(0, @profile) %></span>
+    </div>
+  </div>
+</div>
