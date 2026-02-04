@@ -4789,6 +4789,7 @@ async function startRefinementRecording() {
         if (refinementRecorder && refinementRecorder.state === 'recording') {
           window.voiceLimitTriggered = true; // Set flag
           refinementRecorder.stop();
+          if (window.showPremiumModal) window.showPremiumModal();
         }
       }
     }, 1000);
@@ -5037,6 +5038,7 @@ async function startClarificationRecording() {
         if (clarificationRecorder && clarificationRecorder.state === 'recording') {
           window.voiceLimitTriggered = true; // Set flag
           clarificationRecorder.stop();
+          if (window.showPremiumModal) window.showPremiumModal();
         }
       }
     }, 1000);
