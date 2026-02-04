@@ -292,7 +292,7 @@
               modal.classList.remove('hidden');
               modal.classList.add('flex');
               // Prevent background scrolling
-              document.body.classList.add('overflow-hidden', 'touch-none');
+              document.body.classList.add('overflow-hidden');
               document.documentElement.classList.add('overflow-hidden');
               lastPremiumShowTime = now;
 
@@ -303,12 +303,22 @@
                       scrollContainer.scrollTop = 0; // Reset
                       
                       setTimeout(() => {
+                      setTimeout(() => {
                           let animationId;
+                          let accumulator = 0;
                           const speed = 0.5; // Slow speed
                           
                           const scrollStep = () => {
+                              // Accumulate fractional pixels
+                              accumulator += speed;
+                              
+                              if (accumulator >= 1) {
+                                  const pixelsToScroll = Math.floor(accumulator);
+                                  scrollContainer.scrollTop += pixelsToScroll;
+                                  accumulator -= pixelsToScroll;
+                              }
+
                               if (scrollContainer.scrollTop < (scrollContainer.scrollHeight - scrollContainer.clientHeight)) {
-                                  scrollContainer.scrollTop += speed;
                                   animationId = requestAnimationFrame(scrollStep);
                               }
                           };
@@ -335,7 +345,7 @@
               modal.classList.add('hidden');
               modal.classList.remove('flex');
               // Restore background scrolling
-              document.body.classList.remove('overflow-hidden', 'touch-none');
+              document.body.classList.remove('overflow-hidden');
               document.documentElement.classList.remove('overflow-hidden');
           }
       };
