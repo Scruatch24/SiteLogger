@@ -1176,6 +1176,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // --- Real-time Transcription Logic (Global Scope) ---
 window.liveRecognition = null;
+window.totalVoiceUsed = 0; // Tracks seconds spent in current session (since last main recording)
+window.recordingStartTime = 0;
 
 function startLiveTranscription(targetInput) {
   if (!targetInput) return;
@@ -1231,7 +1233,6 @@ document.addEventListener("DOMContentLoaded", () => {
   let isRecording = false;
   let isAnalyzing = false;
   let analysisAbortController = null;
-  let recordingStartTime = 0;
   let recordingInterval = null;
 
   if (!recordBtn) return;
@@ -1253,6 +1254,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (refInput) refInput.value = '';
         if (clarInput) clarInput.value = '';
         if (window.updateDynamicCounters) window.updateDynamicCounters();
+        window.totalVoiceUsed = 0; // Reset bank on new main recording
       }
 
       // Enforce Guest/Free Limits BEFORE starting
@@ -1270,8 +1272,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         mediaRecorder.start();
         startLiveTranscription(transcriptArea);
-        recordingStartTime = 0; // Reset recording start time
-        recordingStartTime = Date.now();
+        window.recordingStartTime = Date.now();
 
         isRecording = true;
         buttonText.innerText = "PROCESS";
@@ -1288,7 +1289,7 @@ document.addEventListener("DOMContentLoaded", () => {
         timerDisplay.innerText = "0";
 
         recordingInterval = setInterval(() => {
-          const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+          const elapsed = Math.floor((Date.now() - window.recordingStartTime) / 1000);
           timerDisplay.innerText = elapsed;
 
           if (audioLimit - elapsed <= 5) {
@@ -1314,7 +1315,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const timerDisplay = document.getElementById("currentAudioTime");
       if (timerDisplay) timerDisplay.classList.remove("text-red-600");
 
-      const duration = Date.now() - recordingStartTime;
+      const duration = Date.now() - window.recordingStartTime;
       if (duration < 1000) {
         mediaRecorder.onstop = null;
         mediaRecorder.stop();
@@ -1332,6 +1333,7 @@ document.addEventListener("DOMContentLoaded", () => {
         window.liveRecognition = null;
       }
       isRecording = false;
+      window.totalVoiceUsed = Math.floor(duration / 1000); // Set initial bank usage
       startAnalysisUI();
     }
   };
@@ -4749,9 +4751,19 @@ async function startRefinementRecording() {
 
   try {
     const input = document.getElementById('refinementInput');
+    const audioLimit = window.profileAudioLimit || 120;
+    const timeLeft = audioLimit - (window.totalVoiceUsed || 0);
+
+    if (timeLeft <= 0) {
+      if (window.showPremiumModal) window.showPremiumModal();
+      else showError("Voice limit reached for this session.");
+      return;
+    }
+
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     refinementRecorder = new MediaRecorder(stream);
     refinementChunks = [];
+    window.recordingStartTime = Date.now(); // Update global start time for sub-recording
 
     refinementRecorder.ondataavailable = (e) => refinementChunks.push(e.data);
     refinementRecorder.onstop = processRefinementAudio;
@@ -4762,9 +4774,28 @@ async function startRefinementRecording() {
     btn.classList.add('bg-red-500', 'animate-pulse');
     btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>`;
 
+    // Timer UI
+    const timerCont = document.getElementById('refinementTimer');
+    const timerLabel = document.getElementById('refinementTimeLeft');
+    if (timerCont) timerCont.classList.remove('hidden');
+    if (timerLabel) timerLabel.innerText = timeLeft;
+
+    let localInterval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - window.recordingStartTime) / 1000);
+      const remaining = timeLeft - elapsed;
+      if (timerLabel) timerLabel.innerText = Math.max(0, remaining);
+      if (remaining <= 0) {
+        clearInterval(localInterval);
+        if (refinementRecorder && refinementRecorder.state === 'recording') refinementRecorder.stop();
+      }
+    }, 1000);
+
+    refinementRecorder.addEventListener('stop', () => clearInterval(localInterval), { once: true });
+
+    // Ensure we don't exceed the global limit
     setTimeout(() => {
       if (refinementRecorder && refinementRecorder.state === 'recording') refinementRecorder.stop();
-    }, 15000);
+    }, timeLeft * 1000);
   } catch (e) {
     console.error("Refinement Recording Error:", e);
     if (e.name === 'NotAllowedError' || e.name === 'NotFoundError') {
@@ -4787,6 +4818,12 @@ async function processRefinementAudio() {
     try { window.liveRecognition.stop(); } catch (e) { }
     window.liveRecognition = null;
   }
+  const duration = window.recordingStartTime ? Math.floor((Date.now() - window.recordingStartTime) / 1000) : 0;
+  window.totalVoiceUsed = (window.totalVoiceUsed || 0) + duration;
+
+  const timerCont = document.getElementById('refinementTimer');
+  if (timerCont) timerCont.classList.add('hidden');
+
   if (refinementRecorder && refinementRecorder.stream) refinementRecorder.stream.getTracks().forEach(t => t.stop());
   if (refinementChunks.length === 0) return;
 
@@ -4954,9 +4991,19 @@ async function startClarificationRecording() {
 
   try {
     const input = document.getElementById('clarificationAnswerInput');
+    const audioLimit = window.profileAudioLimit || 120;
+    const timeLeft = audioLimit - (window.totalVoiceUsed || 0);
+
+    if (timeLeft <= 0) {
+      if (window.showPremiumModal) window.showPremiumModal();
+      else showError("Voice limit reached for this session.");
+      return;
+    }
+
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     clarificationRecorder = new MediaRecorder(stream);
     clarificationChunks = [];
+    window.recordingStartTime = Date.now();
 
     clarificationRecorder.ondataavailable = (e) => clarificationChunks.push(e.data);
     clarificationRecorder.onstop = processClarificationAudio;
@@ -4973,12 +5020,30 @@ async function startClarificationRecording() {
       </svg>
     `;
 
-    // Auto-stop after 15 seconds
+    // Timer UI
+    const timerCont = document.getElementById('clarificationTimer');
+    const timerLabel = document.getElementById('clarificationTimeLeft');
+    if (timerCont) timerCont.classList.remove('hidden');
+    if (timerLabel) timerLabel.innerText = timeLeft;
+
+    let localInterval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - window.recordingStartTime) / 1000);
+      const remaining = timeLeft - elapsed;
+      if (timerLabel) timerLabel.innerText = Math.max(0, remaining);
+      if (remaining <= 0) {
+        clearInterval(localInterval);
+        if (clarificationRecorder && clarificationRecorder.state === 'recording') clarificationRecorder.stop();
+      }
+    }, 1000);
+
+    clarificationRecorder.addEventListener('stop', () => clearInterval(localInterval), { once: true });
+
+    // Auto-stop
     setTimeout(() => {
       if (clarificationRecorder && clarificationRecorder.state === 'recording') {
         clarificationRecorder.stop();
       }
-    }, 15000);
+    }, timeLeft * 1000);
 
   } catch (e) {
     console.error("Clarification Recording Error:", e);
@@ -5008,6 +5073,12 @@ async function processClarificationAudio() {
     try { window.liveRecognition.stop(); } catch (e) { }
     window.liveRecognition = null;
   }
+  const duration = window.recordingStartTime ? Math.floor((Date.now() - window.recordingStartTime) / 1000) : 0;
+  window.totalVoiceUsed = (window.totalVoiceUsed || 0) + duration;
+
+  const timerCont = document.getElementById('clarificationTimer');
+  if (timerCont) timerCont.classList.add('hidden');
+
   // Stop tracks
   if (clarificationRecorder && clarificationRecorder.stream) {
     clarificationRecorder.stream.getTracks().forEach(t => t.stop());
