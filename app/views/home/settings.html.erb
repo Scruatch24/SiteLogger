@@ -163,7 +163,7 @@
               </div>
             </div>
 
-            <div id="pdfPreviewContainer" class="relative group md:cursor-pointer cursor-default w-full pointer-events-none md:pointer-events-auto" onclick="openPdfModal()">
+            <div id="pdfPreviewContainer" class="relative group md:cursor-pointer cursor-default w-full pointer-events-none <%= is_guest ? '' : 'md:pointer-events-auto' %>" onclick="<%= is_guest ? '' : 'openPdfModal()' %>">
              <%# Border Wrapper %>
              <div class="relative w-full aspect-[1/1.41] rounded-2xl border-2 border-black overflow-hidden bg-gray-50 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)]">
                <div id="previewLoading" class="absolute inset-0 z-10 bg-white/80 flex items-center justify-center hidden">
