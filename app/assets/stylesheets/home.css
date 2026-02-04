@@ -142,10 +142,20 @@
       /* Base Scrollbar Track */
       .custom-scrollbar::-webkit-scrollbar {
           width: 14px;
+          height: 6px;
+          /* Added for horizontal badge scrolling */
       }
 
       .custom-scrollbar::-webkit-scrollbar-track {
           background: transparent;
+      }
+
+      /* Default Thumb (Orange) for generic use cases like badges */
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+          background-color: #ea580c;
+          background-clip: padding-box;
+          border-radius: 10px;
+          border: 1px solid transparent;
       }
 
       /* Refinement (Green) Scrollbar */
@@ -193,31 +203,6 @@
 
       #mainTranscript::-webkit-scrollbar-thumb:hover {
           background-color: #c2410c !important;
-      }
-
-      /* Thin Orange Scrollbar for Badges */
-      .badges-scrollbar::-webkit-scrollbar {
-          height: 6px !important;
-          /* Thin horizontal */
-          width: 6px !important;
-          /* Thin vertical if needed */
-      }
-
-      .badges-scrollbar::-webkit-scrollbar-track {
-          background: transparent !important;
-      }
-
-      .badges-scrollbar::-webkit-scrollbar-thumb {
-          background-color: #ea580c !important;
-          /* Orange-600 */
-          border-radius: 99px !important;
-          border: none !important;
-          /* No transparent borders needed for thin style */
-      }
-
-      .badges-scrollbar::-webkit-scrollbar-thumb:hover {
-          background-color: #c2410c !important;
-          /* Orange-700 */
       }
   }
 
