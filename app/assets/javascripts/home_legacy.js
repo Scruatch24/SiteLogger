@@ -1173,6 +1173,51 @@ document.addEventListener("DOMContentLoaded", () => {
   const laborIconContainer = document.querySelector('#laborBox .item-menu-btn');
   if (laborIconContainer) randomizeIcon(laborIconContainer);
 
+  // --- Real-time Transcription Logic ---
+  window.liveRecognition = null;
+  function startLiveTranscription(targetInput) {
+    if (!targetInput) return;
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) return console.warn("Speech Recognition not supported in this browser.");
+
+    if (window.liveRecognition) {
+      try { window.liveRecognition.stop(); } catch (e) { }
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    recognition.onresult = (event) => {
+      let fullTranscript = '';
+      for (let i = 0; i < event.results.length; ++i) {
+        fullTranscript += event.results[i][0].transcript;
+      }
+
+      if (fullTranscript) {
+        targetInput.value = fullTranscript;
+        autoResize(targetInput);
+        if (window.updateDynamicCountersCheck) {
+          window.updateDynamicCountersCheck(targetInput);
+        } else if (window.updateDynamicCounters) {
+          window.updateDynamicCounters();
+        }
+      }
+    };
+
+    recognition.onerror = (event) => {
+      console.error("Speech recognition error:", event.error);
+    };
+
+    recognition.onend = () => {
+      window.liveRecognition = null;
+    };
+
+    recognition.start();
+    window.liveRecognition = recognition;
+  }
+
   recordBtn.onclick = async () => {
     if (isAnalyzing) {
       if (analysisAbortController) analysisAbortController.abort();
@@ -1207,6 +1252,7 @@ document.addEventListener("DOMContentLoaded", () => {
         mediaRecorder.onstop = processAudio;
 
         mediaRecorder.start();
+        startLiveTranscription(transcriptArea);
         recordingStartTime = 0; // Reset recording start time
         recordingStartTime = Date.now();
 
@@ -1264,6 +1310,10 @@ document.addEventListener("DOMContentLoaded", () => {
       if (mediaRecorder.stream) {
         mediaRecorder.stream.getTracks().forEach(t => t.stop());
       }
+      if (window.liveRecognition) {
+        try { window.liveRecognition.stop(); } catch (e) { }
+        window.liveRecognition = null;
+      }
       isRecording = false;
       startAnalysisUI();
     }
@@ -1280,6 +1330,11 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("recordingTimer").classList.add("hidden");
     const timerDisplay = document.getElementById("currentAudioTime");
     if (timerDisplay) timerDisplay.classList.remove("text-red-600");
+
+    if (window.liveRecognition) {
+      try { window.liveRecognition.stop(); } catch (e) { }
+      window.liveRecognition = null;
+    }
 
     isRecording = false;
     isAnalyzing = false;
@@ -2624,17 +2679,17 @@ function addFullSection(title, items, isProtected = false) {
   let accentColorClass = "text-orange-600";
 
   if (isMaterials) {
-    sectionIcon = `<svg class="h-4 w-4 text-orange-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>`;
+    sectionIcon = `<svg class="h-4 w-4 text-orange-600 mr-2"><use xlink:href="#icon-material"></use></svg>`;
     accentColorClass = "text-orange-600";
   } else if (isExpenses) {
-    sectionIcon = `<svg class="h-4 w-4 text-red-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>`;
+    sectionIcon = `<svg class="h-4 w-4 text-red-600 mr-2"><use xlink:href="#icon-expense"></use></svg>`;
     accentColorClass = "text-red-600";
   } else if (isFees) {
-    sectionIcon = `<svg class="h-4 w-4 text-blue-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 011 12V7a4 4 0 014-4z" /></svg>`;
+    sectionIcon = `<svg class="h-4 w-4 text-blue-500 mr-2"><use xlink:href="#icon-fee"></use></svg>`;
     accentColorClass = "text-blue-500";
   } else {
     // Default Tasks Icon (Clipboard)
-    sectionIcon = `<svg class="h-4 w-4 text-orange-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>`;
+    sectionIcon = `<svg class="h-4 w-4 text-orange-600 mr-2"><use xlink:href="#icon-labor"></use></svg>`;
     accentColorClass = "text-orange-600";
   }
 
@@ -3118,10 +3173,10 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
       <button type="button" onclick="this.closest('.labor-item-row').remove(); updateTotalsSummary();" class="remove-labor-btn w-6 h-10 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors font-bold text-xl flex-shrink-0">×</button>
     </div>
     <!-- Sub-categories container -->
-    <div class="labor-sub-categories pl-6 space-y-2 mt-6"></div>
+    <div class="labor-sub-categories pl-6 space-y-2"></div>
     
        <!-- Price and Tax Row -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-y-8 md:gap-4 mt-2 relative">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-y-3 md:gap-4 mt-1 relative">
         <!-- Labor Price with Settings -->
        <div class="space-y-1 relative labor-price-container">
            <label class="inline-block text-[9px] font-bold text-gray-500 uppercase ml-1 labor-label-price">${labelText}</label>
@@ -4586,6 +4641,10 @@ function updateUI(data) {
     // Handle AI Clarification Questions
     handleClarifications(data.clarifications || []);
 
+    if (window.pendingClarifications && window.pendingClarifications.length === 0) {
+      window.setupSaveButton();
+    }
+
     window.isAutoUpdating = false;
   } catch (e) {
     window.isAutoUpdating = false;
@@ -4679,6 +4738,7 @@ async function startRefinementRecording() {
     refinementRecorder.ondataavailable = (e) => refinementChunks.push(e.data);
     refinementRecorder.onstop = processRefinementAudio;
     refinementRecorder.start();
+    startLiveTranscription(input);
 
     btn.classList.remove('bg-emerald-500', 'hover:bg-emerald-600');
     btn.classList.add('bg-red-500', 'animate-pulse');
@@ -4699,6 +4759,10 @@ async function processRefinementAudio() {
     btn.classList.remove('bg-red-500', 'animate-pulse');
     btn.classList.add('bg-emerald-500', 'hover:bg-emerald-600');
     btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>`;
+  }
+  if (window.liveRecognition) {
+    try { window.liveRecognition.stop(); } catch (e) { }
+    window.liveRecognition = null;
   }
   if (refinementRecorder && refinementRecorder.stream) refinementRecorder.stream.getTracks().forEach(t => t.stop());
   if (refinementChunks.length === 0) return;
@@ -4874,6 +4938,7 @@ async function startClarificationRecording() {
     clarificationRecorder.onstop = processClarificationAudio;
 
     clarificationRecorder.start();
+    startLiveTranscription(input);
 
     // Visual feedback - recording state
     btn.classList.remove('bg-orange-500', 'hover:bg-orange-600');
@@ -4911,7 +4976,10 @@ async function processClarificationAudio() {
       </svg>
     `;
   }
-
+  if (window.liveRecognition) {
+    try { window.liveRecognition.stop(); } catch (e) { }
+    window.liveRecognition = null;
+  }
   // Stop tracks
   if (clarificationRecorder && clarificationRecorder.stream) {
     clarificationRecorder.stream.getTracks().forEach(t => t.stop());
@@ -5121,6 +5189,10 @@ function updateUIWithoutTranscript(data) {
 
     // Handle new clarifications (questions that are still unanswered)
     handleClarifications(data.clarifications || []);
+
+    if (window.pendingClarifications && window.pendingClarifications.length === 0) {
+      window.setupSaveButton();
+    }
 
     window.isAutoUpdating = false;
   } catch (e) {
