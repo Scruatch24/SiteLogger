@@ -88,7 +88,3 @@ gem "aws-sdk-s3", "~> 1.213"
 
 gem "sentry-ruby", "~> 6.3"
 gem "sentry-rails", "~> 6.3"
-
-group :production do
-  gem "stackprof"
-end
