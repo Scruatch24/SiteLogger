@@ -295,6 +295,37 @@
               document.body.classList.add('overflow-hidden', 'touch-none');
               document.documentElement.classList.add('overflow-hidden');
               lastPremiumShowTime = now;
+
+              // Mobile Auto-Scroll
+              if (window.innerWidth < 768) {
+                  const scrollContainer = document.getElementById('premiumScrollContainer');
+                  if (scrollContainer) {
+                      scrollContainer.scrollTop = 0; // Reset
+                      
+                      setTimeout(() => {
+                          let animationId;
+                          const speed = 0.5; // Slow speed
+                          
+                          const scrollStep = () => {
+                              if (scrollContainer.scrollTop < (scrollContainer.scrollHeight - scrollContainer.clientHeight)) {
+                                  scrollContainer.scrollTop += speed;
+                                  animationId = requestAnimationFrame(scrollStep);
+                              }
+                          };
+                          
+                          const stopAutoScroll = () => {
+                              if (animationId) cancelAnimationFrame(animationId);
+                              scrollContainer.removeEventListener('touchstart', stopAutoScroll);
+                              scrollContainer.removeEventListener('wheel', stopAutoScroll);
+                          };
+                          
+                          scrollContainer.addEventListener('touchstart', stopAutoScroll, { passive: true });
+                          scrollContainer.addEventListener('wheel', stopAutoScroll, { passive: true });
+                          
+                          animationId = requestAnimationFrame(scrollStep);
+                      }, 500); // 0.5s delay before start
+                  }
+              }
           }
       };
 
@@ -392,7 +423,7 @@
         <div class="absolute -bottom-24 -left-24 w-64 h-64 bg-indigo-600/20 rounded-full blur-[100px] animate-pulse delay-700 pointer-events-none"></div>
 
         <!-- Tier Grid Body: Glass Panels (Header Moved Inside to Scroll Together) -->
-        <div class="relative overflow-y-auto custom-scrollbar flex-1 p-4 md:p-8 pt-0 overscroll-contain">
+        <div id="premiumScrollContainer" class="relative overflow-y-auto custom-scrollbar flex-1 p-4 md:p-8 pt-0 overscroll-contain">
           
           <!-- Header: Sleek & Minimal -->
           <div class="relative pt-2 pb-6 text-center md:text-left flex flex-col md:flex-row md:items-end justify-between items-center gap-4">
