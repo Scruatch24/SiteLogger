@@ -168,8 +168,9 @@
        if (window.liveRecognition) {
          try { window.liveRecognition.stop(); } catch(e) {}
          window.liveRecognition = null;
+         window.voiceLimitTriggered = true; // Voice hit char limit
        }
-
+       
        window.updateDynamicCounters(); // Re-update after trim
        if (window.showPremiumModal) window.showPremiumModal();
     }

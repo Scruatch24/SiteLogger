@@ -4786,7 +4786,10 @@ async function startRefinementRecording() {
       if (timerLabel) timerLabel.innerText = Math.max(0, remaining);
       if (remaining <= 0) {
         clearInterval(localInterval);
-        if (refinementRecorder && refinementRecorder.state === 'recording') refinementRecorder.stop();
+        if (refinementRecorder && refinementRecorder.state === 'recording') {
+          window.voiceLimitTriggered = true; // Set flag
+          refinementRecorder.stop();
+        }
       }
     }, 1000);
 
@@ -4833,7 +4836,6 @@ async function processRefinementAudio() {
   formData.append("transcribe_only", "true");
 
   try {
-    if (input) input.placeholder = "Transcribing...";
     const res = await fetch("/process_audio", {
       method: "POST",
       headers: { "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]').content },
@@ -5032,7 +5034,10 @@ async function startClarificationRecording() {
       if (timerLabel) timerLabel.innerText = Math.max(0, remaining);
       if (remaining <= 0) {
         clearInterval(localInterval);
-        if (clarificationRecorder && clarificationRecorder.state === 'recording') clarificationRecorder.stop();
+        if (clarificationRecorder && clarificationRecorder.state === 'recording') {
+          window.voiceLimitTriggered = true; // Set flag
+          clarificationRecorder.stop();
+        }
       }
     }, 1000);
 
@@ -5094,8 +5099,6 @@ async function processClarificationAudio() {
   formData.append("transcribe_only", "true");
 
   try {
-    if (input) input.placeholder = "Transcribing...";
-
     const res = await fetch("/process_audio", {
       method: "POST",
       headers: { "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]').content },
@@ -5113,7 +5116,6 @@ async function processClarificationAudio() {
       }
     }
   } catch (e) {
-    if (input) input.placeholder = "Type or speak your answer...";
     showError("Transcription failed");
     console.error(e);
   }

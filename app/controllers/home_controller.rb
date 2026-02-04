@@ -118,7 +118,7 @@ class HomeController < ApplicationController
         audio = params[:audio]
         audio_data = Base64.strict_encode64(audio.read)
 
-        uri = URI("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent")
+        uri = URI("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent")
         http = Net::HTTP.new(uri.host, uri.port)
         http.use_ssl = true
         http.read_timeout = 15
@@ -131,10 +131,7 @@ class HomeController < ApplicationController
               { text: "Transcribe this short audio clip. Return ONLY the spoken text, nothing else. If unclear, return your best guess." },
               { inline_data: { mime_type: audio.content_type, data: audio_data } }
             ]
-          } ],
-          generationConfig: {
-            thinkingConfig: { thinkingBudget: 0 }
-          }
+          } ]
         }.to_json
 
         res = http.request(req)
@@ -386,7 +383,7 @@ PROMPT
         ]
       end
 
-      uri = URI("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent")
+      uri = URI("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent")
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = true
       http.read_timeout = 30
@@ -394,10 +391,7 @@ PROMPT
 
       req = Net::HTTP::Post.new(uri, "Content-Type" => "application/json", "x-goog-api-key" => api_key)
       req.body = {
-        contents: [ { parts: prompt_parts } ],
-        generationConfig: {
-          thinkingConfig: { thinkingBudget: 0 }
-        }
+        contents: [ { parts: prompt_parts        } ]
       }.to_json
 
       res = http.request(req)

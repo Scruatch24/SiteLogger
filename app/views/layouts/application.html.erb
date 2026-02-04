@@ -345,6 +345,22 @@
               // Restore background scrolling
               document.body.classList.remove('overflow-hidden', 'touch-none');
               document.documentElement.classList.remove('overflow-hidden');
+
+              if (window.voiceLimitTriggered) {
+                  window.voiceLimitTriggered = false;
+                  // Auto-submit refinement if visible
+                  const refContent = document.getElementById('refinementContent');
+                  if (refContent && !refContent.classList.contains('hidden')) {
+                      const btn = document.getElementById('refinementSendBtn');
+                      if (btn) btn.click();
+                  }
+                  // Auto-submit clarification if visible
+                  const clarContent = document.getElementById('clarificationsContent');
+                  if (clarContent && !clarContent.classList.contains('hidden')) {
+                      const btn = document.getElementById('clarificationSendBtn');
+                      if (btn) btn.click();
+                  }
+              }
           }
       };
 
