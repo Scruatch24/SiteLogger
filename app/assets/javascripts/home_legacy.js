@@ -1172,52 +1172,69 @@ document.addEventListener("DOMContentLoaded", () => {
   // Initial randomization for Labor Box
   const laborIconContainer = document.querySelector('#laborBox .item-menu-btn');
   if (laborIconContainer) randomizeIcon(laborIconContainer);
+});
 
-  // --- Real-time Transcription Logic ---
-  window.liveRecognition = null;
-  function startLiveTranscription(targetInput) {
-    if (!targetInput) return;
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) return console.warn("Speech Recognition not supported in this browser.");
+// --- Real-time Transcription Logic (Global Scope) ---
+window.liveRecognition = null;
 
-    if (window.liveRecognition) {
-      try { window.liveRecognition.stop(); } catch (e) { }
-    }
+function startLiveTranscription(targetInput) {
+  if (!targetInput) return;
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) return console.warn("Speech Recognition not supported in this browser.");
 
-    const recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = 'en-US';
-
-    recognition.onresult = (event) => {
-      let fullTranscript = '';
-      for (let i = 0; i < event.results.length; ++i) {
-        fullTranscript += event.results[i][0].transcript;
-      }
-
-      if (fullTranscript) {
-        targetInput.value = fullTranscript;
-        autoResize(targetInput);
-        if (window.updateDynamicCountersCheck) {
-          window.updateDynamicCountersCheck(targetInput);
-        } else if (window.updateDynamicCounters) {
-          window.updateDynamicCounters();
-        }
-      }
-    };
-
-    recognition.onerror = (event) => {
-      console.error("Speech recognition error:", event.error);
-    };
-
-    recognition.onend = () => {
-      window.liveRecognition = null;
-    };
-
-    recognition.start();
-    window.liveRecognition = recognition;
+  if (window.liveRecognition) {
+    try { window.liveRecognition.stop(); } catch (e) { }
   }
 
+  const recognition = new SpeechRecognition();
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.lang = 'en-US';
+
+  recognition.onresult = (event) => {
+    let fullTranscript = '';
+    for (let i = 0; i < event.results.length; ++i) {
+      fullTranscript += event.results[i][0].transcript;
+    }
+
+    if (fullTranscript) {
+      targetInput.value = fullTranscript;
+      autoResize(targetInput);
+      if (window.updateDynamicCountersCheck) {
+        window.updateDynamicCountersCheck(targetInput);
+      } else if (window.updateDynamicCounters) {
+        window.updateDynamicCounters();
+      }
+    }
+  };
+
+  recognition.onerror = (event) => {
+    console.error("Speech recognition error:", event.error);
+  };
+
+  recognition.onend = () => {
+    window.liveRecognition = null;
+  };
+
+  recognition.start();
+  window.liveRecognition = recognition;
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const recordBtn = document.getElementById("recordButton");
+  const transcriptArea = document.getElementById("mainTranscript");
+  const buttonText = document.getElementById("buttonText");
+  const charLimit = window.profileCharLimit || 2000;
+  const audioLimit = window.profileAudioLimit || 120;
+  let mediaRecorder = null;
+  let audioChunks = [];
+  let isRecording = false;
+  let isAnalyzing = false;
+  let analysisAbortController = null;
+  let recordingStartTime = 0;
+  let recordingInterval = null;
+
+  if (!recordBtn) return;
   recordBtn.onclick = async () => {
     if (isAnalyzing) {
       if (analysisAbortController) analysisAbortController.abort();
