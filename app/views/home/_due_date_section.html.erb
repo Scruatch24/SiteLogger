@@ -1,7 +1,7 @@
 <div class="flex justify-end items-center pt-4 pb-2 relative">
   <div class="flex items-center gap-2">
     <div class="flex flex-col justify-center text-right">
-      <span class="text-[9px] font-bold text-gray-400 uppercase tracking-widest leading-none translate-y-[-1px]">Due Date</span>
+      <span class="text-[9px] font-bold text-gray-400 uppercase tracking-widest leading-none translate-y-[-1px]"><%= t('due_date') %></span>
       <div id="dueDateDisplay" class="text-xs font-black text-black leading-none mt-0.5 flex items-baseline justify-end">
         <% initial_due = Time.now + 14.days %>
         <span id="dueDateValue" class="leading-none"><%= initial_due.strftime("%b %d, %Y") %></span>

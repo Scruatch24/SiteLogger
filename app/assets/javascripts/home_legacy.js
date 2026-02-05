@@ -236,12 +236,12 @@ function updateLanguageUI(lang) {
 
   if (lang === 'ge') {
     if (flag) flag.className = 'fi fi-ge scale-90 rounded-sm';
-    if (text) text.innerText = 'Georgian';
+    if (text) text.innerText = window.APP_LANGUAGES?.ka || 'Georgian';
     checkEn?.classList.add('hidden');
     checkGe?.classList.remove('hidden');
   } else {
     if (flag) flag.className = 'fi fi-us scale-90 rounded-sm';
-    if (text) text.innerText = 'English';
+    if (text) text.innerText = window.APP_LANGUAGES?.en || 'English';
     checkEn?.classList.remove('hidden');
     checkGe?.classList.add('hidden');
   }
@@ -443,7 +443,7 @@ function updateAllLaborRowsMode(forceMode) {
 function updateLaborRowModelUI(row, mode) {
   const oldMode = row.dataset.billingMode || 'hourly';
   row.dataset.billingMode = mode;
-  const labelText = mode === 'hourly' ? 'LABOR HOURS' : 'LABOR PRICE';
+  const labelText = mode === 'hourly' ? (window.APP_LANGUAGES?.labor_hours || 'LABOR HOURS') : (window.APP_LANGUAGES?.labor_price || 'LABOR PRICE');
 
   // Update Label
   const label = row.querySelector('.labor-label-price');

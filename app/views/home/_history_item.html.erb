@@ -19,11 +19,11 @@
       <% if item[:taxable] && item[:computed_tax_amount] > 0 %>
         <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-600 border border-gray-200 uppercase tracking-wide">
           <% tax_rate_display = item[:tax_rate].present? && item[:tax_rate].to_f > 0 ? " (#{item[:tax_rate]}%)" : "" %>
-          Tax: <%= format_money_ruby(item[:computed_tax_amount], profile, currency) %><%= tax_rate_display %>
+          <%= t('tax') %>: <%= format_money_ruby(item[:computed_tax_amount], profile, currency) %><%= tax_rate_display %>
         </span>
       <% elsif item[:taxable] %>
         <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-400 border border-gray-200 uppercase tracking-wide">
-          Taxable
+          <%= t('taxable') %>
         </span>
       <% end %>
       <% if item[:item_discount_amount] > 0 %>

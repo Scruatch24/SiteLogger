@@ -12,10 +12,10 @@
     <svg id="micIcon" class="w-12 h-12 text-white mb-2 group-hover:scale-110 transition-transform drop-shadow-lg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
     </svg>
-    <span id="buttonText" class="text-white text-[9px] font-black uppercase tracking-[0.15em] text-center px-4 drop-shadow-md">TAP TO RECORD</span>
+    <span id="buttonText" class="text-white text-[9px] font-black uppercase tracking-[0.15em] text-center px-4 drop-shadow-md"><%= t('tap_to_record') %></span>
   </button>
   
-  <p id="status" data-nosnippet class="mt-6 text-xs font-bold text-orange-600 bg-orange-50 px-3 py-1 rounded-full uppercase tracking-widest border border-orange-100">Ready</p>
+  <p id="status" data-nosnippet class="mt-6 text-xs font-bold text-orange-600 bg-orange-50 px-3 py-1 rounded-full uppercase tracking-widest border border-orange-100"><%= t('ready') %></p>
   
   <div id="recordingTimer" data-nosnippet class="hidden mt-3 flex items-center gap-2 bg-white border-2 border-black rounded-lg px-3 py-1.5 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] animate-in zoom-in-95 duration-200">
     <div class="w-2 h-2 rounded-full bg-red-600 rec-dot"></div>
@@ -23,6 +23,6 @@
       <span id="currentAudioTime" class="text-sm font-black text-black font-mono">0</span>
       <span class="text-[9px] font-black text-gray-400 uppercase tracking-widest">/ <%= @profile.audio_limit %>s</span>
     </div>
-    <div class="ml-1 pl-2 border-l border-gray-100 text-[9px] font-black text-red-600 tracking-tighter uppercase">REC</div>
+    <div class="ml-1 pl-2 border-l border-gray-100 text-[9px] font-black text-red-600 tracking-tighter uppercase"><%= t('rec') %></div>
   </div>
 </div>

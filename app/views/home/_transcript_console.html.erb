@@ -1,13 +1,13 @@
 <div id="textSection" class="space-y-3 transition-all duration-500">
   <div class="relative flex items-center justify-between">
-    <label data-nosnippet class="text-xs font-black text-black uppercase tracking-widest">Live Transcript</label>
+    <label data-nosnippet class="text-xs font-black text-black uppercase tracking-widest"><%= t('live_transcript') %></label>
     
     <!-- Language Selector -->
     <div class="relative">
       <button id="languageSelectorBtn" type="button" 
               class="flex items-center gap-1.5 px-2.5 py-1 bg-white border-2 border-black rounded-lg text-[10px] font-black uppercase tracking-widest shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all hover:bg-orange-50">
         <span id="currentLangFlag" class="fi fi-us scale-90 rounded-sm"></span>
-        <span id="currentLangText">English</span>
+        <span id="currentLangText"><%= I18n.locale == :ka ? t('georgian') : t('english') %></span>
         <svg class="h-2.5 w-2.5 transition-transform duration-200" id="langChevron" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path d="M19 9l-7 7-7-7" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
@@ -18,7 +18,7 @@
                 class="w-full flex items-center justify-between px-4 py-3 text-xs font-black hover:bg-orange-50 transition-colors border-b-2 border-black group">
           <div class="flex items-center gap-2.5">
             <span class="fi fi-us rounded-sm scale-110"></span> 
-            <span>English</span>
+            <span><%= t('english') %></span>
           </div>
           <div id="check-en" class="hidden">
             <svg class="h-4 w-4 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="4"><path d="M5 13l4 4L19 7" /></svg>
@@ -28,7 +28,7 @@
                 class="w-full flex items-center justify-between px-4 py-3 text-xs font-black hover:bg-orange-50 transition-colors group">
           <div class="flex items-center gap-2.5">
             <span class="fi fi-ge rounded-sm scale-110"></span> 
-            <span>Georgian</span>
+            <span><%= t('georgian') %></span>
           </div>
           <div id="check-ge" class="hidden">
             <svg class="h-4 w-4 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="4"><path d="M5 13l4 4L19 7" /></svg>
@@ -43,7 +43,7 @@
                class="w-full bg-white border-2 border-black rounded-xl p-5 text-black text-sm font-medium leading-relaxed resize-none outline-none placeholder:text-gray-400 custom-scrollbar overflow-hidden"
                style="max-height: 800px; field-sizing: content;"
                oninput="autoResize(this); updateDynamicCountersCheck(this)"
-               placeholder="Paste text or type notes here..."></textarea>
+               placeholder="<%= t('transcript_placeholder') %>"></textarea>
     <div id="charCounter" class="flex justify-end mt-1 px-1">
       <span data-nosnippet class="text-[9px] font-black text-gray-400 uppercase tracking-widest">
         <span id="currentCharCount">0</span> / <span id="mainTranscriptMax"><%= @profile.char_limit %></span>
@@ -54,7 +54,7 @@
   <!-- Apply Action Button -->
   <div class="flex justify-end pr-1">
     <button id="reParseBtn" data-nosnippet class="flex items-center gap-2 px-4 py-2 bg-orange-500 border-2 border-black text-white rounded-xl active:scale-95 transition-all apply-btn-hover shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]" title="Analyze Text">
-      <span class="text-[10px] font-black uppercase tracking-widest">Apply</span>
+      <span class="text-[10px] font-black uppercase tracking-widest"><%= t('apply') %></span>
       <svg class="h-3.5 w-3.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M14 5l7 7m0 0l-7 7m7-7H3" />
       </svg>

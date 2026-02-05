@@ -47,7 +47,7 @@
               <use xlink:href="#icon-recreate"></use>
             </svg>
           </div>
-          <span class="text-[10px] font-black uppercase tracking-widest text-black">Recreate</span>
+          <span class="text-[10px] font-black uppercase tracking-widest text-black"><%= t('recreate') %></span>
         </button>
         
         <button type="button" 
@@ -59,7 +59,7 @@
               <use xlink:href="#icon-rename"></use>
             </svg>
           </div>
-          <span class="rename-text text-[10px] font-black uppercase tracking-widest text-black">Rename</span>
+          <span class="rename-text text-[10px] font-black uppercase tracking-widest text-black"><%= t('rename') %></span>
         </button>
         
         <% category_count = log.categories.size %>
@@ -72,7 +72,7 @@
             </svg>
           </div>
           <span class="text-[10px] font-black uppercase tracking-widest text-black">
-            <%= category_count > 0 ? "Manage Categories" : "Add to Category" %>
+            <%= category_count > 0 ? t('manage_categories') : t('add_to_category') %>
           </span>
         </button>
         
@@ -84,7 +84,7 @@
               <use xlink:href="#icon-pin"></use>
             </svg>
           </div>
-          <span class="text-[10px] font-black uppercase tracking-widest text-black"><%= log.pinned ? "Unpin Log" : "Pin Log" %></span>
+          <span class="text-[10px] font-black uppercase tracking-widest text-black"><%= log.pinned ? t('unpin_log') : t('pin_log') %></span>
         </button>
         
         <button type="button" 
@@ -95,7 +95,7 @@
               <use xlink:href="#icon-delete"></use>
             </svg>
           </div>
-          <span class="text-[10px] font-black uppercase tracking-widest text-black">Delete</span>
+          <span class="text-[10px] font-black uppercase tracking-widest text-black"><%= t('delete') %></span>
         </button>
       </div>
     </div>
@@ -149,7 +149,7 @@
             data-current-status="<%= current_status %>"
             class="flex items-center gap-1.5 px-3.5 py-1.5 <%= status_config[:bg] %> border-2 <%= status_config[:border] %> rounded-t-lg rounded-b-none text-[10px] font-black uppercase tracking-widest <%= status_config[:text] %> transition-all">
       <div id="status-dot-<%= log.id %><%= suffix %>" class="w-1.5 h-1.5 rounded-full <%= current_status == 'overdue' ? 'bg-red-500 animate-pulse' : status_config[:text].gsub('text', 'bg') %>"></div>
-      <span id="status-text-<%= log.id %><%= suffix %>"><%= current_status %></span>
+      <span id="status-text-<%= log.id %><%= suffix %>"><%= t(current_status) %></span>
       <svg class="h-3 w-3 opacity-50 status-chevron">
         <use xlink:href="#icon-chevron-down"></use>
       </svg>
@@ -174,7 +174,7 @@
               <path stroke-linecap="round" stroke-linejoin="round" d="<%= opt[:icon] %>" />
             </svg>
           </div>
-          <%= opt[:name] %>
+          <%= t(opt[:name]) %>
         </button>
       <% end %>
     </div>
@@ -228,7 +228,7 @@
          <h3 class="text-xl font-black text-black leading-tight break-words mb-0 select-none" 
              style="overflow-wrap: anywhere;"
              data-editable-type="client" data-log-id="<%= log.id %>">
-           <%= log.client.presence || "Unknown Client" %>
+           <%= log.client.presence || t('unknown_client', default: 'Unknown Client') %>
          </h3>
        </div>
     </div>
@@ -237,7 +237,7 @@
       <div class="text-2xl font-black text-orange-600">
         <%= format_money_ruby(stats[:total_due], @profile, currency) %>
       </div>
-      <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Balance Due</div>
+      <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest"><%= t('balance_due') %></div>
     </div>
   </div>
 
@@ -256,7 +256,7 @@
                   <use xlink:href="#icon-labor"></use>
                 </svg>
               </div>
-              <span class="text-xs font-black text-gray-400 uppercase tracking-widest">Labor</span>
+              <span class="text-xs font-black text-gray-400 uppercase tracking-widest"><%= t('labor') %></span>
             </div>
             <% stats[:categorized_items][:labor].each do |item| %>
               <%= render partial: "home/history_item", locals: { item: item, profile: @profile, currency: currency } %>
@@ -273,7 +273,7 @@
                   <use xlink:href="#icon-material"></use>
                 </svg>
               </div>
-              <span class="text-xs font-black text-gray-400 uppercase tracking-widest">Materials</span>
+              <span class="text-xs font-black text-gray-400 uppercase tracking-widest"><%= t('material') %></span>
             </div>
             <% stats[:categorized_items][:material].each do |item| %>
               <%= render partial: "home/history_item", locals: { item: item, profile: @profile, currency: currency } %>
@@ -290,7 +290,7 @@
                   <use xlink:href="#icon-expense"></use>
                 </svg>
               </div>
-              <span class="text-xs font-black text-gray-400 uppercase tracking-widest">Expenses</span>
+              <span class="text-xs font-black text-gray-400 uppercase tracking-widest"><%= t('expense') %></span>
             </div>
             <% stats[:categorized_items][:expense].each do |item| %>
               <%= render partial: "home/history_item", locals: { item: item, profile: @profile, currency: currency } %>
@@ -307,7 +307,7 @@
                   <use xlink:href="#icon-fee"></use>
                 </svg>
               </div>
-              <span class="text-xs font-black text-gray-400 uppercase tracking-widest">Fees</span>
+              <span class="text-xs font-black text-gray-400 uppercase tracking-widest"><%= t('fee') %></span>
             </div>
             <% stats[:categorized_items][:fee].each do |item| %>
               <%= render partial: "home/history_item", locals: { item: item, profile: @profile, currency: currency } %>
@@ -368,11 +368,11 @@
         <% # 1 & 2. ITEMS TOTAL & ITEM DISCOUNTS (Conditional) %>
         <% if stats[:item_discount_total] > 0 %>
           <div class="flex justify-between text-gray-400">
-            <span class="font-black">Items Total</span>
+            <span class="font-black"><%= t('items_total') %></span>
             <span><%= format_money_ruby(stats[:items_total], @profile, currency) %></span>
           </div>
           <div class="flex justify-between text-green-600">
-            <span>Item Discounts</span>
+            <span><%= t('item_discounts') %></span>
             <span>-<%= format_money_ruby(stats[:item_discount_total], @profile, currency) %></span>
           </div>
           <div class="border-t border-dashed border-gray-300 my-1"></div>
@@ -380,14 +380,14 @@
 
         <% # 3. SUBTOTAL %>
         <div class="flex justify-between text-gray-500">
-          <span class="font-black">Subtotal</span>
+          <span class="font-black"><%= t('subtotal') %></span>
           <span class="text-black"><%= format_money_ruby(stats[:net_items_subtotal], @profile, currency) %></span>
         </div>
 
         <% # 4 & 5. INVOICE DISCOUNT & TAXABLE TOTAL (Conditional) %>
         <% if stats[:global_discount_amount] > 0 %>
           <div class="flex justify-between text-green-600">
-            <span>Invoice Discount</span>
+            <span><%= t('invoice_discount') %></span>
             <span>
               -<%= format_money_ruby(stats[:global_discount_amount], @profile, currency) %>
               <% if stats[:global_discount_percent] > 0 %>
@@ -397,14 +397,14 @@
           </div>
           <div class="border-t border-dashed border-gray-300 my-1"></div>
           <div class="flex justify-between text-gray-500">
-            <span class="font-black">Taxable Total</span>
+            <span class="font-black"><%= t('taxable_total') %></span>
             <span class="text-black"><%= format_money_ruby(stats[:taxable_total], @profile, currency) %></span>
           </div>
         <% end %>
 
         <% # 6. TAX %>
         <div class="flex justify-between text-orange-600">
-          <span>Tax</span>
+          <span><%= t('tax') %></span>
           <span><%= format_money_ruby(stats[:tax_amount], @profile, currency) %></span>
         </div>
 
@@ -412,17 +412,17 @@
         <% if stats[:total_credits] > 0 %>
           <div class="border-t border-dashed border-gray-300 my-1"></div>
           <div class="flex justify-between text-gray-500">
-            <span class="font-black">Total Before Credit</span>
+            <span class="font-black"><%= t('total_before_credit') %></span>
             <span class="text-black"><%= format_money_ruby(stats[:total_before_credits], @profile, currency) %></span>
           </div>
           <div class="flex justify-between text-red-600">
-            <span>Credit Applied</span>
+            <span><%= t('credit_applied') %></span>
             <span>-<%= format_money_ruby(stats[:total_credits], @profile, currency) %></span>
           </div>
         <% end %>
 
         <div class="pt-2 mt-2 border-t-2 border-black flex justify-between text-black font-black text-sm">
-          <span>Balance Due</span>
+          <span><%= t('balance_due') %></span>
           <span class="text-orange-600"><%= format_money_ruby(stats[:total_due], @profile, currency) %></span>
         </div>
     </div>

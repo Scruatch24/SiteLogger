@@ -16,14 +16,14 @@
       <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 md:h-6 md:w-6 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
-      <span class="nav-tooltip">History</span>
+      <span class="nav-tooltip"><%= t('history') %></span>
     <% end %>
 
     <%= link_to profile_path, class: "p-1.5 md:p-2 bg-white border-2 border-black rounded-xl nav-link-hover transition-all group active:scale-95 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px]" do %>
       <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 md:h-6 md:w-6 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
       </svg>
-      <span class="nav-tooltip">Profile</span>
+      <span class="nav-tooltip"><%= t('profile') %></span>
     <% end %>
 
     <%= link_to settings_path, class: "p-1.5 md:p-2 bg-white border-2 border-black rounded-xl nav-link-hover transition-all group active:scale-95 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px]" do %>
@@ -31,7 +31,7 @@
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
       </svg>
-      <span class="nav-tooltip">Settings</span>
+      <span class="nav-tooltip"><%= t('settings') %></span>
     <% end %>
 
     <% if user_signed_in? %>
@@ -39,14 +39,14 @@
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="h-5 w-5 md:h-6 md:w-6 text-black group-hover:text-red-600">
           <path stroke-linecap="round" stroke-linejoin="round" d="M5.636 5.636a9 9 0 1012.728 0M12 3v9" />
         </svg>
-        <span class="nav-tooltip">Log Out</span>
+        <span class="nav-tooltip"><%= t('log_out') %></span>
       </button>
     <% else %>
       <%= link_to new_user_session_path, class: "p-1.5 md:p-2 bg-white border-2 border-black rounded-xl nav-link-hover transition-all group active:scale-95 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px]" do %>
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="h-5 w-5 md:h-6 md:w-6 text-black group-hover:text-orange-600">
           <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
         </svg>
-        <span class="nav-tooltip">Sign In</span>
+        <span class="nav-tooltip"><%= t('sign_in') %></span>
       <% end %>
     <% end %>
   </div>

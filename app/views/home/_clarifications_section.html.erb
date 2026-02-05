@@ -1,6 +1,6 @@
 <div id="clarificationsSection" class="hidden mt-8 space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300 overflow-visible p-1">
   <button type="button" onclick="toggleSection('clarificationsContent', 'clarificationsArrow', this)" class="section-toggle-btn flex items-center justify-between w-full bg-orange-50 border-2 border-black rounded-xl px-4 py-3 shadow-[4px_4px_0px_0px_rgba(194,65,12,1)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all outline-none group hover:bg-orange-100">
-    <span class="text-[10px] font-black text-orange-800 uppercase tracking-widest">Quick Questions</span>
+    <span class="text-[10px] font-black text-orange-800 uppercase tracking-widest"><%= t('quick_questions') %></span>
     <div class="w-7 h-7 rounded-lg bg-orange-500 border-2 border-black flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] group-hover:bg-orange-600 transition-colors">
       <svg id="clarificationsArrow" class="h-3.5 w-3.5 text-white transition-transform duration-300 -rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="4"><path d="M19 9l-7 7-7-7" /></svg>
     </div>
@@ -15,7 +15,7 @@
     <!-- Answer Input (styled like transcript input) -->
     <div class="pb-1">
       <div class="relative">
-        <label class="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">Your Answer</label>
+        <label class="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1"><%= t('your_answer') %></label>
       </div>
       <div class="flex gap-2">
         <div class="flex-1 border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] flex flex-col">
@@ -24,7 +24,7 @@
                     oninput="autoResize(this); updateDynamicCountersCheck(this)"
                     class="w-full bg-transparent border-none text-sm font-bold text-black focus:ring-0 p-4 outline-none placeholder:text-gray-400 resize-none rounded-xl custom-scrollbar clarification-scrollbar"
                     style="max-height: 12rem; overflow-y: hidden;"
-                    placeholder="Type or speak your answer..."
+                    placeholder="<%= t('answer_placeholder') %>"
                     onkeydown="if(event.key==='Enter' && !event.shiftKey) { event.preventDefault(); submitClarifications(); }"></textarea>
            <div class="flex justify-end px-3 pb-2">
               <span class="text-[9px] font-black text-gray-400 uppercase tracking-widest">
@@ -46,7 +46,7 @@
             <span class="text-[8px] font-black text-orange-600 uppercase tracking-tighter leading-none">
               <span id="clarificationTimeLeft">0</span>s
             </span>
-            <span class="text-[7px] font-black text-gray-400 uppercase tracking-tighter leading-none">left</span>
+            <span class="text-[7px] font-black text-gray-400 uppercase tracking-tighter leading-none"><%= t('left') %></span>
           </div>
           <button type="button" 
                   id="clarificationSendBtn"

@@ -4,7 +4,7 @@
     <svg class="h-4 w-4 text-red-600 mr-2">
       <use xlink:href="#icon-credit"></use>
     </svg>
-    <span class="text-base font-black text-red-600 uppercase tracking-widest">Credit</span>
+    <span class="text-base font-black text-red-600 uppercase tracking-widest"><%= t('credit') %></span>
   </div>
 
   <!-- The Content Box -->
@@ -26,13 +26,13 @@
           <!-- Amount Input Section -->
           <div class="space-y-1 relative w-1/2">
             <label class="block text-[9px] font-bold text-gray-500 uppercase ml-1">
-              CREDIT AMOUNT
+              <%= t('amount').upcase %>
             </label>
             <div class="flex items-center border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] relative h-[52px]">
                 <span class="flex items-center justify-center bg-red-600 text-white font-black border-2 border-black rounded-lg h-6 w-6 ml-2 shrink-0 select-none text-[10px] credit-unit-indicator"><%= currencies_data.find { |c| c[:c] == (@profile.currency.presence || "USD") }[:s] %></span>
                 <input type="number" step="0.01" 
                        class="credit-amount-input bg-transparent border-none py-3 pl-2 pr-2 font-black text-black focus:ring-0 outline-none text-left min-w-0 text-sm placeholder:text-gray-300 w-full flex-1"
-                       placeholder="Amount"
+                       placeholder="<%= t('amount') %>"
                        oninput="updateTotalsSummary()">
             </div>
           </div>
@@ -41,8 +41,8 @@
           <div class="flex items-center gap-2 w-full">
             <div class="flex flex-1 items-center border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] min-w-0 main-item-box transition-colors relative h-[52px]">
               <input type="text" class="flex-1 bg-transparent border-none text-sm font-bold text-black focus:ring-0 py-3 px-4 credit-reason-input placeholder:text-gray-300 min-w-0 rounded-xl"
-                     value="Courtesy Credit"
-                     placeholder="Reason for credit...">
+                     value="<%= t('courtesy_credit') %>"
+                     placeholder="<%= t('reason_for_credit') %>">
             </div>
             
             <button type="button" onclick="this.closest('.credit-item-row').remove(); updateTotalsSummary();" class="remove-credit-btn w-6 h-10 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors font-bold text-xl flex-shrink-0">×</button>
