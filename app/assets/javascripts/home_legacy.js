@@ -203,10 +203,64 @@ document.addEventListener('click', (e) => {
     menu.classList.add('hidden');
   }
 
+  // Language Menu
+  const langMenu = document.getElementById('languageMenu');
+  if (langMenu && !e.target.closest('#languageSelectorBtn') && !e.target.closest('#languageMenu')) {
+    langMenu.classList.add('hidden');
+    document.getElementById('langChevron')?.classList.remove('rotate-180');
+  }
+
   // PDF Selectors in Modal
   if (!e.target.closest('#pdfStatusBadge') && !e.target.closest('#pdfStatusDropdown') &&
     !e.target.closest('#pdfCategoryBadge') && !e.target.closest('#pdfCategoryDropdown')) {
     if (typeof closeAllPdfSelectors === 'function') closeAllPdfSelectors();
+  }
+});
+
+// --- Language Selector Logic ---
+window.setTranscriptLanguage = function (lang) {
+  localStorage.setItem('transcriptLanguage', lang);
+  updateLanguageUI(lang);
+  document.getElementById('languageMenu')?.classList.add('hidden');
+
+  // Sync with server session so UI language matches
+  fetch('/set_session_locale?locale=' + lang, { method: 'POST', headers: { 'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content } });
+  document.getElementById('langChevron')?.classList.remove('rotate-180');
+};
+
+function updateLanguageUI(lang) {
+  const flag = document.getElementById('currentLangFlag');
+  const text = document.getElementById('currentLangText');
+  const checkEn = document.getElementById('check-en');
+  const checkGe = document.getElementById('check-ge');
+
+  if (lang === 'ge') {
+    if (flag) flag.className = 'fi fi-ge scale-90 rounded-sm';
+    if (text) text.innerText = 'Georgian';
+    checkEn?.classList.add('hidden');
+    checkGe?.classList.remove('hidden');
+  } else {
+    if (flag) flag.className = 'fi fi-us scale-90 rounded-sm';
+    if (text) text.innerText = 'English';
+    checkEn?.classList.remove('hidden');
+    checkGe?.classList.add('hidden');
+  }
+}
+
+// Inlined DOMContentLoaded logic for language
+document.addEventListener('DOMContentLoaded', () => {
+  const savedLang = localStorage.getItem('transcriptLanguage') || window.profileSystemLanguage || 'en';
+  updateLanguageUI(savedLang);
+
+  const langBtn = document.getElementById('languageSelectorBtn');
+  if (langBtn) {
+    langBtn.onclick = (e) => {
+      e.stopPropagation();
+      const menu = document.getElementById('languageMenu');
+      const isHidden = menu?.classList.contains('hidden');
+      menu?.classList.toggle('hidden');
+      document.getElementById('langChevron')?.classList.toggle('rotate-180', isHidden);
+    };
   }
 });
 
@@ -1396,6 +1450,7 @@ document.addEventListener("DOMContentLoaded", () => {
       formData.append("audio", audioBlob);
       formData.append("audio_duration", durationSec);
       formData.append("manual_text", currentText);
+      formData.append("language", localStorage.getItem('transcriptLanguage') || window.profileSystemLanguage || 'en');
 
       const res = await fetch("/process_audio", {
         method: "POST",
@@ -1495,7 +1550,10 @@ document.addEventListener("DOMContentLoaded", () => {
           "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]').content,
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ manual_text: text }),
+        body: JSON.stringify({
+          manual_text: text,
+          language: localStorage.getItem('transcriptLanguage') || window.profileSystemLanguage || 'en'
+        }),
         signal: analysisAbortController?.signal
       });
       const data = await res.json();
@@ -5130,6 +5188,7 @@ async function processClarificationAudio() {
   const formData = new FormData();
   formData.append("audio", audioBlob);
   formData.append("transcribe_only", "true");
+  formData.append("language", localStorage.getItem('transcriptLanguage') || window.profileSystemLanguage || 'en');
 
   try {
     const res = await fetch("/process_audio", {

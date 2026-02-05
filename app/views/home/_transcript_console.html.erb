@@ -1,6 +1,41 @@
 <div id="textSection" class="space-y-3 transition-all duration-500">
-  <div class="relative">
+  <div class="relative flex items-center justify-between">
     <label data-nosnippet class="text-xs font-black text-black uppercase tracking-widest">Live Transcript</label>
+    
+    <!-- Language Selector -->
+    <div class="relative">
+      <button id="languageSelectorBtn" type="button" 
+              class="flex items-center gap-1.5 px-2.5 py-1 bg-white border-2 border-black rounded-lg text-[10px] font-black uppercase tracking-widest shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all hover:bg-orange-50">
+        <span id="currentLangFlag" class="fi fi-us scale-90 rounded-sm"></span>
+        <span id="currentLangText">English</span>
+        <svg class="h-2.5 w-2.5 transition-transform duration-200" id="langChevron" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path d="M19 9l-7 7-7-7" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </button>
+      
+      <div id="languageMenu" class="hidden absolute right-0 z-[100] mt-2 w-40 bg-white border-2 border-black rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <button type="button" onclick="setTranscriptLanguage('en')" 
+                class="w-full flex items-center justify-between px-4 py-3 text-xs font-black hover:bg-orange-50 transition-colors border-b-2 border-black group">
+          <div class="flex items-center gap-2.5">
+            <span class="fi fi-us rounded-sm scale-110"></span> 
+            <span>English</span>
+          </div>
+          <div id="check-en" class="hidden">
+            <svg class="h-4 w-4 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="4"><path d="M5 13l4 4L19 7" /></svg>
+          </div>
+        </button>
+        <button type="button" onclick="setTranscriptLanguage('ge')" 
+                class="w-full flex items-center justify-between px-4 py-3 text-xs font-black hover:bg-orange-50 transition-colors group">
+          <div class="flex items-center gap-2.5">
+            <span class="fi fi-ge rounded-sm scale-110"></span> 
+            <span>Georgian</span>
+          </div>
+          <div id="check-ge" class="hidden">
+            <svg class="h-4 w-4 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="4"><path d="M5 13l4 4L19 7" /></svg>
+          </div>
+        </button>
+      </div>
+    </div>
   </div>
   <div id="transcriptContainer" class="transcript-container" data-audio-target="transcriptContainer">
      <textarea id="mainTranscript" 

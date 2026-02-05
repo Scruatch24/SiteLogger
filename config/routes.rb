@@ -5,6 +5,7 @@ Rails.application.routes.draw do
   }
   root "home#index"
 
+  post "set_session_locale", to: "home#set_session_locale"
   post "process_audio", to: "home#process_audio"
   get "history", to: "home#history"
   get "settings", to: "home#settings"

@@ -10,14 +10,14 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_02_01_171345) do
-  # create_schema "auth"
-  # create_schema "neon_auth"
-  # create_schema "pgrst"
+ActiveRecord::Schema[8.0].define(version: 2026_02_05_114237) do
+  create_schema "auth"
+  create_schema "neon_auth"
+  create_schema "pgrst"
 
   # These are extensions that must be enabled in order to support this database
-  # enable_extension "pg_catalog.plpgsql"
-  # enable_extension "pg_session_jwt"
+  enable_extension "pg_catalog.plpgsql"
+  enable_extension "pg_session_jwt"
 
   create_table "active_storage_attachments", force: :cascade do |t|
     t.string "name", null: false
@@ -131,6 +131,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_02_01_171345) do
     t.string "accent_color", default: "#EA580C"
     t.boolean "dark_mode", default: false, null: false
     t.integer "hours_per_workday", default: 8
+    t.string "system_language"
+    t.string "document_language"
     t.index ["user_id"], name: "index_profiles_on_user_id"
   end
 

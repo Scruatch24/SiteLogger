@@ -2,6 +2,69 @@ class ApplicationController < ActionController::Base
   # Only allow modern browsers supporting webp images, web push, badges, import maps, CSS nesting, and CSS :has.
   allow_browser versions: :modern
   before_action :set_profile
+  before_action :set_locale
+
+  private
+
+  def set_locale
+    # Priority:
+    # 1. Profile setting (saved preference)
+    # 2. Session setting (guest preference)
+    # 3. Auto-detection (IP-based)
+    # 4. Global default (English)
+
+    # If it's in the session but not a saved profile, we only keep it if it was manually set
+    # Otherwise, we might want to re-detect if the IP changed (e.g. testing with VPN)
+    if @profile.new_record? && session[:system_language].present? && !session[:locale_explicitly_set]
+      # If not explicitly set by user, we can try to re-detect to be more accurate
+      requested_locale = auto_detect_locale
+    else
+      requested_locale = @profile.try(:system_language).presence || session[:system_language]
+    end
+
+    if requested_locale.blank?
+      requested_locale = auto_detect_locale
+    end
+
+    if I18n.available_locales.map(&:to_s).include?(requested_locale.to_s)
+      I18n.locale = requested_locale.to_sym
+    else
+      I18n.locale = I18n.default_locale
+    end
+
+    # Sync session for guests
+    session[:system_language] = I18n.locale.to_s
+  end
+
+  def auto_detect_locale
+    return session[:auto_detected_locale] if session[:auto_detected_locale]
+
+    country = detect_country_by_ip
+    locale = (country == "GE") ? :ka : :en
+    session[:auto_detected_locale] = locale.to_s
+    locale
+  rescue
+    :en
+  end
+
+  def detect_country_by_ip
+    ip = client_ip
+    # Use nil for local/unknown to trigger default
+    return nil if ip.blank? || ip == "127.0.0.1" || ip == "::1" || ip.start_with?("192.168.", "10.", "172.")
+
+    begin
+      require "net/http"
+      require "json"
+      uri = URI("http://ip-api.com/json/#{ip}?fields=countryCode")
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.read_timeout = 2
+      http.open_timeout = 2
+      response = http.request(Net::HTTP::Get.new(uri))
+      JSON.parse(response.body)["countryCode"] if response.is_a?(Net::HTTPSuccess)
+    rescue
+      nil
+    end
+  end
 
   def set_profile
     if user_signed_in?

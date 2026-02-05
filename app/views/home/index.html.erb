@@ -94,7 +94,8 @@
   let shareTrackedThisSession = false; // Tracks if share was already counted for this preview popup
   window.profileAudioLimit = <%= @profile.audio_limit %>;
   window.profileCharLimit = <%= @profile.char_limit %>;
-  window.currentUserId = "<%= current_user&.id %>";
+  window.profileSystemLanguage = "<%= @profile.try(:system_language) || I18n.locale.to_s %>";
+  window.profileDocumentLanguage = "<%= @profile.try(:document_language) || (@profile.try(:system_language) == 'ka' ? 'ka' : 'en') %>";
 
   // Check historical usage
   window.calculateHistoricalChars = function() {

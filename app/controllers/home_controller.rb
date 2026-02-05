@@ -71,6 +71,12 @@ class HomeController < ApplicationController
     end
   end
 
+  def set_session_locale
+    session[:system_language] = params[:locale]
+    session[:locale_explicitly_set] = true
+    head :ok
+  end
+
   def save_settings
     if @profile.guest?
       return render json: { success: false, errors: [ "Guests cannot save settings. Please sign up to unlock." ] }, status: :forbidden
@@ -81,6 +87,7 @@ class HomeController < ApplicationController
 
     respond_to do |format|
       if @profile.save
+        session[:locale_explicitly_set] = true
         format.html { redirect_to settings_path, notice: "Profile saved successfully!" }
         format.json { render json: { success: true, message: "Profile saved successfully!" } }
       else
@@ -147,8 +154,26 @@ class HomeController < ApplicationController
       end
     end
 
+    # Priority: 1. URL Param, 2. Profile Doc Lang, 3. Profile System Lang, 4. Current Locale
+    doc_language = params[:language] || @profile.try(:document_language) || @profile.try(:system_language) || I18n.locale.to_s
+    target_is_georgian = (doc_language == "ge" || doc_language == "ka")
+
+    lang_context = if target_is_georgian
+      "TARGET LANGUAGE: Georgian. All extracted names, descriptions, and categories MUST be in Georgian. If the input is in English or any other language, translate the extracted data to Georgian. E.g., 'Repaired AC' becomes 'შევაკეთე კონდიციონერი'."
+    else
+      "TARGET LANGUAGE: English. All extracted names, descriptions, and categories MUST be in English. If the input is in Georgian or any other language, translate the extracted data to English. E.g., 'შევაკეთე' becomes 'Repaired'."
+    end
+
+    # Section Labels for the generated JSON
+    sec_labels = if target_is_georgian
+      { labor: "სამუშაო", materials: "მასალები", expenses: "ხარჯები", fees: "მოსაკრებლები", notes: "შენიშვნები" }
+    else
+      { labor: "Labor/Service", materials: "Materials", expenses: "Expenses", fees: "Fees", notes: "Field Notes" }
+    end
+
     begin
       instruction = <<~PROMPT
+        #{lang_context}
         You are a STRICT data extractor for casual contractors (plumbers, electricians, techs).
 Your job: convert spoken notes or written text into a single valid JSON invoice object. Be robust to slang and casual phrasing, but never invent financial values or change accounting semantics.
 
@@ -526,7 +551,7 @@ PROMPT
         end
 
         json["sections"] << {
-          title: "Labor/Service",
+          title: sec_labels[:labor],
           items: json["labor_service_items"].each_with_index.map do |item, idx|
             if item.is_a?(Hash)
               # Priority: If mode is fixed, use price. If hourly, use hours.
@@ -590,7 +615,7 @@ PROMPT
       # MATERIALS (physical goods with price)
       if json["materials"]&.any?
         json["sections"] << {
-          title: "Materials",
+          title: sec_labels[:materials],
           items: json["materials"].map do |m|
             # Fallback: Extract quantity from description if missing in field
             d_text = (m["name"].presence || m["desc"].presence || "").to_s.strip
@@ -642,7 +667,7 @@ PROMPT
       # EXPENSES (pass-through reimbursements)
       if json["expenses"]&.any?
         json["sections"] << {
-          title: "Expenses",
+          title: sec_labels[:expenses],
           items: json["expenses"].map do |e|
             {
               desc: (e["name"].presence || e["desc"].presence || "").to_s.strip,
@@ -660,7 +685,7 @@ PROMPT
       # FEES (surcharges - income)
       if json["fees"]&.any?
         json["sections"] << {
-          title: "Fees",
+          title: sec_labels[:fees],
           items: json["fees"].map do |f|
             {
               desc: (f["name"].presence || f["desc"].presence || "").to_s.strip,
@@ -745,7 +770,9 @@ PROMPT
       :discount_tax_rule,
       :remove_logo,
       :logo,
-      :accent_color
+      :accent_color,
+      :system_language,
+      :document_language
     )
   end
 end

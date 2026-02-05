@@ -1,0 +1,9 @@
+ka:
+  settings: "პარამეტრები"
+  system_language: "სისტემის ენა"
+  document_language: "დოკუმენტის ნაგულისხმევი ენა"
+  english: "ინგლისური"
+  georgian: "ქართული"
+  save_changes: "ცვლილებების შენახვა"
+  save_settings: "პარამეტრების შენახვა"
+  changes_saved: "ცვლილებები შენახულია!"

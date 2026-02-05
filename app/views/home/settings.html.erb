@@ -18,7 +18,7 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
         </svg>
       <% end %>
-      <h1 class="text-xl md:text-2xl font-black tracking-tighter text-black uppercase italic truncate pr-2">Settings</h1>
+      <h1 class="text-xl md:text-2xl font-black tracking-tighter text-black uppercase italic truncate pr-2"><%= t('settings') %></h1>
     </div>
     
     <%# Mobile Save Icon %>
@@ -37,7 +37,7 @@
       <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
         <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
       </svg>
-      <span>Changes Saved!</span>
+      <span><%= t('changes_saved') %></span>
     </div>
   </div>
 
@@ -129,6 +129,72 @@
 
   <%= form_with model: @profile, url: save_settings_path, id: "settingsForm", local: false, class: "max-w-md mx-auto space-y-8 #{is_guest ? 'opacity-40 grayscale pointer-events-none select-none' : ''}" do |f| %>
     <div class="space-y-6">
+
+      <%# System Language Dropdown %>
+      <div class="space-y-2">
+        <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1"><%= t('system_language') %></label>
+        <div class="relative">
+          <%= f.hidden_field :system_language, id: "system_language_hidden_field", value: I18n.locale.to_s %>
+          
+          <button type="button" id="systemLanguageSelectBtn" onclick="toggleSystemLanguageMenu(event)" class="w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black text-left flex justify-between items-center shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:outline-none transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none z-10 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed" <%= 'disabled' if is_guest %>>
+            <span id="selectedSystemLanguageDisplay" class="flex items-center gap-2">
+              <span class="fi fi-us rounded-sm shadow-sm" id="systemLangFlag"></span> 
+              <span class="ml-1 font-black uppercase tracking-widest" id="systemLangText">ENGLISH</span>
+            </span>
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M19 9l-7 7-7-7" stroke-width="3" stroke="black"/></svg>
+          </button>
+          
+          <div id="systemLanguageMenu" class="hidden absolute z-50 mt-2 w-full bg-white border-2 border-black rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div class="relative z-10">
+              <button type="button" onclick="selectSystemLanguage('en')" class="w-full px-4 py-4 hover:bg-orange-50 cursor-pointer flex items-center justify-between border-b border-gray-100 last:border-0 transition-colors">
+                <div class="flex items-center gap-3">
+                  <span class="fi fi-us rounded-sm shadow-sm w-5 h-4"></span>
+                  <span class="text-xs font-black text-black uppercase tracking-widest">ENGLISH</span>
+                </div>
+              </button>
+              <button type="button" onclick="selectSystemLanguage('ka')" class="w-full px-4 py-4 hover:bg-orange-50 cursor-pointer flex items-center justify-between border-b border-gray-100 last:border-0 transition-colors">
+                <div class="flex items-center gap-3">
+                  <span class="fi fi-ge rounded-sm shadow-sm w-5 h-4"></span>
+                  <span class="text-xs font-black text-black uppercase tracking-widest">GEORGIAN</span>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <%# Default Document Language Dropdown %>
+      <div class="space-y-2">
+        <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1"><%= t('document_language') %></label>
+        <div class="relative">
+          <%= f.hidden_field :document_language, id: "document_language_hidden_field", value: @profile.try(:document_language) || "en" %>
+          
+          <button type="button" id="documentLanguageSelectBtn" onclick="toggleDocumentLanguageMenu(event)" class="w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black text-left flex justify-between items-center shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:outline-none transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none z-10 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed" <%= 'disabled' if is_guest %>>
+            <span id="selectedDocumentLanguageDisplay" class="flex items-center gap-2">
+              <span class="fi fi-us rounded-sm shadow-sm" id="documentLangFlag"></span> 
+              <span class="ml-1 font-black uppercase tracking-widest" id="documentLangText">ENGLISH</span>
+            </span>
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M19 9l-7 7-7-7" stroke-width="3" stroke="black"/></svg>
+          </button>
+          
+          <div id="documentLanguageMenu" class="hidden absolute z-50 mt-2 w-full bg-white border-2 border-black rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div class="relative z-10">
+              <button type="button" onclick="selectDocumentLanguage('en')" class="w-full px-4 py-4 hover:bg-orange-50 cursor-pointer flex items-center justify-between border-b border-gray-100 last:border-0 transition-colors">
+                <div class="flex items-center gap-3">
+                  <span class="fi fi-us rounded-sm shadow-sm w-5 h-4"></span>
+                  <span class="text-xs font-black text-black uppercase tracking-widest">ENGLISH</span>
+                </div>
+              </button>
+              <button type="button" onclick="selectDocumentLanguage('ka')" class="w-full px-4 py-4 hover:bg-orange-50 cursor-pointer flex items-center justify-between border-b border-gray-100 last:border-0 transition-colors">
+                <div class="flex items-center gap-3">
+                  <span class="fi fi-ge rounded-sm shadow-sm w-5 h-4"></span>
+                  <span class="text-xs font-black text-black uppercase tracking-widest">GEORGIAN</span>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
 
 
 
@@ -231,6 +297,7 @@
               </div>
           </div>
         </div>
+
 
       <%# Currency Dropdown %>
       <div class="space-y-2">
@@ -370,7 +437,7 @@
       <% end %>
     <% else %>
       <button type="submit" id="saveSettingsBtn" class="w-full bg-orange-600 text-white border-2 border-black font-black py-4 rounded-xl shadow-[4px_4px_0px_0px_#000000] active:scale-[0.97] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all uppercase text-xs tracking-[0.2em] flex items-center justify-center gap-3 save-btn-hover">
-        <span id="btnText">Save Settings</span>
+        <span id="btnText"><%= t('save_settings') %></span>
         <div id="btnSpinner" class="hidden">
           <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -647,6 +714,16 @@
       updateCurrencyDisplay(curr);
     }
 
+    const sysLangField = document.getElementById('system_language_hidden_field');
+    if (sysLangField) {
+      updateSystemLanguageDisplay(sysLangField.value);
+    }
+
+    const docLangField = document.getElementById('document_language_hidden_field');
+    if (docLangField) {
+      updateDocumentLanguageDisplay(docLangField.value);
+    }
+
     document.querySelectorAll('textarea[oninput="autoResize(this)"]').forEach(el => autoResize(el));
     
     const iStyle = document.getElementById('invoice_style_input')?.value || 'classic';
@@ -704,6 +781,11 @@
     const menu = document.getElementById('currencyMenu');
     const search = document.getElementById('currencySearch');
     if (!menu) return;
+    
+    // Close other menus
+    document.getElementById('systemLanguageMenu')?.classList.add('hidden');
+    document.getElementById('documentLanguageMenu')?.classList.add('hidden');
+
     menu.classList.toggle('hidden');
     if (!menu.classList.contains('hidden') && search) {
       search.value = "";
@@ -712,8 +794,76 @@
     }
   };
 
+  window.toggleSystemLanguageMenu = function(e) {
+    if (e) e.stopPropagation();
+    const menu = document.getElementById('systemLanguageMenu');
+    if (!menu) return;
+
+    // Close other menus
+    document.getElementById('currencyMenu')?.classList.add('hidden');
+    document.getElementById('documentLanguageMenu')?.classList.add('hidden');
+
+    menu.classList.toggle('hidden');
+  };
+
+  window.toggleDocumentLanguageMenu = function(e) {
+    if (e) e.stopPropagation();
+    const menu = document.getElementById('documentLanguageMenu');
+    if (!menu) return;
+
+    // Close other menus
+    document.getElementById('currencyMenu')?.classList.add('hidden');
+    document.getElementById('systemLanguageMenu')?.classList.add('hidden');
+
+    menu.classList.toggle('hidden');
+  };
+
+  window.selectSystemLanguage = function(code) {
+    const hiddenField = document.getElementById('system_language_hidden_field');
+    if (hiddenField) hiddenField.value = code;
+    updateSystemLanguageDisplay(code);
+    document.getElementById('systemLanguageMenu')?.classList.add('hidden');
+  };
+
+  window.selectDocumentLanguage = function(code) {
+    const hiddenField = document.getElementById('document_language_hidden_field');
+    if (hiddenField) hiddenField.value = code;
+    updateDocumentLanguageDisplay(code);
+    document.getElementById('documentLanguageMenu')?.classList.add('hidden');
+  };
+
+  window.updateSystemLanguageDisplay = function(code) {
+    const flag = document.getElementById('systemLangFlag');
+    const text = document.getElementById('systemLangText');
+    if (!flag || !text) return;
+    
+    if (code === 'ka') {
+      flag.className = "fi fi-ge rounded-sm shadow-sm";
+      text.innerText = "GEORGIAN";
+    } else {
+      flag.className = "fi fi-us rounded-sm shadow-sm";
+      text.innerText = "ENGLISH";
+    }
+  };
+
+  window.updateDocumentLanguageDisplay = function(code) {
+    const flag = document.getElementById('documentLangFlag');
+    const text = document.getElementById('documentLangText');
+    if (!flag || !text) return;
+    
+    if (code === 'ka') {
+      flag.className = "fi fi-ge rounded-sm shadow-sm";
+      text.innerText = "GEORGIAN";
+    } else {
+      flag.className = "fi fi-us rounded-sm shadow-sm";
+      text.innerText = "ENGLISH";
+    }
+  };
+
   document.addEventListener('click', () => {
     document.getElementById('currencyMenu')?.classList.add('hidden');
+    document.getElementById('systemLanguageMenu')?.classList.add('hidden');
+    document.getElementById('documentLanguageMenu')?.classList.add('hidden');
   });
 
   // PDF Modal
