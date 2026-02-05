@@ -126,7 +126,7 @@
         <svg class="h-2.5 w-2.5 text-amber-500">
           <use xlink:href="#icon-star-filled"></use>
         </svg>
-        Pinned
+                  <span class="text-[9px] font-black uppercase tracking-widest text-orange-600"><%= t('pinned') %></span>
       </div>
     </div>
   <% end %>
@@ -221,7 +221,7 @@
                 <svg class="h-2.5 w-2.5 sm:h-3 sm:w-3 shrink-0">
                   <use xlink:href="#icon-clock"></use>
                 </svg>
-                <span class="leading-none">Due: <%= log.due_date %></span>
+                <span class="leading-none text-xs sm:text-sm"><%= t('due') %>: <%= log.due_date %></span>
               </div>
            <% end %>
          </div>
@@ -325,7 +325,7 @@
                   <path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd" />
                 </svg>
               </div>
-              <span class="text-xs font-black text-gray-400 uppercase tracking-widest">Other</span>
+              <span class="text-xs font-black text-gray-400 uppercase tracking-widest"><%= t('other') %></span>
             </div>
             <% stats[:categorized_items][:other].each do |item| %>
               <%= render partial: "home/history_item", locals: { item: item, profile: @profile, currency: currency } %>
@@ -342,7 +342,7 @@
                   <use xlink:href="#icon-credit"></use>
                 </svg>
               </div>
-              <span class="text-xs font-black text-red-400 uppercase tracking-widest">Credits</span>
+              <span class="text-xs font-black text-red-400 uppercase tracking-widest"><%= t('credits_title') %></span>
             </div>
             <% stats[:credits].each do |credit| %>
               <div class="flex justify-between items-center text-sm">

@@ -342,7 +342,6 @@
             </div>
           </div>
           
-          <!-- CTA Button -->
           <%= link_to new_user_registration_path, class: "group flex items-center justify-center gap-2 w-full py-3.5 md:py-4 bg-orange-600 hover:bg-orange-700 rounded-xl md:rounded-2xl text-[10px] md:text-xs font-black text-white uppercase tracking-widest transition-all active:scale-[0.98] shadow-lg shadow-orange-600/20" do %>
             <%= t('sign_up_free') %>
             <svg class="w-3 h-3 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1470,7 +1469,7 @@
     const modalTitle = modal.querySelector('h2');
     
     logIdInput.value = JSON.stringify(ids);
-    modalTitle.innerHTML = ids.length > 1 ? `BULK <span class="text-orange-600">MANAGE</span>` : `MANAGE <span class="text-orange-600">CATEGORIES</span>`;
+    modalTitle.innerHTML = ids.length > 1 ? `<%= t('bulk_manage').split(' ').first %> <span class="text-orange-600"><%= t('bulk_manage').split(' ').last %></span>` : `<%= t('manage_categories').split(' ').first %> <span class="text-orange-600"><%= t('manage_categories').split(' ').last %></span>`;
 
     // Process initial states
     // If multiple logs, only check categories that are present in ALL logs
@@ -1569,7 +1568,7 @@
 
     const btn = document.getElementById('saveCategoriesBtn');
     btn.disabled = true;
-    btn.innerHTML = '<span class="animate-pulse">Saving...</span>';
+    btn.innerHTML = '<span class="animate-pulse"><%= t('saving') %></span>';
 
     fetch('/logs/bulk_update_categories', {
       method: 'PATCH',
@@ -1814,7 +1813,7 @@
       return;
     }
     
-    document.getElementById('bulkCount').textContent = `${selectedLogIds.length} ${selectedLogIds.length === 1 ? 'ITEM' : 'ITEMS'}`;
+    document.getElementById('bulkCount').textContent = `${selectedLogIds.length} ${selectedLogIds.length === 1 ? '<%= t('item') %>' : '<%= t('items_plural') %>'}`;
     
     // Update Pin Icon 
     const isAllPinned = selectedLogIds.every(id => {
@@ -1862,7 +1861,7 @@
     const btn = document.querySelector('#bulkDeleteModal button[onclick="performBulkDelete()"]');
     
     btn.disabled = true;
-    btn.innerHTML = '<span class="animate-pulse">Deleting...</span>';
+    btn.innerHTML = '<span class="animate-pulse"><%= t('deleting') %></span>';
 
     idsToDelete.forEach(id => {
       fetch(`/logs/${id}`, {
@@ -1907,11 +1906,7 @@
         const count = detailView.querySelectorAll('.log-card').length;
         elements.forEach(el => {
           // Check if it's a detail header or a tile count based on class or ID
-          if (el.id.includes('detail')) {
-            el.textContent = `${count} Items Found`;
-          } else {
-            el.textContent = `${count} Items`;
-          }
+            el.textContent = `${count} <%= t('items_found') %>`;
         });
       }
     }

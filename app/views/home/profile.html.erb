@@ -9,7 +9,7 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
         </svg>
       <% end %>
-      <h1 class="text-xl md:text-2xl font-black tracking-tighter text-black uppercase italic truncate pr-2">Profile</h1>
+      <h1 class="text-xl md:text-2xl font-black tracking-tighter text-black uppercase italic truncate pr-2"><%= t('profile') %></h1>
     </div>
     
     <%# Mobile Save Icon %>
@@ -18,7 +18,7 @@
         <path stroke-linecap="round" stroke-linejoin="round" d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
         <path stroke-linecap="round" stroke-linejoin="round" d="M17 21v-8H7v8M9 3v5h6V3M10 18h4" />
       </svg>
-      <span class="text-[10px] font-black uppercase tracking-widest">Save Changes</span>
+      <span class="text-[10px] font-black uppercase tracking-widest"><%= t('save_changes') %></span>
     </button>
   </header>
 
@@ -27,7 +27,7 @@
       <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
         <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
       </svg>
-      <span>Changes Saved!</span>
+      <span><%= t('changes_saved') %></span>
     </div>
   </div>
 
@@ -51,8 +51,8 @@
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
             </div>
-            <h3 class="text-2xl font-black italic tracking-tighter uppercase leading-none text-white">Free Account</h3>
-            <p class="text-[10px] font-black uppercase tracking-[0.2em] text-orange-500/80">Business Profile Perks</p>
+            <h3 class="text-2xl font-black italic tracking-tighter uppercase leading-none text-white"><%= t('free_account') %></h3>
+            <p class="text-[10px] font-black uppercase tracking-[0.2em] text-orange-500/80"><%= t('business_profile_perks') %></p>
           </div>
           
           <!-- Benefits Grid: 2x2 for clean layout -->
@@ -64,7 +64,7 @@
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
               </div>
-              <span class="text-[9px] font-black text-white uppercase tracking-widest leading-tight">Your Logo</span>
+              <span class="text-[9px] font-black text-white uppercase tracking-widest leading-tight"><%= t('your_logo') %></span>
             </div>
             <!-- Benefit 2: Details -->
             <div class="bg-white/5 border border-white/10 rounded-2xl p-3 flex flex-col items-center text-center gap-2">
@@ -73,7 +73,7 @@
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                 </svg>
               </div>
-              <span class="text-[9px] font-black text-white uppercase tracking-widest leading-tight">Business Info</span>
+              <span class="text-[9px] font-black text-white uppercase tracking-widest leading-tight"><%= t('business_info') %></span>
             </div>
             <!-- Benefit 3: Payment -->
             <div class="bg-white/5 border border-white/10 rounded-2xl p-3 flex flex-col items-center text-center gap-2">
@@ -82,7 +82,7 @@
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                 </svg>
               </div>
-              <span class="text-[9px] font-black text-white uppercase tracking-widest leading-tight">Payment Details</span>
+              <span class="text-[9px] font-black text-white uppercase tracking-widest leading-tight"><%= t('payment_details') %></span>
             </div>
             <!-- Benefit 4: Tax -->
             <div class="bg-white/5 border border-white/10 rounded-2xl p-3 flex flex-col items-center text-center gap-2">
@@ -91,13 +91,13 @@
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <span class="text-[9px] font-black text-white uppercase tracking-widest leading-tight">Tax ID Info</span>
+              <span class="text-[9px] font-black text-white uppercase tracking-widest leading-tight"><%= t('tax_id_info') %></span>
             </div>
           </div>
 
           <!-- Action Button -->
           <%= link_to new_user_registration_path, class: "w-full py-4 bg-orange-600 hover:bg-orange-500 text-white rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-[0_4px_20px_rgba(234,88,12,0.4)] transition-all flex items-center justify-center gap-2 group" do %>
-            SIGN UP FREE
+            <%= t('sign_up_free') %>
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transform group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
               <path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
             </svg>
@@ -111,16 +111,16 @@
     <div class="space-y-6 pt-0">
       <div class="space-y-2">
         <div class="flex items-center gap-2">
-          <label class="text-[10px] font-black text-orange-600 uppercase tracking-widest ml-1">Company / Name</label>
-          <span class="bg-orange-100 text-orange-600 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-orange-200">SHOWS UP IN INVOICE</span>
+          <label class="text-[10px] font-black text-orange-600 uppercase tracking-widest ml-1"><%= t('company_name') %></label>
+          <span class="bg-orange-100 text-orange-600 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-orange-200"><%= t('shows_up_in_invoice') %></span>
         </div>
         <%= f.text_field :business_name, placeholder: "e.g. Acme Industries, Inc.", class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", disabled: is_guest %>
       </div>
 
       <div class="space-y-3">
         <div class="flex items-center gap-2">
-          <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1">Business Logo</label>
-          <span class="bg-orange-100 text-orange-600 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-orange-200">SHOWS UP IN INVOICE</span>
+          <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1"><%= t('business_logo') %></label>
+          <span class="bg-orange-100 text-orange-600 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-orange-200"><%= t('shows_up_in_invoice') %></span>
         </div>
         <div class="w-full bg-white border-2 border-black rounded-xl p-6 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
           
@@ -135,7 +135,7 @@
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
-                <span class="text-xs font-black uppercase tracking-widest text-gray-300">No Logo Set</span>
+                <span class="text-xs font-black uppercase tracking-widest text-gray-300"><%= t('no_logo_set') %></span>
              </div>
              <img id="client-preview" class="hidden absolute inset-0 w-full h-full object-contain bg-white p-4" />
           </div>
@@ -143,22 +143,22 @@
           <!-- Controls Footer -->
           <div class="flex flex-col md:flex-row items-center justify-between gap-4">
              <div class="flex flex-col items-center md:items-start text-[10px] font-bold text-gray-400 uppercase tracking-wider leading-tight text-center md:text-left">
-               <span>Supports PNG, JPG</span>
-               <span>Max File Size: 2MB</span>
+               <span><%= t('supports_formats') %></span>
+               <span><%= t('max_file_size') %></span>
              </div>
 
              <div class="flex items-center gap-3 w-full md:w-auto">
                <% if @profile.logo.attached? %>
                   <button type="button" id="remove_logo_btn" onclick="<%= is_guest ? '' : 'markLogoForRemoval()' %>" class="flex-1 md:flex-none text-[10px] font-black uppercase tracking-widest text-red-600 border-2 border-red-100 bg-red-50 px-4 py-3 rounded-lg hover:bg-red-100 transition-all text-center <%= 'opacity-50 cursor-not-allowed' if is_guest %>">
-                    Remove
+                    <%= t('remove') %>
                   </button>
                   <%= f.hidden_field :remove_logo, value: "0", id: "remove_logo_field" %>
                <% end %>
 
                <%= f.label :logo, class: "flex-1 md:flex-none cursor-pointer text-xs font-black uppercase tracking-widest text-white border-2 border-black bg-black px-6 py-3 rounded-lg hover:bg-orange-600 hover:border-orange-600 active:translate-y-[1px] transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:shadow-none text-center flex items-center justify-center gap-2 group #{is_guest ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}" do %>
                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-                 <span class="md:hidden">Upload</span>
-                 <span class="hidden md:inline">Upload Logo</span>
+                 <span class="md:hidden"><%= t('upload') %></span>
+                 <span class="hidden md:inline"><%= t('upload_logo') %></span>
                  <%= f.file_field :logo, class: "hidden", accept: "image/png,image/jpeg,image/jpg", onchange: "previewImage(this)", disabled: is_guest %>
                <% end %>
              </div>
@@ -172,26 +172,26 @@
       <div class="space-y-2">
         <div class="flex justify-between items-center">
           <div class="flex items-center gap-2">
-            <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1">Payment Instructions</label>
-            <span class="bg-orange-100 text-orange-600 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-orange-200">SHOWS UP IN INVOICE</span>
+            <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1"><%= t('payment_instructions') %></label>
+            <span class="bg-orange-100 text-orange-600 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-orange-200"><%= t('shows_up_in_invoice') %></span>
           </div>
-          <span id="payment_instructions_counter" class="hidden text-[9px] font-black uppercase text-gray-400">max 50 chars / line</span>
+          <span id="payment_instructions_counter" class="hidden text-[9px] font-black uppercase text-gray-400"><%= t('max_chars_per_line') %></span>
         </div>
         <%= f.text_area :payment_instructions, rows: 3, placeholder: "e.g. Bank: Chase \nRouting: 123456789 \nAccount: 987654321", class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-medium text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all resize-none custom-scrollbar disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", onkeydown: "return checkCharLimit(event, this, 50, 8)", oninput: "limitLinesAndChars(this, 50, 8); autoResize(this)", style: "min-height: 120px; max-height: 300px;", disabled: is_guest %>
       </div>
 
       <div class="space-y-2">
         <div class="flex items-center gap-2">
-          <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1">Email</label>
-          <span class="bg-orange-100 text-orange-600 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-orange-200">SHOWS UP IN INVOICE</span>
+          <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1"><%= t('email') %></label>
+          <span class="bg-orange-100 text-orange-600 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-orange-200"><%= t('shows_up_in_invoice') %></span>
         </div>
         <%= f.email_field :email, placeholder: "e.g. billing@acme.com", class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", disabled: is_guest %>
       </div>
 
       <div class="space-y-2">
         <div class="flex items-center gap-2">
-            <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1">Phone</label>
-            <span class="bg-orange-100 text-orange-600 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-orange-200">SHOWS UP IN INVOICE</span>
+            <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1"><%= t('phone') %></label>
+            <span class="bg-orange-100 text-orange-600 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-orange-200"><%= t('shows_up_in_invoice') %></span>
         </div>
         <%= f.text_field :phone, placeholder: "e.g. +1 (555) 123-4567", class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", disabled: is_guest %>
       </div>
@@ -199,8 +199,8 @@
       <div class="space-y-2">
         <div class="flex justify-between items-center">
           <div class="flex items-center gap-2">
-            <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1">Address</label>
-            <span class="bg-orange-100 text-orange-600 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-orange-200">SHOWS UP IN INVOICE</span>
+            <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1"><%= t('address') %></label>
+            <span class="bg-orange-100 text-orange-600 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-orange-200"><%= t('shows_up_in_invoice') %></span>
           </div>
           <span id="address_counter" class="hidden text-[9px] font-black uppercase text-gray-400">max 50 chars / line</span>
         </div>
@@ -209,7 +209,7 @@
 
       <div class="space-y-2">
         <div class="flex items-center gap-2">
-            <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1">Tax ID</label>
+            <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1"><%= t('tax_id') %></label>
             <span class="bg-orange-100 text-orange-600 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-orange-200">SHOWS UP IN INVOICE</span>
         </div>
         <%= f.text_field :tax_id, placeholder: "e.g. EIN-12-3456789", class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", disabled: is_guest %>
@@ -220,11 +220,11 @@
       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
         <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
       </svg>
-      <span>Sign Up to Save</span>
+      <span><%= t('sign_up_to_save') %></span>
     <% end %>
 
     <button type="submit" id="saveProfileBtn" class="<%= is_guest ? 'hidden' : 'flex' %> w-full bg-orange-600 text-white border-2 border-black font-black py-4 rounded-xl shadow-[4px_4px_0px_0px_#000000] active:scale-[0.97] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all uppercase text-xs tracking-[0.2em] items-center justify-center gap-3 save-btn-hover">
-      <span id="btnText">Save Profile</span>
+      <span id="btnText"><%= t('save_settings') %></span>
       <div id="btnSpinner" class="hidden">
         <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -506,15 +506,15 @@
                 </svg>
             </div>
             <div class="space-y-2">
-                <h3 class="text-xl font-black uppercase tracking-tighter italic">Remove Logo?</h3>
-                <p class="text-xs font-bold text-gray-500 uppercase tracking-widest leading-relaxed">This action cannot be undone unless you upload a new logo.</p>
+                <h3 class="text-xl font-black uppercase tracking-tighter italic"><%= t('remove_logo_confirm') %></h3>
+                <p class="text-xs font-bold text-gray-500 uppercase tracking-widest leading-relaxed"><%= t('remove_logo_hint') %></p>
             </div>
             <div class="flex flex-col w-full gap-3">
                <button type="button" onclick="confirmRemoveLogo()" class="w-full py-4 bg-red-600 text-white rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-[4px_4px_0px_0px_#991b1b] active:scale-[0.97] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all border-2 border-black hover:bg-red-700">
-                  Yes, Remove It
+                  <%= t('yes_remove_it') %>
                </button>
                <button type="button" onclick="closeRemoveLogoModal()" class="w-full py-4 bg-white text-black rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-[4px_4px_0px_0px_#000000] active:scale-[0.97] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all border-2 border-black hover:bg-gray-50">
-                  Cancel
+                  <%= t('cancel') %>
                </button>
             </div>
         </div>
