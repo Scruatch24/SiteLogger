@@ -1,5 +1,7 @@
 <% is_guest = @profile.guest? && !user_signed_in? %>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.2.3/css/flag-icons.min.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 
 <div class="min-h-screen bg-white text-black font-sans p-4 pb-24 md:pb-4">
   <header class="sticky top-0 z-40 bg-white border-b-2 border-black md:border-b-0 md:static md:bg-transparent -mx-4 px-4 py-3 mb-2 md:mb-10 md:pt-4 md:px-1 flex items-center justify-between shadow-sm md:shadow-none">
@@ -9,7 +11,7 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
         </svg>
       <% end %>
-      <h1 class="text-xl md:text-2xl font-black tracking-tighter text-black uppercase italic truncate pr-2"><%= t('profile') %></h1>
+      <h1 class="text-xl md:text-2xl font-black tracking-tighter text-black uppercase truncate pr-2 pb-1 leading-normal"><%= t('profile') %></h1>
     </div>
     
     <%# Mobile Save Icon %>
@@ -51,7 +53,7 @@
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
             </div>
-            <h3 class="text-2xl font-black italic tracking-tighter uppercase leading-none text-white"><%= t('free_account') %></h3>
+            <h3 class="text-2xl font-black tracking-tighter uppercase leading-none text-white"><%= t('free_account') %></h3>
             <p class="text-[10px] font-black uppercase tracking-[0.2em] text-orange-500/80"><%= t('business_profile_perks') %></p>
           </div>
           
@@ -111,15 +113,15 @@
     <div class="space-y-6 pt-0">
       <div class="space-y-2">
         <div class="flex items-center gap-2">
-          <label class="text-[10px] font-black text-orange-600 uppercase tracking-widest ml-1"><%= t('company_name') %></label>
+          <label class="text-[12px] font-black text-orange-600 uppercase tracking-widest ml-1"><%= t('company_name') %></label>
           <span class="bg-orange-100 text-orange-600 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-orange-200"><%= t('shows_up_in_invoice') %></span>
         </div>
-        <%= f.text_field :business_name, placeholder: "e.g. Acme Industries, Inc.", class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", disabled: is_guest %>
+        <%= f.text_field :business_name, placeholder: t('business_name_placeholder'), class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", disabled: is_guest %>
       </div>
 
       <div class="space-y-3">
         <div class="flex items-center gap-2">
-          <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1"><%= t('business_logo') %></label>
+          <label class="text-[12px] font-black text-black uppercase tracking-widest ml-1"><%= t('business_logo') %></label>
           <span class="bg-orange-100 text-orange-600 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-orange-200"><%= t('shows_up_in_invoice') %></span>
         </div>
         <div class="w-full bg-white border-2 border-black rounded-xl p-6 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
@@ -127,6 +129,18 @@
           <!-- Large Preview Area -->
           <div class="w-full h-48 bg-gray-50 border-2 border-dashed border-gray-200 rounded-lg flex items-center justify-center relative overflow-hidden mb-6 group hover:border-orange-200 transition-colors">
              <% logo_present = @profile.logo.attached? && @profile.logo.persisted? %>
+             
+             <!-- Crop Button (Pencil Icon) -->
+             <button type="button" 
+                     id="crop_logo_btn" 
+                     onclick="openCropModal()" 
+                     class="absolute top-2 left-2 z-20 w-8 h-8 flex items-center justify-center bg-white border border-gray-200 rounded-lg shadow-sm text-gray-500 hover:text-orange-600 hover:border-orange-200 transition-colors <%= logo_present ? '' : 'hidden' %>"
+                     title="<%= t('crop_image', default: 'Crop Image') %>">
+               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                 <path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+               </svg>
+             </button>
+
              <% if logo_present %>
                 <%= image_tag @profile.logo, id: "logo-preview", class: "max-w-full max-h-full object-contain p-4 relative z-10" %>
              <% end %>
@@ -148,9 +162,13 @@
              </div>
 
              <div class="flex items-center gap-3 w-full md:w-auto">
-               <% if @profile.logo.attached? %>
-                  <button type="button" id="remove_logo_btn" onclick="<%= is_guest ? '' : 'markLogoForRemoval()' %>" class="flex-1 md:flex-none text-[10px] font-black uppercase tracking-widest text-red-600 border-2 border-red-100 bg-red-50 px-4 py-3 rounded-lg hover:bg-red-100 transition-all text-center <%= 'opacity-50 cursor-not-allowed' if is_guest %>">
-                    <%= t('remove') %>
+                <% if @profile.logo.attached? %>
+                  <button type="button" id="remove_logo_btn" 
+                          data-delete-text="<%= t('delete') %>" 
+                          data-removed-text="<%= t('removed') %>"
+                          onclick="<%= is_guest ? '' : 'markLogoForRemoval()' %>" 
+                          class="flex-1 md:flex-none text-[10px] font-black uppercase tracking-widest text-red-600 border-2 border-red-100 bg-red-50 px-4 py-3 rounded-lg hover:bg-red-100 transition-all text-center <%= 'opacity-50 cursor-not-allowed' if is_guest %>">
+                    <%= t('delete') %>
                   </button>
                   <%= f.hidden_field :remove_logo, value: "0", id: "remove_logo_field" %>
                <% end %>
@@ -172,56 +190,54 @@
       <div class="space-y-2">
         <div class="flex justify-between items-center">
           <div class="flex items-center gap-2">
-            <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1"><%= t('payment_instructions') %></label>
+            <label class="text-[12px] font-black text-black uppercase tracking-widest ml-1"><%= t('payment_instructions') %></label>
             <span class="bg-orange-100 text-orange-600 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-orange-200"><%= t('shows_up_in_invoice') %></span>
           </div>
           <span id="payment_instructions_counter" class="hidden text-[9px] font-black uppercase text-gray-400"><%= t('max_chars_per_line') %></span>
         </div>
-        <%= f.text_area :payment_instructions, rows: 3, placeholder: "e.g. Bank: Chase \nRouting: 123456789 \nAccount: 987654321", class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-medium text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all resize-none custom-scrollbar disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", onkeydown: "return checkCharLimit(event, this, 50, 8)", oninput: "limitLinesAndChars(this, 50, 8); autoResize(this)", style: "min-height: 120px; max-height: 300px;", disabled: is_guest %>
+        <%= f.text_area :payment_instructions, rows: 3, placeholder: t('payment_instructions_placeholder'), class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-medium text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all resize-none custom-scrollbar disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", onkeydown: "return checkCharLimit(event, this, 50, 8)", oninput: "limitLinesAndChars(this, 50, 8); autoResize(this)", style: "min-height: 120px; max-height: 300px;", disabled: is_guest %>
       </div>
 
       <div class="space-y-2">
         <div class="flex items-center gap-2">
-          <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1"><%= t('email') %></label>
+          <label class="text-[12px] font-black text-black uppercase tracking-widest ml-1"><%= t('email') %></label>
           <span class="bg-orange-100 text-orange-600 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-orange-200"><%= t('shows_up_in_invoice') %></span>
         </div>
-        <%= f.email_field :email, placeholder: "e.g. billing@acme.com", class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", disabled: is_guest %>
+        <%= f.email_field :email, placeholder: t('email_placeholder'), class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", disabled: is_guest %>
       </div>
 
       <div class="space-y-2">
         <div class="flex items-center gap-2">
-            <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1"><%= t('phone') %></label>
+            <label class="text-[12px] font-black text-black uppercase tracking-widest ml-1"><%= t('phone') %></label>
             <span class="bg-orange-100 text-orange-600 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-orange-200"><%= t('shows_up_in_invoice') %></span>
         </div>
-        <%= f.text_field :phone, placeholder: "e.g. +1 (555) 123-4567", class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", disabled: is_guest %>
+        <%= f.text_field :phone, placeholder: t('phone_placeholder'), class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", disabled: is_guest %>
       </div>
 
       <div class="space-y-2">
         <div class="flex justify-between items-center">
           <div class="flex items-center gap-2">
-            <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1"><%= t('address') %></label>
+            <label class="text-[12px] font-black text-black uppercase tracking-widest ml-1"><%= t('address') %></label>
             <span class="bg-orange-100 text-orange-600 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-orange-200"><%= t('shows_up_in_invoice') %></span>
           </div>
-          <span id="address_counter" class="hidden text-[9px] font-black uppercase text-gray-400">max 50 chars / line</span>
+          <span id="address_counter" class="hidden text-[9px] font-black uppercase text-gray-400"><%= t('max_chars_per_line') %></span>
         </div>
-        <%= f.text_area :address, rows: 3, placeholder: "e.g. 123 Industrial Parkway\nSuite 200\nChicago, IL 60601", class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-medium text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all resize-none custom-scrollbar disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", onkeydown: "return checkCharLimit(event, this, 50, 4)", oninput: "limitLinesAndChars(this, 50, 4); autoResize(this)", style: "min-height: 100px; max-height: 200px;", disabled: is_guest %>
+        <%= f.text_area :address, rows: 3, placeholder: t('address_placeholder'), class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-medium text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all resize-none custom-scrollbar disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", onkeydown: "return checkCharLimit(event, this, 50, 4)", oninput: "limitLinesAndChars(this, 50, 4); autoResize(this)", style: "min-height: 100px; max-height: 200px;", disabled: is_guest %>
       </div>
 
       <div class="space-y-2">
         <div class="flex items-center gap-2">
-            <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1"><%= t('tax_id') %></label>
-            <span class="bg-orange-100 text-orange-600 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-orange-200">SHOWS UP IN INVOICE</span>
+            <label class="text-[12px] font-black text-black uppercase tracking-widest ml-1"><%= t('tax_id') %></label>
+            <span class="bg-orange-100 text-orange-600 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-orange-200"><%= t('shows_up_in_invoice') %></span>
         </div>
-        <%= f.text_field :tax_id, placeholder: "e.g. EIN-12-3456789", class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", disabled: is_guest %>
+        <%= f.text_field :tax_id, placeholder: t('tax_id_placeholder'), class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", disabled: is_guest %>
       </div>
-    </div>
-
-    <%= link_to new_user_registration_path, class: "w-full bg-orange-600/40 text-white/60 border-2 border-white/10 font-black py-4 rounded-xl transition-all uppercase text-xs tracking-[0.2em] items-center justify-center gap-3 cursor-pointer shadow-none #{is_guest ? 'flex' : 'hidden'}" do %>
+    <div class="w-full bg-orange-600/40 text-white/60 border-2 border-white/10 font-black py-4 rounded-xl transition-all uppercase text-xs tracking-[0.2em] items-center justify-center gap-3 shadow-none <%= is_guest ? 'flex' : 'hidden' %>">
       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
         <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
       </svg>
       <span><%= t('sign_up_to_save') %></span>
-    <% end %>
+    </div>
 
     <button type="submit" id="saveProfileBtn" class="<%= is_guest ? 'hidden' : 'flex' %> w-full bg-orange-600 text-white border-2 border-black font-black py-4 rounded-xl shadow-[4px_4px_0px_0px_#000000] active:scale-[0.97] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all uppercase text-xs tracking-[0.2em] items-center justify-center gap-3 save-btn-hover">
       <span id="btnText"><%= t('save_settings') %></span>
@@ -362,6 +378,8 @@
         const preview = document.getElementById('client-preview');
         const existingLogo = document.getElementById('logo-preview');
         const defaultIcon = document.getElementById('default-logo-icon');
+        const removeBtn = document.getElementById('remove_logo_btn');
+        const cropBtn = document.getElementById('crop_logo_btn');
         
         if (existingLogo) existingLogo.classList.add('hidden');
         if (defaultIcon) defaultIcon.classList.add('hidden');
@@ -369,12 +387,42 @@
         preview.src = e.target.result;
         preview.classList.remove('hidden');
         
+        // Show crop button
+        if (cropBtn) cropBtn.classList.remove('hidden');
+        
         // Reset remove flag if user uploads new one
         const removeField = document.getElementById('remove_logo_field');
         if (removeField) removeField.value = "0";
+
+        // Restore button state
+        if (removeBtn) {
+          removeBtn.classList.remove('hidden');
+          removeBtn.innerText = removeBtn.dataset.deleteText;
+          removeBtn.classList.remove('opacity-50', 'cursor-not-allowed', 'grayscale');
+          removeBtn.classList.remove('bg-gray-100', 'text-gray-400', 'border-gray-200');
+          removeBtn.classList.add('text-red-600', 'bg-red-50', 'border-red-100');
+          
+          // CRITICAL: Reset the onclick handler because confirmRemoveLogo overwrites it
+          removeBtn.onclick = markLogoForRemoval;
+        }
+
+        // Auto-Open Crop Modal
+        setTimeout(() => {
+           openCropModal();
+        }, 200);
       }
       reader.readAsDataURL(file);
     }
+  }
+
+  function openCropModal() {
+    // Placeholder for crop modal logic
+    console.log("Open crop modal");
+  }
+
+  function closeCropModal() {
+    // Placeholder for crop modal logic 
+    console.log("Close crop modal");
   }
 
   function markLogoForRemoval() {
@@ -398,22 +446,35 @@
     const logoPreview = document.getElementById('logo-preview');
     const defaultIcon = document.getElementById('default-logo-icon');
     const removeBtn = document.getElementById('remove_logo_btn');
-    const clientPreview = document.getElementById('client-preview'); // Ensure this is also hidden
+    const clientPreview = document.getElementById('client-preview');
+    const cropBtn = document.getElementById('crop_logo_btn');
       
     if (removeField) removeField.value = "1";
     
     // Hide visual image completely
     if (logoPreview) logoPreview.classList.add('hidden');
     if (clientPreview) clientPreview.classList.add('hidden');
+    if (cropBtn) cropBtn.classList.add('hidden');
     
     // Show default placeholder
     if (defaultIcon) defaultIcon.classList.remove('hidden');
 
     // Update button state
     if (removeBtn) {
-       removeBtn.innerText = "Removed";
-       removeBtn.classList.add('opacity-50', 'cursor-not-allowed');
-       removeBtn.onclick = null; // Prevent clicking again
+       removeBtn.innerText = removeBtn.dataset.removedText;
+       removeBtn.classList.add('grayscale', 'opacity-50');
+       removeBtn.classList.remove('text-red-600', 'bg-red-50', 'border-red-100');
+       removeBtn.classList.add('bg-gray-100', 'text-gray-400', 'border-gray-200');
+       
+       // Hide after 2.5 seconds or if clicked
+       const hideTimer = setTimeout(() => {
+         removeBtn.classList.add('hidden');
+       }, 2500);
+
+       removeBtn.onclick = () => {
+         clearTimeout(hideTimer);
+         removeBtn.classList.add('hidden');
+       };
     }
     
     closeRemoveLogoModal();
@@ -438,14 +499,14 @@
 
       if (btn) {
         btn.disabled = true;
-        text.innerText = "Saving...";
+        text.innerText = "<%= j t('saving') %>";
         spinner.classList.remove('hidden');
       }
 
       if (mobileBtn) {
         mobileBtn.disabled = true;
         mobileBtn.classList.add('opacity-70');
-        if (mobileBtnSpan) mobileBtnSpan.innerText = "Saving...";
+        if (mobileBtnSpan) mobileBtnSpan.innerText = "<%= j t('saving') %>";
       }
       
       try {
@@ -472,7 +533,7 @@
             toast.classList.remove('animate-bounce');
           }, 3000);
         } else {
-          alert("Error saving Profile.");
+          alert("<%= j t('error_saving_profile') %>");
         }
       } catch (error) {
         console.error("Save failed:", error);
@@ -506,7 +567,7 @@
                 </svg>
             </div>
             <div class="space-y-2">
-                <h3 class="text-xl font-black uppercase tracking-tighter italic"><%= t('remove_logo_confirm') %></h3>
+                <h3 class="text-xl font-black uppercase tracking-tighter"><%= t('remove_logo_confirm') %></h3>
                 <p class="text-xs font-bold text-gray-500 uppercase tracking-widest leading-relaxed"><%= t('remove_logo_hint') %></p>
             </div>
             <div class="flex flex-col w-full gap-3">
@@ -520,3 +581,204 @@
         </div>
     </div>
 </div>
+
+<!-- Crop Image Modal -->
+<div id="cropModal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/90 backdrop-blur-sm" onclick="closeCropModal()"></div>
+    <div class="relative bg-white border-2 border-black rounded-3xl overflow-hidden w-full max-w-2xl h-[80vh] flex flex-col shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] animate-in fade-in zoom-in duration-200">
+        
+        <!-- Header -->
+        <div class="flex items-center justify-between p-6 border-b-2 border-black bg-gray-50">
+           <h3 class="text-xl font-black uppercase tracking-tighter"><%= t('crop_image', default: 'Crop Image') %></h3>
+           <button type="button" onclick="closeCropModal()" class="p-2 hover:bg-gray-200 rounded-lg transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+           </button>
+        </div>
+
+        <!-- Crop Area -->
+        <div class="flex-1 bg-black/5 relative overflow-hidden flex items-center justify-center p-4">
+           <!-- Loader -->
+           <div id="crop_loader" class="absolute inset-0 z-20 flex items-center justify-center bg-gray-50/80 backdrop-blur-sm">
+             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600"></div>
+           </div>
+
+           <div class="w-full h-full"> 
+             <img id="crop_image_target" src="" class="max-w-full max-h-full block opacity-0 transition-opacity duration-300" />
+           </div>
+        </div>
+
+        <!-- Footer Actions -->
+        <div class="p-6 border-t-2 border-black bg-white flex justify-end gap-3 z-10">
+            <button type="button" onclick="closeCropModal()" class="py-3 px-6 bg-white text-black rounded-xl font-black uppercase text-xs tracking-[0.2em] shadow-[4px_4px_0px_0px_#000000] active:scale-[0.97] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all border-2 border-black hover:bg-gray-50">
+               <%= t('cancel') %>
+            </button>
+            <button type="button" onclick="saveCrop()" class="py-3 px-8 bg-orange-600 text-white rounded-xl font-black uppercase text-xs tracking-[0.2em] shadow-[4px_4px_0px_0px_#ea580c] active:scale-[0.97] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all border-2 border-black hover:bg-orange-700">
+               <%= t('save_crop', default: 'Save Crop') %>
+            </button>
+        </div>
+    </div>
+</div>
+
+
+<style>
+  /* CropperJS Customization (Orange Theme) */
+  .cropper-view-box, .cropper-face {
+    outline-color: #ea580c;
+  }
+  .cropper-line {
+    background-color: #ea580c;
+  }
+  .cropper-point {
+    background-color: #ea580c;
+  }
+  .cropper-point.point-se {
+    background-color: #ea580c; /* Bottom right handle */
+    width: 10px;
+    height: 10px;
+  }
+  /* Make the dashed outline orange as well */
+  .cropper-dashed {
+    border-color: #ea580c;
+  }
+  /* Optional: Center crosshair */
+  .cropper-center:before, .cropper-center:after {
+    background-color: #ea580c;
+  }
+</style>
+
+<script>
+  let cropper = null;
+
+  function openCropModal() {
+    const modal = document.getElementById('cropModal');
+    const imageTarget = document.getElementById('crop_image_target');
+    const loader = document.getElementById('crop_loader');
+    const preview = document.getElementById('client-preview'); // Newly uploaded
+    const existing = document.getElementById('logo-preview'); // Existing from server
+
+    // Determine source image
+    let src = null;
+    if (preview && !preview.classList.contains('hidden') && preview.src) {
+       src = preview.src;
+    } else if (existing && !existing.classList.contains('hidden') && existing.src) {
+       src = existing.src;
+    }
+
+    if (!src) return; // No image to crop
+
+    imageTarget.src = src;
+    imageTarget.classList.add('opacity-0'); // Hide initially
+    if (loader) loader.classList.remove('hidden'); // Show loader
+    
+    // Reset cropper if exists
+    if (cropper) {
+      cropper.destroy();
+      cropper = null;
+    }
+
+    if (modal) {
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      
+      // Initialize cropper after modal is visible
+      setTimeout(() => {
+         cropper = new Cropper(imageTarget, {
+            viewMode: 1,
+            dragMode: 'move',
+            autoCropArea: 0.9,
+            restore: false,
+            guides: true,
+            center: true,
+            highlight: false,
+            cropBoxMovable: true,
+            cropBoxResizable: true,
+            toggleDragModeOnDblclick: false,
+            ready: function() {
+               // Cropper is ready: hide loader, show image
+               if (loader) loader.classList.add('hidden');
+               imageTarget.classList.remove('opacity-0');
+            }
+         });
+      }, 100);
+    }
+  }
+
+  function closeCropModal() {
+    const modal = document.getElementById('cropModal');
+    if (modal) {
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+    if (cropper) {
+       cropper.destroy();
+       cropper = null;
+    }
+
+    // Auto-Save logic:
+    // If the file input has a file (meaning user uploaded something or cropped something),
+    // we assume they want to save it now that they are leaving the crop flow.
+    submitProfileFormIfFilesSelected();
+  }
+
+  function submitProfileFormIfFilesSelected() {
+    const fileInput = document.querySelector('input[type="file"][name="profile[logo]"]');
+    const form = document.getElementById('profileForm');
+    
+    // Check if input has files and form exists
+    if (fileInput && fileInput.files && fileInput.files.length > 0 && form) {
+      // Use requestSubmit to trigger Rails remote form submission nicely
+      form.requestSubmit();
+      
+      // Optional: Show some feedback? The form usually handles its own 'saving...' state via UJS
+      // but we can ensure the button shows loading if needed.
+    }
+  }
+
+  function saveCrop() {
+    if (!cropper) return;
+
+    // Get cropped canvas
+    const canvas = cropper.getCroppedCanvas({
+       maxWidth: 1024,
+       maxHeight: 1024,
+       fillColor: '#fff',
+       imageSmoothingEnabled: true,
+       imageSmoothingQuality: 'high',
+    });
+
+    if (canvas) {
+       // Convert to blob and update file input
+       canvas.toBlob((blob) => {
+          // 1. Update Preview
+          const url = URL.createObjectURL(blob);
+          const clientPreview = document.getElementById('client-preview');
+          const existingLogo = document.getElementById('logo-preview');
+          const defaultIcon = document.getElementById('default-logo-icon');
+          
+          if (existingLogo) existingLogo.classList.add('hidden');
+          if (defaultIcon) defaultIcon.classList.add('hidden');
+          
+          if (clientPreview) {
+             clientPreview.src = url;
+             clientPreview.classList.remove('hidden');
+          }
+
+          // 2. Update File Input
+          const fileInput = document.querySelector('input[type="file"][name="profile[logo]"]');
+          if (fileInput) {
+             const file = new File([blob], "cropped-logo.png", { type: "image/png" });
+             const dataTransfer = new DataTransfer();
+             dataTransfer.items.add(file);
+             fileInput.files = dataTransfer.files;
+             
+             // Ensure remove field is 0
+             const removeField = document.getElementById('remove_logo_field');
+             if (removeField) removeField.value = "0";
+          }
+          
+          // Close modal (which triggers auto-save via submitProfileFormIfFilesSelected)
+          closeCropModal();
+       }, 'image/png');
+    }
+  }
+</script>

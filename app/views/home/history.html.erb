@@ -226,8 +226,12 @@
           <use xlink:href="#icon-chevron-down" style="transform: rotate(90deg); transform-origin: center;"></use>
         </svg>
       <% end %>
-      <h1 class="text-xl md:text-2xl font-black tracking-tighter text-black uppercase italic truncate pr-2">
-        <%= t('history') %> <span class="text-orange-600"><%= t('history_logs').split(' ').last %></span>
+      <h1 class="text-xl md:text-2xl font-black tracking-tighter text-black uppercase truncate pr-2 pb-1 leading-normal">
+        <% if I18n.locale == :ka %>
+          <%= t('history') %>
+        <% else %>
+          <%= t('history') %> <span class="text-orange-600"><%= t('history_logs').split(' ').last %></span>
+        <% end %>
       </h1>
     </div>
   </header>
@@ -295,7 +299,7 @@
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
             </div>
-            <h3 class="text-2xl md:text-3xl font-black italic tracking-tighter uppercase leading-none text-white"><%= t('free_account') %></h3>
+            <h3 class="text-2xl md:text-3xl font-black tracking-tighter uppercase leading-none text-white"><%= t('free_account') %></h3>
             <p class="text-[10px] font-black uppercase tracking-[0.2em] text-orange-500/80"><%= t('premium_features') %></p>
           </div>
           
@@ -455,7 +459,7 @@
                 </svg>
               </div>
               <div>
-                <h2 class="text-2xl font-black uppercase italic tracking-tighter"><%= t('favorites').upcase %></h2>
+                <h2 class="text-2xl font-black uppercase tracking-tighter"><%= t('favorites').upcase %></h2>
                 <p id="fav-detail-count" class="text-xs font-bold text-gray-400 uppercase tracking-widest" data-category-count="favorites"><%= favorites.size %> <%= t('items_found') %></p>
               </div>
             </div>
@@ -488,7 +492,7 @@
                      <% end %>
                   </div>
                   <div>
-                    <h2 class="text-2xl font-black uppercase italic tracking-tighter"><%= category.name %></h2>
+                    <h2 class="text-2xl font-black uppercase tracking-tighter"><%= category.name %></h2>
                     <p id="cat-detail-count-<%= category.id %>" class="text-xs font-bold text-gray-400 uppercase tracking-widest" data-category-count="cat-<%= category.id %>"><%= category.logs.size %> <%= t('items_found') %></p>
                   </div>
                 </div>
@@ -532,7 +536,7 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
             </div>
-            <h2 class="text-2xl font-black uppercase italic tracking-tighter text-black mb-2"><%= t('client_crm_inbound').split(' ').first %> CRM <span class="text-orange-600"><%= t('client_crm_inbound').split(' ').last %></span></h2>
+            <h2 class="text-2xl font-black uppercase tracking-tighter text-black mb-2"><%= t('client_crm_inbound').split(' ').first %> CRM <span class="text-orange-600"><%= t('client_crm_inbound').split(' ').last %></span></h2>
             <p class="text-xs font-bold text-gray-400 uppercase tracking-widest"><%= t('crm_construction_hint') %></p>
          </div>
       </div>
@@ -544,7 +548,7 @@
   <div id="bulkActionBar" class="bulk-action-bar w-[calc(100%-32px)] max-w-lg">
     <div class="bulk-action-bar-inner w-full text-white rounded-3xl p-4 flex items-center justify-between">
       <div class="flex flex-col pl-2">
-        <span id="bulkCount" class="text-xl font-black italic tracking-tighter leading-none">0 <%= t('items').upcase %></span>
+        <span id="bulkCount" class="text-xl font-black tracking-tighter leading-none">0 <%= t('items').upcase %></span>
         <span class="text-[8px] font-black uppercase tracking-[0.2em] text-white/70"><%= t('selected') %></span>
       </div>
       
@@ -589,7 +593,7 @@
 <div id="addCategoryModal" class="modal-backdrop" style="z-index: 100;" onclick="closeAddCategoryModal(event)">
   <div class="modal-content" onclick="event.stopPropagation()">
     <div class="flex justify-between items-center mb-6">
-      <h2 class="text-xl font-black uppercase italic tracking-tighter">NEW <span class="text-orange-600">CATEGORY</span></h2>
+      <h2 class="text-xl font-black uppercase tracking-tighter"><%= t('new_category').split(' ').first %> <span class="text-orange-600"><%= t('new_category').split(' ').last %></span></h2>
       <button onclick="closeAddCategoryModal()" class="text-gray-400 hover:text-black transition-colors">
         <svg class="h-6 w-6">
           <use xlink:href="#icon-close"></use>
@@ -603,7 +607,7 @@
           <label class="block text-[10px] font-black uppercase tracking-widest text-gray-500"><%= t('category_name') %></label>
           <span id="categoryNameError" class="hidden text-[10px] font-black uppercase tracking-widest text-red-500 animate-pulse"><%= t('please_fill_field') %></span>
         </div>
-        <%= f.text_field :name, id: "categoryNameInput", placeholder: "e.g. Real Estate", 
+        <%= f.text_field :name, id: "categoryNameInput", placeholder: t('example_category_placeholder'), 
             class: "w-full px-4 py-3 bg-white border-2 border-black rounded-xl font-bold focus:outline-none focus:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all" %>
       </div>
 
@@ -656,7 +660,7 @@
 
       <div class="relative mb-8">
         <div class="flex items-center gap-2 mb-2">
-          <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">or</span>
+          <span class="text-[10px] font-black uppercase tracking-widest text-gray-400"><%= t('or') %></span>
           <div class="flex-1 h-[1px] bg-gray-100"></div>
         </div>
         
@@ -686,7 +690,7 @@
 <div id="manageCategoriesModal" class="modal-backdrop" style="z-index: 300;" onclick="closeManageCategoriesModal(event)">
   <div class="modal-content" onclick="event.stopPropagation()">
     <div class="flex justify-between items-center mb-6">
-      <h2 class="text-xl font-black uppercase italic tracking-tighter">MANAGE <span class="text-orange-600">CATEGORIES</span></h2>
+      <h2 class="text-xl font-black uppercase tracking-tighter"><%= t('manage') %> <span class="text-orange-600"><%= t('categories') %></span></h2>
       <button onclick="closeManageCategoriesModal()" class="text-gray-400 hover:text-black transition-colors">
         <svg class="h-6 w-6">
           <use xlink:href="#icon-close"></use>
@@ -722,7 +726,7 @@
                 </svg>
               <% end %>
             </div>
-            <span class="font-bold text-sm"><%= category.name %></span>
+            <span class="font-bold text-sm"><%= category.name == 'Favorites' ? t('favorites') : category.name %></span>
           </div>
           <input type="checkbox" value="<%= category.id %>" class="hidden" 
                  onchange="toggleCategorySelection(this)" data-state="unchecked">
@@ -751,7 +755,7 @@
     </div>
 
     <button id="saveCategoriesBtn" onclick="saveLogCategories()" class="w-full py-4 bg-orange-600 text-white rounded-xl font-black uppercase tracking-widest hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-700 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
-      Save Changes
+      <%= t('save_changes') %>
     </button>
   </div>
 </div>
@@ -763,7 +767,7 @@
       </svg>
     </div>
     
-    <h2 class="text-2xl font-black uppercase italic tracking-tighter mb-2"><%= t('delete') %> <span class="text-red-600" id="deleteTargetName"><%= t('category') %></span>?</h2>
+    <h2 class="text-2xl font-black uppercase tracking-tighter mb-2"><%= t('remove') %> <span class="text-red-600" id="deleteTargetName"><%= t('category') %></span>?</h2>
     <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-10"><%= t('delete_category_hint') %></p>
 
     <div class="flex flex-col gap-3">
@@ -786,7 +790,7 @@
       </svg>
     </div>
     
-    <h2 class="text-2xl font-black uppercase italic tracking-tighter mb-2"><%= t('delete') %> <span class="text-red-600" id="deleteLogTargetName"><%= t('invoice') %></span>?</h2>
+    <h2 class="text-2xl font-black uppercase tracking-tighter mb-2"><%= t('remove') %> <span class="text-red-600" id="deleteLogTargetName"><%= t('invoice') %></span>?</h2>
     <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-10"><%= t('delete_invoice_hint') %></p>
 
     <div class="flex flex-col gap-3">
@@ -813,7 +817,7 @@
       </svg>
     </div>
     
-    <h2 class="text-2xl font-black uppercase italic tracking-tighter mb-2"><%= t('delete') %> <span class="text-red-600" id="bulkDeleteCount">0</span> <%= t('selected_invoices') %>?</h2>
+    <h2 class="text-2xl font-black uppercase tracking-tighter mb-2"><%= t('remove') %> <span class="text-red-600" id="bulkDeleteCount">0</span> <%= t('selected_invoices') %>?</h2>
     <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-10"><%= t('delete_selected_hint') %></p>
 
     <div class="flex flex-col gap-3">
@@ -829,7 +833,7 @@
 
 
 <!-- CONFIRM PAID MODAL -->
-<div id="confirmPaidModal" class="modal-backdrop" style="z-index: 250;" onclick="closeConfirmPaidModal(event)">
+<div id="confirmPaidModal" class="modal-backdrop" style="z-index: 2000;" onclick="closeConfirmPaidModal(event)">
   <div class="modal-content text-center" onclick="event.stopPropagation()">
     <div class="w-16 h-16 bg-green-50 text-green-500 rounded-2xl flex items-center justify-center mx-auto mb-6 border-2 border-green-100">
       <svg class="h-8 w-8">
@@ -837,8 +841,8 @@
       </svg>
     </div>
     
-    <h2 class="text-xl font-black uppercase italic tracking-tighter mb-2"><%= t('mark_as_paid_confirm').split(' ').take(2).join(' ') %> <span class="text-green-600"><%= t('paid') %></span>?</h2>
-      <%= t('mark_as_paid_hint').split('<br>').first.html_safe %><br><%= t('mark_as_paid_hint').split('<br>').last.html_safe %>
+    <h2 class="text-xl font-black uppercase tracking-tighter mb-2"><%= t('mark_as_paid_confirm').split(' ').take(2).join(' ') %> <span class="text-green-600"><%= t('paid') %></span>?</h2>
+    <p class="text-xs text-gray-500 mb-6"><%= t('mark_as_paid_hint').split('<br>').first.html_safe %></p>
 
     <div class="flex flex-col gap-2.5">
       <button id="finalConfirmPaidBtn" class="w-full py-4 bg-green-600 text-white rounded-xl font-black uppercase tracking-widest hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-green-700 transition-all active:scale-95">
@@ -852,6 +856,16 @@
 </div>
 
 <script>
+  window.APP_LANGUAGES = {
+    draft: "<%= j t('draft') %>",
+    sent: "<%= j t('sent') %>",
+    paid: "<%= j t('paid') %>",
+    overdue: "<%= j t('overdue') %>"
+  };
+
+  // State Management
+  let activeCategoryId = null;
+
   // Search Functionality
   const searchInput = document.getElementById('historySearch');
   if (searchInput) {
@@ -866,18 +880,6 @@
     }
 
     // Check for hash on load to enter specific category folder
-    const checkHash = () => {
-      const hash = window.location.hash;
-      if (hash && (hash.startsWith('#cat-') || hash === '#favorites')) {
-        const catId = hash.substring(1); // remove #
-        enterCategory(catId);
-      } else if (!hash && !document.getElementById('categories-details').classList.contains('hidden')) {
-        exitCategory();
-      }
-    };
-    
-    checkHash();
-    window.addEventListener('hashchange', checkHash);
 
     searchInput.addEventListener('input', (e) => {
       const term = e.target.value.toLowerCase();
@@ -1323,8 +1325,8 @@
   function enterCategory(categoryId) {
     closeAllModals();
     
-    // Update hash for context
-    window.location.hash = categoryId;
+    // Update active state
+    activeCategoryId = categoryId;
 
     // Hide grid
     document.getElementById('categories-index').classList.add('hidden');
@@ -1343,10 +1345,8 @@
 
   function exitCategory() {
     closeAllModals();
-    // Clear hash
-    if (window.location.hash) {
-      history.replaceState(null, null, ' '); // Cleaner way to clear hash without jump
-    }
+    // Clear active state
+    activeCategoryId = null;
     // Hide details container
     document.getElementById('categories-details').classList.add('hidden');
     // Show grid
@@ -1654,7 +1654,7 @@
         dot.className = `w-1.5 h-1.5 rounded-full ${config.dot} ${newStatus === 'overdue' ? 'animate-pulse' : ''}`;
         
         // Update Text
-        text.textContent = newStatus;
+        text.textContent = window.APP_LANGUAGES[newStatus] || newStatus;
         badge.dataset.currentStatus = newStatus;
 
         // Update Dropdown Options (Swap visible items)
@@ -1917,11 +1917,8 @@
     
     // Determine context (Category vs Global)
     let categoryId = null;
-    const urlHash = window.location.hash;
-    if (urlHash.startsWith('#cat-')) {
-      categoryId = urlHash.replace('#cat-', '');
-    } else if (urlHash === '#favorites') {
-      categoryId = 'favorites';
+    if (activeCategoryId) {
+      categoryId = activeCategoryId === 'favorites' ? 'favorites' : activeCategoryId.replace('cat-', '');
     }
 
     const logIds = [...selectedLogIds];
@@ -1981,11 +1978,8 @@
 
     // Determine context
     let categoryId = null;
-    const urlHash = window.location.hash;
-    if (urlHash.startsWith('#cat-')) {
-      categoryId = urlHash.replace('#cat-', '');
-    } else if (urlHash === '#favorites') {
-      categoryId = 'favorites';
+    if (activeCategoryId) {
+      categoryId = activeCategoryId === 'favorites' ? 'favorites' : activeCategoryId.replace('cat-', '');
     }
 
     fetch('/logs/bulk_pin', {

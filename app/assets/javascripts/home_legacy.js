@@ -219,29 +219,34 @@ document.addEventListener('click', (e) => {
 
 // --- Language Selector Logic ---
 window.setTranscriptLanguage = function (lang) {
-  localStorage.setItem('transcriptLanguage', lang);
-  updateLanguageUI(lang);
+  const normalizedLang = lang === 'ka' ? 'ge' : lang;
+  localStorage.setItem('transcriptLanguage', normalizedLang);
+  updateLanguageUI(normalizedLang);
   document.getElementById('languageMenu')?.classList.add('hidden');
-
-  // Sync with server session so UI language matches
-  fetch('/set_session_locale?locale=' + lang, { method: 'POST', headers: { 'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content } });
   document.getElementById('langChevron')?.classList.remove('rotate-180');
+
+  // Sync with server (document_language) to prevent flickering on reload
+  fetch('/set_transcript_language?language=' + normalizedLang, {
+    method: 'POST',
+    headers: { 'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content }
+  });
 };
 
 function updateLanguageUI(lang) {
+  const normalizedLang = lang === 'ka' ? 'ge' : lang;
   const flag = document.getElementById('currentLangFlag');
   const text = document.getElementById('currentLangText');
   const checkEn = document.getElementById('check-en');
   const checkGe = document.getElementById('check-ge');
 
-  if (lang === 'ge') {
+  if (normalizedLang === 'ge') {
     if (flag) flag.className = 'fi fi-ge scale-90 rounded-sm';
-    if (text) text.innerText = window.APP_LANGUAGES?.ka || 'Georgian';
+    if (text) text.innerText = 'ქართული';
     checkEn?.classList.add('hidden');
     checkGe?.classList.remove('hidden');
   } else {
     if (flag) flag.className = 'fi fi-us scale-90 rounded-sm';
-    if (text) text.innerText = window.APP_LANGUAGES?.en || 'English';
+    if (text) text.innerText = 'English';
     checkEn?.classList.remove('hidden');
     checkGe?.classList.add('hidden');
   }
@@ -285,7 +290,7 @@ window.setPdfStatus = function (status) {
   if (!input || !badge || !dot || !text) return;
 
   input.value = status;
-  text.innerText = status.charAt(0).toUpperCase() + status.slice(1);
+  text.innerText = window.APP_LANGUAGES[status] || (status.charAt(0).toUpperCase() + status.slice(1));
 
   // Reset classes
   badge.className = "flex items-center gap-1.5 px-3.5 py-1.5 border-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none";
@@ -332,7 +337,8 @@ window.setPdfCategory = function (id, name, color, icon = '', iconType = '', cus
     badge.style.color = 'black';
     iconSpan.innerHTML = '';
     iconSpan.classList.add('hidden');
-    text.classList.add('italic', 'text-gray-400');
+    text.classList.add('text-gray-400');
+    text.classList.remove('italic');
   } else {
     badge.style.borderColor = color;
     badge.style.color = color;
@@ -443,7 +449,7 @@ function updateAllLaborRowsMode(forceMode) {
 function updateLaborRowModelUI(row, mode) {
   const oldMode = row.dataset.billingMode || 'hourly';
   row.dataset.billingMode = mode;
-  const labelText = mode === 'hourly' ? (window.APP_LANGUAGES?.labor_hours || 'LABOR HOURS') : (window.APP_LANGUAGES?.labor_price || 'LABOR PRICE');
+  const labelText = mode === 'hourly' ? (window.APP_LANGUAGES?.labor_hours_caps || 'LABOR HOURS') : (window.APP_LANGUAGES?.labor_price_caps || 'LABOR PRICE');
 
   // Update Label
   const label = row.querySelector('.labor-label-price');
@@ -579,7 +585,7 @@ function updateTotalsSummary() {
       document.querySelectorAll('.credit-item-row').forEach(row => {
         const val = parseFloat(row.querySelector('.credit-amount-input').value) || 0;
         const rawReason = row.querySelector('.credit-reason-input').value;
-        const reason = rawReason || "Courtesy Credit";
+        const reason = rawReason || (window.APP_LANGUAGES?.courtesy_credit || "Courtesy Credit");
         if (val > 0) {
           totalCredit += val;
           allCreditsList.push({ name: reason, amount: val });
@@ -668,9 +674,9 @@ function updateTotalsSummary() {
         const isTaxable = item.dataset.taxable === "true";
 
         if (laborPriceBadge) {
-          // Show if price > 0 AND (Tax is on OR Discount is off)
-          // This hides it when there's a discount but NO tax (to avoid redundancy with the discount result badge)
-          if (rowNet > 0 && (isTaxable || rowDisc === 0)) {
+          // Show only if there's an active equation (Tax is on OR Discount is on)
+          // Avoids a lone redundant price badge when neither are active.
+          if (rowNet > 0 && (isTaxable || rowDisc > 0)) {
             laborPriceBadge.innerText = getCurrencyFormat(rowNet, rowCurrencyCode);
             laborPriceBadge.classList.remove('hidden');
           } else {
@@ -678,7 +684,7 @@ function updateTotalsSummary() {
           }
         }
 
-        if (isTaxable) {
+        if (isTaxable && rowNet > 0) {
           if (laborMultiplierBadge) laborMultiplierBadge.classList.remove('hidden');
         } else {
           if (laborMultiplierBadge) laborMultiplierBadge.classList.add('hidden');
@@ -689,7 +695,7 @@ function updateTotalsSummary() {
         const laborEqualsBadge = item.querySelector('.badge-equals');
         const laborAfterTaxBadge = item.querySelector('.badge-after-tax');
 
-        if (isTaxable) {
+        if (isTaxable && rowNet > 0) {
           const taxRateInput = item.querySelector('.tax-menu-input');
           const ctxTaxRate = (taxRateInput && taxRateInput.value !== "") ? parseFloat(taxRateInput.value) : profileTaxRate;
           if (laborTaxBadge) {
@@ -982,22 +988,50 @@ function updateTotalsSummary() {
 
     // Decide where breakdown goes
     const subClickable = document.querySelector('#subtotalRow > div:first-child');
+    const subBreakdownEl = document.getElementById('subtotalBreakdown');
+
     if (hasItemDiscounts) {
       renderBreakdown('itemsTotalBreakdown', 'itemsTotalChevron', allItemPrices, 'text-gray-500/70');
       renderBreakdown('itemDiscountsBreakdown', 'itemDiscountsChevron', allItemDiscountsList, 'text-green-600/70', true);
+
       // Disable subtotal breakdown interaction
       renderBreakdown('subtotalBreakdown', 'subtotalChevron', [], 'text-gray-500/70');
-      if (subClickable) subClickable.classList.remove('cursor-pointer');
-      const subBreak = document.getElementById('subtotalBreakdown');
-      if (subBreak) subBreak.classList.add('hidden');
+
+      // CRITICAL FIX: Explicitly remove cursor pointer and ensure it's hidden and empty
+      if (subClickable) {
+        subClickable.classList.remove('cursor-pointer');
+        // Remove the onclick attribute to prevent any event firing defined in HTML
+        subClickable.onclick = null;
+      }
+      if (subBreakdownEl) {
+        subBreakdownEl.classList.add('hidden');
+        subBreakdownEl.innerHTML = ''; // Clear it so checks for children fail
+      }
+      const subChevron = document.getElementById('subtotalChevron');
+      if (subChevron) subChevron.classList.add('hidden');
+
     } else {
       // If multiple items, give breakdown to Subtotal row
       const hasMultipleItems = allItemPrices.length > 1;
-      renderBreakdown('subtotalBreakdown', 'subtotalChevron', hasMultipleItems ? allItemPrices : [], 'text-gray-500/70');
-      if (subClickable) {
-        if (hasMultipleItems) subClickable.classList.add('cursor-pointer');
-        else subClickable.classList.remove('cursor-pointer');
+
+      if (hasMultipleItems) {
+        renderBreakdown('subtotalBreakdown', 'subtotalChevron', allItemPrices, 'text-gray-500/70');
+        if (subClickable) {
+          subClickable.classList.add('cursor-pointer');
+          subClickable.onclick = window.toggleSubtotalBreakdown; // Restore handler
+        }
+      } else {
+        renderBreakdown('subtotalBreakdown', 'subtotalChevron', [], 'text-gray-500/70');
+        if (subClickable) {
+          subClickable.classList.remove('cursor-pointer');
+          subClickable.onclick = null;
+        }
+        if (subBreakdownEl) {
+          subBreakdownEl.classList.add('hidden');
+          subBreakdownEl.innerHTML = '';
+        }
       }
+
       // Hide items total row items
       const itemTotalChev = document.getElementById('itemsTotalChevron');
       const itemTotalBreak = document.getElementById('itemsTotalBreakdown');
@@ -1074,6 +1108,16 @@ function adjustBadgeSpacing() {
 
         // Ensure label transform is always cleared from previous iterations
         if (priceLabel) priceLabel.style.transform = '';
+
+        // Mobile Bottom Spacing Adjustment
+        if (window.innerWidth < 768) {
+          const hasBottomBadges = !!row.querySelector('.badge-price:not(.hidden), .badge-tax:not(.hidden), .badge-after-tax:not(.hidden)');
+          if (priceInputBox.parentElement) { // parent is .labor-price-container
+            priceInputBox.parentElement.style.marginBottom = hasBottomBadges ? '25px' : '';
+          }
+        } else if (priceInputBox.parentElement) {
+          priceInputBox.parentElement.style.marginBottom = '';
+        }
       }
 
       // Standard Item Sub-category adjustment (Only if badges are visible)
@@ -1329,12 +1373,12 @@ document.addEventListener("DOMContentLoaded", () => {
         window.recordingStartTime = Date.now();
 
         isRecording = true;
-        buttonText.innerText = "STOP";
+        buttonText.innerText = window.APP_LANGUAGES.stop || "STOP";
         document.getElementById("micIcon").innerHTML = '<rect x="7" y="7" width="10" height="10" rx="1" fill="currentColor" />';
 
         recordBtn.classList.add("recording");
         document.getElementById("recordingWave").classList.remove("hidden");
-        document.getElementById("status").innerText = "RECORDING...";
+        document.getElementById("status").innerText = window.APP_LANGUAGES.recording || "RECORDING...";
         document.getElementById("status").classList.replace("text-orange-600", "text-red-600");
         document.getElementById("status").classList.replace("bg-orange-50", "bg-red-50");
 
@@ -1360,7 +1404,7 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         }, 1000);
       } catch (e) {
-        showError("Microphone access required.");
+        showError(window.APP_LANGUAGES.microphone_access_denied || "Microphone access required.");
       }
     } else {
       if (recordingInterval) {
@@ -1377,7 +1421,7 @@ document.addEventListener("DOMContentLoaded", () => {
         mediaRecorder.stop();
         mediaRecorder.stream.getTracks().forEach(t => t.stop());
         resetRecorderUI();
-        showError("Hold longer to record");
+        showError(window.APP_LANGUAGES.hold_longer || "Hold longer to record");
         return;
       }
       mediaRecorder.stop();
@@ -1420,11 +1464,11 @@ document.addEventListener("DOMContentLoaded", () => {
       micIcon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />`;
     }
 
-    buttonText.innerText = "TAP TO RECORD";
+    buttonText.innerText = window.APP_LANGUAGES.tap_to_record || "TAP TO RECORD";
     buttonText.classList.replace("text-xl", "text-[9px]"); // Restore size
 
     recordBtn.classList.remove("recording");
-    document.getElementById("status").innerText = "READY";
+    document.getElementById("status").innerText = window.APP_LANGUAGES.ready || "READY";
     document.getElementById("status").classList.replace("text-red-600", "text-orange-600");
     document.getElementById("status").classList.replace("bg-red-50", "bg-orange-50");
     document.getElementById("recordingWave").classList.add("hidden");
@@ -1460,14 +1504,14 @@ document.addEventListener("DOMContentLoaded", () => {
       });
 
       const data = await res.json();
-      if (!res.ok || data.error) showError(data.error || "Speech not recognized.");
+      if (!res.ok || data.error) showError(data.error || window.APP_LANGUAGES.speech_not_recognized || "Speech not recognized.");
       else updateUI(data);
       stopAnalysisUI();
     } catch (e) {
       if (e.name === 'AbortError') {
         console.log("Analysis cancelled by user");
       } else {
-        showError("Network error.");
+        showError(window.APP_LANGUAGES.network_error || "Network error.");
         console.error(e);
       }
       stopAnalysisUI();
@@ -1478,14 +1522,14 @@ document.addEventListener("DOMContentLoaded", () => {
     isAnalyzing = true;
 
     // UI: Big Text "CANCEL", No Icon
-    buttonText.innerText = "CANCEL";
+    buttonText.innerText = window.APP_LANGUAGES.cancel || "CANCEL";
     buttonText.classList.replace("text-[9px]", "text-xl");
     const micIcon = document.getElementById("micIcon");
     if (micIcon) micIcon.style.display = "none";
 
     analysisAbortController = new AbortController();
 
-    document.getElementById("status").innerText = "PROCESSING...";
+    document.getElementById("status").innerText = window.APP_LANGUAGES.processing || "PROCESSING...";
     recordBtn.classList.remove("recording");
     document.getElementById("recordingWave").classList.add("hidden");
 
@@ -1564,7 +1608,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (e.name === 'AbortError') {
         console.log("Analysis cancelled by user");
       } else {
-        showError("Network error.");
+        showError(window.APP_LANGUAGES.network_error || "Network error.");
         console.error(e);
       }
     } finally {
@@ -1574,7 +1618,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   window.gatherLogData = function () {
     const client = document.getElementById("editClient")?.value || "";
-    const date = document.getElementById("dateDisplay")?.innerText || "";
+    const date = window.selectedMainDate ?
+      `${window.selectedMainDate.getFullYear()}-${String(window.selectedMainDate.getMonth() + 1).padStart(2, '0')}-${String(window.selectedMainDate.getDate()).padStart(2, '0')}` :
+      (document.getElementById("dateDisplay")?.innerText || "");
     const sections = [];
 
     const laborContainer = document.getElementById("laborItemsContainer");
@@ -1654,7 +1700,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!creditGroup || !creditGroup.classList.contains('hidden')) {
       document.querySelectorAll('.credit-item-row').forEach(row => {
         const amount = parseFloat(row.querySelector('.credit-amount-input')?.value) || 0;
-        const reason = row.querySelector('.credit-reason-input')?.value?.trim() || "Courtesy Credit";
+        const reason = row.querySelector('.credit-reason-input')?.value?.trim() || (window.APP_LANGUAGES?.courtesy_credit || "Courtesy Credit");
         if (amount > 0) {
           credits.push({ amount, reason });
           totalCreditValue += amount;
@@ -1664,7 +1710,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     return {
       client, time: calculatedTotalTime.toString(), date,
-      due_date: document.getElementById("dueDateValue")?.innerText || "",
+      due_date: window.selectedDueDate ?
+        `${window.selectedDueDate.getFullYear()}-${String(window.selectedDueDate.getMonth() + 1).padStart(2, '0')}-${String(window.selectedDueDate.getDate()).padStart(2, '0')}` :
+        (document.getElementById("dueDateValue")?.innerText || ""),
       tasks: JSON.stringify(sections), credits: JSON.stringify(credits),
       tax_scope: typeof currentLogTaxScope !== 'undefined' ? currentLogTaxScope : "total",
       labor_taxable: "false", global_discount_flat: globalDiscFlat,
@@ -1711,14 +1759,14 @@ document.addEventListener("DOMContentLoaded", () => {
         saveDiv.style.transform = '';
       }
       if (saveLabel) {
-        saveLabel.innerText = 'Save';
+        saveLabel.innerText = window.APP_LANGUAGES.save || 'Save';
         saveLabel.classList.add('text-gray-500');
         saveLabel.classList.remove('text-green-600');
       }
 
       // Reset Selectors
       if (typeof setPdfStatus === 'function') setPdfStatus('draft');
-      if (typeof setPdfCategory === 'function') setPdfCategory('', '- No Category -', '');
+      if (typeof setPdfCategory === 'function') setPdfCategory('', window.APP_LANGUAGES.no_category || '- No Category -', '');
 
     } else if (saveBtn && logAlreadySaved) {
       updateSaveButtonToSavedState(saveBtn);
@@ -1868,10 +1916,11 @@ document.addEventListener("DOMContentLoaded", () => {
       const arrayBuffer = await blob.arrayBuffer(); // Get buffer directly to avoid fetch issues
       const url = URL.createObjectURL(blob);
 
-      // Store globally
-      window.currentPdfUrl = url;
-      window.currentPdfBlob = blob;
-      window.currentPdfBuffer = arrayBuffer;
+      // Store in private scope (not easily visible in DevTools)
+      if (!window._sl) window._sl = {};
+      window._sl._u = url;
+      window._sl._b = blob;
+      window._sl._a = arrayBuffer;
 
       const showPdfContent = () => {
         if (loading) loading.classList.add('hidden');
@@ -1968,7 +2017,7 @@ document.addEventListener("DOMContentLoaded", () => {
               setTimeout(showPdfContent, 50);
             });
           } else {
-            throw new Error("Render process failed");
+            throw new Error(window.APP_LANGUAGES.render_failed || "Render process failed");
           }
         }).catch(err => {
           console.error("PDF.js Error:", err);
@@ -2038,10 +2087,9 @@ document.addEventListener("DOMContentLoaded", () => {
       if (iframe) iframe.classList.add('hidden');
 
       // Revoke object URLs to free memory
-      if (window.currentPdfUrl) {
-        URL.revokeObjectURL(window.currentPdfUrl);
-        window.currentPdfUrl = null;
-        window.currentPdfBlob = null;
+      if (window._sl && window._sl._u) {
+        URL.revokeObjectURL(window._sl._u);
+        window._sl = null;
       }
     }, 500);
   }
@@ -2061,7 +2109,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (saveLabel) {
-      saveLabel.innerText = 'Saved';
+      saveLabel.innerText = window.APP_LANGUAGES.saved || 'Saved';
       saveLabel.classList.remove('text-gray-500');
       saveLabel.classList.add('text-green-600');
     }
@@ -2081,7 +2129,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (saveLabel) {
-      saveLabel.innerText = 'LIMIT REACHED';
+      saveLabel.innerText = window.APP_LANGUAGES.limit_reached || 'LIMIT REACHED';
       saveLabel.classList.remove('text-gray-500', 'text-green-600');
       saveLabel.classList.add('text-red-600');
       saveLabel.classList.add('text-center');
@@ -2102,7 +2150,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const saveDiv = saveBtn.querySelector('div');
     const saveLabel = saveBtn.querySelector('span');
     const originalClasses = saveDiv ? saveDiv.className : '';
-    const originalLabelText = saveLabel ? saveLabel.innerText : 'Save';
+    const originalLabelText = saveLabel ? saveLabel.innerText : (window.APP_LANGUAGES.save || 'Save');
 
     // DISABLE BOTH IMMEDIATELY
     saveBtn.disabled = true;
@@ -2196,7 +2244,7 @@ document.addEventListener("DOMContentLoaded", () => {
             shareDiv.style.transform = 'translate(2px, 2px)';
           }
           if (shareLabel) {
-            shareLabel.innerText = 'LIMIT REACHED';
+            shareLabel.innerText = window.APP_LANGUAGES.limit_reached || 'LIMIT REACHED';
             shareLabel.classList.remove('text-gray-500');
             shareLabel.classList.add('text-red-600');
           }
@@ -2233,10 +2281,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const iframe = document.getElementById('pdfFrame');
 
     // Check if we have ANY valid preview source (Blob URL or final saved URL)
-    const currentSrc = window.currentPdfUrl || iframe?.src;
+    const currentSrc = window._sl?._u || iframe?.src;
 
     if (!currentSrc || currentSrc === "" || currentSrc === "about:blank") {
-      showError("PDF is still loading...");
+      showError(window.APP_LANGUAGES.pdf_loading || "PDF is still loading...");
       return;
     }
 
@@ -2320,7 +2368,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     try {
       // Use cached blob if available (INSTANT)
-      let blob = window.currentPdfBlob;
+      let blob = window._sl?._b;
       if (!blob) {
         const response = await fetch(iframe.src);
         blob = await response.blob();
@@ -2357,7 +2405,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
       console.error('Sharing failed', err);
-      showError("Draft prepared. Click Share again to send.");
+      showError(window.APP_LANGUAGES.draft_prepared || "Draft prepared. Click Share again to send.");
     } finally {
       // Only re-enable buttons if limit was NOT hit
       if (!limitWasHit) {
@@ -2415,7 +2463,7 @@ document.addEventListener("DOMContentLoaded", () => {
             saveDiv.className = 'w-14 h-14 md:w-16 md:h-16 rounded-[1.25rem] md:rounded-3xl border-2 border-black bg-orange-600 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center group-active:translate-x-[2px] group-active:translate-y-[2px] group-active:shadow-none transition-all hover:bg-orange-700';
           }
           if (saveLabel) {
-            saveLabel.innerText = 'Save';
+            saveLabel.innerText = window.APP_LANGUAGES.save || 'Save';
             saveLabel.classList.remove('text-green-600');
             saveLabel.classList.add('text-gray-500');
           }
@@ -2458,25 +2506,35 @@ function updateDueDate(dueDays, dueDate) {
   }
 
   // Format the date
-  const formattedDate = targetDate.toLocaleDateString('en-US', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric'
-  });
+  const lang = window.currentSystemLanguage || 'en';
+  let formattedDate;
+  if (lang === 'ka') {
+    const monthsKa = [
+      window.APP_LANGUAGES.jan, window.APP_LANGUAGES.feb, window.APP_LANGUAGES.mar,
+      window.APP_LANGUAGES.apr, window.APP_LANGUAGES.may, window.APP_LANGUAGES.jun,
+      window.APP_LANGUAGES.jul, window.APP_LANGUAGES.aug, window.APP_LANGUAGES.sep,
+      window.APP_LANGUAGES.oct, window.APP_LANGUAGES.nov, window.APP_LANGUAGES.dec
+    ];
+    formattedDate = `${monthsKa[targetDate.getMonth()]} ${targetDate.getDate()}, ${targetDate.getFullYear()}`;
+  } else {
+    formattedDate = targetDate.toLocaleDateString('en-US', {
+      month: 'short', day: 'numeric', year: 'numeric'
+    });
+  }
 
   dueDateValue.innerText = formattedDate;
 
   // Format the days label
   if (daysUntil === 0) {
-    dueDaysLabel.innerText = '(due today)';
+    dueDaysLabel.innerText = `(${window.APP_LANGUAGES.due_today || 'due today'})`;
   } else if (daysUntil === 1) {
-    dueDaysLabel.innerText = '(in 1 day)';
+    dueDaysLabel.innerText = `(${window.APP_LANGUAGES.in_x_days.replace('%{count}', '1') || 'in 1 day'})`;
   } else if (daysUntil < 0) {
-    dueDaysLabel.innerText = `(${Math.abs(daysUntil)} days overdue)`;
+    dueDaysLabel.innerText = `(${window.APP_LANGUAGES.x_days_overdue.replace('%{count}', Math.abs(daysUntil)) || Math.abs(daysUntil) + ' days overdue'})`;
     dueDaysLabel.classList.add('text-red-500');
     dueDaysLabel.classList.remove('text-gray-400');
   } else {
-    dueDaysLabel.innerText = `(in ${daysUntil} days)`;
+    dueDaysLabel.innerText = `(${window.APP_LANGUAGES.in_x_days.replace('%{count}', daysUntil) || 'in ' + daysUntil + ' days'})`;
     dueDaysLabel.classList.remove('text-red-500');
     dueDaysLabel.classList.add('text-gray-400');
   }
@@ -2544,7 +2602,18 @@ function renderCalendar() {
   const month = calendarViewDate.getMonth();
 
   // Update header
-  monthYear.innerText = calendarViewDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  const lang = window.currentSystemLanguage || 'en';
+  if (lang === 'ka') {
+    const monthsKa = [
+      window.APP_LANGUAGES.jan, window.APP_LANGUAGES.feb, window.APP_LANGUAGES.mar,
+      window.APP_LANGUAGES.apr, window.APP_LANGUAGES.may, window.APP_LANGUAGES.jun,
+      window.APP_LANGUAGES.jul, window.APP_LANGUAGES.aug, window.APP_LANGUAGES.sep,
+      window.APP_LANGUAGES.oct, window.APP_LANGUAGES.nov, window.APP_LANGUAGES.dec
+    ];
+    monthYear.innerHTML = `<span class="font-black">${monthsKa[calendarViewDate.getMonth()]}</span> ${calendarViewDate.getFullYear()}`;
+  } else {
+    monthYear.innerText = calendarViewDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  }
 
   // Get first day of month and total days
   const firstDay = new Date(year, month, 1).getDay();
@@ -2641,11 +2710,22 @@ function changeMainCalendarMonth(delta) {
 function renderMainCalendar() {
   const monthYear = document.getElementById('mainCalendarMonthYear');
   const daysContainer = document.getElementById('mainCalendarDays');
+  const lang = window.currentSystemLanguage || 'en';
+
+  if (lang === 'ka') {
+    const monthsKa = [
+      window.APP_LANGUAGES.jan, window.APP_LANGUAGES.feb, window.APP_LANGUAGES.mar,
+      window.APP_LANGUAGES.apr, window.APP_LANGUAGES.may, window.APP_LANGUAGES.jun,
+      window.APP_LANGUAGES.jul, window.APP_LANGUAGES.aug, window.APP_LANGUAGES.sep,
+      window.APP_LANGUAGES.oct, window.APP_LANGUAGES.nov, window.APP_LANGUAGES.dec
+    ];
+    monthYear.innerHTML = `<span class="font-black">${monthsKa[mainCalendarViewDate.getMonth()]}</span> ${mainCalendarViewDate.getFullYear()}`;
+  } else {
+    monthYear.innerText = mainCalendarViewDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  }
 
   const year = mainCalendarViewDate.getFullYear();
   const month = mainCalendarViewDate.getMonth();
-
-  monthYear.innerText = mainCalendarViewDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -2690,9 +2770,20 @@ function selectMainCalendarDate(dateStr) {
   const selectedDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
   window.selectedMainDate = selectedDate;
 
-  document.getElementById('dateDisplay').innerText = selectedDate.toLocaleDateString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric'
-  });
+  const lang = window.currentSystemLanguage || 'en';
+  if (lang === 'ka') {
+    const monthsKa = [
+      window.APP_LANGUAGES.jan, window.APP_LANGUAGES.feb, window.APP_LANGUAGES.mar,
+      window.APP_LANGUAGES.apr, window.APP_LANGUAGES.may, window.APP_LANGUAGES.jun,
+      window.APP_LANGUAGES.jul, window.APP_LANGUAGES.aug, window.APP_LANGUAGES.sep,
+      window.APP_LANGUAGES.oct, window.APP_LANGUAGES.nov, window.APP_LANGUAGES.dec
+    ];
+    document.getElementById('dateDisplay').innerText = `${monthsKa[selectedDate.getMonth()]} ${selectedDate.getDate()}, ${selectedDate.getFullYear()}`;
+  } else {
+    document.getElementById('dateDisplay').innerText = selectedDate.toLocaleDateString('en-US', {
+      month: 'short', day: 'numeric', year: 'numeric'
+    });
+  }
 
   // Re-calculate Due Date if it's currently based on a NET offset
   if (window.currentDueOffset !== null && window.currentDueOffset !== undefined) {
@@ -2703,13 +2794,13 @@ function selectMainCalendarDate(dateStr) {
 }
 
 
-function addFullSection(title, items, isProtected = false) {
+function addFullSection(title, items, isProtected = false, explicitType = null) {
   const container = document.getElementById("dynamicSections");
   const sectionId = "section_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
 
   // 1. Detect if this is a Labor/Service section
   const lowerTitle = title.toLowerCase();
-  const isLaborService = /labor|service|install|repair|maintenance|diag|tech|professional/i.test(lowerTitle);
+  const isLaborService = (explicitType === 'labor') || /labor|service|install|repair|maintenance|diag|tech|professional/i.test(lowerTitle);
 
   if (isLaborService) {
     // Route to the special Labor Items Container
@@ -2758,11 +2849,12 @@ function addFullSection(title, items, isProtected = false) {
 
   const sectionDiv = document.createElement('div');
   sectionDiv.className = "dynamic-section space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-500";
-  if (isProtected) sectionDiv.dataset.protected = title.toLowerCase();
+  // Determine identifier for protection
+  if (isProtected) sectionDiv.dataset.protected = explicitType || title.toLowerCase();
 
-  const isMaterials = /material/.test(lowerTitle);
-  const isExpenses = /expense/.test(lowerTitle);
-  const isFees = /fee/.test(lowerTitle);
+  const isMaterials = (explicitType === 'materials') || /material/.test(lowerTitle);
+  const isExpenses = (explicitType === 'expenses') || /expense/.test(lowerTitle);
+  const isFees = (explicitType === 'fees') || /fee/.test(lowerTitle);
 
   if (isMaterials) sectionDiv.dataset.protected = "materials";
   else if (isExpenses) sectionDiv.dataset.protected = "expenses";
@@ -2866,7 +2958,7 @@ function validateCategoryName(input) {
   const val = input.value.toLowerCase().trim();
 
   if (reserved.some(r => val === r || val === r + 's' || val.includes('labor/service'))) {
-    alert(`"${input.value}" is a reserved category name. Please choose a different name.`);
+    alert((window.APP_LANGUAGES.reserved_category || "\"%{name}\" is a reserved category name. Please choose another.").replace('%{name}', input.value));
     input.value = "Custom";
     input.focus();
   }
@@ -2964,15 +3056,15 @@ function insertSectionInOrder(sectionDiv, type) {
 }
 
 function addMaterialSection() {
-  addFullSection("Materials", [], true);
+  addFullSection(window.APP_LANGUAGES.materials || "Materials", [], true, 'materials');
 }
 
 function addExpenseSection() {
-  addFullSection("Expenses", [], true);
+  addFullSection(window.APP_LANGUAGES.expenses || "Expenses", [], true, 'expenses');
 }
 
 function addFeeSection() {
-  addFullSection("Fees", [], true);
+  addFullSection(window.APP_LANGUAGES.fees || "Fees", [], true, 'fees');
 }
 
 // --- MISSING SECTION UTILITIES ---
@@ -3071,7 +3163,7 @@ function addLaborSubCategory(btn) {
   subItem.innerHTML = `
     <div class="w-2 h-2 rounded-full bg-black flex-shrink-0"></div>
     <div class="flex-1 flex items-center border-2 border-black rounded-lg bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-colors relative h-8">
-      <input type="text" class="flex-1 bg-transparent border-none text-[11px] font-bold text-black focus:ring-0 py-1 px-3 labor-sub-input placeholder:text-gray-300 min-w-0 outline-none" placeholder="Sub-category...">
+      <input type="text" class="flex-1 bg-transparent border-none text-[11px] font-bold text-black focus:ring-0 py-1 px-3 labor-sub-input placeholder:text-gray-300 min-w-0 outline-none" placeholder="${window.APP_LANGUAGES.subcategory_placeholder || "Sub-category..."}">
     </div>
     <button type="button" onclick="removeLaborSubCategory(this)" class="w-5 h-8 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors font-bold text-xl flex-shrink-0">×</button>
   `;
@@ -3105,7 +3197,7 @@ function addItemSubCategory(btn) {
   subItem.innerHTML = `
     <div class="w-2 h-2 rounded-full bg-black flex-shrink-0"></div>
     <div class="flex-1 flex items-center border-2 border-black rounded-lg bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-colors relative h-8">
-      <input type="text" class="flex-1 bg-transparent border-none text-[11px] font-bold text-black focus:ring-0 py-1 px-3 sub-input placeholder:text-gray-300 min-w-0 outline-none" placeholder="Sub-category...">
+      <input type="text" class="flex-1 bg-transparent border-none text-[11px] font-bold text-black focus:ring-0 py-1 px-3 sub-input placeholder:text-gray-300 min-w-0 outline-none" placeholder="${window.APP_LANGUAGES.subcategory_placeholder || "Sub-category..."}">
     </div>
     <button type="button" onclick="this.parentElement.remove();" class="w-5 h-8 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors font-bold text-xl flex-shrink-0">×</button>
   `;
@@ -3198,10 +3290,10 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
   // DEFAULT LABOR NAME
   let finalValue = value;
   if (!finalValue || finalValue.trim() === "") {
-    finalValue = "Professional Services";
+    finalValue = window.APP_LANGUAGES.professional_services || "Professional Services";
   }
 
-  const labelText = billingMode === 'hourly' ? 'LABOR HOURS' : 'LABOR PRICE';
+  const labelText = billingMode === 'hourly' ? (window.APP_LANGUAGES.labor_hours_caps || 'LABOR HOURS') : (window.APP_LANGUAGES.labor_price_caps || 'LABOR PRICE');
   let laborInputHtml = '';
 
   if (billingMode === 'hourly') {
@@ -3262,7 +3354,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
           </svg>
           </button>
-        <input type="text" value="${finalValue}" class="flex-1 bg-transparent border-none text-sm font-bold text-black focus:ring-0 py-2 px-3 labor-item-input placeholder:text-gray-300 min-w-0 rounded-r-xl" placeholder="Professional Services" oninput="updateTotalsSummary()">
+        <input type="text" value="${finalValue}" class="flex-1 bg-transparent border-none text-sm font-bold text-black focus:ring-0 py-2 px-3 labor-item-input placeholder:text-gray-300 min-w-0 rounded-r-xl" placeholder="${window.APP_LANGUAGES.professional_services || "Professional Services"}" oninput="updateTotalsSummary()">
       </div>
       <button type="button" onclick="this.closest('.labor-item-row').remove(); updateTotalsSummary();" class="remove-labor-btn w-6 h-10 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors font-bold text-xl flex-shrink-0">×</button>
     </div>
@@ -3289,15 +3381,15 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
                     <!-- NEW Billing Model Pill Switch -->
                     <div class="px-1 py-1">
                       <div class="billing-switch-group">
-                        <span class="text-[8px] font-black text-gray-400 uppercase tracking-tighter ml-1">Billing Model</span>
+                        <span class="text-[8px] font-black text-gray-400 uppercase tracking-tighter ml-1">${window.APP_LANGUAGES.billing_model || 'Billing Model'}</span>
                         <div class="billing-pill-container">
                           <button type="button" class="billing-pill-btn ${billingMode === 'hourly' ? 'active' : ''}" data-mode="hourly" onclick="setLaborRowBillingMode(this, 'hourly')">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                            Hourly
+                            ${window.APP_LANGUAGES.hourly || 'Hourly'}
                           </button>
                           <button type="button" class="billing-pill-btn ${billingMode === 'fixed' ? 'active' : ''}" data-mode="fixed" onclick="setLaborRowBillingMode(this, 'fixed')">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                            Fixed
+                            ${window.APP_LANGUAGES.fixed || 'Fixed'}
                           </button>
                         </div>
                       </div>
@@ -3308,7 +3400,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
                     <!-- Tax Menu -->
                     <div class="tax-wrapper flex flex-col w-full">
                         <div class="menu-item menu-item-tax ${div.dataset.taxable === 'true' ? 'active' : ''}" onclick="toggleLaborTaxable(this)">
-                          <span>Taxable</span>
+                          <span>${window.APP_LANGUAGES.taxable || 'Taxable'}</span>
                           <div class="menu-icon">%</div>
                         </div>
                         <div class="tax-inputs-row ${div.dataset.taxable === 'true' ? 'grid' : 'hidden'} gap-1 p-1 bg-gray-100 animate-in slide-in-from-top-1 duration-200 border border-t-0 border-gray-700 rounded-b-md" style="grid-template-columns: 1fr;">
@@ -3328,7 +3420,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
                     <!-- Discount Menu -->
                       <div class="discount-wrapper flex flex-col w-full">
                         <div class="menu-item menu-item-discount ${(discFlat || discPercent) ? 'active' : ''}" onclick="toggleDiscount(this)">
-                          <span>Item Discount</span>
+                          <span>${window.APP_LANGUAGES.item_discount || 'Item Discount'}</span>
                           <div class="menu-icon">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                               <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
@@ -3357,12 +3449,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
                                        placeholder="0" 
                                        oninput="updateTotalsSummary()">
                               </div>
-                              <div class="col-span-2 pt-1 pb-1 px-1">
-                                <label class="block text-[8px] font-black uppercase tracking-widest text-gray-400 mb-1 ml-1 text-left">Discount message:</label>
-                                <input type="text" class="menu-input discount-message-input text-left w-full border border-gray-300 px-2 py-2 bg-white text-xs font-bold rounded-md" 
-                                       placeholder="Reason for discount..." style="width: 100%"
-                                       oninput="updateTotalsSummary()">
-                              </div>
+
                        </div>
                     </div>
                  </div>
@@ -3421,7 +3508,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
 
        <!-- After Tax -->
         <div class="space-y-1 relative labor-after-tax-container">
-            <label class="inline-block text-[9px] font-bold text-gray-500 uppercase ml-1 transition-all">AFTER TAX</label>
+            <label class="inline-block text-[9px] font-bold text-gray-500 uppercase ml-1 transition-all">${window.APP_LANGUAGES.after_tax || "AFTER TAX"}</label>
             <div class="border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] relative h-[52px] w-max min-w-[120px] max-w-full overflow-visible">
                 <!-- Internal Scrollable Area -->
                 <div class="custom-scrollbar overflow-x-auto h-[62px] flex items-start pl-2">
@@ -3450,7 +3537,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
       subItem.innerHTML = `
         <div class="w-2 h-2 rounded-full bg-black flex-shrink-0"></div>
         <div class="flex-1 flex items-center border-2 border-black rounded-lg bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-colors relative h-8">
-          <input type="text" class="flex-1 bg-transparent border-none text-[11px] font-bold text-black focus:ring-0 py-1 px-3 labor-sub-input placeholder:text-gray-300 min-w-0 outline-none" value="${String(sub).replace(/"/g, '&quot;')}" placeholder="Sub-category...">
+          <input type="text" class="flex-1 bg-transparent border-none text-[11px] font-bold text-black focus:ring-0 py-1 px-3 labor-sub-input placeholder:text-gray-300 min-w-0 outline-none" value="${String(sub).replace(/"/g, '&quot;')}" placeholder="${window.APP_LANGUAGES.subcategory_placeholder || "Sub-category..."}">
         </div>
         <button type="button" onclick="removeLaborSubCategory(this)" class="w-5 h-8 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors font-bold text-sm flex-shrink-0">×</button>
       `;
@@ -3502,7 +3589,7 @@ function removeCreditSection() {
 
 // Add Credit item - just a reason input (price is set via the global Credit popover)
 // Add Credit item (Amount + Reason)
-function addCreditItem(containerId, reason = "Courtesy Credit", amount = "") {
+function addCreditItem(containerId, reason = (window.APP_LANGUAGES?.courtesy_credit || "Courtesy Credit"), amount = "") {
   const container = document.getElementById(containerId);
   if (!container) return;
 
@@ -3515,14 +3602,14 @@ function addCreditItem(containerId, reason = "Courtesy Credit", amount = "") {
     <!-- Amount Input Section -->
     <div class="space-y-1 relative w-1/2">
       <label class="block text-[9px] font-bold text-gray-500 uppercase ml-1">
-        CREDIT AMOUNT
+        ${window.APP_LANGUAGES.credit_amount_caps || "CREDIT AMOUNT"}
       </label>
       <div class="flex items-center border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] relative h-[52px]">
           <span class="flex items-center justify-center bg-red-600 text-white font-black border-2 border-black rounded-lg h-6 w-6 ml-2 shrink-0 select-none text-[10px] credit-unit-indicator">${currencySymbol}</span>
           <input type="number" step="0.01" 
                  class="credit-amount-input bg-transparent border-none py-3 pl-2 pr-2 font-black text-black focus:ring-0 outline-none text-left min-w-0 text-sm placeholder:text-gray-300 w-full flex-1"
                  value="${amount}"
-                 placeholder="Amount"
+                 placeholder="${window.APP_LANGUAGES.amount || "Amount"}"
                  oninput="updateTotalsSummary()">
       </div>
     </div>
@@ -3530,8 +3617,8 @@ function addCreditItem(containerId, reason = "Courtesy Credit", amount = "") {
     <!-- Reason Input Section + Remove -->
     <div class="flex items-center gap-2 w-full">
       <div class="flex flex-1 items-center border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] min-w-0 main-item-box transition-colors relative h-[52px]">
-        <input type="text" value="${reason || 'Courtesy Credit'}" class="flex-1 bg-transparent border-none text-sm font-bold text-black focus:ring-0 py-3 px-4 credit-reason-input placeholder:text-gray-300 min-w-0 rounded-xl"
-               placeholder="Courtesy Credit">
+        <input type="text" value="${reason || (window.APP_LANGUAGES?.courtesy_credit || 'Courtesy Credit')}" class="flex-1 bg-transparent border-none text-sm font-bold text-black focus:ring-0 py-3 px-4 credit-reason-input placeholder:text-gray-300 min-w-0 rounded-xl"
+               placeholder="${window.APP_LANGUAGES.reason_for_credit || (window.APP_LANGUAGES?.courtesy_credit || 'Courtesy Credit')}">
       </div>
       
       <button type="button" 
@@ -4197,21 +4284,27 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
   }
 
   const currencySymbol = typeof activeCurrencySymbol !== 'undefined' ? activeCurrencySymbol : "$";
-  const subtotalLabelText = "AFTER TAX";
+  const subtotalLabelText = window.APP_LANGUAGES.after_tax || "AFTER TAX";
 
   // Default taxable logic and item naming
   const lowerTitle = (sectionTitle || "").toLowerCase();
-  const isLaborSection = /labor|service|install|diag|repair|maintenance|tech|professional/i.test(lowerTitle);
-  const isMaterialSection = /material|part|item/i.test(lowerTitle);
-  const isFeeSection = /fee|surcharge/i.test(lowerTitle);
-  const isExpenseSection = /expense|reimburse/i.test(lowerTitle);
+
+  // Localized checks
+  const matKey = (window.APP_LANGUAGES.materials || "").toLowerCase();
+  const feeKey = (window.APP_LANGUAGES.fees || "").toLowerCase();
+  const expKey = (window.APP_LANGUAGES.expenses || "").toLowerCase();
+
+  const isLaborSection = /labor|service|install|diag|repair|maintenance|tech|professional/i.test(lowerTitle) || (window.APP_LANGUAGES.professional_services && lowerTitle.includes(window.APP_LANGUAGES.professional_services.toLowerCase()));
+  const isMaterialSection = /material|part|item/i.test(lowerTitle) || (matKey && lowerTitle.includes(matKey));
+  const isFeeSection = /fee|surcharge/i.test(lowerTitle) || (feeKey && lowerTitle.includes(feeKey));
+  const isExpenseSection = /expense|reimburse/i.test(lowerTitle) || (expKey && lowerTitle.includes(expKey));
 
   // DEFAULT ITEM NAME based on section
   if (!finalValue || finalValue.trim() === "") {
-    if (isMaterialSection) finalValue = "Material";
-    else if (isFeeSection) finalValue = "Fee";
-    else if (isExpenseSection) finalValue = "Expense";
-    else finalValue = "Item";
+    if (isMaterialSection) finalValue = window.APP_LANGUAGES.item_material || "Material";
+    else if (isFeeSection) finalValue = window.APP_LANGUAGES.item_fee || "Fee";
+    else if (isExpenseSection) finalValue = window.APP_LANGUAGES.item_expense || "Expense";
+    else finalValue = window.APP_LANGUAGES.item || "Item";
   }
 
   // Default Price for manually added items in these sections
@@ -4301,7 +4394,7 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
               
               <!-- Subcategory Option (NEW) -->
               <div class="menu-item menu-item-subcategory" onclick="addItemSubCategory(this)">
-                <span>Add Subcategory</span>
+                <span>${window.APP_LANGUAGES.add_subcategory || "Add Subcategory"}</span>
                 <div class="menu-icon">
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
@@ -4315,7 +4408,7 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
             <!-- Tax Menu Item (MOVED TOP) -->
             <div class="tax-wrapper flex flex-col w-full">
                 <div class="menu-item menu-item-tax ${taxActiveClass}" onclick="toggleTaxable(this)">
-                  <span>Taxable</span>
+                  <span>${window.APP_LANGUAGES.taxable || 'Taxable'}</span>
                   <div class="menu-icon">%</div>
                 </div>
                 
@@ -4338,7 +4431,7 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
             <div class="price-wrapper flex flex-col w-full">
                 <div class="menu-item menu-item-price ${priceActiveClass}" onclick="togglePrice(this)"
                      style="${cursorStyle}">
-                  <span style="${lockedStyle}">Price</span>
+                  <span style="${lockedStyle}">${window.APP_LANGUAGES.price || 'Price'}</span>
                   <div class="menu-icon price-menu-icon" style="${lockedStyle}">${currencySymbol}</div>
                 </div>
 
@@ -4360,7 +4453,7 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
             <!-- Discount Menu Item (Moved Last) -->
             <div class="discount-wrapper flex flex-col w-full">
                 <div class="menu-item menu-item-discount ${discActiveClass}" onclick="toggleDiscount(this)">
-                  <span>Item Discount</span>
+                  <span>${window.APP_LANGUAGES.item_discount || 'Item Discount'}</span>
                   <div class="menu-icon">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
@@ -4391,12 +4484,7 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
                               placeholder="0" 
                               oninput="updateBadge(this.closest('.item-row'))">
                       </div>
-                      <div class="col-span-2 pt-1 pb-1 px-1">
-                        <label class="block text-[8px] font-black uppercase tracking-widest text-gray-400 mb-1 ml-1 text-left">Discount message:</label>
-                        <input type="text" class="menu-input discount-message-input text-left w-full border border-gray-300 px-2 py-2 bg-white text-xs font-bold rounded-md" 
-                               placeholder="Reason for discount..." style="width: 100%"
-                               oninput="updateBadge(this.closest('.item-row'))">
-                      </div>
+
                  </div>
             </div>
 
@@ -4405,7 +4493,7 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
   
         <input type="text" value="${finalValue}" 
                class="flex-1 bg-transparent border-none text-sm font-bold text-black focus:ring-0 py-2 px-3 item-input placeholder:text-gray-300 min-w-0"
-               placeholder="Description..." oninput="updateTotalsSummary()">
+               placeholder="${window.APP_LANGUAGES.description_placeholder || "Description..."}" oninput="updateTotalsSummary()">
         
          <div class="flex items-center gap-0.5 px-1 border-l-2 border-black h-10 group/qty bg-gray-50/50 rounded-r-[10px] shrink-0 overflow-hidden transition-all duration-200">
           <span class="text-[13px] font-black text-black select-none translate-y-[0.5px]">×</span>
@@ -4479,7 +4567,7 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
     <!-- Item Subtotal Box -->
     <div class="item-subtotal-container pl-6 mt-4 hidden animate-in fade-in slide-in-from-top-1 duration-300">
       <div class="flex flex-col gap-1">
-        <label class="item-subtotal-label text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">AFTER TAX</label>
+        <label class="item-subtotal-label text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">${window.APP_LANGUAGES.after_tax || "AFTER TAX"}</label>
         <div class="border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] relative h-[52px] w-max min-w-[120px] max-w-full overflow-visible">
             <div class="custom-scrollbar overflow-x-auto h-[62px] flex items-start pl-2">
                 <div class="flex items-center gap-0 w-max h-[48px] item-formula-row">
@@ -4503,7 +4591,7 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
       subItem.innerHTML = `
         <div class="w-2 h-2 rounded-full bg-black flex-shrink-0"></div>
         <div class="flex-1 flex items-center border-2 border-black rounded-lg bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-colors relative h-8">
-          <input type="text" class="flex-1 bg-transparent border-none text-[11px] font-bold text-black focus:ring-0 py-1 px-3 sub-input placeholder:text-gray-300 min-w-0 outline-none" value="${String(sub).replace(/"/g, '&quot;')}" placeholder="Sub-category...">
+          <input type="text" class="flex-1 bg-transparent border-none text-[11px] font-bold text-black focus:ring-0 py-1 px-3 sub-input placeholder:text-gray-300 min-w-0 outline-none" value="${String(sub).replace(/"/g, '&quot;')}" placeholder="${window.APP_LANGUAGES.subcategory_placeholder || "Sub-category..."}">
         </div>
         <button type="button" onclick="this.parentElement.remove();" class="w-5 h-8 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors font-bold text-sm flex-shrink-0">×</button>
       `;
@@ -4650,7 +4738,7 @@ function updateUI(data) {
       } else if (data.credit_flat && parseFloat(data.credit_flat) > 0) {
         // Legacy/Fallback Support
         addCreditSection(true); // Skip default item
-        addCreditItem('creditItemsContainer', data.credit_reason || "Courtesy Credit", data.credit_flat);
+        addCreditItem('creditItemsContainer', data.credit_reason || (window.APP_LANGUAGES?.courtesy_credit || "Courtesy Credit"), data.credit_flat);
       } else {
         // If no credits in the explicit array and no legacy credit, hide the section
         removeCreditSection();
@@ -4742,7 +4830,7 @@ function updateUI(data) {
     window.isAutoUpdating = false;
   } catch (e) {
     window.isAutoUpdating = false;
-    showError("UI Update Error: " + e.message);
+    showError((window.APP_LANGUAGES.ui_update_error || "UI Update Error: ") + e.message);
     console.error(e);
   }
 }
@@ -4831,7 +4919,7 @@ async function startRefinementRecording() {
 
     if (timeLeft <= 0) {
       if (window.showPremiumModal) window.showPremiumModal();
-      else showError("Voice limit reached for this session.");
+      else showError(window.APP_LANGUAGES.voice_limit_reached || "Voice limit reached for this session.");
       return;
     }
 
@@ -4878,9 +4966,9 @@ async function startRefinementRecording() {
   } catch (e) {
     console.error("Refinement Recording Error:", e);
     if (e.name === 'NotAllowedError' || e.name === 'NotFoundError') {
-      showError("Microphone access required");
+      showError(window.APP_LANGUAGES.microphone_access_denied || "Microphone access required");
     } else {
-      showError("Recording failed: " + e.message);
+      showError((window.APP_LANGUAGES.recording_failed || "Recording failed: ") + e.message);
     }
   }
 }
@@ -4933,14 +5021,14 @@ async function processRefinementAudio() {
       }
     }
   } catch (e) {
-    showError("Transcription failed");
+    showError(window.APP_LANGUAGES.transcription_failed || "Transcription failed");
   }
 }
 
 async function submitRefinement() {
   const input = document.getElementById('refinementInput');
   const instruction = input ? input.value.trim() : '';
-  if (!instruction) return showError("Please enter an instruction first");
+  if (!instruction) return showError(window.APP_LANGUAGES.enter_instruction || "Please enter an instruction first");
 
   // PRE-VALIDATION: Check limits BEFORE modifying history
   const limit = window.profileCharLimit;
@@ -4953,7 +5041,7 @@ async function submitRefinement() {
 
   if (projectedTotal > limit) {
     if (window.showPremiumModal) window.showPremiumModal();
-    else showError(`Limit Reached (${limit}). Upgrade to add more.`);
+    else showError((window.APP_LANGUAGES.limit_reached_upgrade || "Limit Reached (%{limit}). Upgrade to add more.").replace('%{limit}', limit));
     return;
   }
 
@@ -5081,7 +5169,7 @@ async function startClarificationRecording() {
 
     if (timeLeft <= 0) {
       if (window.showPremiumModal) window.showPremiumModal();
-      else showError("Voice limit reached for this session.");
+      else showError(window.APP_LANGUAGES.voice_limit_reached || "Voice limit reached for this session.");
       return;
     }
 
@@ -5137,9 +5225,9 @@ async function startClarificationRecording() {
   } catch (e) {
     console.error("Clarification Recording Error:", e);
     if (e.name === 'NotAllowedError' || e.name === 'NotFoundError') {
-      showError("Microphone access required");
+      showError(window.APP_LANGUAGES.microphone_access_denied || "Microphone access required");
     } else {
-      showError("Recording failed: " + e.message);
+      showError((window.APP_LANGUAGES.recording_failed || "Recording failed: ") + e.message);
     }
   }
 }
@@ -5208,7 +5296,7 @@ async function processClarificationAudio() {
       }
     }
   } catch (e) {
-    showError("Transcription failed");
+    showError(window.APP_LANGUAGES.transcription_failed || "Transcription failed");
     console.error(e);
   }
 }
@@ -5218,7 +5306,7 @@ async function submitClarifications() {
   const userAnswer = answerInput ? answerInput.value.trim() : '';
 
   if (!userAnswer) {
-    showError("Please provide an answer first");
+    showError(window.APP_LANGUAGES.provide_answer || "Please provide an answer first");
     return;
   }
 
@@ -5234,7 +5322,7 @@ async function submitClarifications() {
 
   if (projectedTotal > limit) {
     if (window.showPremiumModal) window.showPremiumModal();
-    else showError(`Limit Reached (${limit}). Upgrade to add more.`);
+    else showError((window.APP_LANGUAGES.limit_reached_upgrade || "Limit Reached (%{limit}). Upgrade to add more.").replace('%{limit}', limit));
     return;
   }
 
@@ -5390,7 +5478,7 @@ function updateUIWithoutTranscript(data) {
     window.isAutoUpdating = false;
   } catch (e) {
     window.isAutoUpdating = false;
-    showError("UI Update Error: " + e.message);
+    showError((window.APP_LANGUAGES.ui_update_error || "UI Update Error: ") + e.message);
     console.error(e);
   }
 }

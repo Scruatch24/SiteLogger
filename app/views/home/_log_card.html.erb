@@ -114,7 +114,7 @@
             <%= category_icon_map[cat.icon].to_s.html_safe %>
           </svg>
         <% end %>
-        <%= cat.name %>
+        <%= cat.name == 'Favorites' ? t('favorites') : cat.name %>
       </div>
     <% end %>
   </div>
@@ -213,7 +213,7 @@
               <svg class="h-2.5 w-2.5 sm:h-3 sm:w-3 shrink-0">
                 <use xlink:href="#icon-calendar"></use>
               </svg>
-              <span class="leading-none"><%= log.date || log.created_at.strftime("%b %d, %Y") %></span>
+              <span class="leading-none"><%= log.date ? l(Date.parse(log.date.to_s), format: :long) : l(log.created_at, format: :long) %></span>
             </div>
 
            <% if log.due_date.present? %>
@@ -221,7 +221,7 @@
                 <svg class="h-2.5 w-2.5 sm:h-3 sm:w-3 shrink-0">
                   <use xlink:href="#icon-clock"></use>
                 </svg>
-                <span class="leading-none text-xs sm:text-sm"><%= t('due') %>: <%= log.due_date %></span>
+                <span class="leading-none text-xs sm:text-sm"><%= t('due') %>: <%= l(Date.parse(log.due_date.to_s), format: :long) %></span>
               </div>
            <% end %>
          </div>

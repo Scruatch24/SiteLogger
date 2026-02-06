@@ -4,8 +4,8 @@
       <span class="text-[9px] font-bold text-gray-400 uppercase tracking-widest leading-none translate-y-[-1px]"><%= t('due_date') %></span>
       <div id="dueDateDisplay" class="text-xs font-black text-black leading-none mt-0.5 flex items-baseline justify-end">
         <% initial_due = Time.now + 14.days %>
-        <span id="dueDateValue" class="leading-none"><%= initial_due.strftime("%b %d, %Y") %></span>
-        <span id="dueDaysLabel" class="text-[12px] font-bold text-gray-400 ml-[2px] leading-none whitespace-nowrap"><%= "(in 14 days)" %></span>
+        <span id="dueDateValue" class="leading-none"><%= l(initial_due, format: :long) %></span>
+        <span id="dueDaysLabel" class="text-[12px] font-bold text-gray-400 ml-[2px] leading-none whitespace-nowrap"><%= t('in_x_days', count: 14) %></span>
       </div>
     </div>
     <button type="button" onclick="toggleCalendar(this)" class="w-8 h-8 border-2 border-black rounded-lg bg-white btn-icon-hover transition-all flex items-center justify-center group flex-shrink-0 active:scale-95 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px]">
@@ -23,13 +23,9 @@
       <button type="button" onclick="changeCalendarMonth(1)" class="w-8 h-8 border-2 border-black rounded-lg md:hover:bg-orange-50 flex items-center justify-center font-black text-lg transition-all active:scale-95 active:translate-x-[1px] active:translate-y-[1px] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none bg-white leading-none pb-0.5 active:bg-orange-600 active:text-white">›</button>
     </div>
     <div class="grid grid-cols-7 gap-1 mb-2">
-      <span class="text-[9px] font-bold text-gray-400 text-center">SU</span>
-      <span class="text-[9px] font-bold text-gray-400 text-center">MO</span>
-      <span class="text-[9px] font-bold text-gray-400 text-center">TU</span>
-      <span class="text-[9px] font-bold text-gray-400 text-center">WE</span>
-      <span class="text-[9px] font-bold text-gray-400 text-center">TH</span>
-      <span class="text-[9px] font-bold text-gray-400 text-center">FR</span>
-      <span class="text-[9px] font-bold text-gray-400 text-center">SA</span>
+      <% t('date.abbr_day_names').each do |day| %>
+        <span class="text-[9px] font-bold text-gray-400 text-center"><%= day.upcase %></span>
+      <% end %>
     </div>
     <div id="calendarDays" class="grid grid-cols-7 gap-1"></div>
     <div class="flex gap-2 mt-3 pt-3 border-t-2 border-dashed border-gray-200">

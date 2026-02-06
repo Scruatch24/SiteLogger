@@ -130,25 +130,30 @@ class InvoiceGenerator
         subtotal: "ქვეჯამი",
         tax_total: "დღგ",
         total_due: "სულ გადასახდელი",
-        labor: "სამუშაო",
+        labor: "პროფესიონალური მომსახურება",
         material: "მასალა",
-        fee: "საკომისიო",
+        fee: "მოსაკრებელი",
         expense: "ხარჯი",
         other: "სხვა",
         credit: "კრედიტი",
         client: "კლიენტი",
         sender: "გამომგზავნი",
         date: "თარიღი",
-        due_date: "ვადა",
+        due_date: "გადახდის ვადა",
         bill_to: "ადრესატი",
-        balance_due: "დავალიანება",
+        balance_due: "ბალანსი",
         items_total: "ელემენტების ჯამი",
         item_discounts: "ელემენტების ფასდაკლება",
         taxable_total: "დასაბეგრი ჯამი",
         invoice_discount: "ინვოისის ფასდაკლება",
         total_before_credit: "ჯამი კრედიტამდე",
         credit_applied: "გამოყენებული კრედიტი",
-        payment_details: "გადახდის დეტალები"
+        payment_details: "გადახდის დეტალები",
+        page: "გვერდი",
+        of: "სულ",
+        tax_id_label: "საგადასახადო ID",
+        valued_client: "ძვირფასი კლიენტი",
+        invoice_prefix: "ინვ"
       }
     else
       {
@@ -163,15 +168,15 @@ class InvoiceGenerator
         qty: "QTY",
         amount: "AMOUNT",
         discount: "DISCOUNT",
-        tax: "TAX",
+        tax: "Tax",
         subtotal: "SUBTOTAL",
-        tax_total: "TAX",
+        tax_total: "Tax",
         total_due: "TOTAL DUE",
-        labor: "SERVICE",
-        material: "MATERIAL",
-        fee: "FEE",
-        expense: "EXPENSE",
-        other: "OTHER",
+        labor: "Service",
+        material: "Material",
+        fee: "Fee",
+        expense: "Expense",
+        other: "Other",
         credit: "CREDIT",
         client: "CLIENT",
         sender: "SENDER",
@@ -185,7 +190,12 @@ class InvoiceGenerator
         invoice_discount: "Invoice Discount",
         total_before_credit: "Total Before Credit",
         credit_applied: "Credit Applied",
-        payment_details: "PAYMENT DETAILS"
+        payment_details: "PAYMENT DETAILS",
+        page: "PAGE",
+        of: "OF",
+        tax_id_label: "Tax ID",
+        valued_client: "VALUED CLIENT",
+        invoice_prefix: "INV"
       }
     end
   end
@@ -232,8 +242,8 @@ class InvoiceGenerator
 
       @pdf.fill_color @orange_color
       @pdf.font("NotoSans", style: :bold) do
-        # Optical Correction: Nudged UP to match the primary label alignment
-        @pdf.text_box @invoice_number, at: [ page_width - 250, page_top + 6 ], size: 24, height: 80, valign: :center, align: :right, width: 200
+        # Optical Correction: Nudged DOWN significantly to achieve the requested visual balance
+        @pdf.text_box @invoice_number, at: [ page_width - 250, page_top + 1.0 ], size: 24, height: 80, valign: :center, align: :right, width: 200
       end
     end
 
@@ -270,7 +280,7 @@ class InvoiceGenerator
       # Client Content
       @pdf.fill_color @dark_charcoal
       @pdf.font("NotoSans", style: :bold, size: 10) do
-        client_name = (@log.client.presence || "VALUED CLIENT").upcase
+        client_name = (@log.client.presence || labels[:valued_client]).upcase
         @pdf.text client_name, leading: 2
       end
 
@@ -298,7 +308,7 @@ class InvoiceGenerator
         if @profile.tax_id.present?
            name_text << { text: "  ", color: @dark_charcoal }
            name_text << { text: "•", color: "000000" }
-           name_text << { text: "  Tax ID: #{@profile.tax_id}", color: @dark_charcoal }
+           name_text << { text: "  #{labels[:tax_id_label]}: #{@profile.tax_id}", color: @dark_charcoal }
         end
         @pdf.formatted_text name_text, leading: 2
         @pdf.fill_color @mid_gray
@@ -317,16 +327,22 @@ class InvoiceGenerator
       end
     end
 
-    # -- RIGHT COLUMN: DATES (ISSUED / DUE) --
-    # Right-aligned content
+    # -- RIGHT COLUMN: LOGO + DATES --
     @pdf.bounding_box([ col_width + gap, y_start ], width: col_width) do
+      # 1. Logo Integration (Top prioritized if present)
+      if @profile.logo.attached?
+        begin
+          @pdf.image StringIO.new(@profile.logo.download), height: 110, position: :right
+          @pdf.move_down 20
+        rescue => _e
+        end
+      end
+
       date_pill_width = 45
       date_val_width = 100
       pill_height = 15
 
-      # 1. ISSUED
-      # Calculate X positions for right alignment
-      # [Date Value] [Pill] | (Right Edge)
+      # 2. ISSUED
       x_edge = @pdf.bounds.width
       x_pill = x_edge - date_pill_width
       x_value = x_pill - date_val_width - 10
@@ -352,7 +368,7 @@ class InvoiceGenerator
       @pdf.move_down 25
       current_y = @pdf.cursor
 
-      # 2. DUE
+      # 3. DUE
       # Background Pill
       @pdf.fill_color @orange_color
       @pdf.fill_rounded_rectangle [ x_pill, current_y ], date_pill_width, pill_height, 2
@@ -367,16 +383,6 @@ class InvoiceGenerator
       @pdf.fill_color @dark_charcoal
       @pdf.font("NotoSans", size: 9, style: :bold) do
         @pdf.text_box @due_date, at: [ x_value, current_y - 2.5 ], width: date_val_width, align: :right
-      end
-
-      @pdf.move_down 20
-
-      # Logo Integration (Right Aligned under DUE)
-      if @profile.logo.attached?
-        begin
-            @pdf.image StringIO.new(@profile.logo.download), height: 120, position: :right
-        rescue => _e
-        end
       end
     end
 
@@ -407,7 +413,7 @@ class InvoiceGenerator
       next if items.empty?
 
       items.each do |item|
-        render_classic_row(item, table_width, @table_widths[:prod], @table_widths[:desc], @table_widths[:qty], @table_widths[:rate], @table_widths[:disc], @table_widths[:tax], @table_widths[:amnt], cat[:title].upcase)
+        render_classic_row(item, table_width, @table_widths[:desc], @table_widths[:qty], @table_widths[:rate], @table_widths[:disc], @table_widths[:tax], @table_widths[:amnt], is_credit: false)
       end
     end
 
@@ -420,13 +426,12 @@ class InvoiceGenerator
           computed_tax_amount: 0,
           item_discount_amount: 0
         }
-        render_classic_row(credit_data, table_width, @table_widths[:prod], @table_widths[:desc], @table_widths[:qty], @table_widths[:rate], @table_widths[:disc], @table_widths[:tax], @table_widths[:amnt], labels[:credit], is_credit: true)
+        render_classic_row(credit_data, table_width, @table_widths[:desc], @table_widths[:qty], @table_widths[:rate], @table_widths[:disc], @table_widths[:tax], @table_widths[:amnt], is_credit: true)
       end
     end
   end
 
   def render_table_header(table_width, widths)
-    w_prod = widths[:prod]
     w_desc = widths[:desc]
     w_rate = widths[:rate]
     w_qty  = widths[:qty]
@@ -460,29 +465,28 @@ class InvoiceGenerator
     @pdf.fill_color header_base_color
     @pdf.fill_rectangle [ 0, @pdf.cursor ], table_width, 25
 
-    # 2. DESCRIPTION Anchor Box
+    # 2. DESCRIPTION Anchor Box (Now starts at x=0)
     @pdf.fill_color header_accent_color
-    @pdf.fill_rectangle [ w_prod, @pdf.cursor ], w_desc, 25
+    @pdf.fill_rectangle [ 0, @pdf.cursor ], w_desc, 25
 
     header_h = 25
     @pdf.font("NotoSans", style: :bold, size: 7.5) do
       @pdf.fill_color "FFFFFF"
 
-      # TYPE (Centered) and DESCRIPTION (Left)
-      @pdf.text_box labels[:type], at: [ 0, @pdf.cursor ], width: w_prod, height: header_h, align: :center, valign: :center
-      @pdf.text_box labels[:description], at: [ w_prod + 10, @pdf.cursor ], width: w_desc - 20, height: header_h, align: :left, valign: :center
-      @pdf.text_box labels[:price], at: [ w_prod + w_desc, @pdf.cursor ], width: w_rate, height: header_h, align: :center, valign: :center
-      @pdf.text_box labels[:qty], at: [ w_prod + w_desc + w_rate, @pdf.cursor ], width: w_qty, height: header_h, align: :center, valign: :center
-      @pdf.text_box labels[:amount], at: [ w_prod + w_desc + w_rate + w_qty, @pdf.cursor ], width: w_amnt, height: header_h, align: :center, valign: :center
-      @pdf.text_box labels[:discount], at: [ w_prod + w_desc + w_rate + w_qty + w_amnt, @pdf.cursor ], width: w_disc, height: header_h, align: :center, valign: :center
-      @pdf.text_box labels[:tax], at: [ w_prod + w_desc + w_rate + w_qty + w_amnt + w_disc, @pdf.cursor ], width: w_tax, height: header_h, align: :center, valign: :center
+      # DESCRIPTION (Left) and other columns
+      @pdf.text_box labels[:description], at: [ 10, @pdf.cursor ], width: w_desc - 20, height: header_h, align: :left, valign: :center
+      @pdf.text_box labels[:price], at: [ w_desc, @pdf.cursor ], width: w_rate, height: header_h, align: :center, valign: :center
+      @pdf.text_box labels[:qty], at: [ w_desc + w_rate, @pdf.cursor ], width: w_qty, height: header_h, align: :center, valign: :center
+      @pdf.text_box labels[:amount], at: [ w_desc + w_rate + w_qty, @pdf.cursor ], width: w_amnt, height: header_h, align: :center, valign: :center
+      @pdf.text_box labels[:discount], at: [ w_desc + w_rate + w_qty + w_amnt, @pdf.cursor ], width: w_disc, height: header_h, align: :center, valign: :center
+      @pdf.text_box labels[:tax], at: [ w_desc + w_rate + w_qty + w_amnt + w_disc, @pdf.cursor ], width: w_tax, height: header_h, align: :center, valign: :center
     end
 
     # Header Vertical Dividers (Standardized)
     @pdf.stroke_color "E5E7EB"
     @pdf.line_width(0.5)
     @pdf.stroke do
-      x_positions = [ 0, w_prod, w_prod + w_desc, w_prod + w_desc + w_rate, w_prod + w_desc + w_rate + w_qty, w_prod + w_desc + w_rate + w_qty + w_amnt, w_prod + w_desc + w_rate + w_qty + w_amnt + w_disc, table_width ]
+      x_positions = [ 0, w_desc, w_desc + w_rate, w_desc + w_rate + w_qty, w_desc + w_rate + w_qty + w_amnt, w_desc + w_rate + w_qty + w_amnt + w_disc, table_width ]
       x_positions.each do |x|
         # 25pt header
         @pdf.vertical_line @pdf.cursor, @pdf.cursor - 25, at: x
@@ -500,60 +504,56 @@ class InvoiceGenerator
     @pdf.move_down 25
   end
 
-  def render_classic_row(item, total_width, w_prod, w_desc, w_qty, w_rate, w_disc, w_tax, w_amnt, category_title, is_credit: false)
-    # 1. Calculate dynamic height
+  def render_classic_row(item, total_width, w_desc, w_qty, w_rate, w_disc, w_tax, w_amnt, is_credit: false)
+    # 1. Prepare Data & Arrays
     desc_text = item[:desc].to_s
     main_text = desc_text
     main_text += ":" if item[:sub_categories].present?
 
-    # Calculate main description height (size 9)
-    # Reduced leading from 2 to 1 for a tighter industrial feel
-    desc_h = @pdf.height_of(main_text, width: w_desc - 20, size: 9, style: :bold, leading: 1)
+    desc_color = is_credit ? "DC2626" : @dark_charcoal
+    # Reduced leading for better compactness
+    line_leading = (@document_language == "ka") ? 2 : 1
+    font_name = (@document_language == "ka") ? "NotoSansGeorgian" : "NotoSans"
 
-    sub_h = 0
+    desc_array = [ { text: main_text, styles: [ :bold ], size: 9, color: desc_color, font: font_name } ]
+
+    sub_array = []
     if item[:sub_categories].present?
       cleaned_subs = item[:sub_categories].map { |s| s.to_s.strip }.reject(&:blank?)
       sub_block = "\n" + cleaned_subs.map { |s| "• #{s}" }.join("\n")
-      # Use leading: 1 to match the formatted_text_box render for accurate measurement
-      sub_h = @pdf.height_of(sub_block, width: w_desc - 20, size: 9, leading: 1)
+      sub_array = [ { text: sub_block, size: 9, color: (is_credit ? "DC2626" : @mid_gray), font: font_name } ]
     end
 
-    content_h = [ desc_h + sub_h, 10 ].max
-    # Total row height: content + 8pt vertical padding (4 top, 4 bottom)
-    row_h = 8 + content_h
+    # 2. Accurate Height Calculation
+    measure_width = w_desc - 30
+    content_h = 0
+    @pdf.font(font_name) do
+      combined_text = main_text
+      combined_text += sub_block if sub_array.any?
+      content_h = @pdf.height_of(combined_text, width: measure_width, size: 9, leading: line_leading)
+    end
+
+    min_h = (@document_language == "ka") ? 18 : 10
+    content_h = [ content_h, min_h ].max
+
+    # Standardized padding for cleaner vertical centering
+    v_pad = (@document_language == "ka") ? 20 : 12
+    row_h = v_pad + content_h
 
     check_new_page_needed(row_h)
     start_y = @pdf.cursor
-    # available_h is the space from our top padding to the bottom line
-    # We used to offset by 4, but for valign: :center we use the full row_h
-    available_h = row_h
 
-    # 2. TYPE (Centered Vertically and Horizontally)
-    @pdf.fill_color is_credit ? "DC2626" : "000000"
-    @pdf.text_box category_title, at: [ 0, start_y ], width: w_prod, height: available_h, align: :center, valign: :center, size: 8, style: :bold, character_spacing: 0.5
-
-    # 3. DESCRIPTION (Top Aligned via formatted_text_box)
-    desc_color = is_credit ? "DC2626" : @dark_charcoal
-    main_text = desc_text
-    main_text += ":" if item[:sub_categories].present?
-    desc_array = [ { text: main_text, styles: [ :bold ], size: 9, color: desc_color } ]
-
-    if item[:sub_categories].present?
-      cleaned_subs = item[:sub_categories].map { |s| s.to_s.strip }.reject(&:blank?)
-      sub_block = "\n" + cleaned_subs.map { |s| "• #{s}" }.join("\n")
-      desc_array << { text: sub_block, size: 9, color: (is_credit ? "DC2626" : @mid_gray) }
-    end
-
-    @pdf.formatted_text_box(desc_array,
-      at: [ w_prod + 10, start_y ],
+    # 3. Render Description (Centered Vertically, Left Aligned Horizontally)
+    @pdf.formatted_text_box(desc_array + sub_array,
+      at: [ 10, start_y ],
       width: w_desc - 20,
-      height: available_h,
+      height: row_h,
       align: :left,
       valign: :center,
-      leading: 1
+      leading: line_leading
     )
 
-    # 4. Right-side Numeric Columns (Now Top Aligned)
+    # 4. Numeric Columns (Centered Vertically and Horizontally)
     m_qty = item[:qty].to_f
     m_qty_label = (m_qty > 0 && m_qty != 1) ? ("%g" % m_qty) : "1"
     unit_price = (item[:qty].to_f > 0) ? (item[:price].to_f / item[:qty].to_f) : item[:price].to_f
@@ -561,65 +561,50 @@ class InvoiceGenerator
     @pdf.fill_color is_credit ? "DC2626" : @dark_charcoal
     @pdf.font("NotoSans", size: 9) do
       # PRICE
-      if is_credit
-        @pdf.fill_color @soft_gray
-        @pdf.text_box "—", at: [ w_prod + w_desc, start_y ], width: w_rate, height: available_h, align: :center, valign: :center
-      else
-        @pdf.text_box format_money(unit_price), at: [ w_prod + w_desc, start_y ], width: w_rate, height: available_h, align: :center, valign: :center
-      end
+      p_color = is_credit ? @soft_gray : (is_credit ? "DC2626" : @dark_charcoal)
+      @pdf.fill_color p_color
+      p_text = is_credit ? "—" : format_money(unit_price)
+      @pdf.text_box p_text, at: [ w_desc, start_y ], width: w_rate, height: row_h, align: :center, valign: :center, overflow: :shrink_to_fit, min_font_size: 7
 
       # QTY
       @pdf.fill_color is_credit ? "DC2626" : @dark_charcoal
-      @pdf.text_box m_qty_label.to_s, at: [ w_prod + w_desc + w_rate, start_y ], width: w_qty, height: available_h, align: :center, valign: :center
+      @pdf.text_box m_qty_label.to_s, at: [ w_desc + w_rate, start_y ], width: w_qty, height: row_h, align: :center, valign: :center, overflow: :shrink_to_fit, min_font_size: 7
 
       # AMOUNT
       @pdf.font("NotoSans", style: :bold) do
-        @pdf.text_box format_money(item[:price].to_f), at: [ w_prod + w_desc + w_rate + w_qty, start_y ], width: w_amnt, height: available_h, align: :center, valign: :center
+        @pdf.text_box format_money(item[:price].to_f), at: [ w_desc + w_rate + w_qty, start_y ], width: w_amnt, height: row_h, align: :center, valign: :center, overflow: :shrink_to_fit, min_font_size: 7
       end
 
       # DISCOUNT
       if !is_credit && item[:item_discount_amount].to_f > 0
         @pdf.fill_color @green_tag
         disc_val = "-#{format_money(item[:item_discount_amount])}"
-        if item[:discount_percent].to_f > 0
-          disc_val += " (#{item[:discount_percent].to_f.round(1).to_s.sub(/\.0$/, '')}%)"
-        end
-        @pdf.text_box disc_val, at: [ w_prod + w_desc + w_rate + w_qty + w_amnt, start_y ], width: w_disc, height: available_h, align: :center, valign: :center, style: :bold, overflow: :shrink_to_fit
-        @pdf.fill_color @dark_charcoal
+        disc_val += " (#{item[:discount_percent].to_f.round(1).to_s.sub(/\.0$/, '')}%)" if item[:discount_percent].to_f > 0
+        @pdf.text_box disc_val, at: [ w_desc + w_rate + w_qty + w_amnt, start_y ], width: w_disc, height: row_h, align: :center, valign: :center, style: :bold, overflow: :shrink_to_fit
       else
         @pdf.fill_color @soft_gray
-        @pdf.text_box "—", at: [ w_prod + w_desc + w_rate + w_qty + w_amnt, start_y ], width: w_disc, height: available_h, align: :center, valign: :center
+        @pdf.text_box "—", at: [ w_desc + w_rate + w_qty + w_amnt, start_y ], width: w_disc, height: row_h, align: :center, valign: :center
       end
 
       # TAX
       @pdf.fill_color is_credit ? "DC2626" : @dark_charcoal
       if !is_credit && item[:computed_tax_amount].to_f > 0
         tax_val = "+#{format_money(item[:computed_tax_amount])}"
-        if item[:tax_rate].to_f > 0
-          tax_val += " (#{item[:tax_rate].to_f.round(1).to_s.sub(/\.0$/, '')}%)"
-        end
-        @pdf.text_box tax_val, at: [ w_prod + w_desc + w_rate + w_qty + w_amnt + w_disc, start_y ], width: w_tax, height: available_h, align: :center, valign: :center, overflow: :shrink_to_fit
+        tax_val += " (#{item[:tax_rate].to_f.round(1).to_s.sub(/\.0$/, '')}%)" if item[:tax_rate].to_f > 0
+        @pdf.text_box tax_val, at: [ w_desc + w_rate + w_qty + w_amnt + w_disc, start_y ], width: w_tax, height: row_h, align: :center, valign: :center, overflow: :shrink_to_fit
       else
         @pdf.fill_color @soft_gray
-        @pdf.text_box "—", at: [ w_prod + w_desc + w_rate + w_qty + w_amnt + w_disc, start_y ], width: w_tax, height: available_h, align: :center, valign: :center
+        @pdf.text_box "—", at: [ w_desc + w_rate + w_qty + w_amnt + w_disc, start_y ], width: w_tax, height: row_h, align: :center, valign: :center
       end
     end
 
-    # 5. Advance cursor & Draw Dividers
     @pdf.move_down row_h
     end_y = @pdf.cursor
-
-    # Use a sharper, refined color for dividers (industrial gray)
-    @pdf.stroke_color "E5E7EB" # Gray-200 equivalent
+    @pdf.stroke_color "E5E7EB"
     @pdf.line_width(0.5)
 
-    # Vertical Lines (Pinned to exact coordinates)
-    x_positions = [ 0, w_prod, w_prod + w_desc, w_prod + w_desc + w_rate, w_prod + w_desc + w_rate + w_qty, w_prod + w_desc + w_rate + w_qty + w_amnt, w_prod + w_desc + w_rate + w_qty + w_amnt + w_disc, total_width ]
-    x_positions.each do |x|
-      @pdf.stroke_vertical_line start_y, end_y, at: x
-    end
-
-    # Horizontal Line
+    x_positions = [ 0, w_desc, w_desc + w_rate, w_desc + w_rate + w_qty, w_desc + w_rate + w_qty + w_amnt, w_desc + w_rate + w_qty + w_amnt + w_disc, total_width ]
+    x_positions.each { |x| @pdf.stroke_vertical_line start_y, end_y, at: x }
     @pdf.stroke_horizontal_line 0, total_width, at: end_y
     @pdf.line_width(1.0)
   end
@@ -627,8 +612,8 @@ class InvoiceGenerator
   def calculate_column_widths(table_width)
     calc_results = {}
 
-    @pdf.font("NotoSans", size: 7.5, style: :bold) do
-      w_prod = @pdf.width_of(labels[:type]) + 25
+    font_name = (@document_language == "ka") ? "NotoSansGeorgian" : "NotoSans"
+    @pdf.font(font_name, size: 7.5, style: :bold) do
       w_rate = @pdf.width_of(labels[:price]) + 25
       w_qty  = @pdf.width_of(labels[:qty]) + 15
       w_amnt = @pdf.width_of(labels[:amount]) + 25
@@ -642,7 +627,7 @@ class InvoiceGenerator
       end
 
       # Temp switch to measurement font size
-      @pdf.font("NotoSans", size: 9) do
+      @pdf.font(font_name, size: 9) do
         all_items.each do |item|
           q_f = item[:qty].to_f > 0 ? item[:qty].to_f : 1.0
           p_v = (item[:price].to_f / q_f)
@@ -665,18 +650,17 @@ class InvoiceGenerator
         end
       end
 
-      w_prod = [ w_prod, 60 ].max
-      fixed_total = w_prod + w_rate + w_qty + w_amnt + w_disc + w_tax
+      fixed_total = w_rate + w_qty + w_amnt + w_disc + w_tax
       w_desc = table_width - fixed_total
 
       if w_desc < 180
          # Proportional scaling to preserve a minimum 180pt Description column
          scale = (table_width - 180) / fixed_total
-         w_prod *= scale; w_rate *= scale; w_qty *= scale; w_amnt *= scale; w_disc *= scale; w_tax *= scale
+         w_rate *= scale; w_qty *= scale; w_amnt *= scale; w_disc *= scale; w_tax *= scale
          w_desc = 180
       end
 
-      calc_results = { prod: w_prod, desc: w_desc, rate: w_rate, qty: w_qty, amnt: w_amnt, disc: w_disc, tax: w_tax }
+      calc_results = { prod: 0, desc: w_desc, rate: w_rate, qty: w_qty, amnt: w_amnt, disc: w_disc, tax: w_tax }
     end
 
     calc_results
@@ -690,7 +674,7 @@ class InvoiceGenerator
     # Tier 1: Item-level breakdown
     if @item_discount_total > 0
       rows << { label: labels[:items_total], value: format_money(@gross_subtotal), style: :bold }
-      rows << { label: labels[:item_discounts], value: "-#{format_money(@item_discount_total)}", color: @green_tag, label_color: @green_tag }
+      rows << { label: labels[:item_discounts], value: "-#{format_money(@item_discount_total)}", color: @green_tag, label_color: @green_tag, style: :bold }
       rows << { divider: true }
     end
 
@@ -703,14 +687,14 @@ class InvoiceGenerator
       if @log.try(:global_discount_percent).to_f > 0
         disc_label += " (-#{@log.global_discount_percent.to_f.round(1).to_s.sub(/\.0$/, '')}%)"
       end
-      rows << { label: disc_label, value: "-#{format_money(@global_discount_amount)}", color: @green_tag, label_color: @green_tag }
+      rows << { label: disc_label, value: "-#{format_money(@global_discount_amount)}", color: @green_tag, label_color: @green_tag, style: :bold }
       rows << { divider: true }
       rows << { label: labels[:taxable_total], value: format_money(@net_subtotal), style: :bold }
     end
 
     # Tier 4: Tax
     if @final_tax > 0
-      rows << { label: labels[:tax], value: format_money(@final_tax) }
+      rows << { label: labels[:tax], value: format_money(@final_tax), style: :bold }
       rows << { divider: true }
     end
 
@@ -719,7 +703,7 @@ class InvoiceGenerator
       # Ensure there's a divider if we didn't just add one
       rows << { divider: true } unless rows.last&.dig(:divider)
       rows << { label: labels[:total_before_credit], value: format_money(@total_before_credits), style: :bold }
-      rows << { label: labels[:credit_applied], value: "-#{format_money(@total_credits)}", color: "DC2626", label_color: "DC2626" }
+      rows << { label: labels[:credit_applied], value: "-#{format_money(@total_credits)}", color: "DC2626", label_color: "DC2626", style: :bold }
     end
 
     # Remove trailing divider if any (prevents double divider with the Big Divider)
@@ -729,8 +713,8 @@ class InvoiceGenerator
     # Tighter layout if we have many rows (item discounts + global + credits)
     # EXCEPTION: If we are not on the first page, we always use normal sizing.
     is_compact = rows.count > 6 && @pdf.page_number == 1
-    row_h = is_compact ? 17 : 22
-    divider_space = is_compact ? 6 : 10
+    row_h = is_compact ? 15 : 18
+    divider_space = is_compact ? 5 : 8
     summary_font_size = is_compact ? 8.5 : 9
 
     summary_width = 240
@@ -749,8 +733,8 @@ class InvoiceGenerator
     # Calculate required height dynamically
     divider_count = rows.count { |r| r[:divider] }
     content_rows_count = rows.count { |r| !r[:divider] }
-    # Increased grand_total_h to 80 to account for banner (45) + spacing (15) + divider (8) + padding
-    grand_total_h = 80
+    # Match the grand total section height to: Banner (45) + Total Gaps (Maximum breathing room)
+    grand_total_h = 45 + (divider_space * 4.0)
     h_totals = (content_rows_count * row_h) + (divider_count * divider_space) + grand_total_h
 
     # Calculate instructions height to center it
@@ -768,7 +752,7 @@ class InvoiceGenerator
     h_flow   = [ h_totals, instr_block_h ].max
 
     item_gap = 50   # 50px (pt) gap from items
-    header_gap = 60 # Gap from continuation header
+    header_gap = 35 # Gap from continuation header
     bottom_padding = 7
 
     is_sticky = false
@@ -827,7 +811,7 @@ class InvoiceGenerator
       # Sticky (Page 1): Bottom aligned
       # Flow (Page 2+): Top aligned
       totals_y_offset = is_sticky ? (h_final - h_totals) : 0
-      current_y = h_final - totals_y_offset - 5
+      current_y = h_final - totals_y_offset
 
       rows.each do |row|
         if row[:divider]
@@ -855,8 +839,8 @@ class InvoiceGenerator
       end
 
       # Grand Total Section (Industrial High-Impact Banner)
-      # 1. Big Divider (Centering it between the last row and the banner)
-      divider_y = 45 + ((current_y - 45) / 2.0)
+      # 1. Big Divider (Centered with maximum breathing room)
+      divider_y = 45 + (divider_space * 2.0)
       @pdf.stroke_color @charcoal
       @pdf.line_width(1.5)
       @pdf.stroke_horizontal_line left_x, table_width, at: divider_y
@@ -921,7 +905,6 @@ class InvoiceGenerator
     elsif d =~ /fix(ed|ing)/i
       d = d.sub(/fix(ed|ing)/i, "Repair of")
     end
-    d = "Work performed" if d.blank?
     d
   end
 
@@ -932,27 +915,46 @@ class InvoiceGenerator
     @currency_pos == "suf" ? "#{sign}#{val} #{@currency}" : "#{sign}#{@currency}#{val}"
   end
 
+  def format_pdf_date(date)
+    return date.to_s unless date.respond_to?(:strftime)
+
+    if @document_language == "ka"
+      # Georgian Month Abbreviations (Matched to ka.yml)
+      months = [ "იან", "თებ", "მარ", "აპრ", "მაი", "ივნ", "ივლ", "აგვ", "სექ", "ოქტ", "ნოე", "დეკ" ]
+      "#{months[date.month - 1]} #{date.day}, #{date.year}"
+    else
+      # Default to English format
+      date.strftime("%b %d, %Y")
+    end
+  end
+
 
 
   private
 
   def setup_fonts
     # 1. Register Primary Fonts (Standard Noto Sans or Helvetica)
+    # If the document language is Georgian, we prioritize it as the main font to avoid fallback issues
+    primary_font_name = (@document_language == "ka") ? "NotoSansGeorgian" : "NotoSans"
+
     if File.exist?(@font_path.join("NotoSans-Regular.ttf"))
-      family = {
+      @pdf.font_families.update("NotoSans" => {
         normal: @font_path.join("NotoSans-Regular.ttf"),
-        bold: @font_path.join("NotoSans-Bold.ttf")
-      }
-
-      # Optional styles
-      family[:italic] = @font_path.join("NotoSans-Italic.ttf") if File.exist?(@font_path.join("NotoSans-Italic.ttf"))
-      family[:bold_italic] = @font_path.join("NotoSans-BoldItalic.ttf") if File.exist?(@font_path.join("NotoSans-BoldItalic.ttf"))
-
-      @pdf.font_families.update("NotoSans" => family)
-      @pdf.font "NotoSans"
-    else
-      @pdf.font "Helvetica"
+        bold: @font_path.join("NotoSans-Bold.ttf"),
+        italic: @font_path.join("NotoSans-Italic.ttf"),
+        bold_italic: @font_path.join("NotoSans-BoldItalic.ttf")
+      })
+      @pdf.font "NotoSans" # Default
     end
+
+    if File.exist?(@font_path.join("NotoSansGeorgian-Regular.ttf"))
+      @pdf.font_families.update("NotoSansGeorgian" => {
+        normal: @font_path.join("NotoSansGeorgian-Regular.ttf"),
+        bold: @font_path.join("NotoSansGeorgian-Bold.ttf")
+      })
+    end
+
+    @pdf.font primary_font_name if @pdf.font_families.has_key?(primary_font_name)
 
     # 2. Register Global Fallbacks for Symbols & Mixed Languages
     additional_fonts = {
@@ -1000,7 +1002,7 @@ class InvoiceGenerator
       @pdf.fill_color @dark_charcoal
       @pdf.font("NotoSans", style: :bold, size: 9) do
         # Format: PAGE 02  ·  #INV-1075  ·  BUSINESS NAME
-        info_text = "PAGE 0#{@pdf.page_number}  ·  #{@invoice_number}  ·  #{@profile.business_name.upcase}"
+        info_text = "#{labels[:page]} 0#{@pdf.page_number}  ·  #{@invoice_number}  ·  #{@profile.business_name.upcase}"
         @pdf.text info_text, character_spacing: 1.2
       end
     end
@@ -1026,10 +1028,10 @@ class InvoiceGenerator
     raw_sections.each do |section|
       title = section["title"].to_s.downcase
       category_key = case title
-      when /labor|service/ then :labor
-      when /material/ then :material
-      when /expense/ then :expense
-      when /fee/ then :fee
+      when /labor|service|სამუშაო|მომსახურება/i then :labor
+      when /material|მასალ/i then :material
+      when /expense|ხარჯ/i then :expense
+      when /fee|მოსაკრებ|საკომისიო|შესაკრებ/i then :fee
       else :other
       end
 
@@ -1037,6 +1039,19 @@ class InvoiceGenerator
         section["items"].each do |item|
           raw_desc = item.is_a?(Hash) ? item["desc"] : item
           desc = sanitize_description(raw_desc)
+          if desc.blank?
+            if I18n.locale.to_s == "ka"
+              desc = case category_key
+              when :labor then "პროფესიონალური მომსახურება"
+              when :material then "მასალა"
+              when :expense then "ხარჯი"
+              when :fee then "მოსაკრებელი"
+              else "სხვა"
+              end
+            else
+              desc = labels[category_key] || labels[:other]
+            end
+          end
           qty = 1.0; price = 0.0; gross_price = 0.0
 
           if item.is_a?(Hash)
@@ -1122,18 +1137,26 @@ class InvoiceGenerator
     end
 
     if raw_credits.is_a?(Array) && raw_credits.present?
-      raw_credits.each { |c| @credits << { reason: c["reason"].presence || "Courtesy Credit", amount: c["amount"].to_f } if c["amount"].to_f > 0 }
+      raw_credits.each { |c| @credits << { reason: c["reason"].presence || I18n.t("courtesy_credit", default: "Courtesy Credit"), amount: c["amount"].to_f } if c["amount"].to_f > 0 }
     elsif (c_amt = @log.try(:credit_flat).to_f) > 0
-      @credits << { reason: @log.try(:credit_reason).presence || "Courtesy Credit", amount: c_amt }
+      @credits << { reason: @log.try(:credit_reason).presence || I18n.t("courtesy_credit", default: "Courtesy Credit"), amount: c_amt }
     end
 
     @total_credits = @credits.sum { |c| c[:amount] }
     @total_before_credits = @net_subtotal + @final_tax
     @total_due = @total_before_credits - @total_credits
-    @invoice_date = @log.date.presence || Date.today.strftime("%b %d, %Y")
-    @due_date = @log.due_date.presence || (Date.parse(@invoice_date) + 14.days rescue Date.today + 14).strftime("%b %d, %Y")
+
+    # Standardize incoming date strings (ISO or English) and format for PDF language
+    raw_date = @log.date.presence || Date.today.to_s
+    parsed_date = Date.parse(raw_date.to_s) rescue Date.today
+    @invoice_date = format_pdf_date(parsed_date)
+
+    raw_due = @log.due_date.presence || (parsed_date + 14.days).to_s
+    parsed_due = Date.parse(raw_due.to_s) rescue (parsed_date + 14.days)
+    @due_date = format_pdf_date(parsed_due)
+
     @invoice_id_display = @log.display_number
-    @invoice_number = "INV-#{@invoice_id_display}"
+    @invoice_number = "#{labels[:invoice_prefix]}-#{@invoice_id_display}"
   end
 
   def check_new_page_needed(needed_height)
@@ -1443,7 +1466,7 @@ class InvoiceGenerator
 
         @pdf.fill_color @dark_charcoal
         @pdf.font("NotoSans", style: :bold, size: 7) do
-          page_text = "PAGE #{i + 1} OF #{@pdf.page_count}"
+          page_text = "#{labels[:page]} #{i + 1} #{labels[:of]} #{@pdf.page_count}"
           @pdf.text_box page_text, at: [ page_w - margin - 100, footer_y ], width: 100, align: :right, character_spacing: 1
         end
       end

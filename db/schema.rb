@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_02_05_114237) do
+ActiveRecord::Schema[8.0].define(version: 2026_02_06_132913) do
   create_schema "auth"
   create_schema "neon_auth"
   create_schema "pgrst"
@@ -133,6 +133,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_02_05_114237) do
     t.integer "hours_per_workday", default: 8
     t.string "system_language"
     t.string "document_language"
+    t.string "transcription_language"
     t.index ["user_id"], name: "index_profiles_on_user_id"
   end
 

@@ -12,7 +12,7 @@ class Users::OmniauthCallbacksController < Devise::OmniauthCallbacksController
   end
 
   def failure
-    flash[:alert] = "Authentication failed: #{params[:message].to_s.humanize}" if params[:message].present?
+    flash[:alert] = t("devise.omniauth_callbacks.failure", kind: "OAuth", reason: params[:message].to_s.humanize) if params[:message].present?
     redirect_to root_path
   end
 end

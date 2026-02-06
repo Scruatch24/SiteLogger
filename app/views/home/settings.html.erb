@@ -18,7 +18,7 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
         </svg>
       <% end %>
-      <h1 class="text-xl md:text-2xl font-black tracking-tighter text-black uppercase italic truncate pr-2"><%= t('settings') %></h1>
+      <h1 class="text-xl md:text-2xl font-black tracking-tighter text-black uppercase truncate pr-2 pb-1 leading-normal"><%= t('settings') %></h1>
     </div>
     
     <%# Mobile Save Icon %>
@@ -71,7 +71,7 @@
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
             </div>
-            <h3 class="text-2xl font-black italic tracking-tighter uppercase leading-none text-white"><%= t('free_account') %></h3>
+            <h3 class="text-2xl font-black tracking-tighter uppercase leading-none text-white"><%= t('free_account') %></h3>
             <p class="text-[10px] font-black uppercase tracking-[0.2em] text-orange-500/80"><%= t('invoice_customization') %></p>
           </div>
           
@@ -127,19 +127,20 @@
     </div>
   <% end %>
 
-  <%= form_with model: @profile, url: save_settings_path, id: "settingsForm", local: false, class: "max-w-md mx-auto space-y-8 #{is_guest ? 'opacity-40 grayscale pointer-events-none select-none' : ''}" do |f| %>
-    <div class="space-y-6">
+  <%= form_with model: @profile, url: save_settings_path, id: "settingsForm", local: false, class: "max-w-md mx-auto space-y-12" do |f| %>
+    <script>window.is_guest = <%= is_guest %>;</script>
+    <div class="space-y-12">
 
-      <%# System Language Dropdown %>
+      <%# System Language Dropdown - Enabled even for guests %>
       <div class="space-y-2">
-        <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1"><%= t('system_language') %></label>
+        <label class="text-[12px] font-black text-black uppercase tracking-widest ml-1"><%= t('system_language') %></label>
         <div class="relative">
           <%= f.hidden_field :system_language, id: "system_language_hidden_field", value: I18n.locale.to_s %>
           
-          <button type="button" id="systemLanguageSelectBtn" onclick="toggleSystemLanguageMenu(event)" class="w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black text-left flex justify-between items-center shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:outline-none transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none z-10 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed" <%= 'disabled' if is_guest %>>
+          <button type="button" id="systemLanguageSelectBtn" onclick="toggleSystemLanguageMenu(event)" class="w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black text-left flex justify-between items-center shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:outline-none transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none z-10">
             <span id="selectedSystemLanguageDisplay" class="flex items-center gap-2">
-              <span class="fi fi-us rounded-sm shadow-sm" id="systemLangFlag"></span> 
-              <span class="ml-1 font-black uppercase tracking-widest" id="systemLangText"><%= t('english') %></span>
+              <span class="fi <%= I18n.locale == :ka ? 'fi-ge' : 'fi-us' %> rounded-sm shadow-sm" id="systemLangFlag"></span> 
+              <span class="ml-1 font-black uppercase tracking-widest" id="systemLangText"><%= I18n.locale == :ka ? "ქართული" : "English" %></span>
             </span>
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M19 9l-7 7-7-7" stroke-width="3" stroke="black"/></svg>
           </button>
@@ -149,13 +150,13 @@
               <button type="button" onclick="selectSystemLanguage('en')" class="w-full px-4 py-4 hover:bg-orange-50 cursor-pointer flex items-center justify-between border-b border-gray-100 last:border-0 transition-colors">
                 <div class="flex items-center gap-3">
                   <span class="fi fi-us rounded-sm shadow-sm w-5 h-4"></span>
-                  <span class="text-xs font-black text-black uppercase tracking-widest"><%= t('english') %></span>
+                  <span class="text-xs font-black text-black uppercase tracking-widest">English</span>
                 </div>
               </button>
               <button type="button" onclick="selectSystemLanguage('ka')" class="w-full px-4 py-4 hover:bg-orange-50 cursor-pointer flex items-center justify-between border-b border-gray-100 last:border-0 transition-colors">
                 <div class="flex items-center gap-3">
                   <span class="fi fi-ge rounded-sm shadow-sm w-5 h-4"></span>
-                  <span class="text-xs font-black text-black uppercase tracking-widest"><%= t('georgian') %></span>
+                  <span class="text-xs font-black text-black uppercase tracking-widest">ქართული</span>
                 </div>
               </button>
             </div>
@@ -163,16 +164,18 @@
         </div>
       </div>
 
+      <div class="space-y-12 <%= is_guest ? 'opacity-40 grayscale pointer-events-none select-none' : '' %>">
+
       <%# Default Document Language Dropdown %>
       <div class="space-y-2">
-        <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1"><%= t('document_language') %></label>
+        <label class="text-[12px] font-black text-black uppercase tracking-widest ml-1"><%= t('document_language') %></label>
         <div class="relative">
           <%= f.hidden_field :document_language, id: "document_language_hidden_field", value: @profile.try(:document_language) || "en" %>
           
           <button type="button" id="documentLanguageSelectBtn" onclick="toggleDocumentLanguageMenu(event)" class="w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black text-left flex justify-between items-center shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:outline-none transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none z-10 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed" <%= 'disabled' if is_guest %>>
             <span id="selectedDocumentLanguageDisplay" class="flex items-center gap-2">
-              <span class="fi fi-us rounded-sm shadow-sm" id="documentLangFlag"></span> 
-              <span class="ml-1 font-black uppercase tracking-widest" id="documentLangText"><%= t('english') %></span>
+              <span class="fi <%= (@profile.try(:document_language) || "en") == "ka" ? 'fi-ge' : 'fi-us' %> rounded-sm shadow-sm" id="documentLangFlag"></span> 
+              <span class="ml-1 font-black uppercase tracking-widest" id="documentLangText"><%= (@profile.try(:document_language) || "en") == "ka" ? "ქართული" : "English" %></span>
             </span>
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M19 9l-7 7-7-7" stroke-width="3" stroke="black"/></svg>
           </button>
@@ -182,13 +185,13 @@
               <button type="button" onclick="selectDocumentLanguage('en')" class="w-full px-4 py-4 hover:bg-orange-50 cursor-pointer flex items-center justify-between border-b border-gray-100 last:border-0 transition-colors">
                 <div class="flex items-center gap-3">
                   <span class="fi fi-us rounded-sm shadow-sm w-5 h-4"></span>
-                  <span class="text-xs font-black text-black uppercase tracking-widest"><%= t('english') %></span>
+                  <span class="text-xs font-black text-black uppercase tracking-widest">English</span>
                 </div>
               </button>
               <button type="button" onclick="selectDocumentLanguage('ka')" class="w-full px-4 py-4 hover:bg-orange-50 cursor-pointer flex items-center justify-between border-b border-gray-100 last:border-0 transition-colors">
                 <div class="flex items-center gap-3">
                   <span class="fi fi-ge rounded-sm shadow-sm w-5 h-4"></span>
-                  <span class="text-xs font-black text-black uppercase tracking-widest"><%= t('georgian') %></span>
+                  <span class="text-xs font-black text-black uppercase tracking-widest">ქართული</span>
                 </div>
               </button>
             </div>
@@ -197,10 +200,11 @@
       </div>
 
 
+      <div class="border-t-2 border-dashed border-gray-200 my-8"></div>
 
       <%# Invoice Design Selection - REMOVED DOTTED BORDER %>
-      <div class="space-y-4 pt-0">
-        <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1"><%= t('invoice_design') %></label>
+      <div class="space-y-4 pt-1">
+        <label class="block mb-0 md:-mb-5 text-[12px] font-black text-black uppercase tracking-widest ml-1"><%= t('invoice_design') %></label>
         <%= f.hidden_field :invoice_style, id: "invoice_style_input", value: @profile.invoice_style.presence || "classic" %>
         <%= f.hidden_field :accent_color, id: "accent_color_input", value: @profile.accent_color.presence || "#F97316" %>
         
@@ -301,7 +305,7 @@
 
       <%# Currency Dropdown %>
       <div class="space-y-2">
-        <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1"><%= t('default_currency') %></label>
+        <label class="text-[12px] font-black text-black uppercase tracking-widest ml-1"><%= t('default_currency') %></label>
         <div class="relative">
           <%= f.hidden_field :currency, id: "currency_hidden_field", value: @profile.currency.presence || "USD" %>
           
@@ -321,7 +325,7 @@
             <div id="currencyList" class="relative z-10"></div>
           </div>
         </div>
-        <button type="button" onclick="showSettingsInfo('Currency', 'If any currency is mentioned other than this default in your instructions, it will be applied instead. Only 1 currency can be used per invoice.')" class="flex items-center gap-1.5 px-1.5 py-0.5 bg-gray-50 text-gray-400 text-[8px] font-black uppercase tracking-widest rounded-md border border-gray-200 ml-1 mt-1 hover:bg-orange-50 hover:text-orange-600 transition-colors">
+        <button type="button" onclick="showSettingsInfo('<%= j t('settings_info.currency_title') %>', '<%= j t('settings_info.currency_desc') %>')" class="flex items-center gap-1.5 px-1.5 py-0.5 bg-gray-50 text-gray-400 text-[8px] font-black uppercase tracking-widest rounded-md border border-gray-200 ml-1 mt-1 hover:bg-orange-50 hover:text-orange-600 transition-colors">
           <span><%= t('unless_mentioned_otherwise') %></span>
           <div class="w-3 h-3 rounded-full bg-gray-200 flex items-center justify-center text-[7px] text-gray-500 font-black">!</div>
         </button>
@@ -329,7 +333,7 @@
 
       <%# Billing Model Selection %>
       <div class="space-y-2">
-        <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1"><%= t('default_billing_model') %></label>
+        <label class="text-[12px] font-black text-black uppercase tracking-widest ml-1"><%= t('default_billing_model') %></label>
         <div class="flex gap-2 h-12">
           <%= f.label :billing_mode_hourly, class: "flex-1 h-full cursor-pointer #{@profile.guest? ? 'pointer-events-none' : ''}" do %>
             <%= f.radio_button :billing_mode, "hourly", class: "peer hidden", checked: @profile.billing_mode != "fixed", disabled: @profile.guest?, onchange: "updateRateLabel()" %>
@@ -344,7 +348,7 @@
             </div>
           <% end %>
         </div>
-        <button type="button" onclick="showSettingsInfo('Billing Model', 'This determines the default starting point for labor. An invoice can have mixed billing models for different items; if you explicitly mention a specific mode (Hourly or Fixed) in your prompt, it will be used instead.')" class="flex items-center gap-1.5 px-1.5 py-0.5 bg-gray-50 text-gray-400 text-[8px] font-black uppercase tracking-widest rounded-md border border-gray-200 ml-1 mt-1 hover:bg-orange-50 hover:text-orange-600 transition-colors">
+        <button type="button" onclick="showSettingsInfo('<%= j t('settings_info.billing_model_title') %>', '<%= j t('settings_info.billing_model_desc') %>')" class="flex items-center gap-1.5 px-1.5 py-0.5 bg-gray-50 text-gray-400 text-[8px] font-black uppercase tracking-widest rounded-md border border-gray-200 ml-1 mt-1 hover:bg-orange-50 hover:text-orange-600 transition-colors">
           <span><%= t('unless_mentioned_otherwise') %></span>
           <div class="w-3 h-3 rounded-full bg-gray-200 flex items-center justify-center text-[7px] text-gray-500 font-black">!</div>
         </button>
@@ -355,28 +359,28 @@
 
 
       <div class="space-y-2">
-        <label id="rateLabel" class="text-[10px] font-black text-black uppercase tracking-widest ml-1">
+        <label id="rateLabel" class="text-[12px] font-black text-black uppercase tracking-widest ml-1">
           <% current_symbol = current_currency[:s] %>
-          <%= @profile.billing_mode == "fixed" ? "Default Price (#{current_symbol})" : "Default Rate (#{current_symbol}/hr)" %>
+          <%= @profile.billing_mode == "fixed" ? t('default_price_with_symbol', symbol: current_symbol) : t('default_rate_hourly_with_symbol', symbol: current_symbol) %>
         </label>
         <%= f.number_field :hourly_rate, step: 0.01, max: 999999999, oninput: "if(this.value > 999999999) this.value = 999999999", class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", disabled: is_guest %>
-        <button type="button" onclick="showSettingsInfo('Default Rate', 'This rate is used automatically for labor. If you mention a different rate or a fixed price in your instructions, it will override this value.')" class="flex items-center gap-1.5 px-1.5 py-0.5 bg-gray-50 text-gray-400 text-[8px] font-black uppercase tracking-widest rounded-md border border-gray-200 ml-1 mt-1 hover:bg-orange-50 hover:text-orange-600 transition-colors">
+        <button type="button" onclick="showSettingsInfo('<%= j t('settings_info.default_rate_title') %>', '<%= j t('settings_info.default_rate_desc') %>')" class="flex items-center gap-1.5 px-1.5 py-0.5 bg-gray-50 text-gray-400 text-[8px] font-black uppercase tracking-widest rounded-md border border-gray-200 ml-1 mt-1 hover:bg-orange-50 hover:text-orange-600 transition-colors">
           <span><%= t('unless_mentioned_otherwise') %></span>
           <div class="w-3 h-3 rounded-full bg-gray-200 flex items-center justify-center text-[7px] text-gray-500 font-black">!</div>
         </button>
       </div>
 
       <div class="space-y-2">
-        <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1"><%= t('hours_per_workday') %></label>
+        <label class="text-[12px] font-black text-black uppercase tracking-widest ml-1"><%= t('hours_per_workday') %></label>
         <%= f.number_field :hours_per_workday, step: 1, min: 1, max: 24, oninput: "if(this.value > 24) this.value = 24; if(this.value < 1) this.value = 1", class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", disabled: is_guest %>
-        <button type="button" onclick="showSettingsInfo('Hours Per Workday', 'Used to convert day-based references into hours. For example: half day becomes 4 hours, three days becomes 24 hours (with default of 8). Values: 1-24.')" class="flex items-center gap-1.5 px-1.5 py-0.5 bg-gray-50 text-gray-400 text-[8px] font-black uppercase tracking-widest rounded-md border border-gray-200 ml-1 mt-1 hover:bg-orange-50 hover:text-orange-600 transition-colors">
+        <button type="button" onclick="showSettingsInfo('<%= j t('settings_info.hours_workday_title') %>', '<%= j t('settings_info.hours_workday_desc') %>')" class="flex items-center gap-1.5 px-1.5 py-0.5 bg-gray-50 text-gray-400 text-[8px] font-black uppercase tracking-widest rounded-md border border-gray-200 ml-1 mt-1 hover:bg-orange-50 hover:text-orange-600 transition-colors">
           <span><%= t('day_equals_x_hours') %></span>
           <div class="w-3 h-3 rounded-full bg-gray-200 flex items-center justify-center text-[7px] text-gray-500 font-black">!</div>
         </button>
       </div>
 
       <div class="space-y-2">
-        <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1"><%= t('default_tax_scope') %></label>
+        <label class="text-[12px] font-black text-black uppercase tracking-widest ml-1"><%= t('default_tax_scope') %></label>
 
         <%# Hidden field to store actual value %>
         <%= f.hidden_field :tax_scope, id: "tax_scope_hidden" %>
@@ -388,13 +392,13 @@
               <%= t('labor') %>
             </button>
             <button type="button" data-scope="materials_only" onclick="<%= @profile.guest? ? '' : 'toggleScopeToken(this)' %>" class="flex-1 flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all border-2 border-black rounded-xl scope-toggle bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 <%= 'opacity-50 cursor-not-allowed pointer-events-none' if @profile.guest? %>">
-              <%= t('material') %>
-            </button>
-            <button type="button" data-scope="fees_only" onclick="<%= @profile.guest? ? '' : 'toggleScopeToken(this)' %>" class="flex-1 flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all border-2 border-black rounded-xl scope-toggle bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 <%= 'opacity-50 cursor-not-allowed pointer-events-none' if @profile.guest? %>">
-              <%= t('fee') %>
+              <%= t('materials_only') %>
             </button>
             <button type="button" data-scope="expenses_only" onclick="<%= @profile.guest? ? '' : 'toggleScopeToken(this)' %>" class="flex-1 flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all border-2 border-black rounded-xl scope-toggle bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 <%= 'opacity-50 cursor-not-allowed pointer-events-none' if @profile.guest? %>">
               <%= t('expense') %>
+            </button>
+            <button type="button" data-scope="fees_only" onclick="<%= @profile.guest? ? '' : 'toggleScopeToken(this)' %>" class="flex-1 flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all border-2 border-black rounded-xl scope-toggle bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 <%= 'opacity-50 cursor-not-allowed pointer-events-none' if @profile.guest? %>">
+              <%= t('fee') %>
             </button>
           </div>
 
@@ -408,17 +412,17 @@
             </button>
           </div>
         </div>
-        <button type="button" onclick="showSettingsInfo('Tax Scope', 'This defines what is taxable by default. Your specific instructions (e.g., \'tax materials\' or \'no tax on labor\') will always take precedence.')" class="flex items-center gap-1.5 px-1.5 py-0.5 bg-gray-50 text-gray-400 text-[8px] font-black uppercase tracking-widest rounded-md border border-gray-200 ml-1 mt-1 hover:bg-orange-50 hover:text-orange-600 transition-colors">
+        <button type="button" onclick="showSettingsInfo('<%= j t('settings_info.tax_scope_title') %>', '<%= j t('settings_info.tax_scope_desc') %>')" class="flex items-center gap-1.5 px-1.5 py-0.5 bg-gray-50 text-gray-400 text-[8px] font-black uppercase tracking-widest rounded-md border border-gray-200 ml-1 mt-1 hover:bg-orange-50 hover:text-orange-600 transition-colors">
           <span><%= t('unless_mentioned_otherwise') %></span>
           <div class="w-3 h-3 rounded-full bg-gray-200 flex items-center justify-center text-[7px] text-gray-500 font-black">!</div>
         </button>
       </div>
 
       <div class="space-y-2">
-        <label class="text-[10px] font-black text-black uppercase tracking-widest ml-1"><%= t('default_tax_rate') %></label>
+        <label class="text-[12px] font-black text-black uppercase tracking-widest ml-1"><%= t('default_tax_rate') %></label>
         <%= f.number_field :tax_rate, step: 0.1, max: 100, oninput: "if(this.value > 100) this.value = 100", class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", disabled: is_guest %>
-        <button type="button" onclick="showSettingsInfo('Tax Rate', 'The default tax percentage. Different tax rates can be used for different items (Labor, Materials, Expenses, or Fees) if explicitly mentioned in your instructions.')" class="flex items-center gap-1.5 px-1.5 py-0.5 bg-gray-50 text-gray-400 text-[8px] font-black uppercase tracking-widest rounded-md border border-gray-200 ml-1 mt-1 hover:bg-orange-50 hover:text-orange-600 transition-colors">
-          <span>Unless Mentioned Otherwise</span>
+        <button type="button" onclick="showSettingsInfo('<%= j t('settings_info.tax_rate_title') %>', '<%= j t('settings_info.tax_rate_desc') %>')" class="flex items-center gap-1.5 px-1.5 py-0.5 bg-gray-50 text-gray-400 text-[8px] font-black uppercase tracking-widest rounded-md border border-gray-200 ml-1 mt-1 hover:bg-orange-50 hover:text-orange-600 transition-colors">
+          <span><%= t('unless_mentioned_otherwise') %></span>
           <div class="w-3 h-3 rounded-full bg-gray-200 flex items-center justify-center text-[7px] text-gray-500 font-black">!</div>
         </button>
       </div>
@@ -426,16 +430,10 @@
 
 
 
-    </div>
+      </div> <%# End of disabled section %>
+    </div> <%# End of space-y-6 container %>
 
-    <% if @profile.guest? && !user_signed_in? %>
-      <%= link_to new_user_registration_path, class: "flex w-full bg-orange-600/40 text-white/60 border-2 border-white/10 font-black py-4 rounded-xl transition-all uppercase text-xs tracking-[0.2em] items-center justify-center gap-3 cursor-pointer shadow-none" do %>
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-        </svg>
-        <span><%= t('sign_up_to_save') %></span>
-      <% end %>
-    <% else %>
+    <% unless is_guest %>
       <button type="submit" id="saveSettingsBtn" class="w-full bg-orange-600 text-white border-2 border-black font-black py-4 rounded-xl shadow-[4px_4px_0px_0px_#000000] active:scale-[0.97] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all uppercase text-xs tracking-[0.2em] flex items-center justify-center gap-3 save-btn-hover">
         <span id="btnText"><%= t('save_settings') %></span>
         <div id="btnSpinner" class="hidden">
@@ -445,6 +443,16 @@
           </svg>
         </div>
       </button>
+    <% else %>
+      <%# Greyed-out Guest CTA Banner at the bottom %>
+      <div class="mt-8">
+        <div class="w-full bg-orange-600/40 text-white/60 border-2 border-white/10 font-black py-4 rounded-xl transition-all uppercase text-xs tracking-[0.2em] flex items-center justify-center gap-3 shadow-none">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+          <span><%= t('sign_up_to_save') %></span>
+        </div>
+      </div>
     <% end %>
   <% end %>
 </div>
@@ -487,6 +495,12 @@
   const currencies = <%== currencies_data.to_json %>;
   let activeTokens = [];
   let selectedCurrency = currencies[0];
+  window.APP_LANGUAGES = {
+    en: "<%= t('english') %>",
+    ka: "<%= t('georgian') %>",
+    default_price: "<%= j t('default_price_with_symbol', symbol: '%{symbol}') %>",
+    default_rate: "<%= j t('default_rate_hourly_with_symbol', symbol: '%{symbol}') %>"
+  };
   window.previewTimeout = null;
 
   // --- Global Functions ---
@@ -605,9 +619,9 @@
     if (!rateLabel) return;
     const symbol = selectedCurrency.s;
     if (fixedRadio && fixedRadio.checked) {
-      rateLabel.innerText = `Default Price (${symbol})`;
+      rateLabel.innerText = window.APP_LANGUAGES.default_price.replace('%{symbol}', symbol);
     } else {
-      rateLabel.innerText = `Default Rate (${symbol}/hr)`;
+      rateLabel.innerText = window.APP_LANGUAGES.default_rate.replace('%{symbol}', symbol);
     }
   }
 
@@ -823,13 +837,66 @@
     if (hiddenField) hiddenField.value = code;
     updateSystemLanguageDisplay(code);
     document.getElementById('systemLanguageMenu')?.classList.add('hidden');
+    
+    // Auto-apply for everyone via session
+    saveSystemLanguageSession(code);
   };
+
+  async function saveSystemLanguageSession(code) {
+    const btn = document.getElementById('systemLanguageSelectBtn');
+    const toast = document.getElementById('saveToast');
+    const originalContent = btn.innerHTML;
+    
+    // Determine which "applying" text to use based on the SELECTED language
+    const applyingText = code === 'ka' ? "<%= j t('applying', locale: :ka) %>" : "<%= j t('applying', locale: :en) %>";
+    
+    btn.disabled = true;
+    btn.innerHTML = `<div class="flex items-center gap-2"><div class="animate-spin h-4 w-4 border-2 border-black border-t-transparent rounded-full"></div> <span class="text-[10px] font-black uppercase tracking-widest">${applyingText}</span></div>`;
+    
+    try {
+      const response = await fetch(`/set_session_locale?locale=${code}`, {
+        method: 'POST',
+        headers: {
+          'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content
+        }
+      });
+      
+      if (response.ok) {
+        // Show success toast briefly then reload
+        if (toast) {
+          toast.classList.remove('hidden');
+          setTimeout(() => window.location.reload(), 500);
+        } else {
+          window.location.reload();
+        }
+      } else {
+        alert("Failed to switch language. Please try again.");
+        btn.disabled = false;
+        btn.innerHTML = originalContent;
+      }
+    } catch (e) {
+      console.error(e);
+      btn.disabled = false;
+      btn.innerHTML = originalContent;
+    }
+  }
 
   window.selectDocumentLanguage = function(code) {
     const hiddenField = document.getElementById('document_language_hidden_field');
     if (hiddenField) hiddenField.value = code;
     updateDocumentLanguageDisplay(code);
     document.getElementById('documentLanguageMenu')?.classList.add('hidden');
+    
+    // Auto-save changes if not guest
+    if (!window.is_guest) {
+      const btn = document.getElementById('documentLanguageSelectBtn');
+      if (btn) {
+        btn.disabled = true;
+        // Use current system locale for the message, as changing doc language doesn't change UI language immediately
+        btn.innerHTML = `<div class="flex items-center gap-2"><div class="animate-spin h-4 w-4 border-2 border-black border-t-transparent rounded-full"></div> <span class="text-[10px] font-black uppercase tracking-widest">${"<%= t('saving') %>"}</span></div>`;
+      }
+      document.getElementById('settingsForm').requestSubmit();
+    }
   };
 
   window.updateSystemLanguageDisplay = function(code) {
@@ -839,10 +906,10 @@
     
     if (code === 'ka') {
       flag.className = "fi fi-ge rounded-sm shadow-sm";
-      text.innerText = "GEORGIAN";
+      text.innerText = "ქართული";
     } else {
       flag.className = "fi fi-us rounded-sm shadow-sm";
-      text.innerText = "ENGLISH";
+      text.innerText = "English";
     }
   };
 
@@ -853,10 +920,10 @@
     
     if (code === 'ka') {
       flag.className = "fi fi-ge rounded-sm shadow-sm";
-      text.innerText = "GEORGIAN";
+      text.innerText = "ქართული";
     } else {
       flag.className = "fi fi-us rounded-sm shadow-sm";
-      text.innerText = "ENGLISH";
+      text.innerText = "English";
     }
   };
 
@@ -976,6 +1043,22 @@
         btn.blur();
       }
       
+      // Reset Default Document Language Button if it was in 'applying' state
+      const docLangBtn = document.getElementById('documentLanguageSelectBtn');
+      if (docLangBtn && docLangBtn.disabled) {
+          const code = document.getElementById('document_language_hidden_field')?.value || 'en';
+          docLangBtn.disabled = false;
+          // Re-render the button content
+          const isKa = code === 'ka';
+          docLangBtn.innerHTML = `
+            <span id="selectedDocumentLanguageDisplay" class="flex items-center gap-2">
+              <span class="fi ${isKa ? 'fi-ge' : 'fi-us'} rounded-sm shadow-sm" id="documentLangFlag"></span> 
+              <span class="ml-1 font-black uppercase tracking-widest" id="documentLangText">${isKa ? "ქართული" : "English"}</span>
+            </span>
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M19 9l-7 7-7-7" stroke-width="3" stroke="black"/></svg>
+          `;
+      }
+      
       if (mobileBtn) {
         mobileBtn.disabled = false;
         mobileBtn.classList.remove('opacity-70');
@@ -996,11 +1079,11 @@
                 <span class="text-3xl font-black text-blue-600">!</span>
             </div>
             <div class="space-y-2">
-                <h3 id="infoModalTitle" class="text-xl font-black uppercase tracking-tighter italic">Info</h3>
+                <h3 id="infoModalTitle" class="text-xl font-black uppercase tracking-tighter">Info</h3>
                 <p id="infoModalMessage" class="text-xs font-bold text-gray-500 uppercase tracking-widest leading-relaxed"></p>
             </div>
             <button type="button" onclick="closeInfoModal()" class="w-full py-4 bg-black text-white rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-[4px_4px_0px_0px_#444444] active:scale-[0.97] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all">
-                Got it
+                <%= t('got_it') %>
             </button>
         </div>
     </div>

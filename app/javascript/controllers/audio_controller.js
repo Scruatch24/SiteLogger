@@ -53,7 +53,7 @@ export default class extends Controller {
       this.buttonTarget.classList.remove("bg-orange-600")
     } catch (err) {
       console.error("Microphone error:", err)
-      alert("Microphone access denied. Please enable it in settings.")
+      alert(window.APP_LANGUAGES ? (window.APP_LANGUAGES.microphone_access_denied || "Microphone access denied.") : "Microphone access denied. Please enable it in settings.")
     }
   }
 
@@ -65,7 +65,7 @@ export default class extends Controller {
       window.trackEvent('recording_completed');
 
       // 3. Disable button during AI processing to prevent double-uploads
-      this.buttonTarget.innerText = "Analyzing Audio..."
+      this.buttonTarget.innerText = window.APP_LANGUAGES ? (window.APP_LANGUAGES.processing || "Analyzing Audio...") : "Analyzing Audio..."
       this.buttonTarget.disabled = true
       this.buttonTarget.classList.remove("bg-red-600", "ring-4", "ring-red-100")
       this.buttonTarget.classList.add("opacity-50", "cursor-not-allowed")
@@ -109,11 +109,11 @@ export default class extends Controller {
         this.outputTarget.scrollIntoView({ behavior: 'smooth' })
       }
 
-      this.buttonTarget.innerText = "Record Another"
+      this.buttonTarget.innerText = window.APP_LANGUAGES ? (window.APP_LANGUAGES.ready || "Record Another") : "Record Another"
 
     } catch (error) {
       console.error("Processing error:", error)
-      alert("AI failed to process audio: " + error.message)
+      alert((window.APP_LANGUAGES ? (window.APP_LANGUAGES.processing_error || "AI failed to process audio: ") : "AI failed to process audio: ") + error.message)
       this.buttonTarget.innerText = "Try Again"
     } finally {
       // 5. Re-enable button

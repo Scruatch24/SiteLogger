@@ -17,16 +17,16 @@ class CategoriesController < ApplicationController
         log = current_user.logs.find_by(id: params[:auto_assign_log_id])
         log.categories << @category if log
       end
-      redirect_to history_path, notice: "Category created successfully!"
+      redirect_to history_path, notice: t("category_created")
     else
-      redirect_to history_path, alert: "Failed to create category: #{@category.errors.full_messages.join(', ')}"
+      redirect_to history_path, alert: "#{t('category_failed')}: #{@category.errors.full_messages.join(', ')}"
     end
   end
 
   def destroy
     @category = current_user.categories.find(params[:id])
     @category.destroy
-    redirect_to history_path, notice: "Category deleted!"
+    redirect_to history_path, notice: t("category_deleted")
   end
 
   private

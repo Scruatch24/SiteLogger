@@ -62,8 +62,8 @@ class HomeController < ApplicationController
 
     respond_to do |format|
       if @profile.save
-        format.html { redirect_to profile_path, notice: "Profile saved successfully!" }
-        format.json { render json: { success: true, message: "Profile saved successfully!" } }
+        format.html { redirect_to profile_path, notice: t("profile_saved") }
+        format.json { render json: { success: true, message: t("profile_saved") } }
       else
         format.html { render :profile, status: :unprocessable_entity }
         format.json { render json: { success: false, errors: @profile.errors.full_messages }, status: :unprocessable_entity }
@@ -72,8 +72,30 @@ class HomeController < ApplicationController
   end
 
   def set_session_locale
-    session[:system_language] = params[:locale]
-    session[:locale_explicitly_set] = true
+    locale = params[:locale].to_s
+    if I18n.available_locales.map(&:to_s).include?(locale)
+      session[:system_language] = locale
+      session[:locale_explicitly_set] = true
+
+      if user_signed_in? && @profile.persisted?
+        @profile.update_columns(system_language: locale)
+      end
+    end
+
+    head :ok
+  end
+
+  def set_transcript_language
+    lang = params[:language].to_s
+    if %w[en ge ka].include?(lang)
+      db_lang = (lang == "ge") ? "ka" : lang
+      session[:transcription_language] = db_lang
+
+      if user_signed_in? && @profile.persisted?
+        @profile.update_columns(transcription_language: db_lang)
+      end
+    end
+
     head :ok
   end
 
@@ -88,8 +110,8 @@ class HomeController < ApplicationController
     respond_to do |format|
       if @profile.save
         session[:locale_explicitly_set] = true
-        format.html { redirect_to settings_path, notice: "Profile saved successfully!" }
-        format.json { render json: { success: true, message: "Profile saved successfully!" } }
+        format.html { redirect_to settings_path, notice: t("profile_saved") }
+        format.json { render json: { success: true, message: t("profile_saved") } }
       else
         format.html { render :settings, status: :unprocessable_entity }
         format.json { render json: { success: false, errors: @profile.errors.full_messages }, status: :unprocessable_entity }
@@ -105,7 +127,7 @@ class HomeController < ApplicationController
 
     # Server-side Audio Duration Check
     if !is_manual_text && params[:audio_duration].present? && params[:audio_duration].to_f < 1.0
-       return render json: { error: "Audio too short. Please speak longer." }, status: :unprocessable_entity
+       return render json: { error: t("audio_too_short") }, status: :unprocessable_entity
     end
 
     # Character Limit Check
@@ -115,7 +137,7 @@ class HomeController < ApplicationController
     # The frontend strictly enforces the raw user limit of #{limit}.
     if current_length > (limit + 250)
       return render json: {
-        error: "Your transcript exceeds the character limit including refinements (#{limit + 250})."
+        error: "#{t('transcript_limit_exceeded')} (#{limit + 250})."
       }, status: :unprocessable_entity
     end
 
@@ -150,12 +172,12 @@ class HomeController < ApplicationController
         return render json: { raw_summary: raw || "" }
       rescue => e
         Rails.logger.error "TRANCRIPTION ERROR: #{e.message}\n#{e.backtrace.join("\n")}"
-        return render json: { error: "Failed to transcribe audio." }, status: 500
+        return render json: { error: t("transcription_failed") }, status: 500
       end
     end
 
-    # Priority: 1. URL Param, 2. Profile Doc Lang, 3. Profile System Lang, 4. Current Locale
-    doc_language = params[:language] || @profile.try(:document_language) || @profile.try(:system_language) || I18n.locale.to_s
+    # Priority: 1. URL Param, 2. Profile Transcription Lang, 3. session, 4. Profile Doc Lang, 5. Profile System Lang, 6. Current Locale
+    doc_language = params[:language] || @profile.try(:transcription_language) || session[:transcription_language] || @profile.try(:document_language) || @profile.try(:system_language) || I18n.locale.to_s
     target_is_georgian = (doc_language == "ge" || doc_language == "ka")
 
     lang_context = if target_is_georgian
@@ -166,7 +188,7 @@ class HomeController < ApplicationController
 
     # Section Labels for the generated JSON
     sec_labels = if target_is_georgian
-      { labor: "სამუშაო", materials: "მასალები", expenses: "ხარჯები", fees: "მოსაკრებლები", notes: "შენიშვნები" }
+      { labor: "პროფესიონალური მომსახურება", materials: "მასალები", expenses: "ხარჯები", fees: "მოსაკრებლები", notes: "შენიშვნები" }
     else
       { labor: "Labor/Service", materials: "Materials", expenses: "Expenses", fees: "Fees", notes: "Field Notes" }
     end
@@ -198,13 +220,13 @@ CORE DIRECTIVES (non-negotiable)
 ERROR HANDLING (return **only** below JSON on error)
 ----------------------------
 If input is complete gibberish or entirely unrelated to a contractor job ->
-{"error":"Input unclear - please try again"}
+{"error":"#{t('input_unclear', default: 'Input unclear - please try again')}"}
 
 If a numeric reduction is ambiguous (no currency or percent indicated) ->
 DEFAULT TO CURRENCY (flat amount). Do not error.
 
 If input empty or silent ->
-{"error":"Input empty"}
+{"error":"#{t('input_empty', default: 'Input empty')}"}
 
 If only non-billing talk (no labor/materials/fees/expenses/credits) -> error above.
 
@@ -489,7 +511,7 @@ PROMPT
       json["credits"] = json["credits"].map do |c|
         {
           "amount" => clean_num(c["amount"]),
-          "reason" => c["reason"].to_s.strip.presence || "Courtesy Credit"
+          "reason" => c["reason"].to_s.strip.presence || I18n.t("courtesy_credit", default: "Courtesy Credit")
         }
       end.select { |c| c["amount"].present? && c["amount"] > 0 }
 
@@ -533,7 +555,7 @@ PROMPT
         if json["labor_service_items"].blank? && (json["labor_hours"].present? || json["fixed_price"].present?)
           # item_price removed (was unused)
           json["labor_service_items"] = [ {
-            "desc" => "Work performed",
+            "desc" => (target_is_georgian ? "პროფესიონალური მომსახურება" : "Work performed"),
             "hours" => json["labor_hours"],
             "price" => json["fixed_price"],
             "mode" => json["billing_mode"] || "hourly",
@@ -728,7 +750,7 @@ PROMPT
 
     rescue => e
       Rails.logger.error "AUDIO PROCESSING ERROR: #{e.message}\n#{e.backtrace.join("\n")}"
-      render json: { error: "An unexpected error occurred during processing. Please try again." }, status: 500
+      render json: { error: t("processing_error") }, status: 500
     end
   end
 
@@ -772,7 +794,8 @@ PROMPT
       :logo,
       :accent_color,
       :system_language,
-      :document_language
+      :document_language,
+      :transcription_language
     )
   end
 end

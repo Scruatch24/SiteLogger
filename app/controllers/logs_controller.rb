@@ -18,8 +18,8 @@ class LogsController < ApplicationController
         return render json: {
           status: "error",
           success: false,
-          message: "Guests cannot save invoices",
-          errors: [ "Sign up for a FREE account to save invoices to your history!" ]
+          message: t("guests_cannot_save"),
+          errors: [ t("signup_to_save") ]
         }, status: :forbidden
       else
         # Signed-in user limit check
@@ -34,7 +34,7 @@ class LogsController < ApplicationController
 
           if count >= limit
             Rails.logger.info "User Limit HIT: Count=#{count} >= Limit=#{limit}"
-            return render json: { status: "error", success: false, message: "Rate limit reached", errors: [ "Daily limit reached (#{limit} per day). Upgrade to Pro for unlimited!" ] }, status: :too_many_requests
+            return render json: { status: "error", success: false, message: t("rate_limit_reached"), errors: [ t("daily_limit_reached", limit: limit) ] }, status: :too_many_requests
           end
         end
       end
@@ -83,7 +83,7 @@ class LogsController < ApplicationController
 
       # Rule: Paid invoices should be locked: no RENAME available
       if @log.status == "paid" && params[:field] == "client"
-        return render json: { success: false, errors: [ "Paid invoices are locked and cannot be renamed." ] }, status: :forbidden
+        return render json: { success: false, errors: [ t("paid_invoices_locked") ] }, status: :forbidden
       end
 
       field = params[:field]
@@ -156,7 +156,7 @@ class LogsController < ApplicationController
           render json: { success: false, errors: @log.errors.full_messages }, status: :unprocessable_entity
         end
       else
-        render json: { success: false, errors: [ "Invalid status" ] }, status: :unprocessable_entity
+        render json: { success: false, errors: [ t("invalid_status") ] }, status: :unprocessable_entity
       end
     end
 

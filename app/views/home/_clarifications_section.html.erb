@@ -1,6 +1,6 @@
 <div id="clarificationsSection" class="hidden mt-8 space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300 overflow-visible p-1">
   <button type="button" onclick="toggleSection('clarificationsContent', 'clarificationsArrow', this)" class="section-toggle-btn flex items-center justify-between w-full bg-orange-50 border-2 border-black rounded-xl px-4 py-3 shadow-[4px_4px_0px_0px_rgba(194,65,12,1)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all outline-none group hover:bg-orange-100">
-    <span class="text-[10px] font-black text-orange-800 uppercase tracking-widest"><%= t('quick_questions') %></span>
+    <span class="<%= I18n.locale == :ka ? 'text-sm' : 'text-[10px]' %> font-black text-orange-800 uppercase tracking-widest"><%= t('quick_questions') %></span>
     <div class="w-7 h-7 rounded-lg bg-orange-500 border-2 border-black flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] group-hover:bg-orange-600 transition-colors">
       <svg id="clarificationsArrow" class="h-3.5 w-3.5 text-white transition-transform duration-300 -rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="4"><path d="M19 9l-7 7-7-7" /></svg>
     </div>

@@ -1,8 +1,8 @@
 class ApplicationController < ActionController::Base
   # Only allow modern browsers supporting webp images, web push, badges, import maps, CSS nesting, and CSS :has.
   allow_browser versions: :modern
-  before_action :set_profile
   before_action :set_locale
+  before_action :set_profile
 
   private
 
@@ -15,11 +15,11 @@ class ApplicationController < ActionController::Base
 
     # If it's in the session but not a saved profile, we only keep it if it was manually set
     # Otherwise, we might want to re-detect if the IP changed (e.g. testing with VPN)
-    if @profile.new_record? && session[:system_language].present? && !session[:locale_explicitly_set]
-      # If not explicitly set by user, we can try to re-detect to be more accurate
-      requested_locale = auto_detect_locale
-    else
+    if user_signed_in?
+      @profile ||= current_user.profile || ensure_profile_exists!(current_user)
       requested_locale = @profile.try(:system_language).presence || session[:system_language]
+    else
+      requested_locale = session[:system_language]
     end
 
     if requested_locale.blank?
@@ -68,23 +68,23 @@ class ApplicationController < ActionController::Base
 
   def set_profile
     if user_signed_in?
-      @profile = current_user.profile || ensure_profile_exists!(current_user)
+      @profile ||= current_user.profile || ensure_profile_exists!(current_user)
       # Upgrade legacy/inherited guest profiles to free for signed-in users
       if @profile.plan.blank? || @profile.plan == "guest"
         @profile.update_columns(plan: "free")
         @profile.reload
       end
     else
-      @profile = Profile.new(
-        business_name: "ACME Contracting LTD",
-        email: "billing@acme-industrial.com",
-        phone: "+1 (555) 012-3456",
-        address: "123 Industrial Way\nSuite 500\nTech City, TC 90210",
+      @profile ||= Profile.new(
+        business_name: I18n.t("guest_profile.business_name"),
+        email: I18n.t("guest_profile.email"),
+        phone: I18n.t("guest_profile.phone"),
+        address: I18n.t("guest_profile.address"),
         hourly_rate: 125.00,
         tax_rate: 10.0,
         currency: "USD",
         tax_scope: "labor,materials_only",
-        payment_instructions: "Please make checks payable to ACME Contracting LTD.\nWire transfers accepted via routing #000000000.",
+        payment_instructions: I18n.t("guest_profile.payment_instructions"),
         plan: "guest"
       )
     end

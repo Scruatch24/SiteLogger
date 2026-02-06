@@ -1,0 +1,63 @@
+ka:
+  devise:
+    confirmations:
+      confirmed: "თქვენი ელფოსტა წარმატებით დადასტურდა."
+      send_instructions: "თქვენ მიიღებთ ელფოსტას ინსტრუქციით ელფოსტის დასადასტურებლად. <br/> <span class='text-red-600 block mt-1'>შეამოწმეთ SPAM საქაღალდე</span>"
+      send_paranoid_instructions: "თუ თქვენი ელფოსტა არსებობს ბაზაში, თქვენ მიიღებთ ელფოსტას ინსტრუქციით. <br/> <span class='text-red-600 block mt-1'>შეამოწმეთ SPAM საქაღალდე</span>"
+    failure:
+      already_authenticated: "თქვენ უკვე ავტორიზებული ხართ."
+      inactive: "თქვენი ანგარიში ჯერ არ არის გააქტიურებული."
+      invalid: "არასწორი %{authentication_keys} ან პაროლი."
+      locked: "თქვენი ანგარიში დაბლოკილია."
+      last_attempt: "დაგრჩათ ერთი ცდა, სანამ ანგარიში დაიბლოკება."
+      not_found_in_database: "არასწორი %{authentication_keys} ან პაროლი."
+      timeout: "სესიის ვადა ამოიწურა. გთხოვთ გაიაროთ ავტორიზაცია თავიდან."
+      unauthenticated: "გთხოვთ გაიაროთ ავტორიზაცია ან დარეგისტრირდეთ."
+      unconfirmed: "გთხოვთ დაადასტუროთ ელფოსტის მისამართი."
+    mailer:
+      confirmation_instructions:
+        subject: "დადასტურების ინსტრუქცია [Ref: %{ref}]"
+      reset_password_instructions:
+        subject: "პაროლის აღდგენის ინსტრუქცია [Ref: %{ref}]"
+      unlock_instructions:
+        subject: "განბლოკვის ინსტრუქცია [Ref: %{ref}]"
+      email_changed:
+        subject: "ელფოსტა შეიცვალა"
+      password_change:
+        subject: "პაროლი შეიცვალა"
+    omniauth_callbacks:
+      failure: "ავტორიზაცია %{kind}-ით ვერ მოხერხდა: \"%{reason}\"."
+      success: "წარმატებული ავტორიზაცია %{kind} ანგარიშით."
+    passwords:
+      no_token: "ამ გვერდზე წვდომა მხოლოდ პაროლის აღდგენის ელფოსტიდან არის შესაძლებელი."
+      send_instructions: "თქვენ მიიღებთ ელფოსტას პაროლის აღდგენის ინსტრუქციით. <br/> <span class='text-red-600 block mt-1'>შეამოწმეთ SPAM საქაღალდე</span>"
+      send_paranoid_instructions: "თუ თქვენი ელფოსტა არსებობს ბაზაში, თქვენ მიიღებთ პაროლის აღდგენის ბმულს. <br/> <span class='text-red-600 block mt-1'>შეამოწმეთ SPAM საქაღალდე</span>"
+      updated: "თქვენი პაროლი წარმატებით შეიცვალა. თქვენ ავტორიზებული ხართ."
+      updated_not_active: "თქვენი პაროლი წარმატებით შეიცვალა."
+    registrations:
+      destroyed: "ნახვამდის! თქვენი ანგარიში გაუქმებულია."
+      signed_up: "მოგესალმებით! თქვენ წარმატებით დარეგისტრირდით."
+      signed_up_but_inactive: "თქვენ წარმატებით დარეგისტრირდით, თუმცა ანგარიში ჯერ არ არის გააქტიურებული."
+      signed_up_but_locked: "თქვენ წარმატებით დარეგისტრირდით, თუმცა ანგარიში დაბლოკილია."
+      signed_up_but_unconfirmed: "დადასტურების ბმული გაიგზავნა თქვენს ელფოსტაზე. <br/> <span class='text-red-600 block mt-1'>შეამოწმეთ SPAM საქაღალდე</span>"
+      update_needs_confirmation: "ანგარიში განახლდა, მაგრამ საჭიროა ახალი ელფოსტის დადასტურება."
+      updated: "თქვენი ანგარიში წარმატებით განახლდა."
+      updated_but_not_signed_in: "თქვენი ანგარიში განახლდა, მაგრამ პაროლის ცვლილების გამო საჭიროა თავიდან შესვლა."
+    sessions:
+      signed_in: "წარმატებული ავტორიზაცია."
+      signed_out: "გამოსვლა წარმატებულია."
+      already_signed_out: "გამოსვლა წარმატებულია."
+    unlocks:
+      send_instructions: "თქვენ მიიღებთ ელფოსტას განბლოკვის ინსტრუქციით. <br/> <span class='text-red-600 block mt-1'>შეამოწმეთ SPAM საქაღალდე</span>"
+      send_paranoid_instructions: "თუ ანგარიში არსებობს, თქვენ მიიღებთ ელფოსტას ინსტრუქციით. <br/> <span class='text-red-600 block mt-1'>შეამოწმეთ SPAM საქაღალდე</span>"
+      unlocked: "თქვენი ანგარიში განიბლოკა. გთხოვთ გაიაროთ ავტორიზაცია."
+  errors:
+    messages:
+      already_confirmed: "უკვე დადასტურებულია, გთხოვთ გაიაროთ ავტორიზაცია"
+      confirmation_period_expired: "უნდა დადასტურდეს %{period}-ში, გთხოვთ მოითხოვოთ ახალი"
+      expired: "ვადა გაუვიდა, გთხოვთ მოითხოვოთ ახალი"
+      not_found: "ვერ მოიძებნა"
+      not_locked: "არ იყო დაბლოკილი"
+      not_saved:
+        one: "1 შეცდომის გამო ვერ მოხერხდა %{resource} შენახვა:"
+        other: "%{count} შეცდომის გამო ვერ მოხერხდა %{resource} შენახვა:"

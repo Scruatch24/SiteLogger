@@ -38,10 +38,10 @@ module LogsHelper
 
       # Determine item type/category based on section title
       category_key = case title
-      when /labor|service/ then :labor
-      when /material/ then :material
-      when /expense/ then :expense
-      when /fee/ then :fee
+      when /labor|service|სამუშაო|მომსახურება/i then :labor
+      when /material|მასალ/i then :material
+      when /expense|ხარჯ/i then :expense
+      when /fee|მოსაკრებ|საკომისიო|შესაკრებ/i then :fee
       else :other
       end
 
@@ -83,7 +83,7 @@ module LogsHelper
 
               # FALLBACK FOR LABOR NAME
               if desc.blank? || desc == "Work performed"
-                desc = "Professional Services"
+                desc = I18n.t("professional_services", default: "Professional Services")
               end
             else
               # NON-LABOR LOGIC (Materials, Fees, Expenses)
@@ -103,10 +103,10 @@ module LogsHelper
               # FALLBACK FOR NON-LABOR NAME
               if desc.blank? || desc == "Work performed"
                 desc = case category_key
-                when :material then "Material"
-                when :fee      then "Fee"
-                when :expense  then "Expense"
-                else "Item"
+                when :material then I18n.t("item_material", default: "Material")
+                when :fee      then I18n.t("item_fee", default: "Fee")
+                when :expense  then I18n.t("item_expense", default: "Expense")
+                else I18n.t("item", default: "Item")
                 end
               end
             end
@@ -185,7 +185,7 @@ module LogsHelper
         if labor_cost > 0
           # Check valid fallback
           labor_item = {
-            desc: "Fixed Rate Service",
+            desc: I18n.t("professional_services", default: "Professional Services"),
             qty: 1,
             price: labor_cost,
             taxable: log.try(:labor_taxable),
@@ -210,7 +210,7 @@ module LogsHelper
 
         if labor_cost > 0
           labor_item = {
-            desc: "Professional Services",
+            desc: I18n.t("professional_services", default: "Professional Services"),
             qty: labor_hours,
             price: labor_cost,
             taxable: log.try(:labor_taxable),
@@ -258,13 +258,13 @@ module LogsHelper
       raw_credits.each_with_index do |c, c_idx|
         amount = c["amount"].to_f
         next if amount <= 0
-        credits << { reason: c["reason"].presence || "Courtesy Credit", amount: amount, credit_index: c_idx, log_id: log.id }
+        credits << { reason: c["reason"].presence || I18n.t("courtesy_credit", default: "Courtesy Credit"), amount: amount, credit_index: c_idx, log_id: log.id }
       end
     else
        # Fallback to single fields
        c_amt = log.try(:credit_flat).to_f
        if c_amt > 0
-         credits << { reason: log.try(:credit_reason).presence || "Courtesy Credit", amount: c_amt }
+         credits << { reason: log.try(:credit_reason).presence || I18n.t("courtesy_credit", default: "Courtesy Credit"), amount: c_amt }
        end
     end
     total_credits = credits.sum { |c| c[:amount] }
@@ -329,7 +329,9 @@ module LogsHelper
       d = d.sub(/fix(ed|ing)/i, "Repair of")
     end
 
-    d = "Work performed" if d.blank?
+    if d.blank?
+      d = I18n.t("professional_services", default: "Work performed")
+    end
     d
   end
 end

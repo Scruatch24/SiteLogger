@@ -95,6 +95,7 @@
   window.profileAudioLimit = <%= @profile.audio_limit %>;
   window.profileCharLimit = <%= @profile.char_limit %>;
   window.profileSystemLanguage = "<%= @profile.try(:system_language) || I18n.locale.to_s %>";
+  window.currentSystemLanguage = window.profileSystemLanguage;
   window.profileDocumentLanguage = "<%= @profile.try(:document_language) || (@profile.try(:system_language) == 'ka' ? 'ka' : 'en') %>";
 
   // Check historical usage
@@ -241,7 +242,7 @@
     }
   }
 
-  window.CURRENCIES = <%= currencies_data.to_json.html_safe %>;
+  window.CURRENCIES = <%= currencies_data.map { |c| c.merge(n: c[:n]) }.to_json.html_safe %>;
   window.activeCurrencyCode = "USD";
   window.activeCurrencySymbol = "$";
   window.currentLogBillingMode = "hourly";
@@ -255,6 +256,85 @@
   window.APP_LANGUAGES = {
     en: "<%= t('english') %>",
     ka: "<%= t('georgian') %>",
+        labor_hours_caps: "<%= j t('labor_hours_caps') %>",
+        labor_price_caps: "<%= j t('labor_price_caps') %>",
+        after_tax: "<%= j t('after_tax') %>",
+        add_subcategory: "<%= j t('add_subcategory') %>",
+        hourly: "<%= j t('hourly') %>",
+        fixed: "<%= j t('fixed') %>",
+        billing_model: "<%= j t('billing_model') %>",
+        taxable: "<%= j t('taxable') %>",
+        credit_amount_caps: "<%= j t('credit_amount_caps') %>",
+        price: "<%= j t('price') %>",
+        item_discount: "<%= j t('item_discount') %>",
+        materials: "<%= j t('materials') %>",
+        expenses: "<%= j t('expenses') %>",
+        fees: "<%= j t('fees') %>",
+        item: "<%= j t('item') %>",
+        item_material: "<%= j t('item_material') %>",
+        item_expense: "<%= j t('item_expense') %>",
+        item_fee: "<%= j t('item_fee') %>",
+        material: "<%= j t('material') %>",
+        fee: "<%= j t('fee') %>",
+        expense: "<%= j t('expense') %>",
+        ka: "<%= j t('georgian') %>",
+        en: "<%= j t('english') %>",
+        stop: "<%= j t('stop') %>",
+        processing: "<%= j t('processing_caps') %>",
+        tap_to_record: "<%= j t('tap_to_record_caps') %>",
+        recording: "<%= j t('recording') %>",
+        profile_saved: "<%= j t('profile_saved') %>",
+        network_error: "<%= j t('network_error') %>",
+        speech_not_recognized: "<%= j t('speech_not_recognized') %>",
+        microphone_access_denied: "<%= j t('microphone_access_denied') %>",
+        hold_longer: "<%= j t('hold_longer') %>",
+        render_failed: "<%= j t('render_failed') %>",
+        changes_saved_excl: "<%= j t('changes_saved') %>",
+        error_saving_profile_text: "<%= j t('error_saving_profile') %>",
+        input_unclear: "<%= j t('input_unclear') %>",
+        input_empty: "<%= j t('input_empty') %>",
+        pdf_loading: "<%= j t('pdf_loading') %>",
+        draft_prepared: "<%= j t('draft_prepared') %>",
+        ui_update_error: "<%= j t('ui_update_error') %>",
+        voice_limit_reached: "<%= j t('voice_limit_reached') %>",
+        recording_failed: "<%= j t('recording_failed') %>",
+        enter_instruction: "<%= j t('enter_instruction') %>",
+        limit_reached_upgrade: "<%= j t('limit_reached_upgrade') %>",
+        provide_answer: "<%= j t('provide_answer') %>",
+        reserved_category: "<%= j t('reserved_category') %>",
+        cancel: "<%= j t('cancel') %>",
+        draft: "<%= j t('draft') %>",
+        sent: "<%= j t('sent') %>",
+        paid: "<%= j t('paid') %>",
+        no_category: "<%= j t('no_category') %>",
+        overdue: "<%= j t('overdue') %>",
+        ready: "<%= j t('ready') %>",
+        saving: "<%= j t('saving') %>",
+        professional_services: "<%= j t('professional_services') %>",
+        save: "<%= j t('save') %>",
+        saved: "<%= j t('saved') %>",
+        limit_reached: "<%= j t('limit_reached') %>",
+        description_placeholder: "<%= j t('description_placeholder') %>",
+        amount: "<%= j t('amount') %>",
+        courtesy_credit: "<%= j t('courtesy_credit') %>",
+        reason_for_credit: "<%= j t('reason_for_credit') %>",
+        subcategory_placeholder: "<%= j t('subcategory_placeholder') %>",
+        discount_reason_placeholder: "<%= j t('discount_reason_placeholder') %>",
+        due_today: "<%= j t('due_today') %>",
+        in_x_days: "<%= j t('in_x_days', count: '%{count}') %>",
+        x_days_overdue: "<%= j t('x_days_overdue', count: '%{count}') %>",
+        jan: "<%= j t('jan') %>",
+        feb: "<%= j t('feb') %>",
+        mar: "<%= j t('mar') %>",
+        apr: "<%= j t('apr') %>",
+        may: "<%= j t('may') %>",
+        jun: "<%= j t('jun') %>",
+        jul: "<%= j t('jul') %>",
+        aug: "<%= j t('aug') %>",
+        sep: "<%= j t('sep') %>",
+        oct: "<%= j t('oct') %>",
+        nov: "<%= j t('nov') %>",
+        dec: "<%= j t('dec') %>",
     labor_hours: "<%= t('labor_hours') %>",
     labor_price: "<%= t('labor_price') %>"
   };
@@ -333,7 +413,7 @@
                                 class="w-full flex items-center justify-between px-3.5 py-1.5 bg-white border-2 border-black rounded-lg text-[10px] font-black uppercase tracking-widest text-black transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none h-[34px]">
                             <div class="flex items-center gap-2 truncate">
                                 <span id="pdfCategoryIcon" class="hidden shrink-0"></span>
-                                <span id="pdfCategoryText" class="truncate"><%= t('add_to_category') %></span>
+                                <span id="pdfCategoryText" class="truncate"><%= t('no_category') %></span>
                             </div>
                             <svg class="h-3 w-3 opacity-50 status-chevron transition-transform duration-300">
                                 <use xlink:href="#icon-chevron-down"></use>
@@ -342,11 +422,11 @@
                         
                         <div id="pdfCategoryDropdown" class="pdf-selector-dropdown absolute left-0 right-0 top-full mt-2 bg-white border-2 border-black rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] max-h-60 overflow-y-auto custom-scrollbar">
                             <button type="button" onclick="setPdfCategory('', '- No Category -', '')" 
-                                    class="w-full flex items-center gap-3 px-4 py-3 text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all border-b border-gray-100 italic text-gray-400">
+                                    class="w-full flex items-center gap-3 px-4 py-3 text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all border-b border-gray-100 text-gray-400">
                                 <%= t('no_category') %>
                             </button>
                             <% @categories.each do |category| %>
-                                <button type="button" onclick="setPdfCategory('<%= category.id %>', '<%= category.name %>', '<%= category.color %>', '<%= category.icon %>', '<%= category.icon_type %>', '<%= category.icon_type == 'custom' && category.custom_icon.attached? ? url_for(category.custom_icon) : '' %>')" 
+                                <button type="button" onclick="setPdfCategory('<%= category.id %>', '<%= j(category.name == 'Favorites' ? t('favorites') : category.name) %>', '<%= category.color %>', '<%= category.icon %>', '<%= category.icon_type %>', '<%= category.icon_type == 'custom' && category.custom_icon.attached? ? url_for(category.custom_icon) : '' %>')" 
                                         class="w-full flex items-center gap-3 px-4 py-3 text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all border-b border-gray-100 group/cat">
                                     <div class="w-6 h-6 rounded flex items-center justify-center border-2 shrink-0 group-hover/cat:scale-110 transition-transform" style="border-color: <%= category.color %>; color: <%= category.color %>;">
                                         <% if category.icon_type == 'custom' && category.custom_icon.attached? %>
@@ -357,9 +437,9 @@
                                             </svg>
                                         <% end %>
                                     </div>
-                                    <span class="truncate"><%= category.name %></span>
+                                    <span class="truncate"><%= category.name == 'Favorites' ? t('favorites') : category.name %></span>
                                 </button>
-                            <% end %>
+<% end %>
                         </div>
                     </div>
                 </div>
@@ -412,7 +492,15 @@
                          <path d="M10 18h4" stroke-linecap="round" />
                     </svg>
                 </div>
-                <span class="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-gray-400 text-center leading-tight"><%= t('sign_up_to_save').split(' ').take(2).join(' ') %><br/><%= t('sign_up_to_save').split(' ').last(2).join(' ') %></span>
+                <span class="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-gray-400 text-center leading-tight">
+                    <% text = t('sign_up_to_save') %>
+                    <% words = text.split(' ') %>
+                    <% if words.length > 2 %>
+                        <%= words.take(2).join(' ') %><br/><%= words.drop(2).join(' ') %>
+                    <% else %>
+                        <%= text %>
+                    <% end %>
+                </span>
             </div>
             <% else %>
             <button id="pdfModalSaveBtn" onclick="finalSaveLog()" class="flex flex-col items-center gap-2 group transition-all">
