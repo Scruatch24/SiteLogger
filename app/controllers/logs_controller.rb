@@ -268,9 +268,9 @@ class LogsController < ApplicationController
       end
 
       profile = if log.user
-        log.user.profile || Profile.new(business_name: "My Business", hourly_rate: 0)
+        log.user.profile || Profile.new(business_name: "My Business", hourly_rate: 100)
       else
-        Profile.where(user_id: nil).first || Profile.new(business_name: "My Business", hourly_rate: 0)
+        Profile.where(user_id: nil).first || Profile.new(business_name: "My Business", hourly_rate: 100)
       end
 
       generator = InvoiceGenerator.new(log, profile)
@@ -488,9 +488,10 @@ class LogsController < ApplicationController
         @profile.email = "billing@titan-auto.com"
         @profile.address = "742 Evergreen Terrace\nSuite 101\nSpringfield, IL 62704"
         @profile.tax_id = "EIN-99-8877665"
-        @profile.hourly_rate = 125 if @profile.hourly_rate.blank?
+        @profile.hourly_rate = 100 if @profile.hourly_rate.blank?
         @profile.currency = "USD" if @profile.currency.blank?
-        @profile.tax_rate = 8.5 if @profile.tax_rate.blank?
+        @profile.tax_rate = 18.0 if @profile.tax_rate.blank?
+        @profile.note = I18n.t("guest_profile.note") if @profile.note.blank?
         @profile.payment_instructions = "Please remit payment within 14 days.\nZelle: payments@titan-auto.com\nWire: First National Bank (Routing: 00001234)"
       end
     end

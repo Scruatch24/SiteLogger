@@ -786,6 +786,7 @@ PROMPT
       :tax_rate,
       :tax_scope,
       :payment_instructions,
+      :note,
       :billing_mode,
       :currency,
       :invoice_style,

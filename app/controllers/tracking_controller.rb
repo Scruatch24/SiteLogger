@@ -84,7 +84,7 @@ class TrackingController < ApplicationController
       count = TrackingEvent.where(event_name: "recording_started", ip_address: ip_address)
                           .where("created_at > ?", 1.minute.ago)
                           .count
-      count >= 2
+      count >= 3
     else
       # Free user: 10 per user per minute
       count = TrackingEvent.where(event_name: "recording_started", user_id: user_id)

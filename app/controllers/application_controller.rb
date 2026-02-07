@@ -80,11 +80,12 @@ class ApplicationController < ActionController::Base
         email: I18n.t("guest_profile.email"),
         phone: I18n.t("guest_profile.phone"),
         address: I18n.t("guest_profile.address"),
-        hourly_rate: 125.00,
-        tax_rate: 10.0,
+        hourly_rate: 100.00,
+        tax_rate: 18.0,
         currency: "USD",
         tax_scope: "labor,materials_only",
         payment_instructions: I18n.t("guest_profile.payment_instructions"),
+        note: I18n.t("guest_profile.note"),
         plan: "guest"
       )
     end
@@ -97,7 +98,9 @@ class ApplicationController < ActionController::Base
       email: user.email,
       plan: "free",
       currency: "USD",
-      tax_rate: 0,
+      hourly_rate: 100.00,
+      tax_rate: 18.0,
+      note: I18n.t("guest_profile.note"),
       billing_mode: "hourly",
       tax_scope: "labor,materials_only"
     )

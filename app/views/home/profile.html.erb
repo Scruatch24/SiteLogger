@@ -199,6 +199,17 @@
       </div>
 
       <div class="space-y-2">
+        <div class="flex justify-between items-center">
+          <div class="flex items-center gap-2">
+            <label class="text-[12px] font-black text-black uppercase tracking-widest ml-1"><%= t('invoice_note') %></label>
+            <span class="bg-orange-100 text-orange-600 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-orange-200"><%= t('shows_up_in_invoice') %></span>
+          </div>
+          <span id="note_counter" class="hidden text-[9px] font-black uppercase text-gray-400"><%= t('max_chars_per_line') %></span>
+        </div>
+        <%= f.text_area :note, rows: 2, placeholder: t('invoice_note_placeholder'), class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-medium text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all resize-none custom-scrollbar disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", onkeydown: "return checkCharLimit(event, this, 50, 2)", oninput: "limitLinesAndChars(this, 50, 2); autoResize(this)", style: "min-height: 80px; max-height: 200px;", disabled: is_guest %>
+      </div>
+
+      <div class="space-y-2">
         <div class="flex items-center gap-2">
           <label class="text-[12px] font-black text-black uppercase tracking-widest ml-1"><%= t('email') %></label>
           <span class="bg-orange-100 text-orange-600 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-orange-200"><%= t('shows_up_in_invoice') %></span>
@@ -356,7 +367,9 @@
     }
 
     // Update counter color
-    const counterId = el.name.includes('address') ? 'address_counter' : 'payment_instructions_counter';
+    let counterId = 'payment_instructions_counter';
+    if (el.name.includes('address')) counterId = 'address_counter';
+    if (el.name.includes('note')) counterId = 'note_counter';
     const counter = document.getElementById(counterId);
     if (counter) {
       const anyOver = lines.some(l => l.length >= charMax);

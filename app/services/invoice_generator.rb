@@ -153,7 +153,8 @@ class InvoiceGenerator
         of: "სულ",
         tax_id_label: "საგადასახადო ID",
         valued_client: "ძვირფასი კლიენტი",
-        invoice_prefix: "ინვ"
+        invoice_prefix: "ინვ",
+        num: "ნომ"
       }
     else
       {
@@ -195,7 +196,8 @@ class InvoiceGenerator
         of: "OF",
         tax_id_label: "Tax ID",
         valued_client: "VALUED CLIENT",
-        invoice_prefix: "INV"
+        invoice_prefix: "INV",
+        num: "NUM"
       }
     end
   end
@@ -225,34 +227,45 @@ class InvoiceGenerator
   def render_classic
     @pdf.fill_color "000000"
 
-    # -- 1. High-Impact Bleed Header (Full Width Bar) --
+    # -- 1. Clean Minimal Header (White Bar with Logo \u0026 Divider) --
     @pdf.canvas do
       page_top = @pdf.bounds.top
       page_width = @pdf.bounds.width
-
-      @pdf.fill_color @charcoal
-      # Rectangle covers the top 80pt of the page
-      @pdf.fill_rectangle [ 0, page_top ], page_width, 80
+      header_height = 100
 
       @pdf.fill_color "FFFFFF"
-      @pdf.font("NotoSans", style: :bold) do
-        # Optical Correction: Nudged UP for better visual centering in the 80pt bar
-        @pdf.text_box labels[:invoice], at: [ 50, page_top + 6 ], size: 36, height: 80, valign: :center, character_spacing: 8
+      # Rectangle covers the top 100pt of the page
+      @pdf.fill_rectangle [ 0, page_top ], page_width, header_height
+
+      # Bottom Divider Line
+      @pdf.stroke_color @soft_gray
+      @pdf.line_width(0.5)
+      @pdf.stroke_horizontal_line 0, page_width, at: page_top - header_height
+
+      # Logo on the left side of the header
+      if @profile.logo.attached?
+        begin
+          # Position logo with padding from left edge, vertically centered
+          logo_height = 70
+          logo_y = page_top - (header_height - logo_height) / 2
+          @pdf.image StringIO.new(@profile.logo.download), at: [ 50, logo_y ], height: logo_height
+        rescue => _e
+        end
       end
 
-      @pdf.fill_color @orange_color
+      # INVOICE text on the right
+      @pdf.fill_color @charcoal
       @pdf.font("NotoSans", style: :bold) do
-        # Optical Correction: Nudged DOWN significantly to achieve the requested visual balance
-        @pdf.text_box @invoice_number, at: [ page_width - 250, page_top + 1.0 ], size: 24, height: 80, valign: :center, align: :right, width: 200
+        @pdf.text_box labels[:invoice], at: [ page_width - 250, page_top ], size: 24, height: header_height, valign: :center, align: :right, width: 200, character_spacing: 8
       end
     end
 
-    # Advance document cursor past the absolute header
-    @pdf.move_down 75
+    # Advance document cursor past the absolute header - moving BILLED TO higher
+    @pdf.move_down 80
 
     # -- 2. Clean Correspondence Layout --
-    # Left: Client (The primary focus)
-    # Right: Sender & Dates (Meta info, right-aligned)
+    # Left: Client (Billed To) + Sender (From)
+    # Right: Dates + Logo (centered)
 
     y_start = @pdf.cursor
 
@@ -261,7 +274,7 @@ class InvoiceGenerator
     gap = 20
     col_width = (total_width - gap) / 2
 
-    # -- LEFT COLUMN: BILLED TO + FROM (Stacked) --
+    # -- LEFT COLUMN: BILLED TO + FROM --
     @pdf.bounding_box([ 0, y_start ], width: col_width) do
       # 1. BILLED TO
       pill_width = 60
@@ -275,7 +288,7 @@ class InvoiceGenerator
         @pdf.text_box labels[:billed_to], at: [ 0, @pdf.cursor - 4 ], width: pill_width, height: pill_height, align: :center, character_spacing: 0.5
       end
 
-      @pdf.move_down 20
+      @pdf.move_down 15
 
       # Client Content
       @pdf.fill_color @dark_charcoal
@@ -284,7 +297,7 @@ class InvoiceGenerator
         @pdf.text client_name, leading: 2
       end
 
-      @pdf.move_down 25
+      @pdf.move_down 15
 
       # 2. FROM (Under Billed To)
       pill_width_from = 40
@@ -297,9 +310,9 @@ class InvoiceGenerator
         @pdf.text_box labels[:from], at: [ 0, @pdf.cursor - 4 ], width: pill_width_from, height: pill_height, align: :center, character_spacing: 0.5
       end
 
-      @pdf.move_down 20
+      @pdf.move_down 15
 
-      # Sender Content (Left Aligned now)
+      # Sender Content (Left Aligned)
       @pdf.fill_color @dark_charcoal
       @pdf.font("NotoSans", size: 9) do
         # Company Name + Black Dot + Tax ID
@@ -325,68 +338,71 @@ class InvoiceGenerator
 
         @pdf.formatted_text contact_text, leading: 2
       end
+      @left_column_height = @pdf.bounds.top - @pdf.cursor
     end
 
-    # -- RIGHT COLUMN: LOGO + DATES --
+    # -- RIGHT COLUMN: DATES + LOGO (Right aligned) --
     @pdf.bounding_box([ col_width + gap, y_start ], width: col_width) do
-      # 1. Logo Integration (Top prioritized if present)
-      if @profile.logo.attached?
-        begin
-          @pdf.image StringIO.new(@profile.logo.download), height: 110, position: :right
-          @pdf.move_down 20
-        rescue => _e
-        end
-      end
-
-      date_pill_width = 45
-      date_val_width = 100
       pill_height = 15
-
-      # 2. ISSUED
+      pill_width = 45
+      date_val_width = 100
       x_edge = @pdf.bounds.width
-      x_pill = x_edge - date_pill_width
+      x_pill = x_edge - pill_width
       x_value = x_pill - date_val_width - 10
 
       current_y = @pdf.cursor
 
-      # Background Pill
+      # 1. ISSUED section (right aligned)
       @pdf.fill_color @soft_gray
-      @pdf.fill_rounded_rectangle [ x_pill, current_y ], date_pill_width, pill_height, 2
-
-      # Label
+      @pdf.fill_rounded_rectangle [ x_pill, current_y ], pill_width, pill_height, 2
       @pdf.fill_color @dark_charcoal
       @pdf.font("NotoSans", size: 6, style: :bold) do
-        @pdf.text_box labels[:issued], at: [ x_pill, current_y - 4 ], width: date_pill_width, height: pill_height, align: :center, character_spacing: 0.5
+        @pdf.text_box labels[:issued], at: [ x_pill, current_y - 4 ], width: pill_width, height: pill_height, align: :center, character_spacing: 0.5
       end
 
-      # Value
+      # ISSUED value
       @pdf.fill_color @dark_charcoal
       @pdf.font("NotoSans", size: 9, style: :bold) do
         @pdf.text_box @invoice_date, at: [ x_value, current_y - 2.5 ], width: date_val_width, align: :right
       end
 
-      @pdf.move_down 25
+      @pdf.move_down 22
       current_y = @pdf.cursor
 
-      # 3. DUE
-      # Background Pill
+      # 2. DUE section (below ISSUED, right aligned)
       @pdf.fill_color @orange_color
-      @pdf.fill_rounded_rectangle [ x_pill, current_y ], date_pill_width, pill_height, 2
-
-      # Label
+      @pdf.fill_rounded_rectangle [ x_pill, current_y ], pill_width, pill_height, 2
       @pdf.fill_color "FFFFFF"
       @pdf.font("NotoSans", size: 6, style: :bold) do
-        @pdf.text_box labels[:due], at: [ x_pill, current_y - 4 ], width: date_pill_width, height: pill_height, align: :center, character_spacing: 0.5
+        @pdf.text_box labels[:due], at: [ x_pill, current_y - 4 ], width: pill_width, height: pill_height, align: :center, character_spacing: 0.5
       end
 
-      # Value
+      # DUE value
       @pdf.fill_color @dark_charcoal
       @pdf.font("NotoSans", size: 9, style: :bold) do
         @pdf.text_box @due_date, at: [ x_value, current_y - 2.5 ], width: date_val_width, align: :right
       end
+
+      @pdf.move_down 22
+      current_y = @pdf.cursor
+
+      # 3. NUM section (below DUE, right aligned) - Invoice Number
+      @pdf.fill_color @soft_gray
+      @pdf.fill_rounded_rectangle [ x_pill, current_y ], pill_width, pill_height, 2
+      @pdf.fill_color @dark_charcoal
+      @pdf.font("NotoSans", size: 6, style: :bold) do
+        @pdf.text_box labels[:num] || "NUM", at: [ x_pill, current_y - 4 ], width: pill_width, height: pill_height, align: :center, character_spacing: 0.5
+      end
+
+      # NUM value (invoice number) - Orange text
+      @pdf.fill_color @orange_color
+      @pdf.font("NotoSans", size: 9, style: :bold) do
+        @pdf.text_box @invoice_number, at: [ x_value, current_y - 2.5 ], width: date_val_width, align: :right
+      end
     end
 
-    @pdf.move_cursor_to y_start - 180
+    # Dynamic transition: use the height used by the FROM column + 15pt gap
+    @pdf.move_cursor_to y_start - @left_column_height - 15
     render_classic_flow_table
     render_classic_summary
   end
@@ -394,6 +410,9 @@ class InvoiceGenerator
   def render_classic_flow_table
     table_width = @pdf.bounds.width
     @table_widths = calculate_column_widths(table_width)
+
+    # Corner radius for classic style tables
+    @table_corner_radius = (@style == "classic") ? 8 : 0
 
     # Ensure there is room for at least the header + a small row cushion
     check_new_page_needed(60)
@@ -429,6 +448,9 @@ class InvoiceGenerator
         render_classic_row(credit_data, table_width, @table_widths[:desc], @table_widths[:qty], @table_widths[:rate], @table_widths[:disc], @table_widths[:tax], @table_widths[:amnt], is_credit: true)
       end
     end
+
+    # Apply rounded bottom corners to the table
+    apply_table_bottom_rounded_corners(table_width, @pdf.cursor, @table_corner_radius)
   end
 
   def render_table_header(table_width, widths)
@@ -439,10 +461,11 @@ class InvoiceGenerator
     w_disc = widths[:disc]
     w_tax  = widths[:tax]
 
-    # Top Border Line
-    @pdf.stroke_color @soft_gray
-    @pdf.line_width(1.0)
-    @pdf.stroke_horizontal_line 0, table_width, at: @pdf.cursor
+    # Corner radius for classic style
+    corner_radius = (@style == "classic") ? 8 : 0
+
+    # Store table header start position for rounded corners
+    @table_header_top = @pdf.cursor
 
     # Header Colors based on Style
     header_base_color = case @style
@@ -461,15 +484,34 @@ class InvoiceGenerator
     else @orange_color
     end
 
-    # 1. Base Header
-    @pdf.fill_color header_base_color
-    @pdf.fill_rectangle [ 0, @pdf.cursor ], table_width, 25
-
-    # 2. DESCRIPTION Anchor Box (Now starts at x=0)
-    @pdf.fill_color header_accent_color
-    @pdf.fill_rectangle [ 0, @pdf.cursor ], w_desc, 25
-
     header_h = 25
+
+    if corner_radius > 0
+      # Draw header with rounded top corners only
+      # 1. Draw the base header (right portion) with rounded top-right corner
+      @pdf.fill_color header_base_color
+      draw_top_rounded_rect(w_desc, @pdf.cursor, table_width - w_desc, header_h, corner_radius, round_left: false, round_right: true)
+
+      # 2. Draw the accent header (left portion - DESCRIPTION) with rounded top-left corner
+      @pdf.fill_color header_accent_color
+      draw_top_rounded_rect(0, @pdf.cursor, w_desc, header_h, corner_radius, round_left: true, round_right: false)
+
+      # No top border stroke - the rounded filled rectangles provide the visual edge
+    else
+      # Top Border Line
+      @pdf.stroke_color @soft_gray
+      @pdf.line_width(1.0)
+      @pdf.stroke_horizontal_line 0, table_width, at: @pdf.cursor
+
+      # 1. Base Header
+      @pdf.fill_color header_base_color
+      @pdf.fill_rectangle [ 0, @pdf.cursor ], table_width, header_h
+
+      # 2. DESCRIPTION Anchor Box (Now starts at x=0)
+      @pdf.fill_color header_accent_color
+      @pdf.fill_rectangle [ 0, @pdf.cursor ], w_desc, header_h
+    end
+
     @pdf.font("NotoSans", style: :bold, size: 7.5) do
       @pdf.fill_color "FFFFFF"
 
@@ -488,6 +530,8 @@ class InvoiceGenerator
     @pdf.stroke do
       x_positions = [ 0, w_desc, w_desc + w_rate, w_desc + w_rate + w_qty, w_desc + w_rate + w_qty + w_amnt, w_desc + w_rate + w_qty + w_amnt + w_disc, table_width ]
       x_positions.each do |x|
+        # Skip outer edges when using rounded corners (they're handled by the rounded rectangle borders)
+        next if corner_radius > 0 && (x == 0 || x == table_width)
         # 25pt header
         @pdf.vertical_line @pdf.cursor, @pdf.cursor - 25, at: x
       end
@@ -733,85 +777,77 @@ class InvoiceGenerator
     # Calculate required height dynamically
     divider_count = rows.count { |r| r[:divider] }
     content_rows_count = rows.count { |r| !r[:divider] }
-    # Match the grand total section height to: Banner (45) + Total Gaps (Maximum breathing room)
-    grand_total_h = 45 + (divider_space * 4.0)
+    # Match the grand total section height to: Banner (45) + Total Gaps + Extra bottom spacing (20px from footer)
+    grand_total_h = 60 + (divider_space * 4.0)
     h_totals = (content_rows_count * row_h) + (divider_count * divider_space) + grand_total_h
 
     # Calculate instructions height to center it
     instr_block_h = 0
-    if @profile.payment_instructions.present?
-      @pdf.font("NotoSans") do
+    @pdf.font("NotoSans") do
+      if @profile.payment_instructions.present?
         p_title_h = @pdf.height_of(labels[:payment_details], width: instructions_width, size: 10, style: :bold, character_spacing: 1)
         p_text_h = @pdf.height_of(@profile.payment_instructions, width: instructions_width, size: 9, leading: 3)
-        instr_block_h = p_title_h + 5 + 2 + 10 + p_text_h
+        instr_block_h += p_title_h + 5 + 2 + 10 + p_text_h
+      end
+
+      if @profile.respond_to?(:note) && @profile.note.present?
+        note_gap = @profile.payment_instructions.present? ? 20 : 0
+        n_text_h = @pdf.height_of(@profile.note.upcase, width: instructions_width, size: 10, style: :bold, leading: 3)
+        instr_block_h += note_gap + n_text_h
       end
     end
 
-    # 3. ADVANCED STICKY & FLOW LOGIC
-    h_sticky = [ h_totals, instr_block_h + 43 ].max
-    h_flow   = [ h_totals, instr_block_h ].max
+    # 3. SIMPLE FLOW LOGIC (Dynamic gap from table)
+    page_center = @pdf.bounds.top / 2
+    # If cursor is above center (used less than half page), use 75px. if below (more than half), use 35px.
+    item_gap = (@pdf.cursor > page_center) ? 75 : 35
 
-    item_gap = 50   # 50px (pt) gap from items
-    header_gap = 35 # Gap from continuation header
-    bottom_padding = 7
+    header_gap = 35
+    h_final = [ h_totals, instr_block_h ].max
 
-    is_sticky = false
-    h_final = h_flow
+    # Decide if we stay on current page or move to next
+    is_fresh = @pdf.cursor > (@pdf.bounds.top - 50)
+    @pdf.move_down(is_fresh ? header_gap : item_gap)
 
-    # Determine if we stick to Page 1 footer or flow
-    if @pdf.page_number == 1 && @pdf.cursor >= (h_sticky + bottom_padding)
-      is_sticky = true
-      h_final = h_sticky
-      target_top = h_final + bottom_padding
-      @pdf.move_cursor_to(target_top) if @pdf.cursor > target_top
-    else
-      # FLOW MODE: Page 2+ or overflow from Page 1
-      if @pdf.page_number == 1
-        # Forced to Page 2
-        @pdf.start_new_page
-        render_continuation_header
-        @pdf.move_down header_gap
-      else
-        # Already on Page 2+
-        # Check if items exist on this page (if cursor is near top header area, it's fresh)
-        is_fresh = @pdf.cursor > (@pdf.bounds.top - 50)
-        @pdf.move_down(is_fresh ? header_gap : item_gap)
-
-        # If still doesn't fit after the gap, push to next page
-        if @pdf.cursor < h_flow
-          @pdf.start_new_page
-          render_continuation_header
-          @pdf.move_down header_gap
-        end
-      end
+    # Check if we have enough room for the summary (+ minimal 10pt bottom cushion)
+    if @pdf.cursor < (h_final + 10)
+      @pdf.start_new_page
+      render_continuation_header
+      @pdf.move_down header_gap
     end
 
     # 4. Render Bounding Box
     @pdf.bounding_box([ 0, @pdf.cursor ], width: table_width, height: h_final) do
-      # -- A. PAYMENT INSTRUCTIONS --
-      if @profile.payment_instructions.present?
-        # Sticky (Page 1): Bottom aligned with 43pt offset
-        # Flow (Page 2+): Top aligned ("stick to summary top")
-        y_offset = is_sticky ? (h_final - instr_block_h - 43) : 0
-        @pdf.bounding_box([ 0, h_final - y_offset ], width: instructions_width, height: instr_block_h) do
-          @pdf.fill_color @dark_charcoal
-          @pdf.font("NotoSans", style: :bold, size: 10) { @pdf.text labels[:payment_details], character_spacing: 1 }
-          @pdf.move_down 5
-          @pdf.stroke_color accent_color
-          @pdf.line_width(2)
-          @pdf.stroke_horizontal_line 0, 50
-          @pdf.move_down 10
-          @pdf.fill_color @mid_gray
-          @pdf.font("NotoSans", size: 9) { @pdf.text @profile.payment_instructions, leading: 3 }
+      # -- A. PAYMENT INSTRUCTIONS & NOTE --
+      if @profile.payment_instructions.present? || (@profile.respond_to?(:note) && @profile.note.present?)
+        # Fixed alignment: follow the top of the summary area
+        @pdf.bounding_box([ 0, h_final ], width: instructions_width, height: instr_block_h) do
+          if @profile.payment_instructions.present?
+            @pdf.fill_color @dark_charcoal
+            @pdf.font("NotoSans", style: :bold, size: 10) { @pdf.text labels[:payment_details], character_spacing: 1 }
+            @pdf.move_down 5
+            @pdf.stroke_color accent_color
+            @pdf.line_width(2)
+            @pdf.stroke_horizontal_line 0, 50
+            @pdf.move_down 10
+            @pdf.fill_color @mid_gray
+            @pdf.font("NotoSans", size: 9) { @pdf.text @profile.payment_instructions, leading: 3 }
+          end
+
+          if @profile.respond_to?(:note) && @profile.note.present?
+            @pdf.move_down 20 if @profile.payment_instructions.present?
+            @pdf.fill_color accent_color
+            @pdf.font("NotoSans", style: :bold, size: 10) do
+              @pdf.text @profile.note.upcase, leading: 3
+            end
+          end
         end
       end
 
       # -- B. HIERARCHICAL TOTALS --
+      # Align with top of payment details (h_final), not h_totals
       left_x = table_width - summary_width
-      # Sticky (Page 1): Bottom aligned
-      # Flow (Page 2+): Top aligned
-      totals_y_offset = is_sticky ? (h_final - h_totals) : 0
-      current_y = h_final - totals_y_offset
+      current_y = h_final
 
       rows.each do |row|
         if row[:divider]
@@ -839,19 +875,24 @@ class InvoiceGenerator
       end
 
       # Grand Total Section (Industrial High-Impact Banner)
-      # 1. Big Divider (Centered with maximum breathing room)
-      divider_y = 45 + (divider_space * 2.0)
+      # Position dynamically after summary rows
+      banner_h = 45
+      banner_radius = 8  # Same radius as table corners
+
+      # 1. Big Divider (with breathing room after summary rows)
+      current_y -= divider_space
       @pdf.stroke_color @charcoal
       @pdf.line_width(1.5)
-      @pdf.stroke_horizontal_line left_x, table_width, at: divider_y
+      @pdf.stroke_horizontal_line left_x, table_width, at: current_y
+      current_y -= divider_space
 
       # 2. Fill Accent Banner
-      current_y = 45
-      banner_h = 45
-
-      # Fill Accent Banner
       @pdf.fill_color accent_color
-      @pdf.fill_rectangle [ left_x, current_y ], summary_width, banner_h
+      if @style == "classic"
+        draw_bottom_rounded_rect_fill(left_x, current_y, summary_width, banner_h, banner_radius)
+      else
+        @pdf.fill_rectangle [ left_x, current_y ], summary_width, banner_h
+      end
 
       # "BALANCE DUE" Label (Negative Space in Banner)
       @pdf.fill_color "FFFFFF"
@@ -1160,9 +1201,17 @@ class InvoiceGenerator
   end
 
   def check_new_page_needed(needed_height)
+    # Footer occupies approximately 25pt from the bottom (footer text at footer_y=35, with margin padding)
+    footer_reserved_space = 25
+
     # Prawn's cursor 0 is at the bottom margin.
-    # If the cursor is less than what we need, break.
-    if @pdf.cursor < needed_height
+    # If the cursor is less than what we need PLUS footer space, break to new page.
+    if @pdf.cursor < (needed_height + footer_reserved_space)
+       # Before breaking to new page, apply rounded bottom corners to the current page's table portion
+       if @style == "classic" && @table_widths.present? && @table_corner_radius.to_i > 0
+         apply_table_bottom_rounded_corners(@pdf.bounds.width, @pdf.cursor, @table_corner_radius)
+       end
+
        @pdf.start_new_page
        render_continuation_header
        # If we are in the middle of a table, repeat the header
@@ -1431,6 +1480,139 @@ class InvoiceGenerator
     @pdf.line_width(old_width)
 
     render_classic_summary
+  end
+
+  # Helper method to draw a rectangle with only top corners rounded
+  def draw_top_rounded_rect(x, y, width, height, radius, round_left: true, round_right: true)
+    @pdf.save_graphics_state
+    # Bezier approximation constant for quarter circle
+    k = 0.5522847498
+    # Start from bottom-left
+    @pdf.move_to(x, y - height)
+    # Bottom line (left to right)
+    @pdf.line_to(x + width, y - height)
+    # Right side up
+    if round_right
+      @pdf.line_to(x + width, y - radius)
+      # Top-right rounded corner: curve from right side up and to the left
+      @pdf.curve_to([ x + width - radius, y ], bounds: [ [ x + width, y - radius * (1 - k) ], [ x + width - radius * (1 - k), y ] ])
+    else
+      @pdf.line_to(x + width, y)
+    end
+    # Top line (right to left)
+    if round_left
+      @pdf.line_to(x + radius, y)
+      # Top-left rounded corner: curve from top line down and to the left
+      @pdf.curve_to([ x, y - radius ], bounds: [ [ x + radius * (1 - k), y ], [ x, y - radius * (1 - k) ] ])
+    else
+      @pdf.line_to(x, y)
+    end
+    # Left side down to start
+    @pdf.line_to(x, y - height)
+    @pdf.fill
+    @pdf.restore_graphics_state
+  end
+
+  # Helper method to draw a FILLED rectangle with only bottom corners rounded
+  def draw_bottom_rounded_rect_fill(x, y, width, height, radius)
+    @pdf.save_graphics_state
+    # Bezier approximation constant for quarter circle
+    k = 0.5522847498
+    # Start from top-left
+    @pdf.move_to(x, y)
+    # Top line (left to right)
+    @pdf.line_to(x + width, y)
+    # Right side down
+    @pdf.line_to(x + width, y - height + radius)
+    # Bottom-right rounded corner
+    @pdf.curve_to([ x + width - radius, y - height ], bounds: [ [ x + width, y - height + radius * (1 - k) ], [ x + width - radius * (1 - k), y - height ] ])
+    # Bottom line (right to left)
+    @pdf.line_to(x + radius, y - height)
+    # Bottom-left rounded corner
+    @pdf.curve_to([ x, y - height + radius ], bounds: [ [ x + radius * (1 - k), y - height ], [ x, y - height + radius * (1 - k) ] ])
+    # Left side up to start
+    @pdf.line_to(x, y)
+    @pdf.fill
+    @pdf.restore_graphics_state
+  end
+
+  # Helper method to draw a rectangle with only bottom corners rounded
+  def draw_bottom_rounded_rect_border(x, y, width, height, radius)
+    @pdf.save_graphics_state
+    # Start from top-left
+    @pdf.move_to(x, y)
+    # Left side down
+    @pdf.line_to(x, y - height + radius)
+    # Bottom-left rounded corner
+    @pdf.curve_to([ x + radius, y - height ], bounds: [ [ x, y - height ], [ x + radius, y - height ] ])
+    # Bottom line (left to right)
+    @pdf.line_to(x + width - radius, y - height)
+    # Bottom-right rounded corner
+    @pdf.curve_to([ x + width, y - height + radius ], bounds: [ [ x + width - radius, y - height ], [ x + width, y - height ] ])
+    # Right side up
+    @pdf.line_to(x + width, y)
+    @pdf.stroke
+    @pdf.restore_graphics_state
+  end
+
+  # Helper method to draw top border with rounded corners
+  def draw_top_rounded_border(x, y, width, radius)
+    @pdf.save_graphics_state
+    # Bezier approximation constant for quarter circle
+    k = 0.5522847498
+    # Start from left side, below where the curve begins
+    @pdf.move_to(x, y - radius)
+    # Top-left rounded corner: curve from left side up and to the right
+    @pdf.curve_to([ x + radius, y ], bounds: [ [ x, y - radius * (1 - k) ], [ x + radius * (1 - k), y ] ])
+    # Top line (left to right)
+    @pdf.line_to(x + width - radius, y)
+    # Top-right rounded corner: curve from top line down and to the right
+    @pdf.curve_to([ x + width, y - radius ], bounds: [ [ x + width - radius * (1 - k), y ], [ x + width, y - radius * (1 - k) ] ])
+    @pdf.stroke
+    @pdf.restore_graphics_state
+  end
+
+  # Helper method to draw bottom border with rounded corners
+  def draw_bottom_rounded_border(x, y, width, radius)
+    @pdf.save_graphics_state
+    # Bezier approximation constant for quarter circle
+    k = 0.5522847498
+    # Start from left side, at the point where the curve will begin (above the corner)
+    @pdf.move_to(x, y + radius)
+    # Bottom-left rounded corner: curve from left side down and to the right
+    @pdf.curve_to([ x + radius, y ], bounds: [ [ x, y + radius * (1 - k) ], [ x + radius * (1 - k), y ] ])
+    # Bottom line (left to right)
+    @pdf.line_to(x + width - radius, y)
+    # Bottom-right rounded corner: curve from bottom line up and to the right
+    @pdf.curve_to([ x + width, y + radius ], bounds: [ [ x + width - radius * (1 - k), y ], [ x + width, y + radius * (1 - k) ] ])
+    @pdf.stroke
+    @pdf.restore_graphics_state
+  end
+
+  # Helper to apply rounded bottom corners overlay (covers sharp corners with white fills and redraws rounded)
+  def apply_table_bottom_rounded_corners(table_width, table_bottom_y, radius)
+    return unless @style == "classic" && radius > 0
+
+    # 1. Use white fills to mask the sharp bottom corners
+    @pdf.fill_color "FFFFFF"
+
+    # Bottom-left corner mask - positioned at the very corner, not extending into content
+    # Only extends inward by the radius amount to cover the corner intersection
+    @pdf.fill_rectangle [ -1, table_bottom_y + radius + 1 ], radius + 2, radius + 2
+
+    # Bottom-right corner mask
+    @pdf.fill_rectangle [ table_width - radius - 1, table_bottom_y + radius + 1 ], radius + 2, radius + 2
+
+    # 2. Redraw the vertical side borders from above the mask down to where the curve starts
+    @pdf.stroke_color "E5E7EB"
+    @pdf.line_width(0.5)
+    # Left vertical line - short segment connecting to the rounded corner
+    @pdf.stroke_vertical_line table_bottom_y + radius + 2, table_bottom_y + radius, at: 0
+    # Right vertical line
+    @pdf.stroke_vertical_line table_bottom_y + radius + 2, table_bottom_y + radius, at: table_width
+
+    # 3. Draw the bottom border with rounded corners (includes the curved corners and bottom line)
+    draw_bottom_rounded_border(0, table_bottom_y, table_width, radius)
   end
 
   def add_footer

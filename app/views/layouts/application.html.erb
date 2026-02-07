@@ -409,7 +409,15 @@
               if (response.status === 429) {
                   // Ignore limit modal on history page for downloads/exports as per user request
                   if (!(eventName === 'invoice_exported' && window.location.pathname.includes('/history'))) {
-                      window.showPremiumModal();
+                      if (eventName === 'recording_started') {
+                          if (window.showError) {
+                              window.showError(window.APP_LANGUAGES.rate_limit_slow_down || "Slow down! You are recording too fast.");
+                          } else {
+                              alert("Slow down! You are recording too fast.");
+                          }
+                      } else {
+                          window.showPremiumModal();
+                      }
                   }
                   return false;
               }
@@ -417,7 +425,15 @@
               const data = await response.json();
               if (data.status === 'error' && data.message === 'Rate limit reached') {
                   if (!(eventName === 'invoice_exported' && window.location.pathname.includes('/history'))) {
-                      window.showPremiumModal();
+                      if (eventName === 'recording_started') {
+                          if (window.showError) {
+                              window.showError(window.APP_LANGUAGES.rate_limit_slow_down || "Slow down! You are recording too fast.");
+                          } else {
+                              alert("Slow down! You are recording too fast.");
+                          }
+                      } else {
+                          window.showPremiumModal();
+                      }
                   }
                   return false;
               }
@@ -504,9 +520,9 @@
                   <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
                   <span class="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
                 </span>
-                Limit Reached
+                <%= t('limit_reached') %>
               </div>
-              <h2 class="text-3xl md:text-5xl font-black tracking-tighter uppercase leading-none text-white">Unlock <span class="text-orange-500">The Power</span></h2>
+              <h2 class="text-3xl md:text-5xl font-black tracking-tighter uppercase leading-none text-white"><%= t('unlock_power').split(' ').take(t('unlock_power').split(' ').length - 2).join(' ') %> <span class="text-orange-500"><%= t('unlock_power').split(' ').last(2).join(' ') %></span></h2>
             </div>
             <button onclick="closePremiumModal()" class="w-12 h-12 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-white transition-all hover:scale-110 active:scale-90">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
@@ -514,90 +530,22 @@
               </svg>
             </button>
           </div>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             
-            <!-- Column 1: GUEST (Subtle) -->
-            <div class="group relative flex flex-col p-6 rounded-[32px] bg-white/5 border border-white/10 transition-all hover:bg-white/[0.08] backdrop-blur-sm overflow-hidden">
-               <div class="space-y-1 mb-8">
-                <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">Current Plan</span>
-                <h3 class="text-2xl font-black tracking-tighter uppercase text-white">Guest</h3>
-              </div>
-              
-              <div class="space-y-3 flex-1">
-                <!-- Preview Invoice Row -->
-                <div class="flex items-center justify-between p-3 bg-white/5 border border-white/5 rounded-2xl">
-                  <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-                      <svg class="w-5 h-5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-                        <circle cx="12" cy="12" r="3" />
-                      </svg>
-                    </div>
-                    <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest">Preview</span>
-                  </div>
-                  <span class="text-[10px] font-black text-gray-300 uppercase">Unlimited</span>
-                </div>
-
-                <!-- Transcript Row -->
-                <div class="flex items-center justify-between p-3 bg-white/5 border border-white/5 rounded-2xl">
-                  <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-                      <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 6h16M4 12h8m-8 6h16" stroke-width="2.5" stroke-linecap="round"/></svg>
-                    </div>
-                    <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest">Transcript</span>
-                  </div>
-                  <span class="text-[10px] font-black text-gray-300 uppercase">150 Chars</span>
-                </div>
-
-                <!-- Voice Record Row -->
-                <div class="flex items-center justify-between p-3 bg-white/5 border border-white/5 rounded-2xl opacity-60">
-                  <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-                      <svg viewBox="0 0 24 24" class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
-                        <path d="M19 10v1a7 7 0 0 1-14 0v-1" />
-                        <line x1="12" y1="18" x2="12" y2="22" />
-                        <line x1="8" y1="22" x2="16" y2="22" />
-                      </svg>
-                    </div>
-                    <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest">Voice</span>
-                  </div>
-                  <span class="text-[10px] font-black text-gray-300 uppercase text-right">30 Seconds</span>
-                </div>
-
-                <!-- Daily Exports Row -->
-                <div class="flex items-center justify-between p-3 bg-white/5 border border-white/5 rounded-2xl opacity-60">
-                  <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-                      <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M4 17a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1" />
-                        <path d="m12 15 4-4m-4 4-4-4m4 4V4" />
-                      </svg>
-                    </div>
-                    <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest">Exports</span>
-                  </div>
-                  <span class="text-[10px] font-black text-gray-300 uppercase">2 Per Day</span>
-                </div>
-
-                <!-- Status Row -->
-                <div class="flex items-center gap-3 justify-center pt-2 opacity-50">
-                  <svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" stroke-width="2.5" stroke-linecap="round"/></svg>
-                  <span class="text-[9px] font-black text-gray-500 uppercase tracking-[0.2em]">Profile Locked</span>
-                </div>
-              </div>
-
-               <div class="mt-8 text-center pt-4 border-t border-white/10">
-                <span class="text-[10px] font-black text-white/20 uppercase tracking-[0.2em]">Active Mode</span>
-              </div>
-            </div>
 
             <!-- Column 2: FREE (Vibrant Modern) -->
-            <div class="group relative flex flex-col p-6 rounded-[32px] bg-white border border-white transition-all shadow-[0_20px_40px_rgba(255,255,255,0.05)] overflow-hidden scale-105 z-10">
+            <div class="group relative flex flex-col p-6 rounded-[32px] bg-white border border-white transition-all shadow-[0_20px_40px_rgba(255,255,255,0.05)] overflow-hidden">
                <div class="absolute -top-4 -right-4 w-24 h-24 bg-orange-100 rounded-full blur-2xl opacity-50 group-hover:scale-150 transition-transform"></div>
                
                <div class="relative space-y-1 mb-8">
-                <span class="text-[10px] font-black uppercase tracking-widest text-orange-600">Starting point</span>
-                <h3 class="text-2xl font-black tracking-tighter uppercase text-black">Free Plan</h3>
+                <span class="text-[10px] font-black uppercase tracking-widest text-orange-600">
+                  <% if user_signed_in? && current_user.profile&.free? %>
+                    <%= t('current_plan') %>
+                  <% else %>
+                    <%= t('starting_point') %>
+                  <% end %>
+                </span>
+                <h3 class="text-2xl font-black tracking-tighter uppercase text-black"><%= t('free_plan') %></h3>
               </div>
               
               <div class="relative space-y-3 flex-1">
@@ -679,10 +627,16 @@
                
                <div class="relative space-y-1 mb-8">
                 <div class="flex items-center justify-between">
-                  <span class="text-[10px] font-black uppercase tracking-widest text-orange-500">Professional</span>
+                  <span class="text-[10px] font-black uppercase tracking-widest text-orange-500">
+                    <% if user_signed_in? && current_user.profile&.paid? %>
+                      <%= t('current_plan') %>
+                    <% else %>
+                      <%= t('professional') %>
+                    <% end %>
+                  </span>
                   <span class="bg-orange-500 text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter">ELITE</span>
                 </div>
-                <h3 class="text-2xl font-black tracking-tighter uppercase text-white">Pro Plan</h3>
+                <h3 class="text-2xl font-black tracking-tighter uppercase text-white"><%= t('pro_plan') %></h3>
               </div>
               
               <div class="relative space-y-3 flex-1">

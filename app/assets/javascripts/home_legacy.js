@@ -241,12 +241,14 @@ function updateLanguageUI(lang) {
 
   if (normalizedLang === 'ge') {
     if (flag) flag.className = 'fi fi-ge scale-90 rounded-sm';
-    if (text) text.innerText = 'ქართული';
+    // Use localized string from server (window.APP_LANGUAGES.ka)
+    if (text) text.innerText = window.APP_LANGUAGES.ka;
     checkEn?.classList.add('hidden');
     checkGe?.classList.remove('hidden');
   } else {
     if (flag) flag.className = 'fi fi-us scale-90 rounded-sm';
-    if (text) text.innerText = 'English';
+    // Use localized string from server (window.APP_LANGUAGES.en)
+    if (text) text.innerText = window.APP_LANGUAGES.en;
     checkEn?.classList.remove('hidden');
     checkGe?.classList.add('hidden');
   }
@@ -3285,7 +3287,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
 
   const billingMode = initialMode;
   const defaultRate = rate || profileHourlyRate;
-  const laborPriceVal = (price === "" || parseFloat(price) === 0) ? (billingMode === 'hourly' ? "1" : "10") : price;
+  const laborPriceVal = (price === "" || parseFloat(price) === 0) ? (billingMode === 'hourly' ? "1" : "100") : price;
 
   // DEFAULT LABOR NAME
   let finalValue = value;
@@ -3359,7 +3361,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
       <button type="button" onclick="this.closest('.labor-item-row').remove(); updateTotalsSummary();" class="remove-labor-btn w-6 h-10 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors font-bold text-xl flex-shrink-0">×</button>
     </div>
     <!-- Sub-categories container -->
-    <div class="labor-sub-categories pl-6 space-y-2"></div>
+    <div class="labor-sub-categories space-y-2 mt-2 pl-12"></div>
     
        <!-- Price and Tax Row -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-y-3 md:gap-4 mt-1 relative">
@@ -4310,7 +4312,7 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
   // Default Price for manually added items in these sections
   if (!price || price === "" || parseFloat(price) === 0) {
     if (isMaterialSection || isExpenseSection || isFeeSection) {
-      price = "10";
+      price = "100";
     }
   }
 
@@ -4355,8 +4357,8 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
   div.dataset.taxable = taxable;
   div.dataset.symbol = currencySymbol;
   div.dataset.qty = finalQty;
-  // Adjusted margin (mb-8) for optimal spacing
-  div.className = "flex flex-col gap-2 mb-8 w-full animate-in fade-in slide-in-from-left-2 duration-300 item-row transition-all";
+  // Adjusted margin (mb-14) for optimal spacing
+  div.className = "flex flex-col gap-2 mb-14 w-full animate-in fade-in slide-in-from-left-2 duration-300 item-row transition-all";
 
   // Inputs (Price and Tax)
   const hasPrice = price && price !== "" && price !== "0" && price !== "0.00";
@@ -4562,10 +4564,10 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
       </button>
     </div>
     <!-- Sub-categories container -->
-    <div class="sub-categories pl-6 space-y-2 mt-6"></div>
+    <div class="sub-categories pl-6 space-y-2 mt-2"></div>
 
     <!-- Item Subtotal Box -->
-    <div class="item-subtotal-container pl-6 mt-4 hidden animate-in fade-in slide-in-from-top-1 duration-300">
+    <div class="item-subtotal-container pl-6 mt-1 hidden animate-in fade-in slide-in-from-top-1 duration-300">
       <div class="flex flex-col gap-1">
         <label class="item-subtotal-label text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">${window.APP_LANGUAGES.after_tax || "AFTER TAX"}</label>
         <div class="border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] relative h-[52px] w-max min-w-[120px] max-w-full overflow-visible">
