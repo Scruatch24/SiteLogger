@@ -71,6 +71,7 @@ class InvoiceGenerator
     @profile = profile
     @style = (style.presence || @log.try(:invoice_style).presence || @profile.invoice_style.presence || "classic").to_s.downcase
     @document_language = (@profile.try(:document_language).presence || "en").to_s.downcase
+    @base_font_name = (@document_language == "ka") ? "NotoSansGeorgian" : "NotoSans"
     @pdf = Prawn::Document.new(page_size: "A4", margin: 40)
     @font_path = Rails.root.join("app/assets/fonts")
 
@@ -116,10 +117,10 @@ class InvoiceGenerator
     @labels ||= if @document_language == "ka"
       {
         invoice: "ინვოისი",
-        billed_to: "ადრესატი",
-        from: "გამომგზავნი",
+        billed_to: "გადამხდელი",
+        from: "გამგზავნი",
         issued: "გაცემული",
-        due: "გადახდის ვადა",
+        due: "ვადა",
         type: "ტიპი",
         description: "აღწერა",
         price: "ფასი",
@@ -127,9 +128,9 @@ class InvoiceGenerator
         amount: "ჯამი",
         discount: "ფასდაკლება",
         tax: "დღგ",
-        subtotal: "ქვეჯამი",
+        subtotal: "შუალედური ჯამი",
         tax_total: "დღგ",
-        total_due: "სულ გადასახდელი",
+        total_due: "გადასახდელი ბალანსი",
         labor: "პროფესიონალური მომსახურება",
         material: "მასალა",
         fee: "მოსაკრებელი",
@@ -139,22 +140,22 @@ class InvoiceGenerator
         client: "კლიენტი",
         sender: "გამომგზავნი",
         date: "თარიღი",
-        due_date: "გადახდის ვადა",
+        due_date: "ვადა",
         bill_to: "ადრესატი",
-        balance_due: "ბალანსი",
-        items_total: "ელემენტების ჯამი",
-        item_discounts: "ელემენტების ფასდაკლება",
+        balance_due: "გადასახდელი",
+        items_total: "ნივთების ჯამი",
+        item_discounts: "ნივთების ფასდაკლება",
         taxable_total: "დასაბეგრი ჯამი",
         invoice_discount: "ინვოისის ფასდაკლება",
         total_before_credit: "ჯამი კრედიტამდე",
-        credit_applied: "გამოყენებული კრედიტი",
+        credit_applied: "კრედიტი",
         payment_details: "გადახდის დეტალები",
         page: "გვერდი",
         of: "სულ",
-        tax_id_label: "საგადასახადო ID",
+        tax_id_label: "ID ნომერი",
         valued_client: "ძვირფასი კლიენტი",
-        invoice_prefix: "ინვ",
-        num: "ნომ"
+        invoice_prefix: "INV",
+        num: "ნომერი"
       }
     else
       {
@@ -194,7 +195,7 @@ class InvoiceGenerator
         payment_details: "PAYMENT DETAILS",
         page: "PAGE",
         of: "OF",
-        tax_id_label: "Tax ID",
+        tax_id_label: "ID Number",
         valued_client: "VALUED CLIENT",
         invoice_prefix: "INV",
         num: "NUM"
@@ -255,7 +256,7 @@ class InvoiceGenerator
 
       # INVOICE text on the right
       @pdf.fill_color @charcoal
-      @pdf.font("NotoSans", style: :bold) do
+      @pdf.font(@base_font_name, style: :bold) do
         @pdf.text_box labels[:invoice], at: [ page_width - 250, page_top ], size: 24, height: header_height, valign: :center, align: :right, width: 200, character_spacing: 8
       end
     end
@@ -284,20 +285,20 @@ class InvoiceGenerator
       @pdf.fill_color @orange_color
       @pdf.fill_rounded_rectangle [ 0, @pdf.cursor ], pill_width, pill_height, 2
       @pdf.fill_color "FFFFFF"
-      @pdf.font("NotoSans", size: 6, style: :bold) do
+      @pdf.font(@base_font_name, size: 6, style: :bold) do
         @pdf.text_box labels[:billed_to], at: [ 0, @pdf.cursor - 4 ], width: pill_width, height: pill_height, align: :center, character_spacing: 0.5
       end
 
-      @pdf.move_down 15
+      @pdf.move_down 25
 
       # Client Content
       @pdf.fill_color @dark_charcoal
-      @pdf.font("NotoSans", style: :bold, size: 10) do
+      @pdf.font(@base_font_name, style: :bold, size: 10) do
         client_name = (@log.client.presence || labels[:valued_client]).upcase
         @pdf.text client_name, leading: 2
       end
 
-      @pdf.move_down 15
+      @pdf.move_down 25
 
       # 2. FROM (Under Billed To)
       pill_width_from = 40
@@ -306,22 +307,23 @@ class InvoiceGenerator
       @pdf.fill_color @soft_gray
       @pdf.fill_rounded_rectangle [ 0, @pdf.cursor ], pill_width_from, pill_height, 2
       @pdf.fill_color @dark_charcoal
-      @pdf.font("NotoSans", size: 6, style: :bold) do
+      @pdf.font(@base_font_name, size: 6, style: :bold) do
         @pdf.text_box labels[:from], at: [ 0, @pdf.cursor - 4 ], width: pill_width_from, height: pill_height, align: :center, character_spacing: 0.5
       end
 
-      @pdf.move_down 15
+      @pdf.move_down 25
 
       # Sender Content (Left Aligned)
       @pdf.fill_color @dark_charcoal
-      @pdf.font("NotoSans", size: 9) do
+      @pdf.font(@base_font_name, size: 9) do
         # Company Name + Black Dot + Tax ID
         name_text = []
         name_text << { text: @profile.business_name, styles: [ :bold ], color: @dark_charcoal }
         if @profile.tax_id.present?
            name_text << { text: "  ", color: @dark_charcoal }
            name_text << { text: "•", color: "000000" }
-           name_text << { text: "  #{labels[:tax_id_label]}: #{@profile.tax_id}", color: @dark_charcoal }
+           name_text << { text: "  #{labels[:tax_id_label]}: ", color: @dark_charcoal, styles: [ :bold ] }
+           name_text << { text: @profile.tax_id.to_s, color: @dark_charcoal, styles: [ :bold ] }
         end
         @pdf.formatted_text name_text, leading: 2
         @pdf.fill_color @mid_gray
@@ -356,13 +358,13 @@ class InvoiceGenerator
       @pdf.fill_color @soft_gray
       @pdf.fill_rounded_rectangle [ x_pill, current_y ], pill_width, pill_height, 2
       @pdf.fill_color @dark_charcoal
-      @pdf.font("NotoSans", size: 6, style: :bold) do
+      @pdf.font(@base_font_name, size: 6, style: :bold) do
         @pdf.text_box labels[:issued], at: [ x_pill, current_y - 4 ], width: pill_width, height: pill_height, align: :center, character_spacing: 0.5
       end
 
       # ISSUED value
       @pdf.fill_color @dark_charcoal
-      @pdf.font("NotoSans", size: 9, style: :bold) do
+      @pdf.font(@base_font_name, size: 9) do
         @pdf.text_box @invoice_date, at: [ x_value, current_y - 2.5 ], width: date_val_width, align: :right
       end
 
@@ -373,13 +375,13 @@ class InvoiceGenerator
       @pdf.fill_color @orange_color
       @pdf.fill_rounded_rectangle [ x_pill, current_y ], pill_width, pill_height, 2
       @pdf.fill_color "FFFFFF"
-      @pdf.font("NotoSans", size: 6, style: :bold) do
+      @pdf.font(@base_font_name, size: 6, style: :bold) do
         @pdf.text_box labels[:due], at: [ x_pill, current_y - 4 ], width: pill_width, height: pill_height, align: :center, character_spacing: 0.5
       end
 
       # DUE value
       @pdf.fill_color @dark_charcoal
-      @pdf.font("NotoSans", size: 9, style: :bold) do
+      @pdf.font(@base_font_name, size: 9) do
         @pdf.text_box @due_date, at: [ x_value, current_y - 2.5 ], width: date_val_width, align: :right
       end
 
@@ -390,11 +392,11 @@ class InvoiceGenerator
       @pdf.fill_color @soft_gray
       @pdf.fill_rounded_rectangle [ x_pill, current_y ], pill_width, pill_height, 2
       @pdf.fill_color @dark_charcoal
-      @pdf.font("NotoSans", size: 6, style: :bold) do
+      @pdf.font(@base_font_name, size: 6, style: :bold) do
         @pdf.text_box labels[:num] || "NUM", at: [ x_pill, current_y - 4 ], width: pill_width, height: pill_height, align: :center, character_spacing: 0.5
       end
 
-      # NUM value (invoice number) - Orange text
+      # NUM value (invoice number) - Orange text (always Latin, use NotoSans for bold)
       @pdf.fill_color @orange_color
       @pdf.font("NotoSans", size: 9, style: :bold) do
         @pdf.text_box @invoice_number, at: [ x_value, current_y - 2.5 ], width: date_val_width, align: :right
@@ -512,7 +514,8 @@ class InvoiceGenerator
       @pdf.fill_rectangle [ 0, @pdf.cursor ], w_desc, header_h
     end
 
-    @pdf.font("NotoSans", style: :bold, size: 7.5) do
+    font_name = (@document_language == "ka") ? "NotoSansGeorgian" : "NotoSans"
+    @pdf.font(font_name, style: :bold, size: 7.5) do
       @pdf.fill_color "FFFFFF"
 
       # DESCRIPTION (Left) and other columns
@@ -555,8 +558,8 @@ class InvoiceGenerator
     main_text += ":" if item[:sub_categories].present?
 
     desc_color = is_credit ? "DC2626" : @dark_charcoal
-    # Reduced leading for better compactness
-    line_leading = (@document_language == "ka") ? 2 : 1
+    # Keep identical layout for all document languages
+    line_leading = 1
     font_name = (@document_language == "ka") ? "NotoSansGeorgian" : "NotoSans"
 
     desc_array = [ { text: main_text, styles: [ :bold ], size: 9, color: desc_color, font: font_name } ]
@@ -577,11 +580,11 @@ class InvoiceGenerator
       content_h = @pdf.height_of(combined_text, width: measure_width, size: 9, leading: line_leading)
     end
 
-    min_h = (@document_language == "ka") ? 18 : 10
+    min_h = 10
     content_h = [ content_h, min_h ].max
 
     # Standardized padding for cleaner vertical centering
-    v_pad = (@document_language == "ka") ? 20 : 12
+    v_pad = 12
     row_h = v_pad + content_h
 
     check_new_page_needed(row_h)
@@ -603,7 +606,7 @@ class InvoiceGenerator
     unit_price = (item[:qty].to_f > 0) ? (item[:price].to_f / item[:qty].to_f) : item[:price].to_f
 
     @pdf.fill_color is_credit ? "DC2626" : @dark_charcoal
-    @pdf.font("NotoSans", size: 9) do
+    @pdf.font(font_name, size: 9) do
       # PRICE
       p_color = is_credit ? @soft_gray : (is_credit ? "DC2626" : @dark_charcoal)
       @pdf.fill_color p_color
@@ -615,7 +618,7 @@ class InvoiceGenerator
       @pdf.text_box m_qty_label.to_s, at: [ w_desc + w_rate, start_y ], width: w_qty, height: row_h, align: :center, valign: :center, overflow: :shrink_to_fit, min_font_size: 7
 
       # AMOUNT
-      @pdf.font("NotoSans", style: :bold) do
+      @pdf.font(font_name, style: :bold) do
         @pdf.text_box format_money(item[:price].to_f), at: [ w_desc + w_rate + w_qty, start_y ], width: w_amnt, height: row_h, align: :center, valign: :center, overflow: :shrink_to_fit, min_font_size: 7
       end
 
@@ -656,8 +659,7 @@ class InvoiceGenerator
   def calculate_column_widths(table_width)
     calc_results = {}
 
-    font_name = (@document_language == "ka") ? "NotoSansGeorgian" : "NotoSans"
-    @pdf.font(font_name, size: 7.5, style: :bold) do
+    @pdf.font("NotoSans", size: 7.5, style: :bold) do
       w_rate = @pdf.width_of(labels[:price]) + 25
       w_qty  = @pdf.width_of(labels[:qty]) + 15
       w_amnt = @pdf.width_of(labels[:amount]) + 25
@@ -671,7 +673,7 @@ class InvoiceGenerator
       end
 
       # Temp switch to measurement font size
-      @pdf.font(font_name, size: 9) do
+      @pdf.font("NotoSans", size: 9) do
         all_items.each do |item|
           q_f = item[:qty].to_f > 0 ? item[:qty].to_f : 1.0
           p_v = (item[:price].to_f / q_f)
@@ -778,12 +780,12 @@ class InvoiceGenerator
     divider_count = rows.count { |r| r[:divider] }
     content_rows_count = rows.count { |r| !r[:divider] }
     # Match the grand total section height to: Banner (45) + Total Gaps + Extra bottom spacing (20px from footer)
-    grand_total_h = 60 + (divider_space * 4.0)
+    grand_total_h = 65 + (divider_space * 4.0)
     h_totals = (content_rows_count * row_h) + (divider_count * divider_space) + grand_total_h
 
     # Calculate instructions height to center it
     instr_block_h = 0
-    @pdf.font("NotoSans") do
+    @pdf.font(@base_font_name) do
       if @profile.payment_instructions.present?
         p_title_h = @pdf.height_of(labels[:payment_details], width: instructions_width, size: 10, style: :bold, character_spacing: 1)
         p_text_h = @pdf.height_of(@profile.payment_instructions, width: instructions_width, size: 9, leading: 3)
@@ -792,7 +794,7 @@ class InvoiceGenerator
 
       if @profile.respond_to?(:note) && @profile.note.present?
         note_gap = @profile.payment_instructions.present? ? 20 : 0
-        n_text_h = @pdf.height_of(@profile.note.upcase, width: instructions_width, size: 10, style: :bold, leading: 3)
+        n_text_h = @pdf.height_of(@profile.note.upcase, width: instructions_width, size: 12, style: :bold, leading: 3)
         instr_block_h += note_gap + n_text_h
       end
     end
@@ -824,20 +826,20 @@ class InvoiceGenerator
         @pdf.bounding_box([ 0, h_final ], width: instructions_width, height: instr_block_h) do
           if @profile.payment_instructions.present?
             @pdf.fill_color @dark_charcoal
-            @pdf.font("NotoSans", style: :bold, size: 10) { @pdf.text labels[:payment_details], character_spacing: 1 }
+            @pdf.font(@base_font_name, style: :bold, size: 10) { @pdf.text labels[:payment_details], character_spacing: 1 }
             @pdf.move_down 5
             @pdf.stroke_color accent_color
             @pdf.line_width(2)
             @pdf.stroke_horizontal_line 0, 50
             @pdf.move_down 10
             @pdf.fill_color @mid_gray
-            @pdf.font("NotoSans", size: 9) { @pdf.text @profile.payment_instructions, leading: 3 }
+            @pdf.font(@base_font_name, size: 9) { @pdf.text @profile.payment_instructions, leading: 3 }
           end
 
           if @profile.respond_to?(:note) && @profile.note.present?
             @pdf.move_down 20 if @profile.payment_instructions.present?
             @pdf.fill_color accent_color
-            @pdf.font("NotoSans", style: :bold, size: 10) do
+            @pdf.font(@base_font_name, style: :bold, size: 12) do
               @pdf.text @profile.note.upcase, leading: 3
             end
           end
@@ -861,13 +863,13 @@ class InvoiceGenerator
 
         # Label
         @pdf.fill_color row[:label_color] || @mid_gray
-        @pdf.font("NotoSans", size: summary_font_size, style: row[:style] || :normal) do
+        @pdf.font(@base_font_name, size: summary_font_size, style: row[:style] || :normal) do
           @pdf.text_box row[:label], at: [ left_x, current_y ], width: 140, height: row_h, align: :left, valign: :center
         end
 
         # Value
         @pdf.fill_color row[:color] || @dark_charcoal
-        @pdf.font("NotoSans", style: :bold, size: summary_font_size) do
+        @pdf.font(@base_font_name, style: :bold, size: summary_font_size) do
           @pdf.text_box row[:value], at: [ left_x + 100, current_y ], width: 140, height: row_h, align: :right, valign: :center
         end
 
@@ -880,11 +882,11 @@ class InvoiceGenerator
       banner_radius = 8  # Same radius as table corners
 
       # 1. Big Divider (with breathing room after summary rows)
-      current_y -= divider_space
+      current_y -= (divider_space + 2.5)
       @pdf.stroke_color @charcoal
       @pdf.line_width(1.5)
       @pdf.stroke_horizontal_line left_x, table_width, at: current_y
-      current_y -= divider_space
+      current_y -= (divider_space + 2.5)
 
       # 2. Fill Accent Banner
       @pdf.fill_color accent_color
@@ -894,34 +896,34 @@ class InvoiceGenerator
         @pdf.fill_rectangle [ left_x, current_y ], summary_width, banner_h
       end
 
-      # "BALANCE DUE" Label (Negative Space in Banner)
+      # "BALANCE DUE" Label + Value (same line, vertically centered in banner)
       @pdf.fill_color "FFFFFF"
-      @pdf.font("NotoSans", style: :bold, size: 8) do
+      @pdf.font(@base_font_name, style: :bold, size: 8) do
         @pdf.text_box labels[:balance_due].upcase,
-                      at: [ left_x + 10, current_y - 17 ],
-                      width: 100,
-                      height: 20,
+                      at: [ left_x + 12, current_y ],
+                      width: 130,
+                      height: banner_h,
                       align: :left,
-                      valign: :top,
+                      valign: :center,
                       character_spacing: 1.5
       end
 
-      # Value (High-Impact White)
-      @pdf.font("NotoSans", style: :bold, size: 22) do
-        @pdf.text_box format_money(@total_due),
-                      at: [ left_x + 90, current_y - 8 ],
-                      width: 140,
+      @pdf.font(@base_font_name, style: :bold, size: 20) do
+        @pdf.text_box format_money(@total_due.to_f),
+                      at: [ left_x + 10, current_y + 3 ],
+                      width: summary_width - 20,
                       height: banner_h,
                       align: :right,
-                      valign: :top,
-                      overflow: :shrink_to_fit
+                      valign: :center,
+                      overflow: :shrink_to_fit,
+                      min_font_size: 10
       end
     end
   end
 
   def render_item_tag(text, bg_color, x_pos)
     tw = 0
-    @pdf.font("NotoSans", size: 7, style: :bold) do
+    @pdf.font(@base_font_name, size: 7, style: :bold) do
       tw = @pdf.width_of(text) + 10
       th = 12
 
@@ -999,6 +1001,7 @@ class InvoiceGenerator
 
     # 2. Register Global Fallbacks for Symbols & Mixed Languages
     additional_fonts = {
+      "NotoSans"         => [ "NotoSans-Regular.ttf", "NotoSans-Bold.ttf" ],
       "NotoSansGeorgian" => [ "NotoSansGeorgian-Regular.ttf", "NotoSansGeorgian-Bold.ttf" ],
       "NotoSansArabic"   => [ "NotoSansArabic-Regular.ttf" ],
       "NotoSansArmenian" => [ "NotoSansArmenian-Regular.ttf" ],
@@ -1041,10 +1044,18 @@ class InvoiceGenerator
     # 2. Tech Typography (Clean & Minimal)
     @pdf.indent(12) do
       @pdf.fill_color @dark_charcoal
-      @pdf.font("NotoSans", style: :bold, size: 9) do
-        # Format: PAGE 02  ·  #INV-1075  ·  BUSINESS NAME
-        info_text = "#{labels[:page]} 0#{@pdf.page_number}  ·  #{@invoice_number}  ·  #{@profile.business_name.upcase}"
-        @pdf.text info_text, character_spacing: 1.2
+      if @document_language == "ka"
+        parts = [
+          { text: "#{labels[:page]} მე-", font: "NotoSansGeorgian", styles: [:bold], size: 9, color: @dark_charcoal, character_spacing: 1.2 },
+          { text: "#{@pdf.page_number}", font: "NotoSans", styles: [:bold], size: 9, color: @dark_charcoal, character_spacing: 1.2 },
+          { text: "  ·  #{@invoice_number}  ·  #{@profile.business_name.upcase}", font: "NotoSans", styles: [:bold], size: 9, color: @dark_charcoal, character_spacing: 1.2 }
+        ]
+        @pdf.formatted_text parts
+      else
+        @pdf.font(@base_font_name, style: :bold, size: 9) do
+          info_text = "#{labels[:page]} #{@pdf.page_number}  ·  #{@invoice_number}  ·  #{@profile.business_name.upcase}"
+          @pdf.text info_text, character_spacing: 1.2
+        end
       end
     end
 
@@ -1234,11 +1245,11 @@ class InvoiceGenerator
       @pdf.fill_rectangle [ 0, page_top ], page_width, 70
 
       @pdf.fill_color "FFFFFF"
-      @pdf.font("NotoSans", style: :bold) do
+      @pdf.font(@base_font_name, style: :bold) do
         @pdf.text_box labels[:invoice], at: [ 50, page_top + 4 ], size: 30, height: 70, valign: :center, character_spacing: 2
       end
 
-      @pdf.font("NotoSans", style: :bold) do
+      @pdf.font(@base_font_name, style: :bold) do
         @pdf.text_box @invoice_number, at: [ page_width - 250, page_top + 4 ], size: 18, height: 70, valign: :center, align: :right, width: 200
       end
     end
@@ -1253,17 +1264,17 @@ class InvoiceGenerator
     # Left: Client Info
     @pdf.bounding_box([ 0, y_start ], width: col_width) do
       @pdf.fill_color @navy
-      @pdf.font("NotoSans", size: 7, style: :bold) do
+      @pdf.font(@base_font_name, size: 7, style: :bold) do
         @pdf.text labels[:client], character_spacing: 1
       end
       @pdf.move_down 8
       @pdf.fill_color "000000"
-      @pdf.font("NotoSans", style: :bold, size: 11) do
+      @pdf.font(@base_font_name, style: :bold, size: 11) do
         @pdf.text (@log.client.presence || "VALUED CLIENT").upcase, leading: 2
       end
       @pdf.move_down 5
       @pdf.fill_color @mid_gray
-      @pdf.font("NotoSans", size: 9) do
+      @pdf.font(@base_font_name, size: 9) do
         @pdf.text (@log.try(:address).presence || "").to_s, leading: 2
       end
     end
@@ -1271,15 +1282,15 @@ class InvoiceGenerator
     # Right: Sender & Dates
     @pdf.bounding_box([ col_width + gap, y_start ], width: col_width) do
       @pdf.fill_color @navy
-      @pdf.font("NotoSans", size: 7, style: :bold) do
+      @pdf.font(@base_font_name, size: 7, style: :bold) do
         @pdf.text labels[:sender], character_spacing: 1, align: :right
       end
       @pdf.move_down 8
       @pdf.fill_color "000000"
-      @pdf.font("NotoSans", style: :bold, size: 10) do
+      @pdf.font(@base_font_name, style: :bold, size: 10) do
         @pdf.text @profile.business_name, align: :right, leading: 2
       end
-      @pdf.font("NotoSans", size: 8) do
+      @pdf.font(@base_font_name, size: 8) do
         @pdf.fill_color @mid_gray
         @pdf.text @profile.address.to_s, align: :right, leading: 1
         @pdf.text "#{@profile.phone}  |  #{@profile.email}", align: :right, leading: 1
@@ -1291,7 +1302,7 @@ class InvoiceGenerator
       @pdf.move_down 10
 
       @pdf.fill_color "000000"
-      @pdf.font("NotoSans", size: 8) do
+      @pdf.font(@base_font_name, size: 8) do
         @pdf.text_box "#{labels[:date]}:", at: [ col_width - 150, @pdf.cursor ], width: 70, align: :left, style: :bold
         @pdf.text_box @invoice_date, at: [ col_width - 80, @pdf.cursor ], width: 80, align: :right
         @pdf.move_down 12
@@ -1309,13 +1320,13 @@ class InvoiceGenerator
 
     # -- 1. Minimalist Geometric Header --
     y_header = @pdf.cursor
-    @pdf.font("NotoSans", style: :bold) do
+    @pdf.font(@base_font_name, style: :bold) do
       @pdf.fill_color @soft_gray
       @pdf.text labels[:invoice], size: 42, character_spacing: 1
     end
 
     @pdf.move_cursor_to y_header + 5
-    @pdf.font("NotoSans", style: :bold) do
+    @pdf.font(@base_font_name, style: :bold) do
       @pdf.fill_color @dark_charcoal
       @pdf.text @invoice_number, size: 10, align: :right, character_spacing: 1
       @pdf.move_down 2
@@ -1331,15 +1342,15 @@ class InvoiceGenerator
 
     @pdf.bounding_box([ 0, y_start ], width: col_width) do
       @pdf.fill_color "000000"
-      @pdf.font("NotoSans", size: 7, style: :bold) do
+      @pdf.font(@base_font_name, size: 7, style: :bold) do
         @pdf.text labels[:bill_to], character_spacing: 2
       end
       @pdf.move_down 10
-      @pdf.font("NotoSans", style: :bold, size: 12) do
+      @pdf.font(@base_font_name, style: :bold, size: 12) do
         @pdf.text (@log.client.presence || "CLIENT").upcase
       end
       @pdf.move_down 4
-      @pdf.font("NotoSans", size: 9) do
+      @pdf.font(@base_font_name, size: 9) do
         @pdf.fill_color @mid_gray
         @pdf.text (@log.try(:address).presence || "").to_s
       end
@@ -1347,14 +1358,14 @@ class InvoiceGenerator
 
     @pdf.bounding_box([ col_width + 20, y_start ], width: col_width) do
       @pdf.fill_color "000000"
-      @pdf.font("NotoSans", size: 7, style: :bold) do
+      @pdf.font(@base_font_name, size: 7, style: :bold) do
         @pdf.text labels[:from], character_spacing: 2, align: :right
       end
       @pdf.move_down 10
-      @pdf.font("NotoSans", style: :bold, size: 10) do
+      @pdf.font(@base_font_name, style: :bold, size: 10) do
         @pdf.text @profile.business_name, align: :right
       end
-      @pdf.font("NotoSans", size: 8) do
+      @pdf.font(@base_font_name, size: 8) do
         @pdf.fill_color @mid_gray
         @pdf.text @profile.email.to_s, align: :right
         @pdf.text @profile.phone.to_s, align: :right
@@ -1367,11 +1378,11 @@ class InvoiceGenerator
     @pdf.fill_color @modern_gray
     @pdf.fill_rectangle [ 0, @pdf.cursor ], @pdf.bounds.width, 40
     @pdf.fill_color @black_tag
-    @pdf.font("NotoSans", style: :bold, size: 7) do
+    @pdf.font(@base_font_name, style: :bold, size: 7) do
       @pdf.text_box labels[:due_date], at: [ 15, @pdf.cursor - 10 ], width: 100
       @pdf.text_box labels[:balance_due], at: [ @pdf.bounds.width - 110, @pdf.cursor - 10 ], width: 100, align: :right
     end
-    @pdf.font("NotoSans", style: :bold, size: 11) do
+    @pdf.font(@base_font_name, style: :bold, size: 11) do
       @pdf.text_box @due_date, at: [ 15, @pdf.cursor - 22 ], width: 150
       @pdf.text_box format_money(@total_due), at: [ @pdf.bounds.width - 160, @pdf.cursor - 22 ], width: 150, align: :right
     end
@@ -1385,7 +1396,7 @@ class InvoiceGenerator
     @pdf.fill_color "000000"
 
     # -- 1. High-Contrast Brutalist Header --
-    @pdf.font("NotoSans", style: :bold) do
+    @pdf.font(@base_font_name, style: :bold) do
       @pdf.text labels[:invoice], size: 64, character_spacing: -2, leading: -10
     end
 
@@ -1398,17 +1409,17 @@ class InvoiceGenerator
     col_width = (@pdf.bounds.width - 40) / 2
 
     @pdf.bounding_box([ 0, y_start ], width: col_width) do
-      @pdf.font("NotoSans", size: 10, style: :bold) do
+      @pdf.font(@base_font_name, size: 10, style: :bold) do
         @pdf.text labels[:billed_to], character_spacing: 1
       end
       @pdf.move_down 5
-      @pdf.font("NotoSans", style: :bold, size: 16) do
+      @pdf.font(@base_font_name, style: :bold, size: 16) do
         @pdf.text (@log.client.presence || "CLIENT").upcase, leading: 2
       end
     end
 
     @pdf.bounding_box([ col_width + 40, y_start ], width: col_width) do
-      @pdf.font("NotoSans", size: 8, style: :bold) do
+      @pdf.font(@base_font_name, size: 8, style: :bold) do
         @pdf.text "#{labels[:from]}: #{@profile.business_name.upcase}", align: :right, leading: 2
         @pdf.text "INV: #{@invoice_number}", align: :right, leading: 2
         @pdf.text "#{labels[:date]}: #{@invoice_date}", align: :right, leading: 2
@@ -1431,7 +1442,7 @@ class InvoiceGenerator
     @pdf.fill_color @mid_gray
 
     # -- 1. Clean Understated Header --
-    @pdf.font("NotoSans", style: :bold) do
+    @pdf.font(@base_font_name, style: :bold) do
       @pdf.text labels[:invoice], size: 16, character_spacing: 5
     end
 
@@ -1445,27 +1456,29 @@ class InvoiceGenerator
     col_width = (@pdf.bounds.width - 20) / 2
 
     @pdf.bounding_box([ 0, y_start ], width: col_width) do
-      @pdf.font("NotoSans", size: 8, style: :bold) do
+      @pdf.font(@base_font_name, size: 8, style: :bold) do
         @pdf.text "#{labels[:billed_to]}:", character_spacing: 1
       end
       @pdf.move_down 5
-      @pdf.font("NotoSans", style: :bold, size: 10) do
+      @pdf.font(@base_font_name, style: :bold, size: 10) do
         @pdf.fill_color "000000"
         @pdf.text (@log.client.presence || "CLIENT").upcase, leading: 2
       end
-      @pdf.font("NotoSans", size: 8) do
+      @pdf.font(@base_font_name, size: 8) do
         @pdf.fill_color @mid_gray
         @pdf.text (@log.try(:address).presence || "").to_s
       end
     end
 
     @pdf.bounding_box([ col_width + 20, y_start ], width: col_width) do
-      @pdf.font("NotoSans", size: 8, style: :bold) do
+      @pdf.font(@base_font_name, size: 8, style: :bold) do
         @pdf.text @profile.business_name, align: :right, leading: 2
       end
-      @pdf.font("NotoSans", size: 7) do
-        @pdf.fill_color @mid_gray
+      @pdf.fill_color @mid_gray
+      @pdf.font(@base_font_name, size: 7, style: :bold) do
         @pdf.text "No. #{@invoice_number}", align: :right, leading: 1
+      end
+      @pdf.font(@base_font_name, size: 7) do
         @pdf.text "Issued: #{@invoice_date}", align: :right, leading: 1
         @pdf.text "Due: #{@due_date}", align: :right, leading: 1
       end
@@ -1641,15 +1654,35 @@ class InvoiceGenerator
         @pdf.fill_rectangle [ margin, footer_y + 12 ], 8, 2
 
         @pdf.fill_color @mid_gray
-        @pdf.font("NotoSans", size: 6.5, style: :bold) do
+        @pdf.font(@base_font_name, size: 6.5, style: :bold) do
           @pdf.text_box @profile.business_name.upcase,
             at: [ margin, footer_y ], width: 200, align: :left, character_spacing: 0.5
         end
 
         @pdf.fill_color @dark_charcoal
-        @pdf.font("NotoSans", style: :bold, size: 7) do
-          page_text = "#{labels[:page]} #{i + 1} #{labels[:of]} #{@pdf.page_count}"
-          @pdf.text_box page_text, at: [ page_w - margin - 100, footer_y ], width: 100, align: :right, character_spacing: 1
+        if @document_language == "ka"
+          next if @pdf.page_count == 1
+          parts = if (i + 1) == 1
+            [
+              { text: "#{@pdf.page_count}", font: "NotoSans", styles: [:bold], size: 7, color: @dark_charcoal, character_spacing: 1 },
+              { text: " გვერდიდან ", font: "NotoSansGeorgian", styles: [:bold], size: 7, color: @dark_charcoal, character_spacing: 1 },
+              { text: "1", font: "NotoSans", styles: [:bold], size: 7, color: @dark_charcoal, character_spacing: 1 },
+              { text: "-ლი #{labels[:page]}", font: "NotoSansGeorgian", styles: [:bold], size: 7, color: @dark_charcoal, character_spacing: 1 }
+            ]
+          else
+            [
+              { text: "#{@pdf.page_count}", font: "NotoSans", styles: [:bold], size: 7, color: @dark_charcoal, character_spacing: 1 },
+              { text: " გვერდიდან მე-", font: "NotoSansGeorgian", styles: [:bold], size: 7, color: @dark_charcoal, character_spacing: 1 },
+              { text: "#{i + 1}", font: "NotoSans", styles: [:bold], size: 7, color: @dark_charcoal, character_spacing: 1 },
+              { text: " #{labels[:page]}", font: "NotoSansGeorgian", styles: [:bold], size: 7, color: @dark_charcoal, character_spacing: 1 }
+            ]
+          end
+          @pdf.formatted_text_box parts, at: [ page_w - margin - 150, footer_y ], width: 150, height: 10, align: :right
+        else
+          @pdf.font(@base_font_name, style: :bold, size: 7) do
+            page_text = "#{labels[:page]} #{i + 1} #{labels[:of]} #{@pdf.page_count}"
+            @pdf.text_box page_text, at: [ page_w - margin - 150, footer_y ], width: 150, align: :right, character_spacing: 1
+          end
         end
       end
     end

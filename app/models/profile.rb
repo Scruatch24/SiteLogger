@@ -40,6 +40,12 @@ class Profile < ApplicationRecord
       "paid" => nil   # unlimited
     }.freeze
 
+    PREVIEW_LIMITS = {
+      "guest" => 20,
+      "free" => 20,
+      "paid" => nil
+    }.freeze
+
     def char_limit
       PLAN_LIMITS[plan.presence || "guest"] || 150
     end
@@ -50,6 +56,10 @@ class Profile < ApplicationRecord
 
     def export_limit
       EXPORT_LIMITS[plan.presence || "guest"]
+    end
+
+    def preview_limit
+      PREVIEW_LIMITS[plan.presence || "guest"]
     end
 
     def guest?

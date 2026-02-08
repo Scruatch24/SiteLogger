@@ -1,5 +1,5 @@
 class TrackingController < ApplicationController
-  skip_before_action :verify_authenticity_token, only: [ :track ]
+  protect_from_forgery with: :null_session, only: [ :track ]
 
   ALLOWED_EVENTS = %w[recording_started recording_completed invoice_generated invoice_exported signup_completed].freeze
 

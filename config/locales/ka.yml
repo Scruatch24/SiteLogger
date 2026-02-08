@@ -31,8 +31,9 @@ ka:
   sent: "გაგზავნილი"
   paid: "გადახდილი"
   overdue: "გადაცილებული"
-  invoice_preview: "ინვოისის ნახვა"
+  invoice_preview: "ინვოისის გადახედვა"
   generating_pdf: "PDF იქმნება..."
+  no_charge: "უფასო"
   change: "შეცვლა"
   save: "შენახვა"
   saved: "შენახულია"
@@ -46,7 +47,7 @@ ka:
   reason_placeholder: "ფასდაკლების მიზეზი..."
   add_fee: "მოსაკრებლის დამატება"
   add_labor: "სერვისის დამატება"
-  add_material: "მასალის/პროდუქტის დამატება"
+  add_material: "პროდუქტის დამატება"
   materials_only: "პროდუქტები"
   add_expense: "ხარჯის დამატება"
   add_credit: "კრედიტის დამატება"
@@ -165,8 +166,8 @@ ka:
   
   # Actions
   save_as_log: "ჩანაწერებში შენახვა"
-  download_pdf: "PDF ჩამოტვირთვა"
-  view_pdf: "PDF ნახვა"
+  download_pdf: "PDF-ის ჩამოტვირთვა"
+  view_pdf: "PDF-ის ნახვა"
   share: "გაზიარება"
   
   # History
@@ -286,7 +287,7 @@ ka:
   credits_title: "კრედიტები"
   all_caps: "ყველა"
   none: "არცერთი"
-  labor_hours_caps: "სერვისის ხანგრძლივობა (სთ)"
+  labor_hours_caps: "ხანგრძლივობა (სთ)"
   labor_price_caps: "ფასი"
   default_price_with_symbol: "დათქმული ფასი (%{symbol})"
   default_rate_hourly_with_symbol: "დათქმული ტარიფი (%{symbol}/სთ)"
@@ -436,7 +437,7 @@ ka:
   rate_limit_reached: "ლიმიტი ამოიწურა"
   rate_limit_slow_down: "შეანელეთ! ზედმეტად ხშირად იწერთ."
   daily_limit_reached: "დღიური ლიმიტი ამოიწურა (%{limit} დღეში). შეუზღუდავი წვდომისთვის გადადით Pro-ზე!"
-  preview_limit_reached: "ნახვის ლიმიტი ამოიწურა (%{limit} უნიკალური ნახვა დღეში). შეუზღუდავი წვდომისთვის გადადით Pro-ზე!"
+  preview_limit_reached: "გადახედვის ლიმიტი ამოიწურა (%{limit} უნიკალური ინვოისის გადახედვა დღეში). შეუზღუდავი წვდომისთვის გახდით Pro!"
   paid_invoices_locked: "გადახდილი ინვოისები დაბლოკილია და მათი სახელის შეცვლა შეუძლებელია."
   invalid_status: "არასწორი სტატუსი"
   

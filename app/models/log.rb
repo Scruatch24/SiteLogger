@@ -76,7 +76,8 @@ class Log < ApplicationRecord
     begin
       # We include deleted ones in the max ID check to avoid reusable IDs
       max_num = scope.maximum(:invoice_number)
-    rescue
+    rescue StandardError => e
+      Rails.logger.warn("Log.next_display_number: schema cache miss, retrying — #{e.message}")
       reset_column_information
       max_num = scope.maximum(:invoice_number)
     end
@@ -91,5 +92,24 @@ class Log < ApplicationRecord
   def assign_invoice_number
     # Assign the next number only if not already set
     self.invoice_number ||= self.class.next_display_number(user, ip_address, session_id)
+  end
+
+  # Retry on unique constraint violation (race condition: two concurrent saves)
+  after_validation :retry_invoice_number_on_conflict
+
+  def retry_invoice_number_on_conflict
+    return unless new_record? && invoice_number.present?
+
+    retries = 0
+    begin
+      # Test uniqueness before save by checking if the number already exists
+      scope = user ? self.class.where(user_id: user.id) : self.class.where(user_id: nil)
+      while scope.exists?(invoice_number: invoice_number) && retries < 5
+        self.invoice_number = self.class.next_display_number(user, ip_address, session_id)
+        retries += 1
+      end
+    rescue StandardError => e
+      Rails.logger.warn("Log#retry_invoice_number_on_conflict: #{e.message}")
+    end
   end
 end

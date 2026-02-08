@@ -48,7 +48,7 @@ export default class extends Controller {
       window.trackEvent('recording_started');
 
       // 2. Professional Recording State
-      this.buttonTarget.innerText = "Stop & Process"
+      this.buttonTarget.innerText = window.APP_LANGUAGES ? window.APP_LANGUAGES.stop_process : "Stop & Process"
       this.buttonTarget.classList.add("bg-red-600", "ring-4", "ring-red-100")
       this.buttonTarget.classList.remove("bg-orange-600")
     } catch (err) {
@@ -65,7 +65,7 @@ export default class extends Controller {
       window.trackEvent('recording_completed');
 
       // 3. Disable button during AI processing to prevent double-uploads
-      this.buttonTarget.innerText = window.APP_LANGUAGES ? (window.APP_LANGUAGES.processing || "Analyzing Audio...") : "Analyzing Audio..."
+      this.buttonTarget.innerText = window.APP_LANGUAGES ? window.APP_LANGUAGES.analyzing_audio : "Analyzing Audio..."
       this.buttonTarget.disabled = true
       this.buttonTarget.classList.remove("bg-red-600", "ring-4", "ring-red-100")
       this.buttonTarget.classList.add("opacity-50", "cursor-not-allowed")
@@ -109,12 +109,12 @@ export default class extends Controller {
         this.outputTarget.scrollIntoView({ behavior: 'smooth' })
       }
 
-      this.buttonTarget.innerText = window.APP_LANGUAGES ? (window.APP_LANGUAGES.ready || "Record Another") : "Record Another"
+      this.buttonTarget.innerText = window.APP_LANGUAGES ? window.APP_LANGUAGES.record_another : "Record Another"
 
     } catch (error) {
       console.error("Processing error:", error)
       alert((window.APP_LANGUAGES ? (window.APP_LANGUAGES.processing_error || "AI failed to process audio: ") : "AI failed to process audio: ") + error.message)
-      this.buttonTarget.innerText = "Try Again"
+      this.buttonTarget.innerText = window.APP_LANGUAGES ? window.APP_LANGUAGES.try_again : "Try Again"
     } finally {
       // 5. Re-enable button
       this.buttonTarget.disabled = false
@@ -125,23 +125,6 @@ export default class extends Controller {
         this.transcriptContainerTarget.classList.remove("analyzing")
       }
     }
-
-    if (this.hasTasksTarget) {
-      this.tasksTarget.innerHTML = (data.tasks || []).map(t => `
-        <li class="flex items-center gap-3 mb-2 animate-in slide-in-from-left-2 duration-300">
-          <div class="w-1.5 h-1.5 bg-black rounded-full flex-shrink-0"></div>
-          <input type="text" value="${t}" class="flex-1 bg-white border-b-2 border-gray-100 text-sm font-bold text-black focus:border-orange-500 focus:ring-0 py-2 px-1">
-          
-          <div class="flex items-center border-2 border-black rounded-xl overflow-hidden h-10 bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] flex-shrink-0">
-            <div class="bg-orange-50 px-2 h-full flex items-center justify-center border-r-2 border-black min-w-[35px]">
-              <span class="text-[10px] font-black text-orange-600">${symbol}</span>
-            </div>
-            <input type="number" step="0.01" class="w-20 h-full bg-white text-xs font-black text-black focus:ring-0 border-none py-0 px-2 text-right" placeholder="0.00">
-          </div>
-        </li>
-      `).join('');
-    }
-
   }
 
   // logic for the Settings Page "Instant Symbol" update

@@ -16,12 +16,15 @@
     <% end %>
     
     <div class="flex flex-wrap gap-1 mt-1">
-      <% if item[:taxable] && item[:computed_tax_amount] > 0 %>
+      <% # For LABOR items: only show tax badge if there's actual tax (rate > 0 AND computed amount > 0) %>
+      <% # For non-LABOR items: show tax badge if taxable with computed tax, or just "TAXABLE" badge %>
+      <% show_tax_badge = item[:taxable] && item[:computed_tax_amount] > 0 && (item[:category] != :labor || item[:tax_rate].to_f > 0) %>
+      <% if show_tax_badge %>
         <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-600 border border-gray-200 uppercase tracking-wide">
           <% tax_rate_display = item[:tax_rate].present? && item[:tax_rate].to_f > 0 ? " (#{item[:tax_rate]}%)" : "" %>
           <%= t('tax') %>: <%= format_money_ruby(item[:computed_tax_amount], profile, currency) %><%= tax_rate_display %>
         </span>
-      <% elsif item[:taxable] %>
+      <% elsif item[:taxable] && item[:category] != :labor %>
         <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-400 border border-gray-200 uppercase tracking-wide">
           <%= t('taxable') %>
         </span>

@@ -1,19 +1,19 @@
 <div style="text-align: center;">
   <h2 style="margin: 0 0 20px 0; font-family: sans-serif; font-size: 20px; font-weight: 900; text-transform: uppercase; letter-spacing: -0.02em; color: #000000;">
-    Email Security Alert
+    <%= t('.header') %>
   </h2>
   
   <% if @resource.try(:unconfirmed_email?) %>
     <p style="margin: 0 0 24px 0; font-size: 16px; color: #374151;">
-      Hello! We're contacting you to notify you that your TalkInvoice account email is being changed to <strong><%= @resource.unconfirmed_email %></strong>.
+      <%= t('.body_unconfirmed', email: @resource.unconfirmed_email).html_safe %>
     </p>
   <% else %>
     <p style="margin: 0 0 24px 0; font-size: 16px; color: #374151;">
-      Hello! We're contacting you to notify you that your TalkInvoice account email has been changed to <strong><%= @resource.email %></strong>.
+      <%= t('.body', email: @resource.email).html_safe %>
     </p>
   <% end %>
 
   <p style="margin: 0; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #9ca3af;">
-    If you didn't authorize this change, please contact support or reset your password immediately.
+    <%= t('.unauthorized') %>
   </p>
 </div>

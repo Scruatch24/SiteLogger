@@ -675,10 +675,14 @@ function updateTotalsSummary() {
         const laborMultiplierBadge = item.querySelector('.badge-multiplier');
         const isTaxable = item.dataset.taxable === "true";
 
+        // Get tax rate to check if it's actually > 0
+        const taxRateInputCheck = item.querySelector('.tax-menu-input');
+        const currentTaxRateVal = (taxRateInputCheck && taxRateInputCheck.value !== "") ? parseFloat(taxRateInputCheck.value) : profileTaxRate;
+        const hasTaxRate = currentTaxRateVal > 0;
+
         if (laborPriceBadge) {
-          // Show only if there's an active equation (Tax is on OR Discount is on)
-          // Avoids a lone redundant price badge when neither are active.
-          if (rowNet > 0 && (isTaxable || rowDisc > 0)) {
+          // Show lower price badge ONLY if taxable with rate > 0 AND price > 0
+          if (rowNet > 0 && isTaxable && hasTaxRate) {
             laborPriceBadge.innerText = getCurrencyFormat(rowNet, rowCurrencyCode);
             laborPriceBadge.classList.remove('hidden');
           } else {
@@ -686,7 +690,8 @@ function updateTotalsSummary() {
           }
         }
 
-        if (isTaxable && rowNet > 0) {
+        // Only show multiplier if taxable AND has a positive tax rate
+        if (isTaxable && hasTaxRate && rowNet > 0) {
           if (laborMultiplierBadge) laborMultiplierBadge.classList.remove('hidden');
         } else {
           if (laborMultiplierBadge) laborMultiplierBadge.classList.add('hidden');
@@ -697,11 +702,10 @@ function updateTotalsSummary() {
         const laborEqualsBadge = item.querySelector('.badge-equals');
         const laborAfterTaxBadge = item.querySelector('.badge-after-tax');
 
-        if (isTaxable && rowNet > 0) {
-          const taxRateInput = item.querySelector('.tax-menu-input');
-          const ctxTaxRate = (taxRateInput && taxRateInput.value !== "") ? parseFloat(taxRateInput.value) : profileTaxRate;
+        // Only show tax badges if taxable AND tax rate > 0
+        if (isTaxable && hasTaxRate && rowNet > 0) {
           if (laborTaxBadge) {
-            laborTaxBadge.innerText = `${cleanNum(ctxTaxRate)}%`;
+            laborTaxBadge.innerText = `${cleanNum(currentTaxRateVal)}%`;
             laborTaxBadge.classList.remove('hidden');
           }
           if (rowTax > 0) {
@@ -722,7 +726,18 @@ function updateTotalsSummary() {
         const formulaRow = item.querySelector('.labor-formula-row');
         if (formulaRow) {
           const finalTotal = rowNet + rowTax;
-          formulaRow.innerHTML = `
+          if (rowGross <= 0) {
+            // Free item: show currency icon + NO CHARGE
+            const noChargeText = window.APP_LANGUAGES?.no_charge || 'NO CHARGE';
+            formulaRow.innerHTML = `
+                        <div class="flex items-center justify-center bg-orange-600 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[8px] mr-2">
+                            ${rowCurrencySym}
+                        </div>
+                        <span class="font-black text-black text-sm shrink-0">${noChargeText}</span>
+                        <div class="w-2 shrink-0 h-1"></div>
+                    `;
+          } else {
+            formulaRow.innerHTML = `
                         <div class="flex items-center justify-center bg-orange-600 text-white font-black border border-black rounded-md px-1.5 h-6 shrink-0 select-none text-[10px] min-w-[24px]">
                             ${getCurrencyFormat(rowNet, rowCurrencyCode)}
                         </div>
@@ -741,6 +756,7 @@ function updateTotalsSummary() {
                         <span class="font-black text-black text-sm shrink-0">${cleanNum(finalTotal)}</span>
                         <div class="w-2 shrink-0 h-1"></div>
                     `;
+          }
         }
 
         updateHamburgerGlow(item);
@@ -828,18 +844,19 @@ function updateTotalsSummary() {
         }
       }
 
-      if (isTaxable) {
+      // 2. Multiplier Badge - Only show if taxable AND has a price
+      if (isTaxable && rowNet > 0) {
         if (itemMultiplierBadge) itemMultiplierBadge.classList.remove('hidden');
       } else {
         if (itemMultiplierBadge) itemMultiplierBadge.classList.add('hidden');
       }
 
 
-      // 3. Tax Equation
+      // 3. Tax Equation - Only show if taxable AND has a price
       const itemTaxBadge = item.querySelector('.badge-tax');
       const itemEqualsBadge = item.querySelector('.badge-equals');
       const itemAfterTaxBadge = item.querySelector('.badge-after-tax');
-      if (isTaxable) {
+      if (isTaxable && rowNet > 0) {
         const taxRateInput = item.querySelector('.tax-menu-input');
         const ctxTaxRate = (taxRateInput && taxRateInput.value !== "") ? parseFloat(taxRateInput.value) : profileTaxRate;
         if (itemTaxBadge) {
@@ -858,6 +875,7 @@ function updateTotalsSummary() {
         }
       } else {
         [itemTaxBadge, itemEqualsBadge, itemAfterTaxBadge].forEach(el => el?.classList.add('hidden'));
+        if (itemMultiplierBadge) itemMultiplierBadge.classList.add('hidden');
       }
     });
 
@@ -1823,6 +1841,14 @@ document.addEventListener("DOMContentLoaded", () => {
         body: formData
       });
 
+      if (response.status === 429) {
+        const errData = await response.json();
+        showError(errData.errors ? errData.errors[0] : (window.APP_LANGUAGES.rate_limit_reached || 'Rate limit reached'));
+        if (window.showPremiumModal) window.showPremiumModal(true);
+        closePdfModal();
+        return;
+      }
+
       if (!response.ok) throw new Error('Preview generation failed');
 
       const pageCount = parseInt(response.headers.get('X-PDF-Pages')) || 1;
@@ -2199,7 +2225,7 @@ document.addEventListener("DOMContentLoaded", () => {
         savedLogDisplayNumber = resData.display_number;
         savedLogClient = resData.client;
 
-        // Record the export event
+        // Record the export event (saves count toward the export limit)
         window.trackEvent('invoice_exported', window.currentUserId, null, savedLogId);
         shareTrackedThisSession = true; // Mark as tracked so Share button won't double-count
 
@@ -2625,6 +2651,10 @@ function renderCalendar() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
+  // Get invoice start date for minimum due date (due date cannot be before invoice date)
+  const invoiceStartDate = window.selectedMainDate ? new Date(window.selectedMainDate) : new Date();
+  invoiceStartDate.setHours(0, 0, 0, 0);
+
   // Get selected date for highlighting
   const selected = window.selectedDueDate ? new Date(window.selectedDueDate) : null;
   if (selected) selected.setHours(0, 0, 0, 0);
@@ -2643,7 +2673,11 @@ function renderCalendar() {
 
     const isToday = date.getTime() === today.getTime();
     const isSelected = selected && date.getTime() === selected.getTime();
-    const isPast = date < today;
+    // Due date cannot be before the invoice start date
+    const isBeforeInvoiceDate = date < invoiceStartDate;
+
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const onclick = isBeforeInvoiceDate ? '' : `onclick="selectCalendarDate('${dateStr}')"`;
 
     let classes = 'w-8 h-8 rounded-lg text-xs font-black flex items-center justify-center cursor-pointer transition-all active:scale-95 active:translate-x-[1px] active:translate-y-[1px] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none bg-white active:bg-orange-600 active:text-white ';
 
@@ -2651,14 +2685,11 @@ function renderCalendar() {
       classes += '!bg-orange-600 !text-white border-2 border-black !shadow-none translate-x-[1px] translate-y-[1px]';
     } else if (isToday) {
       classes += 'border-2 border-orange-600 text-orange-600 md:hover:bg-orange-50';
-    } else if (isPast) {
+    } else if (isBeforeInvoiceDate) {
       classes += 'text-gray-300 cursor-not-allowed !shadow-none';
     } else {
       classes += 'md:hover:bg-orange-50 md:hover:text-orange-600 border-2 border-black';
     }
-
-    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    const onclick = isPast ? '' : `onclick="selectCalendarDate('${dateStr}')"`;
 
     html += `<button type="button" class="${classes}" ${onclick}>${day}</button>`;
   }
@@ -2828,13 +2859,13 @@ function addFullSection(title, items, isProtected = false, explicitType = null) 
         items.forEach(item => {
           if (!item) return;
           const val = typeof item === 'object' ? (item.desc || "") : item;
-          const price = typeof item === 'object' ? (item.price || "") : "";
+          const price = typeof item === 'object' ? (item.price ?? "") : "";
           const mode = typeof item === 'object' ? (item.mode || "") : "";
           const taxable = typeof item === 'object' ? (item.taxable) : null;
           const discFlat = typeof item === 'object' ? (item.discount_flat || "") : "";
           const discPercent = typeof item === 'object' ? (item.discount_percent || "") : "";
           const taxRate = typeof item === 'object' ? (item.tax_rate || "") : "";
-          const rate = typeof item === 'object' ? (item.rate || "") : "";
+          const rate = typeof item === 'object' ? (item.rate ?? "") : "";
 
           const sub_categories = (item && typeof item === 'object') ? (item.sub_categories || []) : [];
           addLaborItem(val, price, mode, taxable, discFlat, discPercent, taxRate, rate, sub_categories);
@@ -2949,7 +2980,7 @@ function addFullSection(title, items, isProtected = false, explicitType = null) 
       }
 
       const sub_categories = (item && typeof item === 'object') ? (item.sub_categories || []) : [];
-      addItem(sectionId, val, price, taxable, title, taxRate, (item.qty && item.qty !== 'N/A') ? item.qty : 1, discFlat, discPercent, sub_categories);
+      addItem(sectionId, val, price, taxable, title, taxRate, (item.qty && item.qty !== 'N/A') ? item.qty : 1, discFlat, discPercent, sub_categories, false);
     });
   }
 }
@@ -3260,19 +3291,27 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
   console.log(`[addLaborItem CALL] Description: "${value}" | Price: "${price}" | TaxableArg: ${taxable} | Scope: "${currentLogTaxScope}"`);
 
   // Use the same tax fallback logic as addItem
-  // true = Forced On, false = Forced Off, null = check defaults
+  // true = Forced On, false = Forced Off, null = check defaults (only if price exists)
   if (taxable === null || taxable === undefined) {
-    const scopeData = (currentLogTaxScope || "").toLowerCase();
-    const scope = scopeData.split(",").map(t => t.trim());
+    // IMPORTANT: No price = no taxable. Can't tax something with no price.
+    const hasPrice = price && price !== "" && parseFloat(price) > 0;
 
-    const taxAll = scope.includes("all") || scope.includes("total") || (scope.length >= 4);
-    const hasLaborScope = scope.some(s => s.includes("labor"));
+    if (!hasPrice) {
+      // No price, no taxable - regardless of scope
+      taxable = false;
+      console.log(`[addLaborItem TAX DECISION] No price, setting taxable=false`);
+    } else {
+      const scopeData = (currentLogTaxScope || "").toLowerCase();
+      const scope = scopeData.split(",").map(t => t.trim());
 
-    // If scope includes "all" or "labor", the item should be taxable by default
-    // even if the price is currently empty (for new items).
-    taxable = (taxAll || hasLaborScope);
+      const taxAll = scope.includes("all") || scope.includes("total") || (scope.length >= 4);
+      const hasLaborScope = scope.some(s => s.includes("labor"));
 
-    console.log(`[addLaborItem TAX DECISION] Final: ${taxable} | Scope: "${scopeData}"`);
+      // If scope includes "all" or "labor", the item should be taxable by default
+      taxable = (taxAll || hasLaborScope);
+
+      console.log(`[addLaborItem TAX DECISION] Final: ${taxable} | Scope: "${scopeData}"`);
+    }
   }
 
   div.dataset.taxable = taxable;
@@ -3286,8 +3325,8 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
   div.dataset.billingMode = initialMode;
 
   const billingMode = initialMode;
-  const defaultRate = rate || profileHourlyRate;
-  const laborPriceVal = (price === "" || parseFloat(price) === 0) ? (billingMode === 'hourly' ? "1" : "100") : price;
+  const defaultRate = (rate !== "" && rate !== null && rate !== undefined) ? rate : profileHourlyRate;
+  const laborPriceVal = (price === "" || price === null || price === undefined) ? (billingMode === 'hourly' ? "1" : "100") : price;
 
   // DEFAULT LABOR NAME
   let finalValue = value;
@@ -3340,7 +3379,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
                 </div>
 
                 <input type="number" step="0.01" class="labor-price-input bg-transparent border-none p-0 font-black text-black focus:ring-0 outline-none text-left min-w-0 text-sm placeholder:text-gray-300 w-full flex-1" 
-                       value="${laborPriceVal || defaultRate}" 
+                       value="${laborPriceVal ?? defaultRate}" 
                        placeholder="0.00" 
                        oninput="updateTotalsSummary()">
             </div>
@@ -3421,7 +3460,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
                     <div class="h-[1px] bg-gray-100 mx-2 my-0.5"></div>
                     <!-- Discount Menu -->
                       <div class="discount-wrapper flex flex-col w-full">
-                        <div class="menu-item menu-item-discount ${(discFlat || discPercent) ? 'active' : ''}" onclick="toggleDiscount(this)">
+                        <div class="menu-item menu-item-discount ${(discFlat && parseFloat(discFlat) > 0) || (discPercent && parseFloat(discPercent) > 0) ? 'active' : ''}" onclick="toggleDiscount(this)">
                           <span>${window.APP_LANGUAGES.item_discount || 'Item Discount'}</span>
                           <div class="menu-icon">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -3430,12 +3469,12 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
                           </div>
                         </div>
                         
-                        <div class="discount-inputs-row ${(discFlat || discPercent) ? 'grid' : 'hidden'} gap-1 p-1 bg-green-50 animate-in slide-in-from-top-1 duration-200 border border-t-0 border-green-600 rounded-b-md" style="grid-template-columns: 1fr 1fr;">
+                        <div class="discount-inputs-row ${(discFlat && parseFloat(discFlat) > 0) || (discPercent && parseFloat(discPercent) > 0) ? 'grid' : 'hidden'} gap-1 p-1 bg-green-50 animate-in slide-in-from-top-1 duration-200 border border-t-0 border-green-600 rounded-b-md" style="grid-template-columns: 1fr 1fr;">
                               <div class="relative w-full">
                                 <div class="absolute left-1 top-1/2 -translate-y-1/2 h-5 w-5 flex items-center justify-center bg-gray-100 text-gray-500 font-bold border border-gray-300 rounded-md text-[9px] pointer-events-none select-none z-10">
                                   <span class="discount-flat-symbol">${currencySymbol}</span>
                                 </div>
-                                <input type="number" step="0.01" class="menu-input discount-flat-input text-right w-full border-gray-300 pl-7 pr-1" 
+                                <input type="number" step="0.01" class="menu-input discount-flat-input text-right w-full border-gray-300 pl-7 pr-1 bg-white" 
                                        style="width: 100%"
                                        value="${discFlat}"
                                        placeholder="0.00" 
@@ -3445,7 +3484,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
                                 <div class="absolute left-1 top-1/2 -translate-y-1/2 h-5 w-5 flex items-center justify-center bg-gray-100 text-gray-500 font-bold border border-gray-300 rounded-md text-[9px] pointer-events-none select-none z-10">
                                   <span>%</span>
                                 </div>
-                                <input type="number" step="0.1" class="menu-input discount-percent-input text-right w-full border-gray-300 pl-7 pr-1" 
+                                <input type="number" step="0.1" class="menu-input discount-percent-input text-right w-full border-gray-300 pl-7 pr-1 bg-white" 
                                        style="width: 100%"
                                        value="${discPercent}"
                                        placeholder="0" 
@@ -3513,8 +3552,8 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
             <label class="inline-block text-[9px] font-bold text-gray-500 uppercase ml-1 transition-all">${window.APP_LANGUAGES.after_tax || "AFTER TAX"}</label>
             <div class="border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] relative h-[52px] w-max min-w-[120px] max-w-full overflow-visible">
                 <!-- Internal Scrollable Area -->
-                <div class="custom-scrollbar overflow-x-auto h-[62px] flex items-start pl-2">
-                    <div class="flex items-center gap-0 w-max h-[48px] labor-formula-row">
+                <div class="custom-scrollbar overflow-x-auto h-full flex items-center pl-2">
+                    <div class="flex items-center gap-0 w-max labor-formula-row">
                         <!-- Rebuilt in JS during updateTotalsSummary -->
                     </div>
                 </div>
@@ -4078,7 +4117,12 @@ function updateLaborBadge() {
   }
   let tax = isTaxable ? laborCost * (currentTaxRate / 100) : 0;
   const total = laborCost + tax;
-  afterTaxDisplay.innerText = cleanNum(total);
+  const currencySym = typeof activeCurrencySymbol !== 'undefined' ? activeCurrencySymbol : "$";
+  if (total <= 0) {
+    afterTaxDisplay.innerText = `${currencySym} ${window.APP_LANGUAGES.no_charge || "NO CHARGE"}`;
+  } else {
+    afterTaxDisplay.innerText = cleanNum(total);
+  }
 
   // Ensure icon glow updates based on value
   updateHamburgerGlow(laborBox);
@@ -4260,7 +4304,7 @@ function toggleDiscount(menuItem) {
   updateHamburgerGlow(container);
 }
 
-function addItem(containerId, value = "", price = "", taxable = null, sectionTitle = "", taxRate = null, qty = 1, discFlat = "", discPercent = "", sub_categories = []) {
+function addItem(containerId, value = "", price = "", taxable = null, sectionTitle = "", taxRate = null, qty = 1, discFlat = "", discPercent = "", sub_categories = [], isManualAdd = true) {
   // --- SMART QTY EXTRACTION AND DESC CLEANING ---
   let finalValue = (value || "").trim();
   let finalQty = qty || 1;
@@ -4309,8 +4353,8 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
     else finalValue = window.APP_LANGUAGES.item || "Item";
   }
 
-  // Default Price for manually added items in these sections
-  if (!price || price === "" || parseFloat(price) === 0) {
+  // Default Price for manually added items in these sections (NOT for AI-processed items)
+  if (isManualAdd && (!price || price === "" || parseFloat(price) === 0)) {
     if (isMaterialSection || isExpenseSection || isFeeSection) {
       price = "100";
     }
@@ -4320,29 +4364,39 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
   console.log(`[addItem CALL] Section: "${sectionTitle}" | Price: "${price}" | TaxableArg: ${taxable} | Scope: "${currentLogTaxScope}"`);
 
   // If taxable is exactly false, we respect it as "No Tax".
-  // null = check defaults
+  // null = check defaults, BUT only if there's a price to tax!
   if (taxable === null || taxable === undefined) {
-    const scopeData = (currentLogTaxScope || "").toLowerCase();
-    const scope = scopeData.split(",").map(t => t.trim());
+    // IMPORTANT: No price = no taxable. Can't tax something with no price.
+    const hasPrice = price && price !== "" && parseFloat(price) > 0;
 
-    const taxAll = scope.includes("all") || scope.includes("total") || (scope.length >= 4);
-
-    const hasLaborScope = scope.some(s => s.includes("labor"));
-    const hasMaterialScope = scope.some(s => s.includes("material") || s.includes("part"));
-    const hasFeeScope = scope.some(s => s.includes("fee") || s.includes("surcharge"));
-    const hasExpenseScope = scope.some(s => s.includes("expense") || s.includes("reimburse"));
-
-    if (taxAll) {
-      taxable = true;
+    if (!hasPrice) {
+      // No price, no taxable - regardless of scope
+      taxable = false;
+      console.log(`[addItem TAX DECISION] No price, setting taxable=false`);
     } else {
-      if (isMaterialSection && hasMaterialScope) taxable = true;
-      else if (isLaborSection && hasLaborScope) taxable = true;
-      else if (isFeeSection && hasFeeScope) taxable = true;
-      else if (isExpenseSection && hasExpenseScope) taxable = true;
-      else taxable = false;
-    }
+      // Has price, check tax scope
+      const scopeData = (currentLogTaxScope || "").toLowerCase();
+      const scope = scopeData.split(",").map(t => t.trim());
 
-    console.log(`[addItem TAX DECISION] Final: ${taxable} | SectionUsed: ${isLaborSection ? 'Labor' : isMaterialSection ? 'Materials' : 'Other'} | Scope: "${scopeData}"`);
+      const taxAll = scope.includes("all") || scope.includes("total") || (scope.length >= 4);
+
+      const hasLaborScope = scope.some(s => s.includes("labor"));
+      const hasMaterialScope = scope.some(s => s.includes("material") || s.includes("part"));
+      const hasFeeScope = scope.some(s => s.includes("fee") || s.includes("surcharge"));
+      const hasExpenseScope = scope.some(s => s.includes("expense") || s.includes("reimburse"));
+
+      if (taxAll) {
+        taxable = true;
+      } else {
+        if (isMaterialSection && hasMaterialScope) taxable = true;
+        else if (isLaborSection && hasLaborScope) taxable = true;
+        else if (isFeeSection && hasFeeScope) taxable = true;
+        else if (isExpenseSection && hasExpenseScope) taxable = true;
+        else taxable = false;
+      }
+
+      console.log(`[addItem TAX DECISION] Final: ${taxable} | SectionUsed: ${isLaborSection ? 'Labor' : isMaterialSection ? 'Materials' : 'Other'} | Scope: "${scopeData}"`);
+    }
   }
 
 
@@ -4443,7 +4497,7 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
                         <div class="absolute left-1 top-1/2 -translate-y-1/2 h-5 w-5 flex items-center justify-center bg-gray-100 text-gray-500 font-bold border border-gray-300 rounded-md text-[9px] pointer-events-none select-none z-10">
                            <span class="price-input-symbol">${currencySymbol}</span>
                         </div>
-                        <input type="number" step="0.01" class="menu-input price-menu-input text-right w-full border-orange-200 pl-7 pr-1" 
+                        <input type="number" step="0.01" class="menu-input price-menu-input text-right w-full border-orange-200 pl-7 pr-1 bg-white" 
                                style="width: 100%"
                                value="${priceVal}" placeholder="0.00" 
                                oninput="updateBadge(this.closest('.item-row'))">
@@ -4470,7 +4524,7 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
                        <div class="absolute left-1 top-1/2 -translate-y-1/2 h-5 w-5 flex items-center justify-center bg-gray-100 text-gray-500 font-bold border border-gray-300 rounded-md text-[9px] pointer-events-none select-none z-10">
                          <span class="discount-flat-symbol">${currencySymbol}</span>
                        </div>
-                       <input type="number" step="0.01" class="menu-input discount-flat-input text-right w-full border-gray-300 pl-7 pr-1" 
+                       <input type="number" step="0.01" class="menu-input discount-flat-input text-right w-full border-gray-300 pl-7 pr-1 bg-white" 
                               style="width: 100%"
                               value="${discFlatVal}"
                               placeholder="0.00" 
@@ -4480,7 +4534,7 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
                        <div class="absolute left-1 top-1/2 -translate-y-1/2 h-5 w-5 flex items-center justify-center bg-gray-100 text-gray-500 font-bold border border-gray-300 rounded-md text-[9px] pointer-events-none select-none z-10">
                          <span>%</span>
                        </div>
-                       <input type="number" step="0.1" class="menu-input discount-percent-input text-right w-full border-gray-300 pl-7 pr-1" 
+                       <input type="number" step="0.1" class="menu-input discount-percent-input text-right w-full border-gray-300 pl-7 pr-1 bg-white" 
                               style="width: 100%"
                               value="${discPercentVal}"
                               placeholder="0" 
@@ -4571,8 +4625,8 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
       <div class="flex flex-col gap-1">
         <label class="item-subtotal-label text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">${window.APP_LANGUAGES.after_tax || "AFTER TAX"}</label>
         <div class="border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] relative h-[52px] w-max min-w-[120px] max-w-full overflow-visible">
-            <div class="custom-scrollbar overflow-x-auto h-[62px] flex items-start pl-2">
-                <div class="flex items-center gap-0 w-max h-[48px] item-formula-row">
+            <div class="custom-scrollbar overflow-x-auto h-full flex items-center pl-2">
+                <div class="flex items-center gap-0 w-max item-formula-row">
                     <!-- Formula injected here in updateBadge -->
                 </div>
             </div>
@@ -4784,7 +4838,7 @@ function updateUI(data) {
 
     // Rebuild standard sections
     if (data.sections && data.sections.length > 0) {
-      data.sections.forEach(sec => addFullSection(sec.title, sec.items));
+      data.sections.forEach(sec => addFullSection(sec.title, sec.items, false, sec.type || null));
     } else if (data.tasks) {
       addFullSection("Tasks", Array.isArray(data.tasks) ? data.tasks : [data.tasks]);
     } else {
@@ -5485,6 +5539,7 @@ function updateUIWithoutTranscript(data) {
   }
 }
 
+let errorToastTimeout;
 function showError(msg) {
   if (msg && (msg.toLowerCase().includes("limit reached") || msg.toLowerCase().includes("rate limit"))) {
     if (window.showPremiumModal) {
@@ -5495,9 +5550,12 @@ function showError(msg) {
   const toast = document.getElementById("errorToast");
   const msgSpan = document.getElementById("errorMessage");
   if (!toast || !msgSpan) return;
+
+  if (errorToastTimeout) clearTimeout(errorToastTimeout);
+
   msgSpan.innerText = msg;
   toast.classList.remove("hidden");
-  setTimeout(() => { toast.classList.add("hidden"); }, 4000);
+  errorToastTimeout = setTimeout(() => { toast.classList.add("hidden"); }, 8000);
 }
 
 function toggleLaborGroup() {

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_02_07_005047) do
+ActiveRecord::Schema[8.0].define(version: 2026_02_08_145925) do
   create_schema "auth"
   create_schema "neon_auth"
   create_schema "pgrst"
@@ -105,7 +105,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_02_07_005047) do
     t.datetime "deleted_at"
     t.index ["deleted_at"], name: "index_logs_on_deleted_at"
     t.index ["status"], name: "index_logs_on_status"
-    t.index ["user_id", "invoice_number"], name: "index_logs_on_user_id_and_invoice_number"
+    t.index ["user_id", "invoice_number"], name: "index_logs_on_user_id_and_invoice_number", unique: true
     t.index ["user_id"], name: "index_logs_on_user_id"
   end
 
@@ -146,6 +146,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_02_07_005047) do
     t.datetime "updated_at", null: false
     t.string "ip_address"
     t.string "target_id"
+    t.index ["event_name", "ip_address", "created_at"], name: "idx_tracking_events_on_event_ip_created"
+    t.index ["event_name", "user_id", "created_at"], name: "idx_tracking_events_on_event_user_created"
   end
 
   create_table "usage_events", force: :cascade do |t|
@@ -155,6 +157,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_02_07_005047) do
     t.string "session_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "data_hash"
+    t.index ["data_hash"], name: "index_usage_events_on_data_hash"
     t.index ["user_id"], name: "index_usage_events_on_user_id"
   end
 
@@ -182,5 +186,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_02_07_005047) do
   add_foreign_key "categories", "users"
   add_foreign_key "log_category_assignments", "categories"
   add_foreign_key "log_category_assignments", "logs"
+  add_foreign_key "logs", "users", on_delete: :nullify, validate: false
+  add_foreign_key "profiles", "users", on_delete: :cascade, validate: false
   add_foreign_key "usage_events", "users"
 end

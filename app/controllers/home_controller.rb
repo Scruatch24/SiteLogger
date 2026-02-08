@@ -176,14 +176,15 @@ class HomeController < ApplicationController
       end
     end
 
-    # Priority: 1. URL Param, 2. Profile Transcription Lang, 3. session, 4. Profile Doc Lang, 5. Profile System Lang, 6. Current Locale
-    doc_language = params[:language] || @profile.try(:transcription_language) || session[:transcription_language] || @profile.try(:document_language) || @profile.try(:system_language) || I18n.locale.to_s
+    # Priority: 1. URL Param, 2. Profile Transcription Lang, 3. session, 4. Profile Doc Lang, 5. Default English
+    # NOTE: AI language should not be affected by UI/system language
+    doc_language = params[:language] || @profile.try(:transcription_language) || session[:transcription_language] || @profile.try(:document_language) || "en"
     target_is_georgian = (doc_language == "ge" || doc_language == "ka")
 
     lang_context = if target_is_georgian
       "TARGET LANGUAGE: Georgian. Translate ONLY the text content (item names, descriptions, sub_categories text) to Georgian. The JSON structure (field names, section categories like 'labor', 'materials') stays the same. Do NOT reorganize or bundle items differently due to translation. E.g., 'Nails' becomes 'ლურსმნები', 'Filter Replacement' becomes 'ფილტრის შეცვლა'."
     else
-      "TARGET LANGUAGE: English. All extracted names, descriptions, and sub_categories text MUST be in English. If the input is in Georgian or any other language, translate the text content to English. E.g., 'შევაკეთე' becomes 'Repaired'."
+      "TARGET LANGUAGE: English. All extracted names, descriptions, and sub_categories text MUST be in English. If the input is in Georgian or any other language, you MUST translate ALL text content to English. Do NOT leave any Georgian text in item names or descriptions. E.g., 'ნაჯახი' becomes 'Axe', 'მაცივრის შეკეთება' becomes 'Refrigerator Repair', 'ფანჯრის შეკეთება' becomes 'Window Repair', 'ლურსმანი' becomes 'Nail'."
     end
 
     # Section Labels for the generated JSON
@@ -259,11 +260,13 @@ LABOR:
 - USE SPECIFIC TITLES for the 'desc' field (e.g., "AC Repair", "Emergency Call Out"). ALWAYS use Title Case.
 - Be concise but descriptive.#{' '}
 - Put additional task details into 'sub_categories' ONLY if they add new information.
-
+- FREE LABOR ITEMS: If user mentions "free", "no charge", "complimentary", "on the house" (Georgian: "უფასოდ", "უფასო", "უფასოდ ჩავუთვლი", "უფასოდ გავუკეთე") for a labor item, you MUST set price=0, hours=0, rate=0, mode="fixed", and taxable=false. Do NOT assign any default rate or price.
 
 MATERIALS:
 - Physical goods the client keeps. Extract ONLY the noun/item name, stripping action verbs.
 - NAMING: When user says "used nails" or "got filters", the action verb ("used", "got", "bought", "grabbed") is NOT part of the item name. Extract just "Nails", "Filters". Only include adjectives that describe the item itself (e.g., "new filters" → "New Filters", "copper pipe" → "Copper Pipe").
+#{target_is_georgian ? '- GEORGIAN NAMING: Keep material names in singular form (e.g., "ნაჯახი" for any quantity). Do NOT pluralize.' : '- TRANSLATION: If the input is in Georgian or any other non-English language, you MUST translate material names to English. E.g., "ნაჯახი" → "Axe", "ლურსმანი" → "Nail", "მილი" → "Pipe". Do NOT leave Georgian text in the name field.'}
+- UNIT PRICE RULE: If a total price is given for a quantity (e.g., "4 items cost 60" or "4 axes... but put 60"), set qty=4 and unit_price=60/4. Do NOT assign total as unit_price.
 - DISTINCT ITEMS: If user lists multiple named items (e.g. "used nails, used filters"), create SEPARATE material entries for each. Do NOT bundle them as subcategories.
 - BUNDLING ONLY: Only bundle into subcategories when user gives a COLLECTIVE total (e.g. "materials were $500" or "parts cost 300 total"). In that case, create ONE item named "Materials" with that price, and list specific part names in 'sub_categories'.
 - Extract QUANTITY into the 'qty' field (default 1).
@@ -415,6 +418,12 @@ Return EXACTLY the JSON structure below (use null for unknown numeric, empty arr
     { "field": "materials.unit_price", "guess": 795, "question": "You said 'just under 800' for parts. What's the exact amount?" }
   ]
 }
+
+----------------------------
+FINAL REMINDERS (CRITICAL)
+----------------------------
+- #{lang_context}
+- FREE ITEMS: If user says "უფასოდ", "უფასოდ ჩავუთვლი", "free", "no charge", "on the house" about ANY item, that item MUST have price=0, rate=0, hours=0, mode="fixed", taxable=false. This is NON-NEGOTIABLE.
 PROMPT
 
       if is_manual_text
@@ -485,6 +494,55 @@ PROMPT
 
       # Enforce Array Safety
       %w[labor_service_items materials expenses fees credits].each { |k| json[k] = Array(json[k]) }
+
+      # --- POST-PROCESSING: Detect free items from original input ---
+      # The AI sometimes ignores free-intent phrases and assigns a price anyway.
+      # Scan the original input for free-intent patterns and zero out matching items.
+      original_input = (params[:manual_text] || json["raw_summary"]).to_s
+      free_kw = /უფასოდ|უფასო|\bfree\b|no charge|complimentary|on the house/i
+      if original_input.match?(free_kw)
+        # Extract sentences (split on period) that contain a free keyword
+        free_sentences = original_input.split(/\./).select { |s| s.match?(free_kw) }
+        Rails.logger.info "FREE_DETECT: Found #{free_sentences.size} free sentence(s): #{free_sentences.inspect}"
+
+        # For each labor item, check if it matches any free sentence
+        json["labor_service_items"].each do |item|
+          next unless item.is_a?(Hash)
+          desc = item["desc"].to_s.strip
+          desc_lower = desc.downcase
+
+          matched = free_sentences.any? do |sentence|
+            s = sentence.downcase.strip
+            # 1. Direct: desc text appears in sentence
+            s.include?(desc_lower) ||
+            # 2. Word match: any significant word from desc appears in sentence
+            desc_lower.split(/\s+/).any? { |w| w.length > 2 && s.include?(w) } ||
+            # 3. Cross-language: Georgian stem in sentence matches English/Georgian keyword in desc
+            [
+              ["ფანჯარ", /window|ფანჯ/i], ["ფანჯრ", /window|ფანჯ/i],
+              ["მაცივარ", /refrigerator|fridge|მაცივ/i], ["მაცივრ", /refrigerator|fridge|მაცივ/i],
+              ["კარებ", /door|კარ/i], ["კარის", /door|კარ/i],
+              ["სახურავ", /roof|სახურავ/i], ["ჭერ", /ceiling|ჭერ/i],
+              ["შეკეთებ", /repair|შეკეთ/i], ["შეცვლ", /replac|შეცვლ/i],
+              ["გათბობ", /heat|გათბობ/i], ["კონდიციონერ", /ac|air.?condition|კონდიც/i],
+              ["ონკან", /faucet|tap|ონკან/i], ["საპირფარეშო", /toilet|bathroom|საპირფარეშო/i],
+              ["სარკმელ", /window|ფანჯ/i], ["წყალ", /water|plumb|წყალ/i],
+              ["ელექტრ", /electr|ელექტრ/i], ["მილ", /pipe|მილ/i]
+            ].any? { |stem, pattern| s.include?(stem) && desc_lower.match?(pattern) }
+          end
+
+          Rails.logger.info "FREE_DETECT: Item '#{desc}' matched=#{matched}"
+
+          if matched
+            Rails.logger.info "FREE_ITEM_OVERRIDE: Zeroing '#{desc}' due to free-intent in input"
+            item["price"] = 0
+            item["hours"] = 0
+            item["rate"] = 0
+            item["mode"] = "fixed"
+            item["taxable"] = false
+          end
+        end
+      end
 
       # ---------- NORMALIZATION ----------
 
@@ -580,11 +638,14 @@ PROMPT
         end
 
         json["sections"] << {
+          type: "labor",
           title: sec_labels[:labor],
           items: json["labor_service_items"].each_with_index.map do |item, idx|
             if item.is_a?(Hash)
               # Priority: If mode is fixed, use price. If hourly, use hours.
               item_mode = item["mode"].presence || json["billing_mode"] || "hourly"
+              free_item = item["desc"].to_s.match?(/\bfree\b|no charge|უფასოდ|უფასო/i) ||
+                          (!item["price"].nil? && item["price"].to_f == 0 && item["taxable"] == false)
 
               # Improved value mapping logic
               raw_hours = clean_num(item["hours"])
@@ -615,6 +676,11 @@ PROMPT
               inherit_flat_discount = json["labor_service_items"].size == 1
               inherit_percent_discount = true
 
+              if free_item
+                item_qty_or_amount = 0
+                item_rate_val = 0
+              end
+
               {
                 desc: item["desc"].to_s.strip,
                 price: item_qty_or_amount,
@@ -622,7 +688,9 @@ PROMPT
                 mode: item_mode,
                 # Fix: Inherit from global labor_taxable first, then fall back to scope.
                 # If individual item has explicit taxable, use it. Otherwise check global labor_taxable. If still nil, use scope.
-                taxable: if !item["taxable"].nil?
+                taxable: if free_item
+                           false
+                         elsif !item["taxable"].nil?
                            to_bool(item["taxable"])
                          elsif !json["labor_taxable"].nil?
                            json["labor_taxable"]
@@ -650,6 +718,7 @@ PROMPT
       # MATERIALS (physical goods with price)
       if json["materials"]&.any?
         json["sections"] << {
+          type: "materials",
           title: sec_labels[:materials],
           items: json["materials"].map do |m|
             # Fallback: Extract quantity from description if missing in field
@@ -735,6 +804,7 @@ PROMPT
         # Only add section if there are valid items
         if expense_items.any?
           json["sections"] << {
+            type: "expenses",
             title: sec_labels[:expenses],
             items: expense_items
           }
@@ -768,6 +838,7 @@ PROMPT
         # Only add section if there are valid items
         if fee_items.any?
           json["sections"] << {
+            type: "fees",
             title: sec_labels[:fees],
             items: fee_items
           }

@@ -43,7 +43,8 @@ class ApplicationController < ActionController::Base
     locale = (country == "GE") ? :ka : :en
     session[:auto_detected_locale] = locale.to_s
     locale
-  rescue
+  rescue StandardError => e
+    Rails.logger.warn("auto_detect_locale failed: #{e.message}")
     :en
   end
 
@@ -61,7 +62,8 @@ class ApplicationController < ActionController::Base
       http.open_timeout = 2
       response = http.request(Net::HTTP::Get.new(uri))
       JSON.parse(response.body)["countryCode"] if response.is_a?(Net::HTTPSuccess)
-    rescue
+    rescue StandardError => e
+      Rails.logger.warn("detect_country_by_ip failed for #{ip}: #{e.message}")
       nil
     end
   end
@@ -102,7 +104,8 @@ class ApplicationController < ActionController::Base
       tax_rate: 18.0,
       note: I18n.t("guest_profile.note"),
       billing_mode: "hourly",
-      tax_scope: "labor,materials_only"
+      tax_scope: "labor,materials_only",
+      system_language: I18n.locale.to_s
     )
   end
 
