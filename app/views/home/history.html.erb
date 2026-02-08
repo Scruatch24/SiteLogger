@@ -23,17 +23,25 @@
     border-color: #f97316 !important;
     box-shadow: 4px 4px 0px 0px #f97316 !important;
   }
+  .selection-checkbox {
+    scale: 0;
+    opacity: 0;
+  }
+  .selection-checkbox svg {
+    scale: 0;
+  }
   .log-card.selected .selection-checkbox {
     background-color: #f97316;
     border-color: #f97316;
-    transform: scale(1);
+    scale: 1;
+    opacity: 1;
   }
   .log-card.selected .selection-checkbox svg {
-    transform: scale(1);
+    scale: 1;
   }
 
   .log-card.selection-mode .selection-checkbox {
-    transform: scale(1);
+    scale: 1;
     opacity: 1;
   }
 
@@ -42,18 +50,14 @@
     position: absolute;
     top: 2px;
     left: 50%;
-    transform: translateX(-50%) rotate(0deg);
-    transition: all 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+    margin-left: -10px; /* half of w-5 (20px) to center */
+    transition: top 0.4s cubic-bezier(0.19, 1, 0.22, 1);
   }
   .log-card .chevron-icon.rotate-180 {
-    transform: translateX(-50%) rotate(180deg);
+    rotate: 180deg;
   }
   .log-card.selection-mode .chevron-icon {
     top: 32px;
-  }
-  /* Selection mode rotation handle - keeping specialized for clarity but general rotate-180 above handles it */
-  .log-card.selection-mode .chevron-icon.rotate-180 {
-    transform: translateX(-50%) rotate(180deg);
   }
 
   /* Status Badge Chevron Animation */
@@ -466,7 +470,9 @@
             <% if favorites.any? %>
             <div class="flex flex-col gap-20 pt-12">
                 <% favorites.each do |log| %>
-                  <%= render partial: "home/log_card", locals: { log: log, suffix: "-fav" } %>
+                  <% assignment = log.log_category_assignments.find { |a| a.category_id == fav_cat&.id } %>
+                  <% pinned_state = assignment&.pinned_at.present? %>
+                  <%= render partial: "home/log_card", locals: { log: log, suffix: "-fav", pinned: pinned_state } %>
                 <% end %>
               </div>
             <% else %>
@@ -515,7 +521,9 @@
               <% if category.logs.any? %>
                 <div class="flex flex-col gap-20 pt-12">
                   <% category.logs.each do |log| %>
-                    <%= render partial: "home/log_card", locals: { log: log } %>
+                    <% assignment = log.log_category_assignments.find { |a| a.category_id == category.id } %>
+                    <% pinned_state = assignment&.pinned_at.present? %>
+                    <%= render partial: "home/log_card", locals: { log: log, pinned: pinned_state } %>
                   <% end %>
                 </div>
               <% else %>
@@ -860,7 +868,19 @@
     draft: "<%= j t('draft') %>",
     sent: "<%= j t('sent') %>",
     paid: "<%= j t('paid') %>",
-    overdue: "<%= j t('overdue') %>"
+    overdue: "<%= j t('overdue') %>",
+    file_size_limit: "<%= j t('file_size_limit') %>",
+    failed_save_changes: "<%= j t('failed_save_changes') %>",
+    error_while_saving: "<%= j t('error_while_saving') %>",
+    failed_update_status: "<%= j t('failed_update_status') %>",
+    error_updating_status: "<%= j t('error_updating_status') %>",
+    failed_update_pinning: "<%= j t('failed_update_pinning') %>",
+    an_error_occurred: "<%= j t('an_error_occurred') %>",
+    rename_label: "<%= j t('rename_label') %>",
+    done_label: "<%= j t('done_label') %>",
+    unpin_log: "<%= j t('unpin_log') %>",
+    pin_log: "<%= j t('pin_log') %>",
+    save_changes: "<%= j t('save_changes') %>"
   };
 
   // State Management
@@ -1076,7 +1096,7 @@
       
       // Check size (2MB)
       if (file.size > 2 * 1024 * 1024) {
-        alert("File size must be less than 2MB");
+        alert(window.APP_LANGUAGES.file_size_limit);
         input.value = '';
         return;
       }
@@ -1209,7 +1229,7 @@
     if (isEditing) {
       // Turn OFF editing
       btn.dataset.editing = "false";
-      textSpan.textContent = "RENAME";
+      textSpan.textContent = window.APP_LANGUAGES.rename_label;
       iconContainer.innerHTML = renameIcon;
       iconContainer.classList.remove('bg-green-100', 'text-green-600', 'group-hover/item:bg-green-600');
       iconContainer.classList.add('bg-blue-100', 'text-blue-600', 'group-hover/item:bg-blue-600');
@@ -1224,7 +1244,7 @@
     } else {
       // Turn ON editing
       btn.dataset.editing = "true";
-      textSpan.textContent = "DONE";
+      textSpan.textContent = window.APP_LANGUAGES.done_label;
       iconContainer.innerHTML = doneIcon;
       iconContainer.classList.remove('bg-blue-100', 'text-blue-600', 'group-hover/item:bg-blue-600');
       iconContainer.classList.add('bg-green-100', 'text-green-600', 'group-hover/item:bg-green-600');
@@ -1587,16 +1607,16 @@
       if (res.success) {
         window.location.reload();
       } else {
-        alert("Failed to save changes.");
+        alert(window.APP_LANGUAGES.failed_save_changes);
         btn.disabled = false;
-        btn.textContent = "Save Changes";
+        btn.textContent = window.APP_LANGUAGES.save_changes;
       }
     })
     .catch(err => {
       console.error(err);
-      alert("An error occurred while saving.");
+      alert(window.APP_LANGUAGES.error_while_saving);
       btn.disabled = false;
-      btn.textContent = "Save Changes";
+      btn.textContent = window.APP_LANGUAGES.save_changes;
     });
   }
 
@@ -1675,12 +1695,12 @@
         }
 
       } else {
-        alert("Failed to update status: " + res.errors.join(", "));
+        alert(window.APP_LANGUAGES.failed_update_status + res.errors.join(", "));
       }
     })
     .catch(err => {
       console.error(err);
-      alert("An error occurred while updating status.");
+      alert(window.APP_LANGUAGES.error_updating_status);
     });
   }
 
@@ -1948,12 +1968,12 @@
       if (res.success) {
         window.location.reload();
       } else {
-        alert("Failed to update pinning.");
+        alert(window.APP_LANGUAGES.failed_update_pinning);
       }
     })
     .catch(err => {
       console.error(err);
-      alert("An error occurred.");
+      alert(window.APP_LANGUAGES.an_error_occurred);
     });
   }
 
@@ -1968,12 +1988,12 @@
       iconContainer.classList.add('bg-yellow-400', 'text-white');
       iconContainer.classList.remove('bg-yellow-100', 'text-yellow-600');
       svg.setAttribute('fill', 'currentColor');
-      text.textContent = "Unpin Log";
+      text.textContent = window.APP_LANGUAGES.unpin_log;
     } else {
       iconContainer.classList.remove('bg-yellow-400', 'text-white');
       iconContainer.classList.add('bg-yellow-100', 'text-yellow-600');
       svg.setAttribute('fill', 'none');
-      text.textContent = "Pin Log";
+      text.textContent = window.APP_LANGUAGES.pin_log;
     }
 
     // Determine context
@@ -2000,12 +2020,12 @@
         // Reload to update sort order (optional but recommended for UX clarity)
         window.location.reload();
       } else {
-        alert("Failed to update pinning.");
+        alert(window.APP_LANGUAGES.failed_update_pinning);
       }
     })
     .catch(err => {
       console.error(err);
-      alert("An error occurred.");
+      alert(window.APP_LANGUAGES.an_error_occurred);
     });
   }
 

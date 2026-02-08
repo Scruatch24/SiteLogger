@@ -1,6 +1,7 @@
 class LogsController < ApplicationController
     require "prawn"
     require "prawn/table"
+    require "digest"
     require_relative "../services/invoice_generator"
 
     def create
@@ -29,7 +30,8 @@ class LogsController < ApplicationController
 
         # Only check if there's a limit (paid users have nil = unlimited)
         if limit.present?
-          count = current_user.logs.where("created_at > ?", 24.hours.ago).count
+          count = TrackingEvent.where(event_name: "invoice_exported", user_id: current_user.id)
+                              .where("created_at > ?", 24.hours.ago).count
           Rails.logger.info "Checking User Limit: Plan=#{plan}, Count=#{count}, Limit=#{limit}"
 
           if count >= limit
@@ -232,17 +234,47 @@ class LogsController < ApplicationController
       ordered_logs = log_ids.map { |id| authorized_logs[id.to_i] }.compact
 
       if category_id.present?
-        # Category-specific pinning
-        ordered_logs.each_with_index do |log, index|
-          assignment = LogCategoryAssignment.find_or_create_by(log_id: log.id, category_id: category_id)
-          ts = should_pin ? (Time.current + index.seconds) : nil
-          assignment.update(pinned_at: ts)
+        # Category-specific pinning (preserve existing order)
+        existing_max = LogCategoryAssignment.where(category_id: category_id).where.not(pinned_at: nil).maximum(:pinned_at)
+        base_time = existing_max || Time.current
+        offset = existing_max ? 1 : 0
+        new_pin_index = 0
+
+        ordered_logs.each do |log|
+          assignment = LogCategoryAssignment.find_by(log_id: log.id, category_id: category_id)
+
+          if should_pin
+            assignment ||= LogCategoryAssignment.create(log_id: log.id, category_id: category_id)
+            if assignment.pinned_at.present?
+              assignment.update(pinned_at: assignment.pinned_at)
+            else
+              ts = base_time + (offset + new_pin_index).seconds
+              assignment.update(pinned_at: ts)
+              new_pin_index += 1
+            end
+          else
+            assignment&.update(pinned_at: nil)
+          end
         end
       else
-        # Global pinning
-        ordered_logs.each_with_index do |log, index|
-          ts = should_pin ? (Time.current + index.seconds) : nil
-          log.update(pinned: should_pin, pinned_at: ts)
+        # Global pinning (preserve existing order)
+        existing_max = base_scope.where(pinned: true).where.not(pinned_at: nil).maximum(:pinned_at)
+        base_time = existing_max || Time.current
+        offset = existing_max ? 1 : 0
+        new_pin_index = 0
+
+        ordered_logs.each do |log|
+          if should_pin
+            if log.pinned && log.pinned_at.present?
+              log.update(pinned: true, pinned_at: log.pinned_at)
+            else
+              ts = base_time + (offset + new_pin_index).seconds
+              log.update(pinned: true, pinned_at: ts)
+              new_pin_index += 1
+            end
+          else
+            log.update(pinned: false, pinned_at: nil)
+          end
         end
       end
 
@@ -431,6 +463,52 @@ class LogsController < ApplicationController
 
         set_preview_profile
         profile = @profile
+
+        # Preview Limit Check (20 unique previews per day for Guest/Free)
+        limit = profile.preview_limit
+
+        if limit.present?
+          # Calculate hash of invoice data (excluding transient fields)
+          data_to_hash = p.except(:session_id).to_h.sort.to_h
+          invoice_hash = Digest::MD5.hexdigest(data_to_hash.to_json)
+
+          ip = client_ip
+          session_id = params[:session_id]
+
+          # Find unique previews for today
+          today_previews = UsageEvent.where(event_type: "invoice_preview")
+                                     .where("created_at > ?", Time.current.beginning_of_day)
+
+          if user_signed_in?
+            user_previews = today_previews.where(user_id: current_user.id)
+          else
+            user_previews = today_previews.where(user_id: nil)
+                                          .where("ip_address = ? OR session_id = ?", ip, session_id)
+          end
+
+          # If this is a new unique invoice content, check the limit
+          unless user_previews.where(data_hash: invoice_hash).exists?
+            unique_count = user_previews.distinct.count(:data_hash)
+
+            if unique_count >= limit
+              return render json: {
+                status: "error",
+                success: false,
+                message: t("rate_limit_reached"),
+                errors: [ t("preview_limit_reached", limit: limit) ]
+              }, status: :too_many_requests
+            end
+
+            # Log this unique preview
+            UsageEvent.create!(
+              user_id: current_user&.id,
+              session_id: session_id,
+              ip_address: ip,
+              event_type: "invoice_preview",
+              data_hash: invoice_hash
+            )
+          end
+        end
 
         if params[:log_id].present? && params[:log_id] != "null"
           log_id = params[:log_id].to_i

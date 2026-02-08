@@ -36,7 +36,7 @@ class HomeController < ApplicationController
         fav.update(name: "Favorites", color: "#EAB308", icon: "star", icon_type: "premade")
       end
 
-      current_user.categories.preload(:logs).order(name: :asc)
+      current_user.categories.preload(:log_category_assignments, logs: :log_category_assignments).order(name: :asc)
     else
       []
     end
@@ -181,16 +181,19 @@ class HomeController < ApplicationController
     target_is_georgian = (doc_language == "ge" || doc_language == "ka")
 
     lang_context = if target_is_georgian
-      "TARGET LANGUAGE: Georgian. All extracted names, descriptions, and categories MUST be in Georgian. If the input is in English or any other language, translate the extracted data to Georgian. E.g., 'Repaired AC' becomes 'შევაკეთე კონდიციონერი'."
+      "TARGET LANGUAGE: Georgian. Translate ONLY the text content (item names, descriptions, sub_categories text) to Georgian. The JSON structure (field names, section categories like 'labor', 'materials') stays the same. Do NOT reorganize or bundle items differently due to translation. E.g., 'Nails' becomes 'ლურსმნები', 'Filter Replacement' becomes 'ფილტრის შეცვლა'."
     else
-      "TARGET LANGUAGE: English. All extracted names, descriptions, and categories MUST be in English. If the input is in Georgian or any other language, translate the extracted data to English. E.g., 'შევაკეთე' becomes 'Repaired'."
+      "TARGET LANGUAGE: English. All extracted names, descriptions, and sub_categories text MUST be in English. If the input is in Georgian or any other language, translate the text content to English. E.g., 'შევაკეთე' becomes 'Repaired'."
     end
 
     # Section Labels for the generated JSON
-    sec_labels = if target_is_georgian
-      { labor: "პროფესიონალური მომსახურება", materials: "მასალები", expenses: "ხარჯები", fees: "მოსაკრებლები", notes: "შენიშვნები" }
+    # IMPORTANT: Section titles should match the SYSTEM LANGUAGE (UI), NOT the Transcript Language
+    # The Transcript Language only affects item names/descriptions, not category titles
+    ui_is_georgian = (I18n.locale.to_s == "ka")
+    sec_labels = if ui_is_georgian
+      { labor: "პროფესიონალური მომსახურება", materials: "მასალები/პროდუქტები", expenses: "ხარჯები", fees: "მოსაკრებლები", notes: "შენიშვნები" }
     else
-      { labor: "Labor/Service", materials: "Materials", expenses: "Expenses", fees: "Fees", notes: "Field Notes" }
+      { labor: "Labor/Service", materials: "Materials/Products", expenses: "Expenses", fees: "Fees", notes: "Field Notes" }
     end
 
     begin
@@ -240,6 +243,7 @@ NATURAL LANGUAGE / SLANG RULESET (pragmatic)
 - If user mentions a rate earlier (e.g., “$90 an hour”) assume it persists for subsequent hourly items until explicitly changed.
 - If user says "usual rate", "standard rate", or "same rate", leave rate fields as NULL (system will apply defaults).
 - DAY REFERENCES: When user mentions "day", "half day", "workday", or "X days" for labor time, convert using #{@profile.hours_per_workday || 8} hours per day. Examples: "three days" = #{(@profile.hours_per_workday || 8) * 3} hours, "half day" = #{(@profile.hours_per_workday || 8) / 2.0} hours.
+- DATE EXTRACTION: If user mentions WHEN the work was done (e.g., "yesterday", "last Tuesday", "on February 5th", "this was from last week", "the job was on Monday", "set the date to...", "change the date to..."), extract this as the invoice date and return it in the "date" field. Use format "MMM DD, YYYY" (e.g., "Feb 07, 2026"). Today's date is #{Date.today.strftime('%b %d, %Y')}. If no date is mentioned, return null for the "date" field.
 
 ----------------------------
 CATEGORY RULES (must map correctly)
@@ -258,10 +262,12 @@ LABOR:
 
 
 MATERIALS:
-- Physical goods the client keeps. Only extract the name of the item.
-- BUNDLING: If user gives a TOTAL PRICE for "materials" (plural), create ONE item named "Materials" (or specific group name) with that price. List the specific items in 'sub_categories'.
+- Physical goods the client keeps. Extract ONLY the noun/item name, stripping action verbs.
+- NAMING: When user says "used nails" or "got filters", the action verb ("used", "got", "bought", "grabbed") is NOT part of the item name. Extract just "Nails", "Filters". Only include adjectives that describe the item itself (e.g., "new filters" → "New Filters", "copper pipe" → "Copper Pipe").
+- DISTINCT ITEMS: If user lists multiple named items (e.g. "used nails, used filters"), create SEPARATE material entries for each. Do NOT bundle them as subcategories.
+- BUNDLING ONLY: Only bundle into subcategories when user gives a COLLECTIVE total (e.g. "materials were $500" or "parts cost 300 total"). In that case, create ONE item named "Materials" with that price, and list specific part names in 'sub_categories'.
 - Extract QUANTITY into the 'qty' field (default 1).
-- Extract UNIT PRICE (price per item) into 'unit_price'.
+- Extract UNIT PRICE (price per item) into 'unit_price'. If an item has no price mentioned, leave unit_price as null.
 - DO NOT put "(x2)" or quantity info in the description/name if you are setting the 'qty' field.
 - If user says "2 items at 40 each", 'qty' is 2 and 'unit_price' is 40.
 - If quantity is "3 or 4", "3 to 4", use the HIGHER value (4) for the 'qty' field.
@@ -401,6 +407,7 @@ Return EXACTLY the JSON structure below (use null for unknown numeric, empty arr
   "fees": [
     { "name": "", "price": "", "taxable": null, "tax_rate": null, "discount_flat": "", "discount_percent": "", "sub_categories": [] }
   ],
+  "date": null,
   "due_days": null,
   "due_date": null,
   "raw_summary": "",
@@ -613,9 +620,15 @@ PROMPT
                 price: item_qty_or_amount,
                 rate: item_rate_val,
                 mode: item_mode,
-                # Fix: Default to true if nil, so that UI can decide based on scope.
-                # Actually, better to determine it here based on scope if nil.
-                taxable: item["taxable"].nil? ? (effective_tax_scope.include?("labor") || effective_tax_scope.include?("all") || effective_tax_scope.include?("total")) : to_bool(item["taxable"]),
+                # Fix: Inherit from global labor_taxable first, then fall back to scope.
+                # If individual item has explicit taxable, use it. Otherwise check global labor_taxable. If still nil, use scope.
+                taxable: if !item["taxable"].nil?
+                           to_bool(item["taxable"])
+                         elsif !json["labor_taxable"].nil?
+                           json["labor_taxable"]
+                         else
+                           (effective_tax_scope.include?("labor") || effective_tax_scope.include?("all") || effective_tax_scope.include?("total"))
+                         end,
                 tax_rate: clean_num(item["tax_rate"]),
                 discount_flat: clean_num(item["discount_flat"].presence || (inherit_flat_discount && json["labor_discount_flat"].present? && item["discount_flat"].blank? ? json["labor_discount_flat"] : "")),
                 discount_percent: clean_num(item["discount_percent"].presence || (inherit_percent_discount && json["labor_discount_percent"].present? && item["discount_percent"].blank? ? json["labor_discount_percent"] : "")),
@@ -672,11 +685,20 @@ PROMPT
               end
             end
 
+            # Calculate price first so we can check if it's present
+            item_price = clean_num(m["unit_price"])
+            # Only apply tax scope if there's actually a price to tax
+            item_taxable = if m["taxable"].nil?
+                             item_price.present? && item_price > 0 && (effective_tax_scope.include?("material") || effective_tax_scope.include?("product") || effective_tax_scope.include?("all") || effective_tax_scope.include?("total"))
+            else
+                             to_bool(m["taxable"])
+            end
+
             {
               desc: d_text,
               qty: q_val || 1,
-              price: clean_num(m["unit_price"]),
-              taxable: to_bool(m["taxable"]),
+              price: item_price,
+              taxable: item_taxable,
               tax_rate: clean_num(m["tax_rate"]),
               discount_flat: clean_num(m["discount_flat"]),
               discount_percent: clean_num(m["discount_percent"]),
@@ -688,38 +710,68 @@ PROMPT
 
       # EXPENSES (pass-through reimbursements)
       if json["expenses"]&.any?
-        json["sections"] << {
-          title: sec_labels[:expenses],
-          items: json["expenses"].map do |e|
-            {
-              desc: (e["name"].presence || e["desc"].presence || "").to_s.strip,
-              price: clean_num(e["price"]),
-              taxable: to_bool(e["taxable"]), # Default handled in helper if nil logic needed, but strict bool here
-              tax_rate: clean_num(e["tax_rate"]),
-              discount_flat: clean_num(e["discount_flat"]),
-              discount_percent: clean_num(e["discount_percent"]),
-              sub_categories: Array(e["sub_categories"])
-            }
+        expense_items = json["expenses"].map do |e|
+          item_price = clean_num(e["price"])
+          item_desc = (e["name"].presence || e["desc"].presence || "").to_s.strip
+          # Skip items with no description
+          next nil if item_desc.blank?
+
+          item_taxable = if e["taxable"].nil?
+                           item_price.present? && item_price > 0 && (effective_tax_scope.include?("expense") || effective_tax_scope.include?("all") || effective_tax_scope.include?("total"))
+          else
+                           to_bool(e["taxable"])
           end
-        }
+          {
+            desc: item_desc,
+            price: item_price,
+            taxable: item_taxable,
+            tax_rate: clean_num(e["tax_rate"]),
+            discount_flat: clean_num(e["discount_flat"]),
+            discount_percent: clean_num(e["discount_percent"]),
+            sub_categories: Array(e["sub_categories"])
+          }
+        end.compact
+
+        # Only add section if there are valid items
+        if expense_items.any?
+          json["sections"] << {
+            title: sec_labels[:expenses],
+            items: expense_items
+          }
+        end
       end
 
       # FEES (surcharges - income)
       if json["fees"]&.any?
-        json["sections"] << {
-          title: sec_labels[:fees],
-          items: json["fees"].map do |f|
-            {
-              desc: (f["name"].presence || f["desc"].presence || "").to_s.strip,
-              price: clean_num(f["price"]),
-              taxable: to_bool(f["taxable"]), # Default handled in helper if nil logic needed, but strict bool here
-              tax_rate: clean_num(f["tax_rate"]),
-              discount_flat: clean_num(f["discount_flat"]),
-              discount_percent: clean_num(f["discount_percent"]),
-              sub_categories: Array(f["sub_categories"])
-            }
+        fee_items = json["fees"].map do |f|
+          item_price = clean_num(f["price"])
+          item_desc = (f["name"].presence || f["desc"].presence || "").to_s.strip
+          # Skip items with no description
+          next nil if item_desc.blank?
+
+          item_taxable = if f["taxable"].nil?
+                           item_price.present? && item_price > 0 && (effective_tax_scope.include?("fee") || effective_tax_scope.include?("surcharge") || effective_tax_scope.include?("all") || effective_tax_scope.include?("total"))
+          else
+                           to_bool(f["taxable"])
           end
-        }
+          {
+            desc: item_desc,
+            price: item_price,
+            taxable: item_taxable,
+            tax_rate: clean_num(f["tax_rate"]),
+            discount_flat: clean_num(f["discount_flat"]),
+            discount_percent: clean_num(f["discount_percent"]),
+            sub_categories: Array(f["sub_categories"])
+          }
+        end.compact
+
+        # Only add section if there are valid items
+        if fee_items.any?
+          json["sections"] << {
+            title: sec_labels[:fees],
+            items: fee_items
+          }
+        end
       end
 
       final_response = {
@@ -739,6 +791,7 @@ PROMPT
         "global_discount_percent" => json["global_discount_percent"],
         "credits" => json["credits"], # Now the only source of truth
         "discount_tax_mode" => json["discount_tax_mode"],
+        "date" => json["date"],
         "due_days" => json["due_days"],
         "due_date" => json["due_date"],
         "clarifications" => Array(json["clarifications"]).select { |c| c.is_a?(Hash) && c["question"].present? }
