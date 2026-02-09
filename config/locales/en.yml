@@ -1,4 +1,8 @@
 en:
+  # SEO
+  seo_tagline: "AI Voice Invoicing for Professionals"
+  seo_description: "Create professional invoices by speaking. AI-powered voice recording, automatic calculations, and instant PDF generation for contractors, freelancers, and service providers."
+
   # Navigation
   settings: "Settings"
   history: "History"

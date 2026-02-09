@@ -7,6 +7,7 @@
     <meta name="description" content="TalkInvoice: The smarter way for professionals to bill. Use AI voice recording to create professional invoices instantly. Perfect for contractors and freelancers.">
     <meta name="keywords" content="AI invoicing, voice-to-invoice, contractor billing software, freelance tools, automated invoicing, speech recognition accounting">
     <meta name="theme-color" content="#ea580c">
+    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
     <link rel="canonical" href="https://talkinvoice.online/">
 
     <!-- Open Graph / Facebook -->
@@ -89,16 +90,13 @@
         input, textarea, select {
           font-size: 16px !important;
         }
-        input, textarea {
-          touch-action: auto;
-        }
         html {
           background-color: #ffffff; /* Match app background to hide flashes */
           overscroll-behavior-y: none; 
           overflow-x: hidden;
         }
         body {
-          touch-action: pan-y; /* Prevent horizontal swaying */
+          touch-action: manipulation; /* Allow pan in all directions (overflow-x:hidden prevents page sway); disable double-tap zoom */
           overflow-x: hidden;
           max-width: 100%;
           -webkit-overflow-scrolling: touch;
@@ -857,6 +855,63 @@
           document.body.classList.remove('overflow-hidden');
         }
       };
+    </script>
+
+    <script>
+      // Mobile: Allow horizontal finger-swipe to pan text inside unfocused inputs.
+      // Uses negative text-indent to visually shift text — no focus/blur needed,
+      // so the browser can't reset the position.
+      if ('ontouchstart' in window && window.innerWidth < 768) {
+        let _swT = null, _swX0 = 0, _swOffset = 0, _swiping = false;
+
+        // Measure how much text overflows the input's visible area
+        const _mc = document.createElement('canvas').getContext('2d');
+        function _maxOff(el) {
+          const cs = getComputedStyle(el);
+          _mc.font = cs.font;
+          const textW = _mc.measureText(el.value).width;
+          const padL = parseFloat(cs.paddingLeft) || 0;
+          const padR = parseFloat(cs.paddingRight) || 0;
+          const visW = el.clientWidth - padL - padR;
+          return Math.max(0, textW - visW);
+        }
+
+        document.addEventListener('touchstart', function(e) {
+          const el = e.target;
+          const isTextInput = (el.tagName === 'INPUT' && ['text','search','url','email','tel'].includes(el.type));
+          if (!isTextInput || document.activeElement === el) { _swT = null; return; }
+          _swT = el;
+          _swX0 = e.touches[0].clientX;
+          _swiping = false;
+          _swOffset = parseFloat(el.dataset.swipeOffset || '0');
+        }, { passive: true });
+
+        document.addEventListener('touchmove', function(e) {
+          if (!_swT) return;
+          const dx = e.touches[0].clientX - _swX0;
+          if (!_swiping && Math.abs(dx) > 8) _swiping = true;
+          if (_swiping) {
+            const max = _maxOff(_swT);
+            const off = Math.min(max, Math.max(0, _swOffset - dx));
+            _swT.style.textIndent = (-off) + 'px';
+            _swT.dataset.swipeOffset = off;
+          }
+        }, { passive: true });
+
+        document.addEventListener('touchend', function() {
+          _swT = null;
+          _swiping = false;
+        }, { passive: true });
+
+        // Reset text-indent when user focuses the input (so cursor/selection works normally)
+        document.addEventListener('focus', function(e) {
+          const el = e.target;
+          if (el.tagName === 'INPUT' && el.dataset.swipeOffset) {
+            el.style.textIndent = '';
+            el.dataset.swipeOffset = '0';
+          }
+        }, true);
+      }
     </script>
   </body>
 </html>

@@ -7,6 +7,30 @@ class HomeController < ApplicationController
 
 
 
+  def sitemap
+    headers["Content-Type"] = "application/xml"
+    render xml: <<~XML
+      <?xml version="1.0" encoding="UTF-8"?>
+      <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+        <url>
+          <loc>https://talkinvoice.online/</loc>
+          <changefreq>weekly</changefreq>
+          <priority>1.0</priority>
+        </url>
+        <url>
+          <loc>https://talkinvoice.online/users/sign_in</loc>
+          <changefreq>monthly</changefreq>
+          <priority>0.5</priority>
+        </url>
+        <url>
+          <loc>https://talkinvoice.online/users/sign_up</loc>
+          <changefreq>monthly</changefreq>
+          <priority>0.6</priority>
+        </url>
+      </urlset>
+    XML
+  end
+
   def index
     @categories = if user_signed_in?
       # Ensure Favorites category exists and has correct styling (Self-Healing)

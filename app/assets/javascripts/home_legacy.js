@@ -730,10 +730,10 @@ function updateTotalsSummary() {
             // Free item: show currency icon + NO CHARGE
             const noChargeText = window.APP_LANGUAGES?.no_charge || 'NO CHARGE';
             formulaRow.innerHTML = `
-                        <div class="flex items-center justify-center bg-orange-600 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[8px] mr-2">
+                        <div class="flex items-center justify-center bg-orange-600 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px] mr-2">
                             ${rowCurrencySym}
                         </div>
-                        <span class="font-black text-black text-sm shrink-0">${noChargeText}</span>
+                        <span class="font-black text-black text-[10px] shrink-0">${noChargeText}</span>
                         <div class="w-2 shrink-0 h-1"></div>
                     `;
           } else {

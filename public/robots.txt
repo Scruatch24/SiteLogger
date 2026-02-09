@@ -4,5 +4,4 @@ User-agent: *
 Allow: /
 Disallow: /rails/
 
-# Sitemap (optional - add when you have one)
-# Sitemap: https://talkinvoice.online/sitemap.xml
+Sitemap: https://talkinvoice.online/sitemap.xml

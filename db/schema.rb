@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_02_08_145925) do
+ActiveRecord::Schema[8.0].define(version: 2026_02_08_201618) do
   create_schema "auth"
   create_schema "neon_auth"
   create_schema "pgrst"
@@ -135,6 +135,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_02_08_145925) do
     t.string "document_language"
     t.string "transcription_language"
     t.text "note"
+    t.boolean "onboarded", default: false, null: false
     t.index ["user_id"], name: "index_profiles_on_user_id"
   end
 

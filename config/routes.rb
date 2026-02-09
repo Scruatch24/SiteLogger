@@ -36,4 +36,6 @@ Rails.application.routes.draw do
   resources :categories, only: [ :create, :destroy ]
 
   post "track", to: "tracking#track"
+
+  get "sitemap.xml", to: "home#sitemap", defaults: { format: :xml }
 end
