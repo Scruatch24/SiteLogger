@@ -11,6 +11,8 @@
     overflow: hidden;
     opacity: 1;
     transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    touch-action: pan-x; /* allow swipes, block vertical page scroll */
+    overscroll-behavior: contain;
   }
   #onboardingOverlay.onb-exit {
     opacity: 0;
@@ -268,27 +270,32 @@
     transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.05s;
     box-shadow: 0 8px 32px rgba(0,0,0,0.3);
     overflow: hidden;
+    align-items: flex-start;
   }
   .onb-screen.active .onb-invoice-doc {
     opacity: 1; transform: scale(1);
   }
   .onb-invoice-doc .onb-doc-line {
-    height: 2px;
+    height: 3px;
     background: rgba(255,255,255,0.12);
-    border-radius: 1px;
+    border-radius: 2px;
     width: 0;
     transition: none;
+    animation-fill-mode: forwards;
+    -webkit-animation-fill-mode: forwards;
+    will-change: width;
+    align-self: flex-start;
   }
   /* Typing animation: lines grow to different widths with stagger */
-  .onb-screen.active .onb-invoice-doc .onb-doc-line:nth-child(1) { animation: onbType1 0.6s ease-out 0.4s forwards; }
-  .onb-screen.active .onb-invoice-doc .onb-doc-line:nth-child(2) { animation: onbType2 0.5s ease-out 0.7s forwards; }
-  .onb-screen.active .onb-invoice-doc .onb-doc-line:nth-child(3) { animation: onbType3 0.4s ease-out 1.0s forwards; }
+  .onb-screen.active .onb-invoice-doc .onb-doc-line:nth-child(1) { animation: onbType1 0.6s ease-out 0.4s forwards; -webkit-animation: onbType1 0.6s ease-out 0.4s forwards; width: 32px; max-width: 80%; transition: width 0.6s ease-out 0.4s; }
+  .onb-screen.active .onb-invoice-doc .onb-doc-line:nth-child(2) { animation: onbType2 0.5s ease-out 0.7s forwards; -webkit-animation: onbType2 0.5s ease-out 0.7s forwards; width: 26px; max-width: 72%; transition: width 0.5s ease-out 0.7s; }
+  .onb-screen.active .onb-invoice-doc .onb-doc-line:nth-child(3) { animation: onbType3 0.4s ease-out 1.0s forwards; -webkit-animation: onbType3 0.4s ease-out 1.0s forwards; width: 20px; max-width: 60%; transition: width 0.4s ease-out 1.0s; }
   .onb-invoice-doc .onb-doc-line-gap { margin-top: 6px; }
-  .onb-screen.active .onb-invoice-doc .onb-doc-line:nth-child(5) { animation: onbType4 0.5s ease-out 1.4s forwards; }
-  .onb-screen.active .onb-invoice-doc .onb-doc-line:nth-child(6) { animation: onbType2 0.45s ease-out 1.7s forwards; }
-  .onb-screen.active .onb-invoice-doc .onb-doc-line:nth-child(7) { animation: onbType5 0.4s ease-out 2.0s forwards; }
+  .onb-screen.active .onb-invoice-doc .onb-doc-line:nth-child(5) { animation: onbType4 0.5s ease-out 1.4s forwards; -webkit-animation: onbType4 0.5s ease-out 1.4s forwards; width: 30px; max-width: 75%; transition: width 0.5s ease-out 1.4s; }
+  .onb-screen.active .onb-invoice-doc .onb-doc-line:nth-child(6) { animation: onbType2 0.45s ease-out 1.7s forwards; -webkit-animation: onbType2 0.45s ease-out 1.7s forwards; width: 26px; max-width: 68%; transition: width 0.45s ease-out 1.7s; }
+  .onb-screen.active .onb-invoice-doc .onb-doc-line:nth-child(7) { animation: onbType5 0.4s ease-out 2.0s forwards; -webkit-animation: onbType5 0.4s ease-out 2.0s forwards; width: 22px; max-width: 60%; transition: width 0.4s ease-out 2.0s; }
   .onb-invoice-doc .onb-doc-line-gap2 { margin-top: 6px; }
-  .onb-screen.active .onb-invoice-doc .onb-doc-line:nth-child(9) { animation: onbTypeTotal 0.5s ease-out 2.4s forwards; }
+  .onb-screen.active .onb-invoice-doc .onb-doc-line:nth-child(9) { animation: onbTypeTotal 0.5s ease-out 2.4s forwards; -webkit-animation: onbTypeTotal 0.5s ease-out 2.4s forwards; width: 28px; max-width: 70%; transition: width 0.5s ease-out 2.4s; }
 
   @keyframes onbType1 { 0% { width: 0; } 100% { width: 36px; background: rgba(255,255,255,0.12); } }
   @keyframes onbType2 { 0% { width: 0; } 100% { width: 28px; background: rgba(255,255,255,0.1); } }
@@ -296,6 +303,14 @@
   @keyframes onbType4 { 0% { width: 0; } 100% { width: 32px; background: rgba(255,255,255,0.12); } }
   @keyframes onbType5 { 0% { width: 0; } 100% { width: 24px; background: rgba(255,255,255,0.08); } }
   @keyframes onbTypeTotal { 0% { width: 0; } 100% { width: 30px; background: rgba(249,115,22,0.3); } }
+
+  /* WebKit-prefixed keyframes for older mobile Safari */
+  @-webkit-keyframes onbType1 { 0% { width: 0; } 100% { width: 36px; background: rgba(255,255,255,0.12); } }
+  @-webkit-keyframes onbType2 { 0% { width: 0; } 100% { width: 28px; background: rgba(255,255,255,0.1); } }
+  @-webkit-keyframes onbType3 { 0% { width: 0; } 100% { width: 20px; background: rgba(255,255,255,0.08); } }
+  @-webkit-keyframes onbType4 { 0% { width: 0; } 100% { width: 32px; background: rgba(255,255,255,0.12); } }
+  @-webkit-keyframes onbType5 { 0% { width: 0; } 100% { width: 24px; background: rgba(255,255,255,0.08); } }
+  @-webkit-keyframes onbTypeTotal { 0% { width: 0; } 100% { width: 30px; background: rgba(249,115,22,0.3); } }
 
   /* Invoice glow */
   .onb-invoice-glow {
@@ -490,12 +505,15 @@
     border-radius: 1px;
     box-shadow: 0 0 8px #f97316;
     opacity: 0;
+    animation-play-state: paused;
   }
   .onb-screen.active .onb-conn-line::after {
-    opacity: 1;
     animation: onbEnergy 1.8s ease-in-out infinite;
+    animation-play-state: running;
+    animation-fill-mode: forwards;
   }
-  .onb-screen.active .onb-conn-2 .onb-conn-line::after { animation-delay: 0.9s; }
+  .onb-screen.active .onb-conn-2 { opacity: 1; transition-delay: 1s; }
+  .onb-screen.active .onb-conn-2 .onb-conn-line::after { animation-delay: 1.4s; }
   @keyframes onbEnergy {
     0%   { left: -12px; opacity: 0; }
     20%  { opacity: 1; }
@@ -752,12 +770,12 @@
     width: 6px; height: 18px;
     border-radius: 0 4px 4px 0;
     opacity: 0;
-    transform: translateX(-4px);
+    transform: translateX(-4px) translateY(-2px);
     transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
   .onb-cat-1 { background: #f97316; top: 8px; }
-  .onb-cat-2 { background: #3b82f6; top: 28px; }
-  .onb-cat-3 { background: #22c55e; top: 48px; }
+  .onb-cat-2 { background: #3b82f6; top: 26px; }
+  .onb-cat-3 { background: #22c55e; top: 44px; }
   .onb-screen.active .onb-cat-tab { opacity: 1; transform: translateX(6px); }
   .onb-screen.active .onb-cat-1 { transition-delay: 0.7s; }
   .onb-screen.active .onb-cat-2 { transition-delay: 0.85s; }
@@ -1106,8 +1124,45 @@
     .onb-style-card { width: 62px; height: 80px; padding: 8px 6px; }
     .onb-org-visual { width: 190px; height: 170px; }
     .onb-folder { width: 85px; height: 60px; }
+    .onb-cat-tab { width: 4px; height: 14px; right: 0; transform: translateX(-1px) translateY(-4px); }
+    .onb-cat-1 { top: 6px; }
+    .onb-cat-2 { top: 20px; }
+    .onb-cat-3 { top: 34px; }
     .onb-biz-chip { font-size: 7px; padding: 3px 8px; }
     .onb-status-badge { font-size: 6px; padding: 2px 6px; }
+    .onb-invoice-doc { height: 90px; padding: 12px 10px 10px; gap: 3px; align-items: flex-start; }
+    /* Make invoice lines more visible on mobile */
+    .onb-invoice-doc .onb-doc-line {
+      height: 5px;
+      border-radius: 3px;
+      background: rgba(255,255,255,0.48);
+      box-shadow: 0 0 6px rgba(255,255,255,0.28);
+      max-width: 85%;
+    }
+    .onb-invoice-doc .onb-doc-line-gap { margin-top: 5px; }
+    .onb-invoice-doc .onb-doc-line-gap2 { margin-top: 5px; }
+    /* 3-3-1 layout like desktop */
+    .onb-screen.active .onb-invoice-doc .onb-doc-line:nth-child(1) { animation: onbType1m 0.6s ease-out 0.2s forwards; -webkit-animation: onbType1m 0.6s ease-out 0.2s forwards; width: 50px; max-width: 85%; transition: width 0.6s ease-out 0.2s; }
+    .onb-screen.active .onb-invoice-doc .onb-doc-line:nth-child(2) { animation: onbType2m 0.5s ease-out 0.4s forwards; -webkit-animation: onbType2m 0.5s ease-out 0.4s forwards; width: 43px; max-width: 82%; transition: width 0.5s ease-out 0.4s; }
+    .onb-screen.active .onb-invoice-doc .onb-doc-line:nth-child(3) { animation: onbType3m 0.4s ease-out 0.6s forwards; -webkit-animation: onbType3m 0.4s ease-out 0.6s forwards; width: 35px; max-width: 72%; transition: width 0.4s ease-out 0.6s; }
+    .onb-screen.active .onb-invoice-doc .onb-doc-line:nth-child(5) { animation: onbType4m 0.5s ease-out 1.0s forwards; -webkit-animation: onbType4m 0.5s ease-out 1.0s forwards; width: 47px; max-width: 84%; transition: width 0.5s ease-out 1.0s; }
+    .onb-screen.active .onb-invoice-doc .onb-doc-line:nth-child(6) { animation: onbType2m 0.45s ease-out 1.2s forwards; -webkit-animation: onbType2m 0.45s ease-out 1.2s forwards; width: 39px; max-width: 76%; transition: width 0.45s ease-out 1.2s; }
+    .onb-screen.active .onb-invoice-doc .onb-doc-line:nth-child(7) { animation: onbType5m 0.4s ease-out 1.4s forwards; -webkit-animation: onbType5m 0.4s ease-out 1.4s forwards; width: 33px; max-width: 68%; transition: width 0.4s ease-out 1.4s; }
+    .onb-screen.active .onb-invoice-doc .onb-doc-line:nth-child(9) { animation: onbTypeTotalm 0.5s ease-out 1.8s forwards; -webkit-animation: onbTypeTotalm 0.5s ease-out 1.8s forwards; width: 44px; max-width: 82%; transition: width 0.5s ease-out 1.8s; }
+
+    @keyframes onbType1m { 0% { width: 0; } 100% { width: 52px; background: rgba(255,255,255,0.48); } }
+    @keyframes onbType2m { 0% { width: 0; } 100% { width: 46px; background: rgba(255,255,255,0.44); } }
+    @keyframes onbType3m { 0% { width: 0; } 100% { width: 40px; background: rgba(255,255,255,0.4); } }
+    @keyframes onbType4m { 0% { width: 0; } 100% { width: 50px; background: rgba(255,255,255,0.48); } }
+    @keyframes onbType5m { 0% { width: 0; } 100% { width: 38px; background: rgba(255,255,255,0.4); } }
+    @keyframes onbTypeTotalm { 0% { width: 0; } 100% { width: 46px; background: rgba(249,115,22,0.6); } }
+
+    @-webkit-keyframes onbType1m { 0% { width: 0; } 100% { width: 52px; background: rgba(255,255,255,0.48); } }
+    @-webkit-keyframes onbType2m { 0% { width: 0; } 100% { width: 46px; background: rgba(255,255,255,0.44); } }
+    @-webkit-keyframes onbType3m { 0% { width: 0; } 100% { width: 40px; background: rgba(255,255,255,0.4); } }
+    @-webkit-keyframes onbType4m { 0% { width: 0; } 100% { width: 50px; background: rgba(255,255,255,0.48); } }
+    @-webkit-keyframes onbType5m { 0% { width: 0; } 100% { width: 38px; background: rgba(255,255,255,0.4); } }
+    @-webkit-keyframes onbTypeTotalm { 0% { width: 0; } 100% { width: 46px; background: rgba(249,115,22,0.6); } }
   }
 </style>
 
