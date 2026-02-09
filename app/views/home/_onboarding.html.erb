@@ -1,0 +1,1496 @@
+<%# TalkInvoice — Premium Onboarding Experience %>
+<style>
+  /* ============================================ */
+  /* ONBOARDING: BASE & BACKGROUND                */
+  /* ============================================ */
+  #onboardingOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 30000;
+    background: #030303;
+    overflow: hidden;
+    opacity: 1;
+    transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  #onboardingOverlay.onb-exit {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .onb-bg {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 80% 50% at 50% 40%, rgba(234,88,12,0.12) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 70% at 15% 85%, rgba(249,115,22,0.06) 0%, transparent 50%),
+      radial-gradient(ellipse 50% 70% at 85% 15%, rgba(251,191,36,0.04) 0%, transparent 50%),
+      #050505;
+    animation: onbBgShift 10s ease-in-out infinite alternate;
+  }
+  @keyframes onbBgShift {
+    0%   { transform: scale(1); }
+    100% { transform: scale(1.06); }
+  }
+
+  .onb-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse 60% 50% at 50% 50%, black 20%, transparent 70%);
+  }
+
+  /* Particles (pure CSS) */
+  .onb-particle {
+    position: absolute;
+    width: 2px; height: 2px;
+    background: rgba(249,115,22,0.5);
+    border-radius: 50%;
+    pointer-events: none;
+    animation: onbParticle linear infinite;
+  }
+  @keyframes onbParticle {
+    0%   { transform: translateY(0) scale(1); opacity: 0; }
+    8%   { opacity: 0.8; }
+    85%  { opacity: 0.6; }
+    100% { transform: translateY(-100vh) scale(0.3); opacity: 0; }
+  }
+
+  /* ============================================ */
+  /* SCREENS TRACK                                 */
+  /* ============================================ */
+  .onb-track {
+    display: flex;
+    width: 800%;
+    height: 100%;
+    transition: transform 0.75s cubic-bezier(0.65, 0, 0.35, 1);
+    will-change: transform;
+  }
+  .onb-screen {
+    width: 12.5%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1.5rem;
+    padding-bottom: 100px;
+    position: relative;
+    box-sizing: border-box;
+  }
+
+  /* ============================================ */
+  /* TEXT ANIMATIONS                                */
+  /* ============================================ */
+  .onb-headline {
+    font-size: clamp(1.7rem, 5vw, 3.2rem);
+    font-weight: 900;
+    color: white;
+    text-align: center;
+    line-height: 1.25;
+    letter-spacing: -0.04em;
+    text-transform: uppercase;
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+    transition-delay: 0.15s;
+  }
+  .onb-screen.active .onb-headline {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .onb-sub {
+    font-size: clamp(0.82rem, 2vw, 1.05rem);
+    color: rgba(255,255,255,0.45);
+    text-align: center;
+    max-width: 380px;
+    line-height: 1.55;
+    font-weight: 500;
+    margin-top: 16px;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+    transition-delay: 0.35s;
+  }
+  .onb-screen.active .onb-sub {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .onb-accent { color: #f97316; }
+
+  /* ============================================ */
+  /* SCREEN 1 — MICROPHONE + WAVES                 */
+  /* ============================================ */
+  .onb-s1-visual {
+    position: relative;
+    width: 200px; height: 200px;
+    margin-bottom: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .onb-mic-core {
+    position: relative; z-index: 2;
+    width: 80px; height: 80px;
+    background: linear-gradient(135deg, #f97316, #ea580c);
+    border-radius: 24px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 0 50px rgba(249,115,22,0.35), 0 0 100px rgba(249,115,22,0.15);
+    opacity: 0;
+    transform: scale(0.4) rotate(-10deg);
+    transition: opacity 0.5s ease 0.05s, transform 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) 0.05s;
+  }
+  .onb-screen.active .onb-mic-core {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+  .onb-mic-core svg { width: 36px; height: 36px; color: white; }
+
+  /* Pulse rings */
+  .onb-ring {
+    position: absolute;
+    border: 1.5px solid rgba(249,115,22,0.25);
+    border-radius: 50%;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%) scale(0.6);
+    opacity: 0;
+  }
+  .onb-screen.active .onb-ring { animation: onbRing 3s ease-out infinite; }
+  .onb-r1 { width: 120px; height: 120px; }
+  .onb-r2 { width: 165px; height: 165px; animation-delay: 0.6s !important; }
+  .onb-r3 { width: 210px; height: 210px; animation-delay: 1.2s !important; }
+  @keyframes onbRing {
+    0%   { transform: translate(-50%,-50%) scale(0.6); opacity: 0.7; }
+    100% { transform: translate(-50%,-50%) scale(1.3); opacity: 0; }
+  }
+
+  /* Sound wave bars */
+  .onb-waves {
+    position: absolute;
+    bottom: 10px;
+    display: flex; align-items: center; justify-content: center;
+    gap: 3px; height: 32px;
+    opacity: 0;
+    transition: opacity 0.5s ease 0.55s;
+  }
+  .onb-screen.active .onb-waves { opacity: 1; }
+  .onb-waves span {
+    display: block; width: 3px;
+    background: linear-gradient(to top, #ea580c, #f97316, #fbbf24);
+    border-radius: 3px;
+    will-change: transform;
+  }
+  .onb-screen.active .onb-waves span:nth-child(1)  { animation: onbW1 1.2s ease-in-out infinite; }
+  .onb-screen.active .onb-waves span:nth-child(2)  { animation: onbW2 0.9s ease-in-out infinite; }
+  .onb-screen.active .onb-waves span:nth-child(3)  { animation: onbW3 1.4s ease-in-out infinite; }
+  .onb-screen.active .onb-waves span:nth-child(4)  { animation: onbW4 0.7s ease-in-out infinite; }
+  .onb-screen.active .onb-waves span:nth-child(5)  { animation: onbW5 1.1s ease-in-out infinite; }
+  .onb-screen.active .onb-waves span:nth-child(6)  { animation: onbW4 0.8s ease-in-out 0.15s infinite; }
+  .onb-screen.active .onb-waves span:nth-child(7)  { animation: onbW3 1.3s ease-in-out 0.1s infinite; }
+  .onb-screen.active .onb-waves span:nth-child(8)  { animation: onbW2 0.95s ease-in-out 0.2s infinite; }
+  .onb-screen.active .onb-waves span:nth-child(9)  { animation: onbW1 1.15s ease-in-out 0.05s infinite; }
+  .onb-waves span:nth-child(1)  { height: 6px; }
+  .onb-waves span:nth-child(2)  { height: 14px; }
+  .onb-waves span:nth-child(3)  { height: 22px; }
+  .onb-waves span:nth-child(4)  { height: 30px; }
+  .onb-waves span:nth-child(5)  { height: 32px; }
+  .onb-waves span:nth-child(6)  { height: 28px; }
+  .onb-waves span:nth-child(7)  { height: 20px; }
+  .onb-waves span:nth-child(8)  { height: 12px; }
+  .onb-waves span:nth-child(9)  { height: 6px; }
+
+  @keyframes onbW1 {
+    0%   { transform: scaleY(0.3); }
+    20%  { transform: scaleY(0.8); }
+    40%  { transform: scaleY(0.4); }
+    60%  { transform: scaleY(1); }
+    80%  { transform: scaleY(0.5); }
+    100% { transform: scaleY(0.3); }
+  }
+  @keyframes onbW2 {
+    0%   { transform: scaleY(0.4); }
+    15%  { transform: scaleY(1); }
+    35%  { transform: scaleY(0.3); }
+    55%  { transform: scaleY(0.85); }
+    75%  { transform: scaleY(0.45); }
+    100% { transform: scaleY(0.4); }
+  }
+  @keyframes onbW3 {
+    0%   { transform: scaleY(0.25); }
+    25%  { transform: scaleY(0.9); }
+    50%  { transform: scaleY(0.35); }
+    70%  { transform: scaleY(0.75); }
+    100% { transform: scaleY(0.25); }
+  }
+  @keyframes onbW4 {
+    0%   { transform: scaleY(0.5); }
+    18%  { transform: scaleY(0.25); }
+    36%  { transform: scaleY(1); }
+    54%  { transform: scaleY(0.4); }
+    72%  { transform: scaleY(0.8); }
+    100% { transform: scaleY(0.5); }
+  }
+  @keyframes onbW5 {
+    0%   { transform: scaleY(0.35); }
+    22%  { transform: scaleY(0.95); }
+    44%  { transform: scaleY(0.5); }
+    66%  { transform: scaleY(0.3); }
+    88%  { transform: scaleY(0.75); }
+    100% { transform: scaleY(0.35); }
+  }
+
+
+  /* ============================================ */
+  /* SCREEN 2 — INVOICE + ORBITING TAGS             */
+  /* ============================================ */
+  .onb-s2-visual {
+    position: relative;
+    width: 280px; height: 240px;
+    margin-bottom: 2rem;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* Center invoice document */
+  .onb-invoice-doc {
+    position: relative; z-index: 2;
+    width: 64px; height: 80px;
+    background: rgba(255,255,255,0.06);
+    border: 1.5px solid rgba(255,255,255,0.12);
+    border-radius: 10px;
+    display: flex; flex-direction: column; align-items: flex-start;
+    padding: 14px 10px 10px; gap: 5px;
+    opacity: 0;
+    transform: scale(0.5);
+    transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.05s;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    overflow: hidden;
+  }
+  .onb-screen.active .onb-invoice-doc {
+    opacity: 1; transform: scale(1);
+  }
+  .onb-invoice-doc .onb-doc-line {
+    height: 2px;
+    background: rgba(255,255,255,0.12);
+    border-radius: 1px;
+    width: 0;
+    transition: none;
+  }
+  /* Typing animation: lines grow to different widths with stagger */
+  .onb-screen.active .onb-invoice-doc .onb-doc-line:nth-child(1) { animation: onbType1 0.6s ease-out 0.4s forwards; }
+  .onb-screen.active .onb-invoice-doc .onb-doc-line:nth-child(2) { animation: onbType2 0.5s ease-out 0.7s forwards; }
+  .onb-screen.active .onb-invoice-doc .onb-doc-line:nth-child(3) { animation: onbType3 0.4s ease-out 1.0s forwards; }
+  .onb-invoice-doc .onb-doc-line-gap { margin-top: 6px; }
+  .onb-screen.active .onb-invoice-doc .onb-doc-line:nth-child(5) { animation: onbType4 0.5s ease-out 1.4s forwards; }
+  .onb-screen.active .onb-invoice-doc .onb-doc-line:nth-child(6) { animation: onbType2 0.45s ease-out 1.7s forwards; }
+  .onb-screen.active .onb-invoice-doc .onb-doc-line:nth-child(7) { animation: onbType5 0.4s ease-out 2.0s forwards; }
+  .onb-invoice-doc .onb-doc-line-gap2 { margin-top: 6px; }
+  .onb-screen.active .onb-invoice-doc .onb-doc-line:nth-child(9) { animation: onbTypeTotal 0.5s ease-out 2.4s forwards; }
+
+  @keyframes onbType1 { 0% { width: 0; } 100% { width: 36px; background: rgba(255,255,255,0.12); } }
+  @keyframes onbType2 { 0% { width: 0; } 100% { width: 28px; background: rgba(255,255,255,0.1); } }
+  @keyframes onbType3 { 0% { width: 0; } 100% { width: 20px; background: rgba(255,255,255,0.08); } }
+  @keyframes onbType4 { 0% { width: 0; } 100% { width: 32px; background: rgba(255,255,255,0.12); } }
+  @keyframes onbType5 { 0% { width: 0; } 100% { width: 24px; background: rgba(255,255,255,0.08); } }
+  @keyframes onbTypeTotal { 0% { width: 0; } 100% { width: 30px; background: rgba(249,115,22,0.3); } }
+
+  /* Invoice glow */
+  .onb-invoice-glow {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    width: 100px; height: 100px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(249,115,22,0.15) 0%, transparent 70%);
+    opacity: 0;
+    transition: opacity 0.6s ease 0.3s;
+  }
+  .onb-screen.active .onb-invoice-glow {
+    opacity: 1;
+    animation: onbInvGlow 3s ease-in-out infinite;
+  }
+  @keyframes onbInvGlow {
+    0%,100% { transform: translate(-50%,-50%) scale(1); }
+    50%     { transform: translate(-50%,-50%) scale(1.15); }
+  }
+
+  /* Tags — shared base */
+  .onb-tag {
+    position: absolute;
+    padding: 8px 16px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    white-space: nowrap;
+    opacity: 0;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+    z-index: 3;
+    transition: all 0.9s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .onb-t-date {
+    background: rgba(249,115,22,0.12); border: 1px solid rgba(249,115,22,0.25); color: #fbbf24;
+    top: 14%; left: 4%;
+    transform: translate(-50px, -25px) rotate(-10deg) scale(0.7);
+  }
+  .onb-t-item {
+    background: rgba(99,102,241,0.12); border: 1px solid rgba(99,102,241,0.25); color: #a5b4fc;
+    top: 10%; right: 8%;
+    transform: translate(50px, -15px) rotate(7deg) scale(0.7);
+  }
+  .onb-t-price {
+    background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.25); color: #86efac;
+    bottom: 18%; left: 8%;
+    transform: translate(-40px, 25px) rotate(5deg) scale(0.7);
+  }
+  .onb-t-tax {
+    background: rgba(244,63,94,0.12); border: 1px solid rgba(244,63,94,0.25); color: #fda4af;
+    bottom: 14%; right: 4%;
+    transform: translate(40px, 15px) rotate(-4deg) scale(0.7);
+  }
+
+  .onb-screen.active .onb-tag { opacity: 1; transform: translate(0,0) rotate(0deg) scale(1); }
+  .onb-screen.active .onb-t-date  { transition-delay: 0.15s; }
+  .onb-screen.active .onb-t-item  { transition-delay: 0.3s; }
+  .onb-screen.active .onb-t-price { transition-delay: 0.45s; }
+  .onb-screen.active .onb-t-tax   { transition-delay: 0.6s; }
+
+  .onb-screen.active .onb-t-date  { animation: onbFloat1 3.2s ease-in-out 1.3s infinite; }
+  .onb-screen.active .onb-t-item  { animation: onbFloat2 3.6s ease-in-out 1.5s infinite; }
+  .onb-screen.active .onb-t-price { animation: onbFloat3 2.9s ease-in-out 1.7s infinite; }
+  .onb-screen.active .onb-t-tax   { animation: onbFloat4 3.4s ease-in-out 1.9s infinite; }
+  @keyframes onbFloat1 {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50%      { transform: translateY(-8px) rotate(-1.5deg); }
+  }
+  @keyframes onbFloat2 {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50%      { transform: translateY(-7px) rotate(1.5deg); }
+  }
+  @keyframes onbFloat3 {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50%      { transform: translateY(-9px) rotate(-1deg); }
+  }
+  @keyframes onbFloat4 {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50%      { transform: translateY(-6px) rotate(2deg); }
+  }
+
+  /* Sparkles */
+  .onb-sparkle {
+    position: absolute;
+    width: 3px; height: 3px;
+    background: #fbbf24;
+    border-radius: 50%;
+    opacity: 0;
+  }
+  .onb-screen.active .onb-sparkle { animation: onbSparkle 2.2s ease-in-out infinite; }
+  .onb-sp1 { top: 38%; left: 32%; animation-delay: 0.3s !important; }
+  .onb-sp2 { top: 32%; right: 32%; animation-delay: 1s !important; }
+  .onb-sp4 { bottom: 32%; right: 34%; animation-delay: 0.6s !important; }
+  .onb-sp5 { bottom: 38%; left: 34%; animation-delay: 1.4s !important; }
+  @keyframes onbSparkle {
+    0%, 100% { opacity: 0; transform: scale(0); }
+    50%      { opacity: 1; transform: scale(1.5); }
+  }
+
+  /* ============================================ */
+  /* SCREEN 3 — THREE-STEP FLOW                    */
+  /* ============================================ */
+  .onb-s3-visual {
+    display: flex;
+    align-items: center;
+    margin-bottom: 2.5rem;
+  }
+
+  .onb-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    opacity: 0;
+    transform: translateY(24px) scale(0.7);
+    transition: all 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .onb-screen.active .onb-step-1 { opacity:1; transform:translateY(0) scale(1); transition-delay:0.1s; }
+  .onb-screen.active .onb-step-2 { opacity:1; transform:translateY(0) scale(1); transition-delay:0.4s; }
+  .onb-screen.active .onb-step-3 { opacity:1; transform:translateY(0) scale(1); transition-delay:0.7s; }
+
+  .onb-step-box {
+    width: 64px; height: 64px;
+    border-radius: 20px;
+    display: flex; align-items: center; justify-content: center;
+    border: 2px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.03);
+    backdrop-filter: blur(8px);
+    position: relative;
+    overflow: hidden;
+  }
+  .onb-step-box::after {
+    content: '';
+    position: absolute; inset: 0;
+    border-radius: 18px;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+  }
+  .onb-screen.active .onb-step-1 .onb-step-box { border-color: rgba(249,115,22,0.25); }
+  .onb-screen.active .onb-step-1 .onb-step-box::after { background: rgba(249,115,22,0.08); opacity:1; }
+  .onb-screen.active .onb-step-2 .onb-step-box { border-color: rgba(99,102,241,0.25); }
+  .onb-screen.active .onb-step-2 .onb-step-box::after { background: rgba(99,102,241,0.08); opacity:1; }
+  .onb-screen.active .onb-step-3 .onb-step-box { border-color: rgba(34,197,94,0.25); }
+  .onb-screen.active .onb-step-3 .onb-step-box::after { background: rgba(34,197,94,0.08); opacity:1; }
+
+  .onb-screen.active .onb-step-1 .onb-step-box { animation: onbNodeGlow1 3.5s ease-in-out 1s infinite; }
+  .onb-screen.active .onb-step-2 .onb-step-box { animation: onbNodeGlow2 3.5s ease-in-out 1.8s infinite; }
+  .onb-screen.active .onb-step-3 .onb-step-box { animation: onbNodeGlow3 3.5s ease-in-out 2.6s infinite; }
+  @keyframes onbNodeGlow1 {
+    0%,100% { box-shadow: 0 0 0 transparent; } 50% { box-shadow: 0 0 24px rgba(249,115,22,0.2); }
+  }
+  @keyframes onbNodeGlow2 {
+    0%,100% { box-shadow: 0 0 0 transparent; } 50% { box-shadow: 0 0 24px rgba(99,102,241,0.2); }
+  }
+  @keyframes onbNodeGlow3 {
+    0%,100% { box-shadow: 0 0 0 transparent; } 50% { box-shadow: 0 0 24px rgba(34,197,94,0.2); }
+  }
+
+  .onb-step-box svg { width: 26px; height: 26px; color: rgba(255,255,255,0.75); position: relative; z-index: 1; }
+  .onb-step-label {
+    font-size: 9px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.15em;
+    color: rgba(255,255,255,0.35);
+  }
+
+  /* Connectors */
+  .onb-conn {
+    width: 48px;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+    opacity: 0;
+    transition: opacity 0.6s ease;
+  }
+  .onb-screen.active .onb-conn-1 { opacity: 1; transition-delay: 0.3s; }
+  .onb-screen.active .onb-conn-2 { opacity: 1; transition-delay: 0.6s; }
+
+  .onb-conn-line {
+    width: 100%; height: 2px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 1px;
+    position: relative;
+    overflow: hidden;
+  }
+  .onb-conn-line::after {
+    content: '';
+    position: absolute; left: 0; top: 0;
+    width: 12px; height: 100%;
+    background: #f97316;
+    border-radius: 1px;
+    box-shadow: 0 0 8px #f97316;
+    opacity: 0;
+  }
+  .onb-screen.active .onb-conn-line::after {
+    opacity: 1;
+    animation: onbEnergy 1.8s ease-in-out infinite;
+  }
+  .onb-screen.active .onb-conn-2 .onb-conn-line::after { animation-delay: 0.9s; }
+  @keyframes onbEnergy {
+    0%   { left: -12px; opacity: 0; }
+    20%  { opacity: 1; }
+    80%  { opacity: 1; }
+    100% { left: calc(100% + 12px); opacity: 0; }
+  }
+
+  /* ============================================ */
+  /* SCREEN 4 — BUSINESS IDENTITY                  */
+  /* ============================================ */
+  .onb-biz-visual {
+    position: relative;
+    width: 200px; height: 200px;
+    margin-bottom: 2rem;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* Business card */
+  .onb-biz-card {
+    position: relative; z-index: 2;
+    width: 140px; height: 90px;
+    background: rgba(255,255,255,0.06);
+    border: 1.5px solid rgba(255,255,255,0.12);
+    border-radius: 12px;
+    padding: 14px;
+    display: flex; flex-direction: column; gap: 0;
+    opacity: 0;
+    transform: scale(0.5) rotate(-5deg);
+    transition: all 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    overflow: hidden;
+  }
+  .onb-screen.active .onb-biz-card { opacity: 1; transform: scale(1) rotate(0deg); }
+
+  /* Logo placeholder circle */
+  .onb-biz-logo {
+    width: 22px; height: 22px;
+    border-radius: 6px;
+    background: linear-gradient(135deg, rgba(249,115,22,0.3), rgba(251,191,36,0.2));
+    border: 1px solid rgba(249,115,22,0.25);
+    margin-bottom: 8px;
+    opacity: 0; transform: scale(0);
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .onb-screen.active .onb-biz-logo { opacity: 1; transform: scale(1); transition-delay: 0.5s; }
+
+  /* Business card lines */
+  .onb-biz-line {
+    height: 2px; border-radius: 1px;
+    background: rgba(255,255,255,0.1);
+    width: 0; margin-bottom: 4px;
+    transition: none;
+  }
+  .onb-screen.active .onb-biz-line:nth-child(2) { animation: onbBizL1 0.5s ease-out 0.7s forwards; }
+  .onb-screen.active .onb-biz-line:nth-child(3) { animation: onbBizL2 0.4s ease-out 0.95s forwards; }
+  .onb-screen.active .onb-biz-line:nth-child(4) { animation: onbBizL3 0.35s ease-out 1.15s forwards; }
+  @keyframes onbBizL1 { 0% { width: 0; } 100% { width: 70px; background: rgba(255,255,255,0.12); } }
+  @keyframes onbBizL2 { 0% { width: 0; } 100% { width: 50px; background: rgba(255,255,255,0.08); } }
+  @keyframes onbBizL3 { 0% { width: 0; } 100% { width: 35px; background: rgba(249,115,22,0.2); } }
+
+  /* Floating info chips around card */
+  .onb-biz-chip {
+    position: absolute;
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 8px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    opacity: 0;
+    transition: all 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .onb-biz-chip-email {
+    background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.2); color: #93c5fd;
+    top: 10%; right: 2%;
+    transform: translate(30px, -15px) scale(0.7);
+  }
+  .onb-biz-chip-phone {
+    background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.2); color: #86efac;
+    bottom: 15%; left: 0%;
+    transform: translate(-30px, 15px) scale(0.7);
+  }
+  .onb-biz-chip-addr {
+    background: rgba(168,85,247,0.12); border: 1px solid rgba(168,85,247,0.2); color: #d8b4fe;
+    bottom: 8%; right: 5%;
+    transform: translate(20px, 20px) scale(0.7);
+  }
+  .onb-screen.active .onb-biz-chip { opacity: 1; transform: translate(0,0) scale(1); }
+  .onb-screen.active .onb-biz-chip-email { transition-delay: 0.9s; }
+  .onb-screen.active .onb-biz-chip-phone { transition-delay: 1.1s; }
+  .onb-screen.active .onb-biz-chip-addr  { transition-delay: 1.3s; }
+  .onb-screen.active .onb-biz-chip-email { animation: onbFloat1 3.2s ease-in-out 1.8s infinite; }
+  .onb-screen.active .onb-biz-chip-phone { animation: onbFloat2 2.9s ease-in-out 2s infinite; }
+  .onb-screen.active .onb-biz-chip-addr  { animation: onbFloat3 3.5s ease-in-out 2.2s infinite; }
+
+  /* Business glow */
+  .onb-biz-glow {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    width: 120px; height: 120px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(249,115,22,0.1) 0%, transparent 70%);
+    opacity: 0;
+    transition: opacity 0.6s ease 0.3s;
+  }
+  .onb-screen.active .onb-biz-glow {
+    opacity: 1;
+    animation: onbInvGlow 3s ease-in-out infinite;
+  }
+
+  /* ============================================ */
+  /* SCREEN 5 — INVOICE STYLES                     */
+  /* ============================================ */
+  .onb-styles-visual {
+    position: relative;
+    width: 220px; height: 200px;
+    margin-bottom: 2rem;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* Style cards */
+  .onb-style-card {
+    position: absolute;
+    width: 72px; height: 92px;
+    border-radius: 10px;
+    display: flex; flex-direction: column;
+    padding: 10px 8px;
+    gap: 4px;
+    opacity: 0;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.3);
+    transition: all 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .onb-style-card .onb-sc-header {
+    height: 3px; border-radius: 1px; width: 60%; margin-bottom: 4px;
+  }
+  .onb-style-card .onb-sc-line {
+    height: 2px; border-radius: 1px; background: rgba(255,255,255,0.08);
+  }
+  .onb-style-card .onb-sc-line:nth-child(3) { width: 80%; }
+  .onb-style-card .onb-sc-line:nth-child(4) { width: 55%; }
+
+  /* Card 1 — Orange */
+  .onb-sc-1 {
+    background: rgba(249,115,22,0.08); border: 1px solid rgba(249,115,22,0.2);
+    left: 50%; top: 50%;
+    transform: translate(-120%, -55%) rotate(-8deg) scale(0.6);
+    z-index: 1;
+  }
+  .onb-sc-1 .onb-sc-header { background: rgba(249,115,22,0.4); }
+  .onb-screen.active .onb-sc-1 {
+    opacity: 1; transform: translate(-120%, -55%) rotate(-8deg) scale(1);
+    transition-delay: 0.2s;
+  }
+
+  /* Card 2 — Blue (center, front) */
+  .onb-sc-2 {
+    background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.2);
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%) rotate(0deg) scale(0.6);
+    z-index: 3;
+  }
+  .onb-sc-2 .onb-sc-header { background: rgba(59,130,246,0.4); }
+  .onb-screen.active .onb-sc-2 {
+    opacity: 1; transform: translate(-50%, -50%) rotate(0deg) scale(1);
+    transition-delay: 0.4s;
+  }
+
+  /* Card 3 — Green */
+  .onb-sc-3 {
+    background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.2);
+    left: 50%; top: 50%;
+    transform: translate(20%, -45%) rotate(8deg) scale(0.6);
+    z-index: 2;
+  }
+  .onb-sc-3 .onb-sc-header { background: rgba(34,197,94,0.4); }
+  .onb-screen.active .onb-sc-3 {
+    opacity: 1; transform: translate(20%, -45%) rotate(8deg) scale(1);
+    transition-delay: 0.6s;
+  }
+
+  .onb-screen.active .onb-sc-1 { animation: onbCardFloat1 3.5s ease-in-out 1.5s infinite; }
+  .onb-screen.active .onb-sc-2 { animation: onbCardFloat2 3s ease-in-out 1.7s infinite; }
+  .onb-screen.active .onb-sc-3 { animation: onbCardFloat3 3.8s ease-in-out 1.9s infinite; }
+  @keyframes onbCardFloat1 {
+    0%,100% { transform: translate(-120%, -55%) rotate(-8deg); }
+    50%     { transform: translate(-120%, -60%) rotate(-6deg); }
+  }
+  @keyframes onbCardFloat2 {
+    0%,100% { transform: translate(-50%, -50%) rotate(0deg); }
+    50%     { transform: translate(-50%, -56%) rotate(1deg); }
+  }
+  @keyframes onbCardFloat3 {
+    0%,100% { transform: translate(20%, -45%) rotate(8deg); }
+    50%     { transform: translate(20%, -51%) rotate(10deg); }
+  }
+
+  /* Color swatches */
+  .onb-swatch-row {
+    position: absolute;
+    bottom: 8%;
+    display: flex; gap: 6px;
+    opacity: 0;
+    transition: opacity 0.5s ease 1s;
+  }
+  .onb-screen.active .onb-swatch-row { opacity: 1; }
+  .onb-swatch {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(255,255,255,0.15);
+  }
+  .onb-sw-1 { background: #f97316; }
+  .onb-sw-2 { background: #3b82f6; }
+  .onb-sw-3 { background: #22c55e; }
+  .onb-sw-4 { background: #a855f7; }
+  .onb-sw-5 { background: #ef4444; }
+
+  /* ============================================ */
+  /* SCREEN 6 — ORGANIZE INVOICES                  */
+  /* ============================================ */
+  .onb-org-visual {
+    position: relative;
+    width: 220px; height: 200px;
+    margin-bottom: 2rem;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* Main folder */
+  .onb-folder {
+    position: relative; z-index: 2;
+    width: 100px; height: 70px;
+    background: rgba(255,255,255,0.05);
+    border: 1.5px solid rgba(255,255,255,0.1);
+    border-radius: 0 10px 10px 10px;
+    opacity: 0;
+    transform: scale(0.5);
+    transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s;
+    box-shadow: 0 8px 28px rgba(0,0,0,0.3);
+  }
+  .onb-folder::before {
+    content: '';
+    position: absolute;
+    top: -12px; left: 0;
+    width: 36px; height: 12px;
+    background: rgba(255,255,255,0.05);
+    border: 1.5px solid rgba(255,255,255,0.1);
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+  }
+  .onb-screen.active .onb-folder { opacity: 1; transform: scale(1); }
+
+  /* Category tabs on folder */
+  .onb-cat-tab {
+    position: absolute;
+    top: -1px; right: -1px;
+    width: 6px; height: 18px;
+    border-radius: 0 4px 4px 0;
+    opacity: 0;
+    transform: translateX(-4px);
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .onb-cat-1 { background: #f97316; top: 8px; }
+  .onb-cat-2 { background: #3b82f6; top: 28px; }
+  .onb-cat-3 { background: #22c55e; top: 48px; }
+  .onb-screen.active .onb-cat-tab { opacity: 1; transform: translateX(6px); }
+  .onb-screen.active .onb-cat-1 { transition-delay: 0.7s; }
+  .onb-screen.active .onb-cat-2 { transition-delay: 0.85s; }
+  .onb-screen.active .onb-cat-3 { transition-delay: 1s; }
+
+  /* Pin icon */
+  .onb-pin {
+    position: absolute;
+    top: 8%; right: 15%;
+    opacity: 0;
+    transform: translateY(-10px) rotate(-15deg);
+    transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 1.2s;
+    z-index: 3;
+  }
+  .onb-screen.active .onb-pin { opacity: 1; transform: translateY(0) rotate(0deg); }
+  .onb-pin svg { width: 18px; height: 18px; color: #fbbf24; }
+
+  /* Status badges */
+  .onb-status-badge {
+    position: absolute;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 7px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    opacity: 0;
+    transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .onb-sb-paid {
+    background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.25); color: #86efac;
+    bottom: 22%; left: 5%;
+    transform: translate(-15px, 10px) scale(0.7);
+  }
+  .onb-sb-pending {
+    background: rgba(251,191,36,0.15); border: 1px solid rgba(251,191,36,0.25); color: #fde68a;
+    bottom: 12%; right: 5%;
+    transform: translate(15px, 10px) scale(0.7);
+  }
+  .onb-sb-draft {
+    background: rgba(148,163,184,0.15); border: 1px solid rgba(148,163,184,0.25); color: #cbd5e1;
+    top: 15%; left: 5%;
+    transform: translate(-15px, -10px) scale(0.7);
+  }
+  .onb-screen.active .onb-status-badge { opacity: 1; transform: translate(0,0) scale(1); }
+  .onb-screen.active .onb-sb-paid    { transition-delay: 1s; }
+  .onb-screen.active .onb-sb-pending { transition-delay: 1.2s; }
+  .onb-screen.active .onb-sb-draft   { transition-delay: 1.4s; }
+  .onb-screen.active .onb-sb-paid    { animation: onbFloat2 3.2s ease-in-out 2s infinite; }
+  .onb-screen.active .onb-sb-pending { animation: onbFloat3 2.8s ease-in-out 2.2s infinite; }
+  .onb-screen.active .onb-sb-draft   { animation: onbFloat1 3.5s ease-in-out 2.4s infinite; }
+
+  /* Folder glow */
+  .onb-org-glow {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    width: 110px; height: 110px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(249,115,22,0.1) 0%, transparent 70%);
+    opacity: 0;
+    transition: opacity 0.6s ease 0.3s;
+  }
+  .onb-screen.active .onb-org-glow {
+    opacity: 1;
+    animation: onbInvGlow 3s ease-in-out infinite;
+  }
+
+  /* ============================================ */
+  /* SCREEN 7 — SHIELD / TRUST                     */
+  /* ============================================ */
+  .onb-s4-visual {
+    position: relative;
+    width: 200px; height: 200px;
+    margin-bottom: 2.5rem;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .onb-shield-core {
+    position: relative; z-index: 2;
+    opacity: 0;
+    transform: scale(0.4);
+    transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s;
+  }
+  .onb-screen.active .onb-shield-core { opacity: 1; transform: scale(1); }
+
+  .onb-shield-core svg { width: 80px; height: 80px; }
+  .onb-shield-fill { fill: rgba(34,197,94,0.12); transition: fill 0.5s ease 0.6s; }
+  .onb-screen.active .onb-shield-fill { fill: rgba(34,197,94,0.2); }
+
+  .onb-check-draw {
+    stroke-dasharray: 24;
+    stroke-dashoffset: 24;
+    transition: stroke-dashoffset 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.9s;
+  }
+  .onb-screen.active .onb-check-draw { stroke-dashoffset: 0; }
+
+  /* Shield glow */
+  .onb-shield-glow {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    width: 130px; height: 130px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(34,197,94,0.15) 0%, transparent 70%);
+    opacity: 0;
+    transition: opacity 0.8s ease 0.4s;
+  }
+  .onb-screen.active .onb-shield-glow {
+    opacity: 1;
+    animation: onbShieldPulse 3.5s ease-in-out infinite;
+  }
+  @keyframes onbShieldPulse {
+    0%,100% { transform: translate(-50%,-50%) scale(1); }
+    50%     { transform: translate(-50%,-50%) scale(1.15); }
+  }
+
+  /* Floating mini-documents */
+  .onb-mdoc {
+    position: absolute;
+    width: 30px; height: 38px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 6px;
+    opacity: 0;
+    transition: all 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .onb-mdoc::before {
+    content: '';
+    position: absolute;
+    top: 8px; left: 5px; right: 5px;
+    height: 2px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 1px;
+    box-shadow: 0 5px 0 rgba(255,255,255,0.05), 0 10px 0 rgba(255,255,255,0.03);
+  }
+  .onb-screen.active .onb-mdoc { opacity: 1; }
+  .onb-md1 { top: 8%; left: 8%; transform: rotate(-12deg); transition-delay: 0.5s; }
+  .onb-md2 { top: 12%; right: 8%; transform: rotate(8deg); transition-delay: 0.7s; }
+  .onb-md3 { bottom: 12%; left: 12%; transform: rotate(-6deg); transition-delay: 0.9s; }
+  .onb-md4 { bottom: 8%; right: 12%; transform: rotate(10deg); transition-delay: 1.1s; }
+
+  .onb-screen.active .onb-md1 { animation: onbDocDrift1 4s ease-in-out 1.4s infinite; }
+  .onb-screen.active .onb-md2 { animation: onbDocDrift2 3.6s ease-in-out 1.6s infinite; }
+  .onb-screen.active .onb-md3 { animation: onbDocDrift1 4.2s ease-in-out 1.8s infinite; }
+  .onb-screen.active .onb-md4 { animation: onbDocDrift2 3.8s ease-in-out 2s infinite; }
+  @keyframes onbDocDrift1 {
+    0%,100% { transform: translateY(0) rotate(-12deg); }
+    50%     { transform: translateY(-6px) rotate(-8deg); }
+  }
+  @keyframes onbDocDrift2 {
+    0%,100% { transform: translateY(0) rotate(8deg); }
+    50%     { transform: translateY(-6px) rotate(12deg); }
+  }
+
+  /* ============================================ */
+  /* SCREEN 5 — CTA                                */
+  /* ============================================ */
+  .onb-s5-visual {
+    margin-bottom: 2rem;
+    opacity: 0;
+    transform: scale(0.6) rotate(-5deg);
+    transition: all 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) 0.05s;
+  }
+  .onb-screen.active .onb-s5-visual { opacity: 1; transform: scale(1) rotate(0deg); }
+
+  .onb-logo-box {
+    width: 88px; height: 88px;
+    background: linear-gradient(135deg, #f97316, #ea580c);
+    border-radius: 26px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 0 60px rgba(249,115,22,0.3), 0 0 120px rgba(249,115,22,0.1);
+    position: relative;
+  }
+  .onb-logo-box svg { width: 42px; height: 42px; color: white; }
+
+  /* Logo ring */
+  .onb-logo-ring {
+    position: absolute; inset: -8px;
+    border: 1.5px solid rgba(249,115,22,0.2);
+    border-radius: 30px;
+    opacity: 0;
+    transition: opacity 0.6s ease 0.4s;
+  }
+  .onb-screen.active .onb-logo-ring {
+    opacity: 1;
+    animation: onbLogoRing 3s ease-in-out infinite;
+  }
+  @keyframes onbLogoRing {
+    0%,100% { transform: scale(1); opacity: 0.6; }
+    50%     { transform: scale(1.12); opacity: 0.2; }
+  }
+
+  /* CTA Button */
+  .onb-cta-btn {
+    display: inline-flex;
+    align-items: center; justify-content: center;
+    gap: 12px;
+    padding: 18px 48px;
+    background: linear-gradient(135deg, #f97316, #ea580c);
+    color: white;
+    font-size: 13px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    border: 2px solid rgba(255,255,255,0.15);
+    border-radius: 20px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 8px 40px rgba(249,115,22,0.35);
+    margin-top: 1.5rem;
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.6s ease 0.25s, transform 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.25s,
+                box-shadow 0.3s ease, border-color 0.3s ease;
+  }
+  .onb-screen.active .onb-cta-btn { opacity: 1; transform: translateY(0); }
+  .onb-cta-btn:hover {
+    box-shadow: 0 14px 56px rgba(249,115,22,0.5), 0 0 0 4px rgba(249,115,22,0.12);
+    transform: translateY(-2px) scale(1.03);
+  }
+  .onb-cta-btn:active {
+    transform: translateY(0) scale(0.97);
+    box-shadow: 0 4px 16px rgba(249,115,22,0.25);
+  }
+  .onb-cta-btn::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    animation: onbShimmer 3.5s ease-in-out infinite;
+  }
+  @keyframes onbShimmer {
+    0%  { left: -100%; }
+    25% { left: 100%; }
+    100%{ left: 100%; }
+  }
+  .onb-cta-btn svg { width: 16px; height: 16px; transition: transform 0.3s ease; }
+  .onb-cta-btn:hover svg { transform: translateX(4px); }
+
+  .onb-cta-note {
+    font-size: 11px;
+    color: rgba(255,255,255,0.25);
+    margin-top: 1rem;
+    font-weight: 500;
+    opacity: 0;
+    transition: opacity 0.6s ease 0.5s;
+  }
+  .onb-screen.active .onb-cta-note { opacity: 1; }
+
+  /* ============================================ */
+  /* NAVIGATION                                    */
+  /* ============================================ */
+  .onb-nav {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 24px 28px;
+    padding-bottom: max(24px, env(safe-area-inset-bottom, 24px));
+    z-index: 10;
+  }
+  .onb-dots {
+    display: flex; gap: 8px;
+  }
+  .onb-dot {
+    width: 8px; height: 8px;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.12);
+    cursor: pointer;
+    transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    border: none;
+    padding: 0;
+  }
+  .onb-dot.active {
+    width: 36px;
+    background: #f97316;
+    box-shadow: 0 0 14px rgba(249,115,22,0.4);
+  }
+
+  .onb-next {
+    display: flex;
+    align-items: center; gap: 8px;
+    padding: 12px 24px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+    color: white;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+    transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .onb-next:hover {
+    background: rgba(249,115,22,0.15);
+    border-color: rgba(249,115,22,0.25);
+    transform: translateX(3px);
+  }
+  .onb-next svg { width: 14px; height: 14px; transition: transform 0.3s ease; }
+  .onb-next:hover svg { transform: translateX(4px); }
+
+  .onb-skip {
+    position: absolute;
+    top: max(16px, env(safe-area-inset-top, 16px));
+    right: 24px;
+    padding: 10px 20px;
+    color: rgba(255,255,255,0.2);
+    font-size: 9px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    cursor: pointer;
+    border: none;
+    background: none;
+    transition: color 0.3s ease;
+    z-index: 10;
+  }
+  .onb-skip:hover { color: rgba(255,255,255,0.6); }
+
+  /* ============================================ */
+  /* RESPONSIVE                                    */
+  /* ============================================ */
+  @media (max-width: 767px) {
+    .onb-s1-visual, .onb-s4-visual { width: 160px; height: 160px; }
+    .onb-s2-visual { width: 240px; height: 170px; }
+    .onb-mic-core { width: 64px; height: 64px; border-radius: 18px; }
+    .onb-mic-core svg { width: 28px; height: 28px; }
+    .onb-shield-core svg { width: 64px; height: 64px; }
+    .onb-step-box { width: 52px; height: 52px; border-radius: 16px; }
+    .onb-step-box svg { width: 22px; height: 22px; }
+    .onb-conn { width: 28px; }
+    .onb-logo-box { width: 72px; height: 72px; border-radius: 22px; }
+    .onb-logo-box svg { width: 34px; height: 34px; }
+    .onb-cta-btn { padding: 16px 36px; font-size: 12px; border-radius: 16px; }
+    .onb-nav { padding: 20px 20px; }
+    .onb-screen { padding: 1.5rem 1.2rem; padding-bottom: 90px; }
+    .onb-r3 { width: 180px; height: 180px; }
+    .onb-tag { font-size: 9px; padding: 6px 12px; }
+    .onb-biz-visual { width: 170px; height: 170px; }
+    .onb-biz-card { width: 120px; height: 78px; padding: 12px; }
+    .onb-styles-visual { width: 190px; height: 170px; }
+    .onb-style-card { width: 62px; height: 80px; padding: 8px 6px; }
+    .onb-org-visual { width: 190px; height: 170px; }
+    .onb-folder { width: 85px; height: 60px; }
+    .onb-biz-chip { font-size: 7px; padding: 3px 8px; }
+    .onb-status-badge { font-size: 6px; padding: 2px 6px; }
+  }
+</style>
+
+<!-- ============================================ -->
+<!-- ONBOARDING OVERLAY                            -->
+<!-- ============================================ -->
+<div id="onboardingOverlay">
+  <!-- Animated background -->
+  <div class="onb-bg"></div>
+  <div class="onb-grid"></div>
+
+  <!-- Particles -->
+  <% 18.times do |i| %>
+    <div class="onb-particle" style="left:<%= rand(5..95) %>%; bottom:-2%; animation-duration:<%= rand(6..14) %>s; animation-delay:<%= (rand(0..50) / 10.0) %>s; width:<%= rand(1..3) %>px; height:<%= rand(1..3) %>px; opacity:<%= rand(3..7) / 10.0 %>;"></div>
+  <% end %>
+
+  <!-- Skip -->
+  <button class="onb-skip" onclick="onbFinish()"><%= t('onboarding.skip') %></button>
+
+  <!-- Screens Track -->
+  <div class="onb-track" id="onbTrack">
+
+    <!-- SCREEN 1: Identity -->
+    <div class="onb-screen active" data-screen="0">
+      <div class="onb-s1-visual">
+        <div class="onb-ring onb-r1"></div>
+        <div class="onb-ring onb-r2"></div>
+        <div class="onb-ring onb-r3"></div>
+        <div class="onb-mic-core">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+            <path d="M19 10v1a7 7 0 0 1-14 0v-1"/>
+            <line x1="12" y1="18" x2="12" y2="22"/>
+            <line x1="8" y1="22" x2="16" y2="22"/>
+          </svg>
+        </div>
+        <div class="onb-waves">
+          <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+        </div>
+      </div>
+      <h2 class="onb-headline"><%= raw t('onboarding.s1_headline_html') %></h2>
+      <p class="onb-sub"><%= t('onboarding.s1_sub') %></p>
+    </div>
+
+    <!-- SCREEN 2: Magic Moment -->
+    <div class="onb-screen" data-screen="1">
+      <div class="onb-s2-visual">
+        <!-- Center invoice -->
+        <div class="onb-invoice-glow"></div>
+        <div class="onb-invoice-doc">
+          <div class="onb-doc-line"></div>
+          <div class="onb-doc-line"></div>
+          <div class="onb-doc-line"></div>
+          <div class="onb-doc-line onb-doc-line-gap"></div>
+          <div class="onb-doc-line"></div>
+          <div class="onb-doc-line"></div>
+          <div class="onb-doc-line"></div>
+          <div class="onb-doc-line onb-doc-line-gap2"></div>
+          <div class="onb-doc-line"></div>
+        </div>
+        <!-- Orbiting tags -->
+        <div class="onb-tag onb-t-date"><%= t('onboarding.tag_dates') %></div>
+        <div class="onb-tag onb-t-item"><%= t('onboarding.tag_items') %></div>
+        <div class="onb-tag onb-t-price"><%= t('onboarding.tag_prices') %></div>
+        <div class="onb-tag onb-t-tax"><%= t('onboarding.tag_taxes') %></div>
+        <!-- Sparkles -->
+        <div class="onb-sparkle onb-sp1"></div>
+        <div class="onb-sparkle onb-sp2"></div>
+        <div class="onb-sparkle onb-sp4"></div>
+        <div class="onb-sparkle onb-sp5"></div>
+      </div>
+      <h2 class="onb-headline"><%= raw t('onboarding.s2_headline_html') %></h2>
+      <p class="onb-sub"><%= t('onboarding.s2_sub') %></p>
+    </div>
+
+    <!-- SCREEN 3: How It Works -->
+    <div class="onb-screen" data-screen="2">
+      <div class="onb-s3-visual">
+        <!-- Step 1: Speak -->
+        <div class="onb-step onb-step-1">
+          <div class="onb-step-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+              <path d="M19 10v1a7 7 0 0 1-14 0v-1"/>
+              <line x1="12" y1="18" x2="12" y2="22"/>
+              <line x1="8" y1="22" x2="16" y2="22"/>
+            </svg>
+          </div>
+          <span class="onb-step-label"><%= t('onboarding.step_speak') %></span>
+        </div>
+
+        <!-- Connector 1 -->
+        <div class="onb-conn onb-conn-1">
+          <div class="onb-conn-line"></div>
+        </div>
+
+        <!-- Step 2: Review -->
+        <div class="onb-step onb-step-2">
+          <div class="onb-step-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/>
+              <path d="M14 2v6h6"/>
+              <line x1="16" y1="13" x2="8" y2="13"/>
+              <line x1="16" y1="17" x2="8" y2="17"/>
+            </svg>
+          </div>
+          <span class="onb-step-label"><%= t('onboarding.step_review') %></span>
+        </div>
+
+        <!-- Connector 2 -->
+        <div class="onb-conn onb-conn-2">
+          <div class="onb-conn-line"></div>
+        </div>
+
+        <!-- Step 3: Export -->
+        <div class="onb-step onb-step-3">
+          <div class="onb-step-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/>
+              <path d="M12 12v9"/>
+              <path d="m8 17 4 4 4-4"/>
+            </svg>
+          </div>
+          <span class="onb-step-label"><%= t('onboarding.step_export') %></span>
+        </div>
+      </div>
+      <h2 class="onb-headline"><%= raw t('onboarding.s3_headline_html') %></h2>
+      <p class="onb-sub"><%= t('onboarding.s3_sub') %></p>
+    </div>
+
+    <!-- SCREEN 4: Business Identity -->
+    <div class="onb-screen" data-screen="3">
+      <div class="onb-biz-visual">
+        <div class="onb-biz-glow"></div>
+        <div class="onb-biz-card">
+          <div class="onb-biz-logo"></div>
+          <div class="onb-biz-line"></div>
+          <div class="onb-biz-line"></div>
+          <div class="onb-biz-line"></div>
+        </div>
+        <div class="onb-biz-chip onb-biz-chip-email"><%= t('onboarding.chip_email') %></div>
+        <div class="onb-biz-chip onb-biz-chip-phone"><%= t('onboarding.chip_phone') %></div>
+        <div class="onb-biz-chip onb-biz-chip-addr"><%= t('onboarding.chip_address') %></div>
+      </div>
+      <h2 class="onb-headline"><%= raw t('onboarding.s4_headline_html') %></h2>
+      <p class="onb-sub"><%= t('onboarding.s4_sub') %></p>
+    </div>
+
+    <!-- SCREEN 5: Invoice Styles -->
+    <div class="onb-screen" data-screen="4">
+      <div class="onb-styles-visual">
+        <div class="onb-style-card onb-sc-1">
+          <div class="onb-sc-header"></div>
+          <div class="onb-sc-line"></div>
+          <div class="onb-sc-line"></div>
+          <div class="onb-sc-line"></div>
+        </div>
+        <div class="onb-style-card onb-sc-2">
+          <div class="onb-sc-header"></div>
+          <div class="onb-sc-line"></div>
+          <div class="onb-sc-line"></div>
+          <div class="onb-sc-line"></div>
+        </div>
+        <div class="onb-style-card onb-sc-3">
+          <div class="onb-sc-header"></div>
+          <div class="onb-sc-line"></div>
+          <div class="onb-sc-line"></div>
+          <div class="onb-sc-line"></div>
+        </div>
+        <div class="onb-swatch-row">
+          <div class="onb-swatch onb-sw-1"></div>
+          <div class="onb-swatch onb-sw-2"></div>
+          <div class="onb-swatch onb-sw-3"></div>
+          <div class="onb-swatch onb-sw-4"></div>
+          <div class="onb-swatch onb-sw-5"></div>
+        </div>
+      </div>
+      <h2 class="onb-headline"><%= raw t('onboarding.s5_headline_html') %></h2>
+      <p class="onb-sub"><%= t('onboarding.s5_sub') %></p>
+    </div>
+
+    <!-- SCREEN 6: Organize Invoices -->
+    <div class="onb-screen" data-screen="5">
+      <div class="onb-org-visual">
+        <div class="onb-org-glow"></div>
+        <div class="onb-folder">
+          <div class="onb-cat-tab onb-cat-1"></div>
+          <div class="onb-cat-tab onb-cat-2"></div>
+          <div class="onb-cat-tab onb-cat-3"></div>
+        </div>
+        <div class="onb-pin">
+          <svg viewBox="0 0 24 24" fill="currentColor" stroke="none">
+            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/>
+          </svg>
+        </div>
+        <div class="onb-status-badge onb-sb-paid"><%= t('onboarding.badge_paid') %></div>
+        <div class="onb-status-badge onb-sb-pending"><%= t('onboarding.badge_pending') %></div>
+        <div class="onb-status-badge onb-sb-draft"><%= t('onboarding.badge_draft') %></div>
+      </div>
+      <h2 class="onb-headline"><%= raw t('onboarding.s6_headline_html') %></h2>
+      <p class="onb-sub"><%= t('onboarding.s6_sub') %></p>
+    </div>
+
+    <!-- SCREEN 7: Trust -->
+    <div class="onb-screen" data-screen="6">
+      <div class="onb-s4-visual">
+        <div class="onb-shield-glow"></div>
+        <div class="onb-mdoc onb-md1"></div>
+        <div class="onb-mdoc onb-md2"></div>
+        <div class="onb-mdoc onb-md3"></div>
+        <div class="onb-mdoc onb-md4"></div>
+        <div class="onb-shield-core">
+          <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <path class="onb-shield-fill" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="rgba(34,197,94,0.4)" stroke-width="1.5"/>
+            <path class="onb-check-draw" d="M9 12l2 2 4-4" stroke="#22c55e" stroke-width="2.5" fill="none"/>
+          </svg>
+        </div>
+      </div>
+      <h2 class="onb-headline"><%= raw t('onboarding.s7_headline_html') %></h2>
+      <p class="onb-sub"><%= t('onboarding.s7_sub') %></p>
+    </div>
+
+    <!-- SCREEN 8: CTA -->
+    <div class="onb-screen" data-screen="7">
+      <div class="onb-s5-visual">
+        <div class="onb-logo-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/>
+            <path d="M9 7h6"/>
+          </svg>
+          <div class="onb-logo-ring"></div>
+        </div>
+      </div>
+      <h2 class="onb-headline"><%= raw t('onboarding.s8_headline_html') %></h2>
+      <button class="onb-cta-btn" onclick="onbFinish()">
+        <%= t('onboarding.cta_button') %>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
+        </svg>
+      </button>
+      <p class="onb-cta-note"><%= t('onboarding.cta_note') %></p>
+    </div>
+
+  </div><!-- /onb-track -->
+
+  <!-- Bottom Navigation -->
+  <div class="onb-nav" id="onbNav">
+    <div class="onb-dots" id="onbDots">
+      <button class="onb-dot active" data-idx="0"></button>
+      <button class="onb-dot" data-idx="1"></button>
+      <button class="onb-dot" data-idx="2"></button>
+      <button class="onb-dot" data-idx="3"></button>
+      <button class="onb-dot" data-idx="4"></button>
+      <button class="onb-dot" data-idx="5"></button>
+      <button class="onb-dot" data-idx="6"></button>
+      <button class="onb-dot" data-idx="7"></button>
+    </div>
+    <button class="onb-next" id="onbNextBtn" onclick="onbNext()">
+      <%= t('onboarding.next') %>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<script>
+(function() {
+  const STORAGE_KEY = 'talkinvoice_onboarding_v1';
+  const TOTAL = 8;
+  let current = 0;
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let transitioning = false;
+
+  function init() {
+    const overlay = document.getElementById('onboardingOverlay');
+    if (!overlay) return;
+    if (localStorage.getItem(STORAGE_KEY)) {
+      overlay.style.display = 'none';
+      return;
+    }
+    document.body.classList.add('overflow-hidden');
+    document.documentElement.classList.add('overflow-hidden');
+
+    // Touch/swipe
+    overlay.addEventListener('touchstart', function(e) {
+      touchStartX = e.changedTouches[0].screenX;
+      touchStartY = e.changedTouches[0].screenY;
+    }, { passive: true });
+    overlay.addEventListener('touchend', function(e) {
+      const dx = e.changedTouches[0].screenX - touchStartX;
+      const dy = e.changedTouches[0].screenY - touchStartY;
+      if (Math.abs(dx) < 50 || Math.abs(dy) > Math.abs(dx)) return;
+      if (dx < 0) onbNext();
+      else onbPrev();
+    }, { passive: true });
+
+    // Keyboard
+    document.addEventListener('keydown', function onbKey(e) {
+      if (!document.getElementById('onboardingOverlay') || document.getElementById('onboardingOverlay').style.display === 'none') {
+        document.removeEventListener('keydown', onbKey);
+        return;
+      }
+      if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); onbNext(); }
+      if (e.key === 'ArrowLeft') { e.preventDefault(); onbPrev(); }
+      if (e.key === 'Escape') { e.preventDefault(); onbFinish(); }
+    });
+  }
+
+  function goTo(idx) {
+    if (transitioning || idx < 0 || idx >= TOTAL || idx === current) return;
+    transitioning = true;
+    var prev = current;
+    current = idx;
+    var track = document.getElementById('onbTrack');
+    var screens = document.querySelectorAll('.onb-screen');
+
+    // Immediately add active to new screen (so it animates in during slide)
+    screens[current].classList.add('active');
+
+    // Start the slide
+    track.style.transform = 'translateX(-' + (current * 12.5) + '%)';
+
+    // Update dots
+    document.querySelectorAll('.onb-dot').forEach(function(d, i) {
+      d.classList.toggle('active', i === current);
+    });
+
+    // Update next button
+    var nav = document.getElementById('onbNav');
+    if (current === TOTAL - 1) {
+      nav.style.opacity = '0';
+      nav.style.pointerEvents = 'none';
+      nav.style.transition = 'opacity 0.4s ease';
+    } else {
+      nav.style.opacity = '1';
+      nav.style.pointerEvents = 'auto';
+      nav.style.transition = 'opacity 0.4s ease';
+    }
+
+    // Remove active from previous screen AFTER slide is done (so no visible reset)
+    setTimeout(function() {
+      if (prev !== current) screens[prev].classList.remove('active');
+      transitioning = false;
+    }, 780);
+  }
+
+  window.onbNext = function() {
+    if (current < TOTAL - 1) goTo(current + 1);
+    else onbFinish();
+  };
+
+  window.onbPrev = function() {
+    if (current > 0) goTo(current - 1);
+  };
+
+  window.onbFinish = function() {
+    localStorage.setItem(STORAGE_KEY, '1');
+    var overlay = document.getElementById('onboardingOverlay');
+    if (!overlay) return;
+    overlay.classList.add('onb-exit');
+    document.body.classList.remove('overflow-hidden');
+    document.documentElement.classList.remove('overflow-hidden');
+    setTimeout(function() {
+      overlay.style.display = 'none';
+    }, 800);
+  };
+
+  // Dot click
+  document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('onb-dot')) {
+      var idx = parseInt(e.target.getAttribute('data-idx'), 10);
+      goTo(idx);
+    }
+  });
+
+  // Init on load
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+  document.addEventListener('turbo:load', init);
+})();
+</script>

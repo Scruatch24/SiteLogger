@@ -484,3 +484,38 @@ en:
     login_profile: "Login to Profile"
     keep_previewing: "Keep Previewing"
     you_are_here: "You are here"
+
+  # Onboarding
+  onboarding:
+    skip: "Skip"
+    next: "Next"
+    s1_headline_html: 'Create invoices<br><span class="onb-accent">by speaking.</span>'
+    s1_sub: "Turn voice into professional invoices in seconds."
+    tag_dates: "Dates"
+    tag_items: "Items"
+    tag_prices: "Prices"
+    tag_taxes: "Taxes"
+    s2_headline_html: 'Just talk.<br><span class="onb-accent">We handle the rest.</span>'
+    s2_sub: "Dates, items, prices, taxes — extracted automatically."
+    step_speak: "Speak"
+    step_review: "Review"
+    step_export: "Export"
+    s3_headline_html: 'Speak. Review.<br><span class="onb-accent">Export.</span>'
+    s3_sub: "That's it. No forms. No clutter."
+    s4_headline_html: 'YOUR BUSINESS<br><span class="onb-accent">IDENTITY</span>'
+    s4_sub: "Show your business information."
+    chip_email: "Email"
+    chip_phone: "Phone"
+    chip_address: "Address"
+    s5_headline_html: 'VARIETY OF<br><span class="onb-accent">INVOICE STYLES</span>'
+    s5_sub: "Choose styles and colors to match your brand."
+    s6_headline_html: 'ORGANIZE<br><span class="onb-accent">YOUR INVOICES</span>'
+    s6_sub: "Set current statuses to your invoices. Pin your most important ones. Create custom categories to store your invoices."
+    badge_paid: "Paid"
+    badge_pending: "Pending"
+    badge_draft: "Draft"
+    s7_headline_html: "You're always<br><span class=\"onb-accent\">in control.</span>"
+    s7_sub: "Edit everything before exporting. Nothing is sent without your approval."
+    s8_headline_html: 'Ready to <span class="onb-accent">voice</span><br>your first invoice?'
+    cta_button: "Try it now"
+    cta_note: "No account needed to test"

@@ -494,3 +494,38 @@ ka:
     login_profile: "პროფილში შესვლა"
     keep_previewing: "გამოტოვება"
     you_are_here: "თქვენ აქ ხართ"
+
+  # Onboarding
+  onboarding:
+    skip: "გამოტოვება"
+    next: "შემდეგი"
+    s1_headline_html: 'შექმენი ინვოისი<br><span class="onb-accent">შენი ხმით.</span>'
+    s1_sub: "გადააქციე შენი ხმა პროფესიონალურ, მოწესრიგებულ ინვოისად წამებში."
+    tag_dates: "თარიღები"
+    tag_items: "ნივთები"
+    tag_prices: "ფასები"
+    tag_taxes: "გადასახადები"
+    s2_headline_html: 'უბრალოდ გვითხარი,<br><span class="onb-accent">დანარჩენს ჩვენ მოვაგვარებთ.</span>'
+    s2_sub: "ყველაფერს ავტომატურად ამოვიცნობთ."
+    step_speak: "ხმა"
+    step_review: "გადახედვა"
+    step_export: "ექსპორტი"
+    s3_headline_html: 'ჩაწერე ხმა. გადახედე.<br><span class="onb-accent">დააექსპორტე.</span>'
+    s3_sub: "სულ ესაა. არანაირი არეულობა."
+    s4_headline_html: 'თქვენი ბიზნესის<br><span class="onb-accent">იდენტობა</span>'
+    s4_sub: "გამოაჩინეთ თქვენი ბიზნეს ინფორმაცია."
+    chip_email: "ელფოსტა"
+    chip_phone: "ტელეფონი"
+    chip_address: "მისამართი"
+    s5_headline_html: 'მრავალფეროვანი<br><span class="onb-accent">ინვოისთა სტილები</span>'
+    s5_sub: "აირჩიეთ სტილები და ფერები რომ მოარგოთ თქვენ ბრენდს."
+    s6_headline_html: 'დააორგანიზე<br><span class="onb-accent">შენი ინვოისები</span>'
+    s6_sub: "მართეთ ინვოისის სტატუსები. აპინეთ მნიშვნელოვანი ინვოისები. შექმენით საკუთარი კატეგორიები ინვოისების გადასანაწილებლად."
+    badge_paid: "გადახდილი"
+    badge_pending: "მოლოდინში"
+    badge_draft: "დრაფტი"
+    s7_headline_html: 'ყველაფერი შენს<br><span class="onb-accent">ხელშია.</span>'
+    s7_sub: "შეცვალე ყველაფერი ექსპორტამდე. არაფერი იგზავნება ან ინახება შენი თანხმობის გარეშე."
+    s8_headline_html: 'მზად ხარ პირველი<br>ინვოისის <span class="onb-accent">შესაქმნელად?</span>'
+    cta_button: "სცადე ახლავე"
+    cta_note: "გასატესტად ანგარიშიც კი არ გჭირდება"
