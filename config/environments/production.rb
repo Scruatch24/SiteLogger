@@ -30,6 +30,9 @@ Rails.application.configure do
   # Force all access to the app over SSL, use Strict-Transport-Security, and use secure cookies.
   config.force_ssl = true
 
+  # Ensure all generated URLs use HTTPS (Devise redirects, route helpers, etc.)
+  Rails.application.routes.default_url_options = { host: "talkinvoice.online", protocol: "https" }
+
   # Skip http-to-https redirect for the default health check endpoint.
   # config.ssl_options = { redirect: { exclude: ->(request) { request.path == "/up" } } }
 
