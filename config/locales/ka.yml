@@ -507,13 +507,13 @@ ka:
     settings: "პარამეტრები"
     pricing: "ფასები"
     sign_in: "შესვლა"
-    sign_up: "რეგისტრაცია"
+    sign_up: "სცადე უფასოდ"
     log_out: "გასვლა"
     menu: "მენიუ"
 
   # Footer
   footer:
-    slogan: "თქვი. გაგზავნე."
+    slogan: "თქვი. გააგზავნე."
     legal: "იურიდიული"
     terms: "მომსახურების პირობები"
     privacy: "კონფიდენციალურობა"

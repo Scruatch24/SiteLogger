@@ -10,7 +10,9 @@
           <path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6" />
         </svg>
       </div>
-      <span class="site-logo-text">TALK<span class="text-orange-600">INVOICE</span></span>
+      <div class="site-logo-text-wrap">
+        <span class="site-logo-text">TALK<span class="text-orange-600">INVOICE</span></span>
+      </div>
     </a>
 
     <!-- Desktop Nav Links -->
@@ -111,4 +113,57 @@
     menu.classList.toggle('open');
     btn.classList.toggle('open');
   }
+
+  (function() {
+    const logo = document.querySelector('.site-logo');
+    if (!logo) return;
+
+    let initialDone = false;
+    const isMobile = () => window.innerWidth < 768;
+    const STORAGE_KEY = 'logoTextOpen';
+
+    function attachDesktopHover() {
+      logo.addEventListener('mouseenter', function() {
+        if (!isMobile()) logo.classList.add('logo-text-open');
+      });
+      logo.addEventListener('mouseleave', function() {
+        if (!isMobile()) logo.classList.remove('logo-text-open');
+      });
+    }
+
+    // Mobile: check saved state
+    var savedOpen = localStorage.getItem(STORAGE_KEY) === 'true';
+
+    if (isMobile() && savedOpen) {
+      // User left it open — animate open after delay, then stay open
+      setTimeout(function() {
+        logo.classList.add('logo-text-open');
+        initialDone = true;
+      }, 800);
+    } else {
+      // Initial animation: reveal after 0.8s, hide after 3s hold
+      setTimeout(function() {
+        logo.classList.add('logo-text-open');
+        setTimeout(function() {
+          logo.classList.remove('logo-text-open');
+          initialDone = true;
+          if (!isMobile()) attachDesktopHover();
+        }, 3000);
+      }, 800);
+    }
+
+    // Desktop: also attach hover if we skipped initial animation
+    if (!isMobile()) {
+      if (savedOpen) attachDesktopHover();
+    }
+
+    // Mobile: tap toggle after initial animation
+    logo.addEventListener('click', function(e) {
+      if (isMobile() && initialDone) {
+        e.preventDefault();
+        logo.classList.toggle('logo-text-open');
+        localStorage.setItem(STORAGE_KEY, logo.classList.contains('logo-text-open'));
+      }
+    });
+  })();
 </script>

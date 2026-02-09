@@ -222,7 +222,13 @@
                 <svg class="h-2.5 w-2.5 sm:h-3 sm:w-3 shrink-0">
                   <use xlink:href="#icon-clock"></use>
                 </svg>
-                <span class="leading-none text-xs sm:text-sm"><%= t('due') %>: <%= l(Date.parse(log.due_date.to_s), format: :long) %></span>
+                <span class="leading-none text-xs sm:text-sm">
+                  <% if I18n.locale == :ka %>
+                    <%= l(Date.parse(log.due_date.to_s), format: :long) %>
+                  <% else %>
+                    <%= t('due') %>: <%= l(Date.parse(log.due_date.to_s), format: :long) %>
+                  <% end %>
+                </span>
               </div>
            <% end %>
          </div>
