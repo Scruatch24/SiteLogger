@@ -12,6 +12,12 @@ Rails.application.routes.draw do
   get "history", to: "home#history"
   get "settings", to: "home#settings"
   get "profile", to: "home#profile"
+  get "pricing", to: "home#pricing"
+  get "contact", to: "home#contact"
+  post "send_contact", to: "home#send_contact"
+  get "terms", to: "home#terms"
+  get "privacy", to: "home#privacy"
+  get "refund", to: "home#refund"
 
   # Use 'match' with 'via' to allow both POST and PATCH
   match "save_settings", to: "home#save_settings", via: [ :post, :patch ]

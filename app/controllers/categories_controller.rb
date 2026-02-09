@@ -2,6 +2,10 @@ class CategoriesController < ApplicationController
   before_action :authenticate_user!
 
   def create
+    unless current_user.profile&.paid?
+      redirect_to history_path, alert: t("pro_feature_locked", default: "This feature requires a PRO account.") and return
+    end
+
     @category = current_user.categories.build(category_params)
 
     if params[:category][:icon_type] == "custom" && params[:category][:custom_icon].present?

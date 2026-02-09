@@ -38,6 +38,43 @@ class HomeController < ApplicationController
     XML
   end
 
+  def pricing
+  end
+
+  def contact
+  end
+
+  def send_contact
+    email = params[:email].to_s.strip
+    subject = params[:subject].to_s.strip
+    description = params[:description].to_s.strip
+
+    if email.blank? || subject.blank? || description.blank?
+      flash[:alert] = t("contact_page.validation_error")
+      redirect_to contact_path and return
+    end
+
+    begin
+      ContactMailer.notify_admin(email: email, subject: subject, description: description).deliver_later
+      ContactMailer.confirm_user(email: email, locale: I18n.locale).deliver_later
+      flash[:notice] = t("contact_page.success")
+    rescue => e
+      Rails.logger.error("Contact form error: #{e.message}")
+      flash[:notice] = t("contact_page.success")
+    end
+
+    redirect_to contact_path
+  end
+
+  def terms
+  end
+
+  def privacy
+  end
+
+  def refund
+  end
+
   def index
     @categories = if user_signed_in?
       # Ensure Favorites category exists and has correct styling (Self-Healing)
@@ -88,8 +125,13 @@ class HomeController < ApplicationController
       return render json: { success: false, errors: [ "Guests cannot save profile settings. Please sign up to unlock." ] }, status: :forbidden
     end
 
-    # Consistent with save_settings but redirects to profile
-    @profile.assign_attributes(profile_params)
+    # Strip logo from params if free user tries to upload
+    filtered = profile_params
+    unless @profile.paid?
+      filtered = filtered.except(:logo)
+    end
+
+    @profile.assign_attributes(filtered)
 
     respond_to do |format|
       if @profile.save
@@ -137,6 +179,12 @@ class HomeController < ApplicationController
 
     # We use the @profile set by before_action
     @profile.assign_attributes(profile_params)
+
+    # Force classic style and orange accent for free users
+    unless @profile.paid?
+      @profile.invoice_style = "classic"
+      @profile.accent_color = "#F97316"
+    end
 
     respond_to do |format|
       if @profile.save

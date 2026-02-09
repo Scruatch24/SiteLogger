@@ -458,9 +458,12 @@
     </script>
   </head>
 
-  <body class="bg-white" oncontextmenu="return false;">
+  <body class="min-h-screen flex flex-col" style="background: #050505;" oncontextmenu="return false;">
 
-    <main class="container mx-auto px-0 md:px-4 py-0 md:py-8 max-w-md md:max-w-6xl">
+    <div class="app-content-wrap flex-1 flex flex-col">
+    <%= render 'home/site_header' %>
+
+    <main class="app-main flex-1 container mx-auto px-0 md:px-4 py-0 md:py-4 max-w-md md:max-w-6xl">
       <%# Flash Messages (matching industrial aesthetic) %>
       <% flash.each do |type, message| %>
         <div class="fixed top-4 left-1/2 -translate-x-1/2 z-[50000] w-[calc(100%-2rem)] max-w-md">
@@ -486,6 +489,9 @@
 
       <%= yield %>
     </main>
+    </div>
+
+    <%= render 'home/site_footer' %>
 
     <!-- Premium Tier Modal (Futuristic Industrial Glassmorphism) -->
     <div id="premiumTierModal" class="fixed inset-0 h-[100dvh] z-[20000] hidden items-center justify-center p-4 overflow-hidden overscroll-none">
@@ -562,7 +568,7 @@
                     </div>
                     <span class="text-[11px] font-black text-orange-600 uppercase tracking-widest"><%= t('modal.transcript') %></span>
                   </div>
-                  <span class="text-sm font-black text-black uppercase tracking-tight"><%= t('modal.chars', count: 400) %></span>
+                  <span class="text-sm font-black text-black uppercase tracking-tight"><%= t('modal.chars', count: 300) %></span>
                 </div>
 
                 <!-- Voice Record -->

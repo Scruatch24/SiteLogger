@@ -29,7 +29,7 @@ en:
   pin_log: "Pin Log"
   unpin_log: "Unpin Log"
   add_to_category: "Add to"
-  manage_categories: "Manage Categories"
+  manage_categories: "Manage"
   status: "Status"
   draft: "Draft"
   sent: "Sent"
@@ -148,7 +148,7 @@ en:
   cost: "Cost"
   total: "Total"
   add_labor: "Add Labor"
-  add_material: "Add Materials/Products"
+  add_material: "Add Products"
   add_expense: "Add Expense"
   credit: "Credits"
   add_credit: "Add Credit"
@@ -488,6 +488,132 @@ en:
     login_profile: "Login to Profile"
     keep_previewing: "Keep Previewing"
     you_are_here: "You are here"
+
+  # Navigation
+  nav:
+    home: "Home"
+    history: "History"
+    profile: "Profile"
+    settings: "Settings"
+    pricing: "Pricing"
+    sign_in: "Sign In"
+    sign_up: "Sign Up"
+    log_out: "Log Out"
+    menu: "Menu"
+
+  # Footer
+  footer:
+    slogan: "Speak it. Send it."
+    legal: "Legal"
+    terms: "Terms of Service"
+    privacy: "Privacy Policy"
+    refund: "Refund Policy"
+    contact: "Contact"
+    email_label: "Email"
+    rights: "All rights reserved."
+
+  # Legal Pages
+  terms_page:
+    title: "Terms of Service"
+    updated: "Last updated"
+    content_html: |
+      <h2>1. Acceptance of Terms</h2>
+      <p>By accessing and using TalkInvoice ("the Service"), you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use the Service.</p>
+      <h2>2. Description of Service</h2>
+      <p>TalkInvoice is an AI-powered voice-to-invoice platform that allows users to create professional invoices through natural speech. The Service is provided "as is" and "as available."</p>
+      <h2>3. User Accounts</h2>
+      <p>You are responsible for maintaining the confidentiality of your account credentials and for all activities that occur under your account. You must provide accurate and complete information when creating an account.</p>
+      <h2>4. Acceptable Use</h2>
+      <p>You agree not to misuse the Service, including but not limited to: attempting to gain unauthorized access, interfering with other users, or using the Service for any illegal purpose.</p>
+      <h2>5. Intellectual Property</h2>
+      <p>The Service and its original content, features, and functionality are owned by TalkInvoice and are protected by international copyright, trademark, and other intellectual property laws.</p>
+      <h2>6. Limitation of Liability</h2>
+      <p>TalkInvoice shall not be liable for any indirect, incidental, special, consequential, or punitive damages resulting from your use of or inability to use the Service.</p>
+      <h2>7. Changes to Terms</h2>
+      <p>We reserve the right to modify these terms at any time. Continued use of the Service after changes constitutes acceptance of the new terms.</p>
+
+  privacy_page:
+    title: "Privacy Policy"
+    updated: "Last updated"
+    content_html: |
+      <h2>1. Information We Collect</h2>
+      <p>We collect information you provide directly, including your email address, business information, and invoice data. We also collect usage data such as browser type, IP address, and interaction patterns.</p>
+      <h2>2. How We Use Your Information</h2>
+      <p>We use your information to provide and improve the Service, process your invoices, communicate with you about your account, and ensure the security of the platform.</p>
+      <h2>3. Audio Data</h2>
+      <p>Voice recordings are processed in real-time to generate invoice content. Audio data is sent to third-party AI services for transcription and is not permanently stored on our servers after processing.</p>
+      <h2>4. Data Storage</h2>
+      <p>Your account data and invoices are stored securely. We implement appropriate technical and organizational measures to protect your personal data.</p>
+      <h2>5. Third-Party Services</h2>
+      <p>We use third-party services (including AI processing, analytics, and authentication providers) that may collect and process data according to their own privacy policies.</p>
+      <h2>6. Your Rights</h2>
+      <p>You may request access to, correction of, or deletion of your personal data at any time by contacting us. You may also delete your account, which will remove your stored data.</p>
+      <h2>7. Contact</h2>
+      <p>For privacy-related inquiries, contact us at contact@talkinvoice.online.</p>
+
+  refund_page:
+    title: "Refund Policy"
+    updated: "Last updated"
+    content_html: |
+      <h2>Free Accounts</h2>
+      <p>TalkInvoice offers a free tier with no payment required. There are no charges to refund for free accounts.</p>
+      <h2>Pro Accounts</h2>
+      <p>Pro subscriptions, when available, will be subject to the following refund policy:</p>
+      <ul>
+        <li>You may request a full refund within 7 days of your initial purchase.</li>
+        <li>Refund requests after 7 days will be reviewed on a case-by-case basis.</li>
+        <li>To request a refund, contact us at contact@talkinvoice.online with your account email and reason for the request.</li>
+      </ul>
+      <h2>Processing</h2>
+      <p>Approved refunds will be processed within 5-10 business days and returned to the original payment method.</p>
+
+  contact_page:
+    title: "Contact Us"
+    subtitle: "Have a question, suggestion, or need help? We'd love to hear from you."
+    email_title: "Email Us"
+    email_desc: "For general inquiries, support, or partnership opportunities."
+    response_time: "We typically respond within 24-48 hours due to high activity."
+    your_email: "Your Email"
+    email_placeholder: "you@example.com"
+    subject_label: "Subject"
+    subject_placeholder: "How can we help?"
+    description_label: "Description"
+    description_placeholder: "Tell us more about your question or issue..."
+    send_message: "Send Message"
+    success: "Your message has been sent! Check your email for a confirmation."
+    validation_error: "Please fill in all fields."
+    confirmation_subject: "We received your message — TalkInvoice"
+    confirmation_greeting: "Thank you for reaching out!"
+    confirmation_body: "We have received your message and our team is reviewing it."
+    confirmation_timeline: "Due to high activity, we will respond within 24-48 hours. Thank you for your patience!"
+
+  # PRO Feature Locks
+  pro_only: "PRO Only"
+  pro_feature_locked: "This feature requires a PRO account."
+
+  # Pricing Page
+  pricing: "Pricing"
+  pricing_page:
+    title_html: 'Choose Your<br><span class="onb-accent">Plan</span>'
+    subtitle: "Everything you need to create professional invoices — pick the plan that fits."
+    free_title: "Free"
+    pro_title: "Pro"
+    free_label: "Getting Started"
+    pro_label: "Professional"
+    feature_transcript: "Transcript"
+    feature_voice: "Voice Recording"
+    feature_previews: "Daily Previews"
+    feature_exports: "Daily Exports"
+    feature_designs: "Invoice Designs"
+    feature_colors: "Brand Colors"
+    feature_logo: "Business Logo"
+    feature_categories: "Custom Categories"
+    feature_ai: "Priority AI & Support"
+    classic_only: "Classic Only"
+    orange_only: "Orange Only"
+    all_styles: "All 5 Styles"
+    all_colors: "5 Colors"
+    back_home: "Back to Home"
 
   # Onboarding
   onboarding:

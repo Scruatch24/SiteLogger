@@ -24,7 +24,7 @@ class Profile < ApplicationRecord
 
     PLAN_LIMITS = {
       "guest" => 150,
-      "free" => 400,
+      "free" => 300,
       "paid" => 10000
     }.freeze
 

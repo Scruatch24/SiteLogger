@@ -784,9 +784,10 @@ class InvoiceGenerator
     # Tighter layout if we have many rows (item discounts + global + credits)
     # EXCEPTION: If we are not on the first page, we always use normal sizing.
     is_compact = rows.count > 6 && @pdf.page_number == 1
-    row_h = is_compact ? 15 : 18
-    divider_space = is_compact ? 5 : 8
-    summary_font_size = is_compact ? 8.5 : 9
+    # Further tighten the compact mode to free space when many summary rows are present
+    row_h = is_compact ? 13.5 : 18
+    divider_space = is_compact ? 4 : 8
+    summary_font_size = is_compact ? 8 : 9
 
     summary_width = 240
     table_width = @pdf.bounds.width
@@ -836,8 +837,8 @@ class InvoiceGenerator
     is_fresh = @pdf.cursor > (@pdf.bounds.top - 50)
     @pdf.move_down(is_fresh ? header_gap : item_gap)
 
-    # Check if we have enough room for the summary (+ minimal 10pt bottom cushion)
-    if @pdf.cursor < (h_final + 10)
+    # Check if we have enough room for the summary (no extra bottom cushion)
+    if @pdf.cursor < h_final
       @pdf.start_new_page
       render_continuation_header
       @pdf.move_down header_gap
