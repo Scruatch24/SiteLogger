@@ -503,13 +503,13 @@ ka:
   onboarding:
     skip: "გამოტოვება"
     next: "შემდეგი"
-    s1_headline_html: 'შექმენი ინვოისი<br><span class="onb-accent">შენი ხმით.</span>'
+    s1_headline_html: 'შექმენი ინვოისი<br><span class="onb-accent">შენი ხმით</span>'
     s1_sub: "გადააქციე შენი ხმა პროფესიონალურ, მოწესრიგებულ ინვოისად წამებში."
     tag_dates: "თარიღები"
     tag_items: "ნივთები"
     tag_prices: "ფასები"
     tag_taxes: "გადასახადები"
-    s2_headline_html: 'უბრალოდ გვითხარი,<br><span class="onb-accent">დანარჩენს ჩვენ მოვაგვარებთ.</span>'
+    s2_headline_html: 'უბრალოდ გვითხარი,<br><span class="onb-accent">დანარჩენს ჩვენ მოვაგვარებთ</span>'
     s2_sub: "ყველაფერს ავტომატურად ამოვიცნობთ."
     step_speak: "ხმა"
     step_review: "გადახედვა"
@@ -528,8 +528,8 @@ ka:
     badge_paid: "გადახდილი"
     badge_pending: "მოლოდინში"
     badge_draft: "დრაფტი"
-    s7_headline_html: 'ყველაფერი შენს<br><span class="onb-accent">ხელშია.</span>'
+    s7_headline_html: 'ყველაფერი შენს<br><span class="onb-accent">ხელშია</span>'
     s7_sub: "შეცვალე ყველაფერი ექსპორტამდე. არაფერი იგზავნება ან ინახება შენი თანხმობის გარეშე."
-    s8_headline_html: 'მზად ხარ პირველი<br>ინვოისის <span class="onb-accent">შესაქმნელად?</span>'
+    s8_headline_html: 'მზად ხარ შენი პირველი<br>ინვოისის <span class="onb-accent">შესაქმნელად?</span>'
     cta_button: "სცადე ახლავე"
     cta_note: "გასატესტად ანგარიშიც კი არ გჭირდება"

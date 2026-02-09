@@ -493,7 +493,7 @@ en:
   onboarding:
     skip: "Skip"
     next: "Next"
-    s1_headline_html: 'Create invoices<br><span class="onb-accent">by speaking.</span>'
+    s1_headline_html: 'Create invoices<br><span class="onb-accent">by speaking</span>'
     s1_sub: "Turn voice into professional invoices in seconds."
     tag_dates: "Dates"
     tag_items: "Items"
@@ -518,7 +518,7 @@ en:
     badge_paid: "Paid"
     badge_pending: "Pending"
     badge_draft: "Draft"
-    s7_headline_html: "You're always<br><span class=\"onb-accent\">in control.</span>"
+    s7_headline_html: "You're always<br><span class=\"onb-accent\">in control</span>"
     s7_sub: "Edit everything before exporting. Nothing is sent without your approval."
     s8_headline_html: 'Ready to <span class="onb-accent">voice</span><br>your first invoice?'
     cta_button: "Try it now"
