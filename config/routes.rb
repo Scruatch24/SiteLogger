@@ -6,6 +6,7 @@ Rails.application.routes.draw do
   root "home#index"
 
   post "set_session_locale", to: "home#set_session_locale"
+  post "complete_onboarding", to: "home#complete_onboarding"
   post "set_transcript_language", to: "home#set_transcript_language"
   post "process_audio", to: "home#process_audio"
   get "history", to: "home#history"

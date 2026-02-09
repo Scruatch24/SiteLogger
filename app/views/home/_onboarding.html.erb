@@ -1114,7 +1114,7 @@
 <!-- ============================================ -->
 <!-- ONBOARDING OVERLAY                            -->
 <!-- ============================================ -->
-<div id="onboardingOverlay">
+<div id="onboardingOverlay" style="display:none">
   <!-- Animated background -->
   <div class="onb-bg"></div>
   <div class="onb-grid"></div>
@@ -1387,9 +1387,9 @@
     const overlay = document.getElementById('onboardingOverlay');
     if (!overlay) return;
     if (localStorage.getItem(STORAGE_KEY)) {
-      overlay.style.display = 'none';
       return;
     }
+    overlay.style.display = '';
     document.body.classList.add('overflow-hidden');
     document.documentElement.classList.add('overflow-hidden');
 
@@ -1475,6 +1475,14 @@
     setTimeout(function() {
       overlay.style.display = 'none';
     }, 800);
+    // Mark onboarding complete on server so overlay won't render next time
+    var csrf = document.querySelector('meta[name="csrf-token"]');
+    if (csrf) {
+      fetch('/complete_onboarding', {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': csrf.content, 'Content-Type': 'application/json' }
+      }).catch(function() {});
+    }
   };
 
   // Dot click

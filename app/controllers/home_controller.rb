@@ -7,6 +7,13 @@ class HomeController < ApplicationController
 
 
 
+  def complete_onboarding
+    if user_signed_in? && @profile.persisted?
+      @profile.update_columns(onboarded: true)
+    end
+    head :ok
+  end
+
   def sitemap
     headers["Content-Type"] = "application/xml"
     render xml: <<~XML

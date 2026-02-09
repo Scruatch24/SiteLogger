@@ -11,19 +11,9 @@
   })();
 </script>
 
-<%= render 'onboarding' %>
-
-<!-- SEO: Visible semantic content for search engines -->
-<article class="bg-white text-black font-sans px-4 pt-4 pb-2" data-nosnippet="false">
-  <div class="max-w-md md:max-w-6xl mx-auto">
-    <h1 class="text-[11px] md:text-xs font-black uppercase tracking-widest text-gray-400 text-center">
-      TalkInvoice — <span class="text-orange-600"><%= t('seo_tagline', default: 'AI Voice Invoicing for Professionals') %></span>
-    </h1>
-    <p class="text-[10px] text-gray-300 text-center mt-1 max-w-lg mx-auto leading-relaxed">
-      <%= t('seo_description', default: 'Create professional invoices by speaking. AI-powered voice recording, automatic calculations, and instant PDF generation for contractors, freelancers, and service providers.') %>
-    </p>
-  </div>
-</article>
+<% unless @profile.try(:onboarded?) %>
+  <%= render 'onboarding' %>
+<% end %>
 
 <div class="bg-white text-black font-sans p-4 pb-32 md:pb-10" data-nosnippet>
 
