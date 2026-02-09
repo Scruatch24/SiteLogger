@@ -3016,10 +3016,10 @@ function updateAddMenuButtons() {
     if (!btn) return;
     btn.disabled = isDisabled;
     if (isDisabled) {
-      btn.classList.add('text-gray-300', 'cursor-not-allowed');
+      btn.classList.add('text-gray-300', 'cursor-not-allowed', 'pointer-events-none');
       btn.classList.remove('text-black', 'hover:bg-orange-50', 'hover:text-orange-600', 'hover:bg-red-50', 'hover:text-red-600', 'hover:bg-blue-50', 'hover:text-blue-500');
     } else {
-      btn.classList.remove('text-gray-300', 'cursor-not-allowed');
+      btn.classList.remove('text-gray-300', 'cursor-not-allowed', 'pointer-events-none');
       // Re-add classes based on type if needed, but the HTML has them.
     }
   };

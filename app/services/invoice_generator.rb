@@ -528,8 +528,9 @@ class InvoiceGenerator
     end
 
     # Header Vertical Dividers (Standardized)
-    @pdf.stroke_color "E5E7EB"
-    @pdf.line_width(0.5)
+    header_divider_color = "E5E7EB"
+    @pdf.stroke_color header_divider_color
+    @pdf.line_width(1.0)
     @pdf.stroke do
       x_positions = [ 0, w_desc, w_desc + w_rate, w_desc + w_rate + w_qty, w_desc + w_rate + w_qty + w_amnt, w_desc + w_rate + w_qty + w_amnt + w_disc, table_width ]
       x_positions.each do |x|
@@ -542,10 +543,12 @@ class InvoiceGenerator
     @pdf.line_width(1.0)
 
     # Bottom Header Border Line (Outline)
-    @pdf.stroke_color "E5E7EB"
-    @pdf.line_width(1.0)
-    current_cursor = @pdf.cursor
-    @pdf.stroke_horizontal_line 0, table_width, at: current_cursor - 25
+    unless @style == "classic"
+      @pdf.stroke_color "E5E7EB"
+      @pdf.line_width(1.0)
+      current_cursor = @pdf.cursor
+      @pdf.stroke_horizontal_line 0, table_width, at: current_cursor - 25
+    end
 
     # Move to the bottom of the header bar (25pt)
     @pdf.move_down 25
@@ -647,13 +650,35 @@ class InvoiceGenerator
 
     @pdf.move_down row_h
     end_y = @pdf.cursor
-    @pdf.stroke_color "E5E7EB"
+    divider_color = "E5E7EB"
+    outer_border_color = (@style == "classic") ? @orange_color : divider_color
+
+    # Inner dividers
+    @pdf.stroke_color divider_color
     @pdf.line_width(0.5)
 
     x_positions = [ 0, w_desc, w_desc + w_rate, w_desc + w_rate + w_qty, w_desc + w_rate + w_qty + w_amnt, w_desc + w_rate + w_qty + w_amnt + w_disc, total_width ]
-    x_positions.each { |x| @pdf.stroke_vertical_line start_y, end_y, at: x }
-    @pdf.stroke_horizontal_line 0, total_width, at: end_y
+    inner_positions = x_positions[1..-2]
+    inner_positions.each { |x| @pdf.stroke_vertical_line start_y, end_y, at: x }
+
+    # Outer border: accent only until DESCRIPTION ends; remainder charcoal
+    border_inset = (@style == "classic") ? 0.5 : 0
+    left_edge = 0 + border_inset
+    right_edge = total_width - border_inset
+    desc_edge = left_edge + w_desc
+
+    # Left vertical (accent)
+    @pdf.stroke_color outer_border_color
     @pdf.line_width(1.0)
+    @pdf.stroke_vertical_line start_y, end_y, at: left_edge
+    # Right vertical (charcoal)
+    base_border_color = @charcoal
+    @pdf.stroke_color base_border_color
+    @pdf.stroke_vertical_line start_y, end_y, at: right_edge
+    # Row separator/bottom line stays neutral to avoid accent on internal horizontals
+    @pdf.stroke_color divider_color
+    @pdf.line_width(0.5)
+    @pdf.stroke_horizontal_line left_edge, right_edge, at: end_y
   end
 
   def calculate_column_widths(table_width)
@@ -1606,26 +1631,56 @@ class InvoiceGenerator
   def apply_table_bottom_rounded_corners(table_width, table_bottom_y, radius)
     return unless @style == "classic" && radius > 0
 
+    divider_color = "E5E7EB"
+    outer_border_color = (@style == "classic") ? @orange_color : divider_color
+
+    border_inset = 0.5
+    left_edge = 0 + border_inset
+    right_edge = table_width - border_inset
+    width_adjusted = table_width - (border_inset * 2)
+    desc_edge = left_edge + (@table_widths[:desc] || 0)
+    base_border_color = @charcoal
+    k = 0.5522847498
+
     # 1. Use white fills to mask the sharp bottom corners
     @pdf.fill_color "FFFFFF"
 
     # Bottom-left corner mask - positioned at the very corner, not extending into content
     # Only extends inward by the radius amount to cover the corner intersection
-    @pdf.fill_rectangle [ -1, table_bottom_y + radius + 1 ], radius + 2, radius + 2
+    @pdf.fill_rectangle [ -1 + border_inset, table_bottom_y + radius + 1 ], radius + 2, radius + 2
 
     # Bottom-right corner mask
-    @pdf.fill_rectangle [ table_width - radius - 1, table_bottom_y + radius + 1 ], radius + 2, radius + 2
+    @pdf.fill_rectangle [ right_edge - radius + (border_inset - 1), table_bottom_y + radius + 1 ], radius + 2, radius + 2
 
     # 2. Redraw the vertical side borders from above the mask down to where the curve starts
-    @pdf.stroke_color "E5E7EB"
-    @pdf.line_width(0.5)
+    @pdf.stroke_color outer_border_color
+    @pdf.line_width(1.0)
     # Left vertical line - short segment connecting to the rounded corner
-    @pdf.stroke_vertical_line table_bottom_y + radius + 2, table_bottom_y + radius, at: 0
+    @pdf.stroke_vertical_line table_bottom_y + radius + 2, table_bottom_y + radius, at: left_edge
     # Right vertical line
-    @pdf.stroke_vertical_line table_bottom_y + radius + 2, table_bottom_y + radius, at: table_width
+    @pdf.stroke_color base_border_color
+    @pdf.stroke_vertical_line table_bottom_y + radius + 2, table_bottom_y + radius, at: right_edge
 
-    # 3. Draw the bottom border with rounded corners (includes the curved corners and bottom line)
-    draw_bottom_rounded_border(0, table_bottom_y, table_width, radius)
+    # 3. Draw the bottom border split: accent through DESCRIPTION, charcoal for remainder
+    # Left segment with left rounded corner (accent)
+    @pdf.save_graphics_state
+    @pdf.stroke_color outer_border_color
+    @pdf.line_width(1.0)
+    @pdf.move_to(left_edge, table_bottom_y + radius)
+    @pdf.curve_to([ left_edge + radius, table_bottom_y ], bounds: [ [ left_edge, table_bottom_y + radius * (1 - k) ], [ left_edge + radius * (1 - k), table_bottom_y ] ])
+    @pdf.line_to(desc_edge, table_bottom_y)
+    @pdf.stroke
+    @pdf.restore_graphics_state
+
+    # Right segment including right rounded corner (charcoal)
+    @pdf.save_graphics_state
+    @pdf.stroke_color base_border_color
+    @pdf.line_width(1.0)
+    @pdf.move_to(desc_edge, table_bottom_y)
+    @pdf.line_to(right_edge - radius, table_bottom_y)
+    @pdf.curve_to([ right_edge, table_bottom_y + radius ], bounds: [ [ right_edge - radius * (1 - k), table_bottom_y ], [ right_edge, table_bottom_y + radius * (1 - k) ] ])
+    @pdf.stroke
+    @pdf.restore_graphics_state
   end
 
   def add_footer
