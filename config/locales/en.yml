@@ -555,17 +555,16 @@ en:
     title: "Refund Policy"
     updated: "Last updated"
     content_html: |
+      <p>TalkInvoice uses Paddle as its payment processor and Merchant of Record. All payments and refunds are handled by Paddle in accordance with their invoiced consumer terms.</p>
       <h2>Free Accounts</h2>
-      <p>TalkInvoice offers a free tier with no payment required. There are no charges to refund for free accounts.</p>
-      <h2>Pro Accounts</h2>
-      <p>Pro subscriptions, when available, will be subject to the following refund policy:</p>
-      <ul>
-        <li>You may request a full refund within 7 days of your initial purchase.</li>
-        <li>Refund requests after 7 days will be reviewed on a case-by-case basis.</li>
-        <li>To request a refund, contact us at contact@talkinvoice.online with your account email and reason for the request.</li>
-      </ul>
-      <h2>Processing</h2>
-      <p>Approved refunds will be processed within 5-10 business days and returned to the original payment method.</p>
+      <p>TalkInvoice offers a free tier that does not require payment. As no charges are made for free accounts, no refunds apply.</p>
+      <h2>Paid Subscriptions</h2>
+      <p>Customers who purchase a paid subscription through Paddle are eligible for a full refund within 14 days of the date of purchase, in accordance with Paddle’s refund policy.</p>
+      <h2>How to Request a Refund</h2>
+      <p>Refund requests must be submitted directly through Paddle. Customers may use Paddle’s self-service tools or contact Paddle Support to request a refund.</p>
+      <h2>Refund Processing</h2>
+      <p>All refunds are processed by Paddle and returned to the original payment method used at checkout. Processing times may vary depending on the payment provider or financial institution.</p>
+      <p>By completing a purchase, you acknowledge and agree that all refunds are handled by Paddle under their applicable terms.</p>
 
   contact_page:
     title: "Contact Us"
