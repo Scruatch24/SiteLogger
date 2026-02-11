@@ -125,7 +125,9 @@
   /* Mobile: logo shifts left + text overlays instead of pushing layout */
   @media (max-width: 767px) {
     .site-logo {
-      margin-left: 20px;
+      margin-left: 8px;
+      max-width: 42px;
+      overflow: visible;
     }
     .site-logo.logo-text-open {
       margin-left: 0;
@@ -140,9 +142,11 @@
       background: white;
       z-index: 10;
       border-radius: 0 10px 10px 0;
+      pointer-events: none;
     }
     .site-logo.logo-text-open .site-logo-text-wrap {
-      width: 8rem;
+      width: 7rem;
+      pointer-events: auto;
     }
     .site-logo-text {
       font-size: 0.95rem;

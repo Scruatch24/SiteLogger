@@ -157,12 +157,14 @@
       if (savedOpen) attachDesktopHover();
     }
 
-    // Mobile: tap toggle after initial animation
+    // Mobile: never navigate, tap toggle after initial animation
     logo.addEventListener('click', function(e) {
-      if (isMobile() && initialDone) {
+      if (isMobile()) {
         e.preventDefault();
-        logo.classList.toggle('logo-text-open');
-        localStorage.setItem(STORAGE_KEY, logo.classList.contains('logo-text-open'));
+        if (initialDone) {
+          logo.classList.toggle('logo-text-open');
+          localStorage.setItem(STORAGE_KEY, logo.classList.contains('logo-text-open'));
+        }
       }
     });
   })();
