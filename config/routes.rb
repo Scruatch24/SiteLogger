@@ -44,5 +44,9 @@ Rails.application.routes.draw do
 
   post "track", to: "tracking#track"
 
+  namespace :webhooks do
+    post :paddle, to: "paddle#receive"
+  end
+
   get "sitemap.xml", to: "home#sitemap", defaults: { format: :xml }
 end

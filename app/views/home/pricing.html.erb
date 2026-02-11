@@ -344,7 +344,7 @@
 
       <!-- FREE PLAN -->
       <div class="plan-card plan-free">
-        <div style="position: relative; margin-bottom: 1.5rem;">
+        <div style="position: relative; margin-bottom: 0.75rem; min-height: 84px; display: flex; flex-direction: column; gap: 8px; justify-content: flex-start;">
           <span class="plan-label">
             <% if user_signed_in? && current_user.profile&.free? %>
               <%= t('current_plan') %>
@@ -352,7 +352,7 @@
               <%= t('pricing_page.free_label') %>
             <% end %>
           </span>
-          <div class="plan-title"><%= t('pricing_page.free_title') %></div>
+          <div class="plan-title" style="margin-bottom: 0;"><%= t('pricing_page.free_title') %></div>
         </div>
 
         <div style="flex: 1;">
@@ -496,7 +496,7 @@
 
       <!-- PRO PLAN -->
       <div class="plan-card plan-pro">
-        <div style="position: relative; margin-bottom: 1.5rem;">
+        <div style="position: relative; margin-bottom: 0.75rem; min-height: 84px; display: flex; flex-direction: column; gap: 8px; justify-content: flex-start;">
           <div style="display: flex; align-items: center; justify-content: space-between;">
             <span class="plan-label">
               <% if user_signed_in? && current_user.profile&.paid? %>
@@ -507,7 +507,12 @@
             </span>
             <span class="elite-badge"><%= t('modal.elite') %></span>
           </div>
-          <div class="plan-title" style="color: white;"><%= t('pricing_page.pro_title') %></div>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div class="plan-title" style="color: white; margin-bottom: 0;"><%= t('pricing_page.pro_title') %></div>
+            <span style="font-size: 14px; font-weight: 900; color: white; background: #f97316; padding: 6px 12px; border-radius: 9999px; box-shadow: 0 6px 18px rgba(249,115,22,0.25);">
+              <%= t('modal.pro_price') %>
+            </span>
+          </div>
         </div>
 
         <div style="flex: 1;">
@@ -634,9 +639,20 @@
 
         <!-- CTA -->
         <div>
-          <button class="plan-cta plan-cta-pro" disabled>
-            <%= t('modal.coming_soon') %>
-          </button>
+          <% if user_signed_in? && current_user.profile&.paid? %>
+            <div class="plan-cta" style="background: rgba(249,115,22,0.1); color: #f97316; border: 2px solid rgba(249,115,22,0.2); display: flex; align-items: center; justify-content: center; gap: 6px; cursor: default;">
+              <svg style="width:12px;height:12px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <%= t('modal.you_are_here') %>
+            </div>
+          <% elsif user_signed_in? %>
+            <button onclick="openPaddleCheckout()" class="plan-cta" style="background: linear-gradient(to right, #f97316, #ea580c); color: white; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.3s ease; box-shadow: 0 6px 18px rgba(249,115,22,0.25);" onmouseover="this.style.transform='scale(1.02)'; this.style.boxShadow='0 10px 30px rgba(249,115,22,0.4)';" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 6px 18px rgba(249,115,22,0.25)';">
+              <span><%= t('modal.upgrade_pro') %></span>
+            </button>
+          <% else %>
+            <%= link_to new_user_registration_path, class: "plan-cta", style: "background: linear-gradient(to right, #f97316, #ea580c); color: white; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; text-decoration: none; box-shadow: 0 6px 18px rgba(249,115,22,0.25); transition: all 0.3s ease;", onmouseover: "this.style.transform='scale(1.02)'; this.style.boxShadow='0 10px 30px rgba(249,115,22,0.4)';", onmouseout: "this.style.transform='scale(1)'; this.style.boxShadow='0 6px 18px rgba(249,115,22,0.25)';" do %>
+              <span><%= t('modal.upgrade_pro') %></span>
+            <% end %>
+          <% end %>
         </div>
       </div>
     </div>

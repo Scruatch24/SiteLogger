@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_02_09_150700) do
+ActiveRecord::Schema[8.0].define(version: 2026_02_11_200000) do
   create_schema "auth"
   create_schema "neon_auth"
   create_schema "pgrst"
@@ -141,6 +141,13 @@ ActiveRecord::Schema[8.0].define(version: 2026_02_09_150700) do
     t.string "bog_order_id"
     t.string "bog_currency"
     t.decimal "bog_amount", precision: 10, scale: 2
+    t.string "paddle_subscription_id"
+    t.string "paddle_price_id"
+    t.string "paddle_customer_email"
+    t.string "paddle_subscription_status"
+    t.datetime "paddle_next_bill_at"
+    t.index ["paddle_customer_email"], name: "index_profiles_on_paddle_customer_email"
+    t.index ["paddle_subscription_id"], name: "index_profiles_on_paddle_subscription_id"
     t.index ["user_id"], name: "index_profiles_on_user_id"
   end
 

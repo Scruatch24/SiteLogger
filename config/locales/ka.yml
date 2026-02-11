@@ -494,6 +494,8 @@ ka:
     unlimited: "შეუზღუდავი"
     priority_ai: "პრიორიტეტული AI და მხარდაჭერა"
     coming_soon: "მალე დაემატება"
+    upgrade_pro: "გადავიდე Pro-ზე"
+    pro_price: "$5/თვეში"
     already_pro: "უკვე გაქვთ Pro ანგარიში?"
     login_profile: "პროფილში შესვლა"
     keep_previewing: "გამოტოვება"
@@ -616,10 +618,10 @@ ka:
     feature_logo: "ბიზნეს ლოგო"
     feature_categories: "საკუთარი კატეგორიები"
     feature_ai: "პრიორიტეტული AI და მხარდაჭერა"
-    classic_only: "მხოლოდ კლასიკური"
-    orange_only: "მხოლოდ ნარინჯისფერი"
-    all_styles: "ყველა 5 სტილი"
-    all_colors: "5 ფერი"
+    classic_only: "შეზღუდული"
+    orange_only: "შეზღუდული"
+    all_styles: "ყველა"
+    all_colors: "ყველა"
     back_home: "მთავარ გვერდზე"
 
   # Onboarding

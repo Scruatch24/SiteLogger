@@ -484,6 +484,8 @@ en:
     unlimited: "UNLIMITED"
     priority_ai: "Priority AI & Support"
     coming_soon: "Coming Soon"
+    upgrade_pro: "Upgrade to Pro"
+    pro_price: "$5/month"
     already_pro: "Already have a pro account?"
     login_profile: "Login to Profile"
     keep_previewing: "Keep Previewing"
@@ -608,10 +610,10 @@ en:
     feature_logo: "Business Logo"
     feature_categories: "Custom Categories"
     feature_ai: "Priority AI & Support"
-    classic_only: "Classic Only"
-    orange_only: "Orange Only"
-    all_styles: "All 5 Styles"
-    all_colors: "5 Colors"
+    classic_only: "Limited"
+    orange_only: "Limited"
+    all_styles: "All"
+    all_colors: "All"
     back_home: "Back to Home"
 
   # Onboarding
