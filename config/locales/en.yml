@@ -616,6 +616,16 @@ en:
     all_colors: "All"
     back_home: "Back to Home"
 
+  # Checkout Page
+  checkout_page:
+    title_html: 'Complete Your<br><span class="onb-accent">Upgrade</span>'
+    subtitle: "You're one step away from unlocking the full power of TalkInvoice Pro."
+    back_pricing: "Back to Pricing"
+    order_summary: "Order Summary"
+    payment_details: "Payment Details"
+    secure_checkout: "Secure checkout powered by Paddle"
+    loading: "Loading checkout..."
+
   # Onboarding
   onboarding:
     skip: "Skip"

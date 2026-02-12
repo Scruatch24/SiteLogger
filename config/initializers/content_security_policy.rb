@@ -24,9 +24,13 @@ Rails.application.configure do
                        "https://www.google-analytics.com",
                        "https://www.googletagmanager.com",
                        "https://api.paddle.com",
+                       "https://sandbox-api.paddle.com",
                        "https://checkout.paddle.com",
                        "https://sandbox.checkout.paddle.com",
-                       "https://buy.paddle.com"  # Gemini API + Google Analytics + Paddle APIs
+                       "https://checkout-service.paddle.com",
+                       "https://sandbox-checkout-service.paddle.com",
+                       "https://buy.paddle.com",
+                       "https://sandbox-buy.paddle.com"  # Gemini API + Google Analytics + Paddle APIs
 
     # External CDN for flag icons
     policy.style_src   :self, :https, :unsafe_inline, "https://cdn.jsdelivr.net"

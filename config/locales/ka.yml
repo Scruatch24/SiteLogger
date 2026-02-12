@@ -624,6 +624,16 @@ ka:
     all_colors: "ყველა"
     back_home: "მთავარ გვერდზე"
 
+  # Checkout Page
+  checkout_page:
+    title_html: 'დაასრულე<br><span class="onb-accent">განახლება</span>'
+    subtitle: "ერთი ნაბიჯი გაშორებთ TalkInvoice Pro-ს სრული შესაძლებლობების გახსნას."
+    back_pricing: "ფასებზე დაბრუნება"
+    order_summary: "შეკვეთის შეჯამება"
+    payment_details: "გადახდის დეტალები"
+    secure_checkout: "უსაფრთხო გადახდა Paddle-ით"
+    loading: "იტვირთება..."
+
   # Onboarding
   onboarding:
     skip: "გამოტოვება"

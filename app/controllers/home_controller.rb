@@ -75,6 +75,9 @@ class HomeController < ApplicationController
   def refund
   end
 
+  def checkout
+  end
+
   def index
     @categories = if user_signed_in?
       # Ensure Favorites category exists and has correct styling (Self-Healing)
