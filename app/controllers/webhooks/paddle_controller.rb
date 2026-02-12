@@ -139,7 +139,8 @@ class Webhooks::PaddleController < ApplicationController
 
     require "net/http"
     require "json"
-    uri = URI("https://api.paddle.com/customers/#{customer_id}")
+    base_url = Rails.env.production? ? "https://api.paddle.com" : "https://sandbox-api.paddle.com"
+    uri = URI("#{base_url}/customers/#{customer_id}")
     req = Net::HTTP::Get.new(uri)
     req["Authorization"] = "Bearer #{api_key}"
     http = Net::HTTP.new(uri.host, uri.port)

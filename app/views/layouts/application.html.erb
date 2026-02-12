@@ -84,20 +84,15 @@
         if (typeof Paddle === 'undefined') return;
 
         const paddleToken = '<%= ENV["PADDLE_CLIENT_TOKEN"].to_s %>';
-        const paddleSellerIdRaw = '<%= (ENV["PADDLE_SELLER_ID"].presence || "48084") %>';
-        const paddleSellerId = parseInt(paddleSellerIdRaw, 10);
-        const initOptions = {};
+        if (paddleToken.length === 0) {
+          console.error('Paddle credentials missing: set PADDLE_CLIENT_TOKEN');
+          return;
+        }
 
-        if (paddleToken.length > 0) initOptions.token = paddleToken;
-        if (!Number.isNaN(paddleSellerId)) initOptions.seller = paddleSellerId;
+        const initOptions = { token: paddleToken };
         <% unless Rails.env.production? %>
           initOptions.environment = 'sandbox';
         <% end %>
-
-        if (Object.keys(initOptions).length === 0) {
-          console.error('Paddle credentials missing: set PADDLE_CLIENT_TOKEN or PADDLE_SELLER_ID');
-          return;
-        }
 
         Paddle.Initialize(initOptions);
       });
