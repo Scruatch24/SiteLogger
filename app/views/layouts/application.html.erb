@@ -84,11 +84,12 @@
         if (typeof Paddle === 'undefined') return;
 
         const paddleToken = '<%= ENV["PADDLE_CLIENT_TOKEN"].to_s %>';
-        const paddleSellerId = '<%= (ENV["PADDLE_SELLER_ID"] || "48084").to_s %>';
+        const paddleSellerIdRaw = '<%= (ENV["PADDLE_SELLER_ID"].presence || "48084") %>';
+        const paddleSellerId = parseInt(paddleSellerIdRaw, 10);
         const initOptions = {};
 
         if (paddleToken.length > 0) initOptions.token = paddleToken;
-        if (paddleSellerId.length > 0) initOptions.seller = paddleSellerId;
+        if (!Number.isNaN(paddleSellerId)) initOptions.seller = paddleSellerId;
 
         <% unless Rails.env.production? %>
           Paddle.Environment.set('sandbox');
