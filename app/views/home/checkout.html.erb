@@ -349,7 +349,7 @@
       <!-- Right: Paddle Inline Checkout -->
       <div class="checkout-paddle-wrap">
         <div class="checkout-paddle-label"><%= t('checkout_page.payment_details') %></div>
-        <div id="paddle-checkout-container">
+        <div class="paddle-checkout-container">
           <div class="checkout-loading" id="checkout-loading">
             <div class="checkout-loading-spinner"></div>
             <span class="checkout-loading-text"><%= t('checkout_page.loading') %></span>
@@ -394,7 +394,7 @@
 
     // Hide loading spinner once Paddle iframe appears
     var checkInterval = setInterval(function() {
-      var iframe = document.querySelector('#paddle-checkout-container iframe');
+      var iframe = document.querySelector('.paddle-checkout-container iframe');
       if (iframe) {
         var loader = document.getElementById('checkout-loading');
         if (loader) loader.style.display = 'none';
