@@ -104,12 +104,33 @@
           console.error('Paddle.js not loaded');
           return;
         }
+        const successUrl = '<%= (ENV["PADDLE_SUCCESS_URL"].presence || root_url).to_s %>';
+        const checkoutContainerId = 'paddle-inline-checkout';
         var settings = {
-          items: [{ priceId: '<%= ENV["PADDLE_PRICE_ID"] || "pri_01kh7aq09r0kyg8dvgwp6bk0dz" %>', quantity: 1 }]
+          items: [{ priceId: '<%= ENV["PADDLE_PRICE_ID"] || "pri_01kh7aq09r0kyg8dvgwp6bk0dz" %>', quantity: 1 }],
+          successUrl: successUrl,
+          settings: {
+            displayMode: 'inline',
+            target: `#${checkoutContainerId}`
+          }
         };
+
+        <% if ENV["PADDLE_CANCEL_URL"].present? %>
+          settings.cancelUrl = '<%= ENV["PADDLE_CANCEL_URL"] %>';
+        <% end %>
+
         <% if user_signed_in? && current_user.email.present? %>
           settings.customer = { email: '<%= current_user.email %>' };
         <% end %>
+        var container = document.getElementById(checkoutContainerId);
+        if (!container) {
+          container = document.createElement('div');
+          container.id = checkoutContainerId;
+          container.className = 'paddle-inline-checkout shadow-2xl rounded-3xl border border-orange-500/30 mt-6';
+          var pricingSection = document.querySelector('[data-section="pricing"]') || document.body;
+          pricingSection.appendChild(container);
+        }
+        container.classList.remove('hidden');
         Paddle.Checkout.open(settings);
       };
     </script>

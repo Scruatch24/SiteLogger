@@ -638,7 +638,7 @@
         </div>
 
         <!-- CTA -->
-        <div>
+        <div data-section="pricing">
           <% if user_signed_in? && current_user.profile&.paid? %>
             <div class="plan-cta" style="background: rgba(249,115,22,0.1); color: #f97316; border: 2px solid rgba(249,115,22,0.2); display: flex; align-items: center; justify-content: center; gap: 6px; cursor: default;">
               <svg style="width:12px;height:12px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -652,6 +652,7 @@
             <%= link_to new_user_registration_path, class: "plan-cta", style: "background: linear-gradient(to right, #f97316, #ea580c); color: white; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; text-decoration: none; box-shadow: 0 6px 18px rgba(249,115,22,0.25); transition: all 0.3s ease;", onmouseover: "this.style.transform='scale(1.02)'; this.style.boxShadow='0 10px 30px rgba(249,115,22,0.4)';", onmouseout: "this.style.transform='scale(1)'; this.style.boxShadow='0 6px 18px rgba(249,115,22,0.25)';" do %>
               <span><%= t('modal.upgrade_pro') %></span>
             <% end %>
+            <div id="paddle-inline-checkout" class="hidden mt-8 w-full"></div>
           <% end %>
         </div>
       </div>
