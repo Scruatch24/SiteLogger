@@ -13,7 +13,8 @@ Rails.application.configure do
     policy.frame_src   :self, :blob,
                        "https://checkout.paddle.com",
                        "https://sandbox.checkout.paddle.com",
-                       "https://buy.paddle.com"
+                       "https://buy.paddle.com",
+                       "https://sandbox-buy.paddle.com"
     policy.media_src   :self, :blob  # For audio recording
     policy.script_src  :self, :https, :unsafe_inline, :unsafe_eval,
                        "https://cdn.paddle.com", "https://sandbox-cdn.paddle.com"  # Paddle JS
