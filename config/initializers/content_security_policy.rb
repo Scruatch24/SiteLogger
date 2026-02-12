@@ -10,7 +10,10 @@ Rails.application.configure do
     policy.font_src    :self, :https, :data
     policy.img_src     :self, :https, :data, :blob
     policy.object_src  :self, :blob  # For PDF previews
-    policy.frame_src   :self, :blob, "https://checkout.paddle.com", "https://sandbox.checkout.paddle.com"  # For PDF iframes + Paddle checkout
+    policy.frame_src   :self, :blob,
+                       "https://checkout.paddle.com",
+                       "https://sandbox.checkout.paddle.com",
+                       "https://buy.paddle.com"
     policy.media_src   :self, :blob  # For audio recording
     policy.script_src  :self, :https, :unsafe_inline, :unsafe_eval,
                        "https://cdn.paddle.com", "https://sandbox-cdn.paddle.com"  # Paddle JS
@@ -21,7 +24,8 @@ Rails.application.configure do
                        "https://www.googletagmanager.com",
                        "https://api.paddle.com",
                        "https://checkout.paddle.com",
-                       "https://sandbox.checkout.paddle.com"  # Gemini API + Google Analytics + Paddle APIs
+                       "https://sandbox.checkout.paddle.com",
+                       "https://buy.paddle.com"  # Gemini API + Google Analytics + Paddle APIs
 
     # External CDN for flag icons
     policy.style_src   :self, :https, :unsafe_inline, "https://cdn.jsdelivr.net"
