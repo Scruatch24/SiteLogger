@@ -90,9 +90,8 @@
 
         if (paddleToken.length > 0) initOptions.token = paddleToken;
         if (!Number.isNaN(paddleSellerId)) initOptions.seller = paddleSellerId;
-
         <% unless Rails.env.production? %>
-          Paddle.Environment.set('sandbox');
+          initOptions.environment = 'sandbox';
         <% end %>
 
         if (Object.keys(initOptions).length === 0) {
