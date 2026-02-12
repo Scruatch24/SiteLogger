@@ -81,14 +81,25 @@
     <script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
     <script>
       document.addEventListener('DOMContentLoaded', function() {
-        if (typeof Paddle !== 'undefined') {
-          <% if Rails.env.production? %>
-            Paddle.Initialize({ token: '<%= ENV["PADDLE_CLIENT_TOKEN"] %>' });
-          <% else %>
-            Paddle.Environment.set('sandbox');
-            Paddle.Initialize({ token: '<%= ENV["PADDLE_CLIENT_TOKEN"] %>' });
-          <% end %>
+        if (typeof Paddle === 'undefined') return;
+
+        const paddleToken = '<%= ENV["PADDLE_CLIENT_TOKEN"].to_s %>';
+        const paddleSellerId = '<%= (ENV["PADDLE_SELLER_ID"] || "48084").to_s %>';
+        const initOptions = {};
+
+        if (paddleToken.length > 0) initOptions.token = paddleToken;
+        if (paddleSellerId.length > 0) initOptions.seller = paddleSellerId;
+
+        <% unless Rails.env.production? %>
+          Paddle.Environment.set('sandbox');
+        <% end %>
+
+        if (Object.keys(initOptions).length === 0) {
+          console.error('Paddle credentials missing: set PADDLE_CLIENT_TOKEN or PADDLE_SELLER_ID');
+          return;
         }
+
+        Paddle.Initialize(initOptions);
       });
 
       window.openPaddleCheckout = function() {
