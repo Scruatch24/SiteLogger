@@ -11,6 +11,7 @@ function autoResize(el) {
     el.style.height = newHeight + 'px';
     el.style.overflowY = 'hidden';
   }
+
 }
 
 // Currency Data & Helpers
@@ -2169,6 +2170,9 @@ document.addEventListener("DOMContentLoaded", () => {
       saveLabel.classList.add('text-center');
     }
   }
+
+  window.updateSaveButtonToSavedState = updateSaveButtonToSavedState;
+  window.updateSaveButtonToLimitState = updateSaveButtonToLimitState;
 
   window.finalSaveLog = async function (options = { redirect: true }) {
     const saveBtn = document.getElementById('pdfModalSaveBtn');
@@ -5769,8 +5773,6 @@ Object.assign(window, {
   updateLaborRowModelUI,
   updateTotalsSummary,
   adjustBadgeSpacing,
-  updateSaveButtonToSavedState,
-  updateSaveButtonToLimitState,
   updateDueDate,
   toggleCalendar,
   changeCalendarMonth,
