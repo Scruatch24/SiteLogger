@@ -1576,6 +1576,12 @@ document.addEventListener("DOMContentLoaded", () => {
     resetRecorderUI();
   }
 
+  // Expose recorder functions to global scope for Object.assign(window, {...}) export
+  window.resetRecorderUI = resetRecorderUI;
+  window.processAudio = processAudio;
+  window.startAnalysisUI = startAnalysisUI;
+  window.stopAnalysisUI = stopAnalysisUI;
+
   reParseBtn.onclick = async () => {
     const text = transcriptArea.value;
     const limit = window.profileCharLimit || 2000;
