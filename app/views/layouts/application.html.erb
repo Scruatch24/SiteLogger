@@ -89,11 +89,12 @@
           return;
         }
 
-        const initOptions = { token: paddleToken };
         <% paddle_env = ENV["PADDLE_ENVIRONMENT"].presence || (Rails.env.production? ? "production" : "sandbox") %>
         <% if paddle_env == "sandbox" %>
-          initOptions.environment = 'sandbox';
+          Paddle.Environment && Paddle.Environment.set('sandbox');
         <% end %>
+
+        const initOptions = { token: paddleToken };
 
         Paddle.Initialize(initOptions);
       });
