@@ -90,7 +90,8 @@
         }
 
         const initOptions = { token: paddleToken };
-        <% unless Rails.env.production? %>
+        <% paddle_env = ENV["PADDLE_ENVIRONMENT"].presence || (Rails.env.production? ? "production" : "sandbox") %>
+        <% if paddle_env == "sandbox" %>
           initOptions.environment = 'sandbox';
         <% end %>
 
