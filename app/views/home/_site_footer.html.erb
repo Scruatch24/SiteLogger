@@ -34,9 +34,9 @@
       </ul>
     </div>
 
-    <!-- Column 3: Contact -->
+    <!-- Column 3: Help -->
     <div class="site-footer-col">
-      <h4 class="site-footer-heading"><%= t('footer.contact') %></h4>
+      <h4 class="site-footer-heading"><%= t('footer.help') %></h4>
       <ul class="site-footer-links">
         <li><%= link_to t('footer.contact'), contact_path %></li>
         <li>
@@ -45,5 +45,16 @@
         </li>
       </ul>
     </div>
+
+    <% unless user_signed_in? %>
+    <!-- Column 4: My Account (Guests only) -->
+    <div class="site-footer-col">
+      <h4 class="site-footer-heading"><%= t('footer.my_account') %></h4>
+      <ul class="site-footer-links">
+        <li><%= link_to t('footer.sign_in'), new_user_session_path %></li>
+        <li><%= link_to t('footer.register'), new_user_registration_path %></li>
+      </ul>
+    </div>
+    <% end %>
   </div>
 </footer>

@@ -521,8 +521,12 @@ ka:
     privacy: "კონფიდენციალურობა"
     refund: "თანხის დაბრუნება"
     contact: "კონტაქტი"
+    help: "დახმარება"
     email_label: "ელფოსტა"
     rights: "ყველა უფლება დაცულია."
+    my_account: "ჩემი ანგარიში"
+    sign_in: "შესვლა"
+    register: "რეგისტრაცია"
 
   # Legal Pages
   terms_page:
