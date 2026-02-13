@@ -615,6 +615,7 @@ en:
     all_styles: "All"
     all_colors: "All"
     back_home: "Back to Home"
+    recommended_label: "Recommended"
 
   # Checkout Page
   checkout_page:

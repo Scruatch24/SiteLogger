@@ -606,9 +606,9 @@ ka:
     title_html: 'აირჩიე შენი<br><span class="onb-accent">გეგმა</span>'
     subtitle: "ყველაფერი რაც გჭირდებათ პროფესიონალური ინვოისების შესაქმნელად — აირჩიეთ შესაფერისი გეგმა."
     free_title: "უფასო"
-    pro_title: "Pro"
+    pro_title: "PRO"
     free_label: "დასაწყისი"
-    pro_label: "პროფესიონალი"
+    pro_label: "პროფესიონალური"
     feature_transcript: "ტრანსკრიპტი"
     feature_voice: "ხმის ჩაწერა"
     feature_previews: "დღიური გადახედვები"
@@ -623,6 +623,7 @@ ka:
     all_styles: "ყველა"
     all_colors: "ყველა"
     back_home: "მთავარ გვერდზე"
+    recommended_label: "რეკომენდირებული"
 
   # Checkout Page
   checkout_page:
@@ -631,7 +632,7 @@ ka:
     back_pricing: "ფასებზე დაბრუნება"
     order_summary: "შეკვეთის შეჯამება"
     payment_details: "გადახდის დეტალები"
-    secure_checkout: "უსაფრთხო გადახდა Paddle-ით"
+    secure_checkout: "უსაფრთხო გადახდა Paddle-ით (ინგლისურენოვანი)"
     loading: "იტვირთება..."
 
   # Onboarding
