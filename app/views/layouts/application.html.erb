@@ -571,7 +571,7 @@
 
                <div class="absolute -top-4 -right-4 w-24 h-24 bg-orange-100 rounded-full blur-2xl opacity-50 group-hover:scale-150 transition-transform"></div>
                
-               <div class="relative space-y-1 mb-8 min-h-[96px] flex flex-col justify-between">
+               <div class="relative space-y-1 mb-8 flex flex-col justify-between">
                 <div class="flex items-center justify-between">
                   <span class="text-[10px] font-black uppercase tracking-widest text-orange-600">
                     <% if user_signed_in? && current_user.profile&.free? %>
@@ -666,13 +666,13 @@
 
                <div class="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-transparent pointer-events-none"></div>
                
-               <div class="relative space-y-1 mb-8 min-h-[96px] flex flex-col justify-between">
+               <div class="relative space-y-1 mb-8 flex flex-col justify-between">
                 <div class="flex items-center">
                   <span class="text-[10px] font-black uppercase tracking-widest text-orange-500">
                     <% if user_signed_in? && current_user.profile&.paid? %>
                       <%= t('current_plan') %>
                     <% else %>
-                      <%= t('professional') %>
+                      <%= t('pricing_page.pro_label') %>
                     <% end %>
                   </span>
                 </div>
