@@ -17,8 +17,8 @@
 
       <div class="w-full space-y-6">
         <div class="text-center">
-          <h2 class="text-xl font-black uppercase tracking-tighter mb-1 select-none">Set New Password</h2>
-          <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Secure your account access</p>
+          <h2 class="text-xl font-black uppercase tracking-tighter mb-1 select-none"><%= t('set_new_password') %></h2>
+          <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest"><%= t('secure_account_access') %></p>
         </div>
 
         <%# Form %>
@@ -28,26 +28,26 @@
 
           <div class="space-y-2">
             <div class="flex justify-between items-center ml-1">
-               <%= f.label :password, "New Password", class: "text-[10px] font-black text-black uppercase tracking-widest" %>
+               <%= f.label :password, t('new_password'), class: "text-[10px] font-black text-black uppercase tracking-widest" %>
                <% if @minimum_password_length %>
-                 <span class="text-[8px] font-black text-gray-400 uppercase tracking-widest"><%= @minimum_password_length %> chars min</span>
+                 <span class="text-[8px] font-black text-gray-400 uppercase tracking-widest"><%= @minimum_password_length %> <%= t('chars_min') %></span>
                <% end %>
             </div>
             <%= f.password_field :password, autofocus: true, autocomplete: "new-password", placeholder: "••••••••", class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all" %>
           </div>
 
           <div class="space-y-2">
-            <%= f.label :password_confirmation, "Confirm Password", class: "text-[10px] font-black text-black uppercase tracking-widest ml-1" %>
+            <%= f.label :password_confirmation, t('password_confirmation'), class: "text-[10px] font-black text-black uppercase tracking-widest ml-1" %>
             <%= f.password_field :password_confirmation, autocomplete: "new-password", placeholder: "••••••••", class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all" %>
           </div>
 
           <div class="pt-2">
-            <%= f.submit "Update Password", class: "w-full py-4 bg-orange-600 text-white border-2 border-black rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-[4px_4px_0px_0px_#000000] active:scale-[0.97] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all cursor-pointer" %>
+            <%= f.submit t('update_password'), class: "w-full py-4 bg-orange-600 text-white border-2 border-black rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-[4px_4px_0px_0px_#000000] active:scale-[0.97] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all cursor-pointer" %>
           </div>
         <% end %>
 
         <div class="text-center pt-2">
-           <%= link_to "Log In", new_session_path(resource_name), class: "text-[10px] font-black text-orange-600 uppercase tracking-widest hover:underline" %>
+           <%= link_to t('log_in'), new_session_path(resource_name), class: "text-[10px] font-black text-orange-600 uppercase tracking-widest hover:underline" %>
         </div>
       </div>
     </div>

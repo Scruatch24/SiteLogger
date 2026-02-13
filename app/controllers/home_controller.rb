@@ -125,7 +125,7 @@ class HomeController < ApplicationController
 
   def save_profile
     if @profile.guest?
-      return render json: { success: false, errors: [ "Guests cannot save profile settings. Please sign up to unlock." ] }, status: :forbidden
+      return render json: { success: false, errors: [ t('guests_cannot_save') ] }, status: :forbidden
     end
 
     # Strip logo from params if free user tries to upload
@@ -177,7 +177,7 @@ class HomeController < ApplicationController
 
   def save_settings
     if @profile.guest?
-      return render json: { success: false, errors: [ "Guests cannot save settings. Please sign up to unlock." ] }, status: :forbidden
+      return render json: { success: false, errors: [ t('guests_cannot_save') ] }, status: :forbidden
     end
 
     # We use the @profile set by before_action
@@ -515,10 +515,10 @@ PROMPT
         ]
       else
         audio = params[:audio]
-        return render json: { error: "No audio" }, status: 400 unless audio
+        return render json: { error: t('no_audio') }, status: 400 unless audio
 
         if audio.size > 10.megabytes
-          return render json: { error: "Audio too large (Limit: 10MB)" }, status: 413
+          return render json: { error: t('audio_too_large') }, status: 413
         end
 
         audio_data = Base64.strict_encode64(audio.read)
@@ -547,7 +547,7 @@ PROMPT
 
       unless raw
         Rails.logger.error "AI FAILURE: No raw text in response. Body: #{body.to_json}"
-        return render json: { error: "AI failed to generate a response" }, status: 500
+        return render json: { error: t('ai_failed_response') }, status: 500
       end
 
       Rails.logger.info "AI RAW RESPONSE: #{raw}"
@@ -565,7 +565,7 @@ PROMPT
         Rails.logger.error "AI NO JSON FOUND IN RAW: #{raw}"
       end
 
-      return render json: { error: "Invalid AI output" }, status: 422 unless json
+      return render json: { error: t('invalid_ai_output') }, status: 422 unless json
 
       if json["error"]
         Rails.logger.warn "AI RETURNED ERROR: #{json["error"]}"
