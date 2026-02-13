@@ -1,21 +1,15 @@
 <div style="text-align: center;">
-  <div style="margin: 0 0 20px 0; font-family: sans-serif; font-size: 22px; font-weight: 900; letter-spacing: -0.04em; text-transform: uppercase;">
-    <span style="color: #000000;">TALK</span><span style="color: #ea580c;">INVOICE</span>
-  </div>
+  <h2 style="margin: 0 0 20px 0; font-family: sans-serif; font-size: 20px; font-weight: 900; font-style: normal; text-transform: uppercase; letter-spacing: -0.02em; color: #000000;">
+    <%= I18n.t('contact_page.confirmation_greeting', locale: @locale) %>
+  </h2>
 
-  <div style="display: inline-block; width: 100%; max-width: 480px; background-color: #faf9f5; border: 2px solid #000000; border-radius: 20px; padding: 32px 28px; text-align: center;">
-    <h2 style="margin: 0 0 20px 0; font-family: sans-serif; font-size: 20px; font-weight: 900; font-style: normal; text-transform: uppercase; letter-spacing: -0.02em; color: #000000;">
-      <%= I18n.t('contact_page.confirmation_greeting', locale: @locale) %>
-    </h2>
+  <p style="margin: 0 0 16px 0; font-family: sans-serif; font-size: 16px; line-height: 1.6; color: #374151;">
+    <%= I18n.t('contact_page.confirmation_body', locale: @locale) %>
+  </p>
 
-    <p style="margin: 0 0 16px 0; font-family: sans-serif; font-size: 16px; line-height: 1.6; color: #374151;">
-      <%= I18n.t('contact_page.confirmation_body', locale: @locale) %>
-    </p>
+  <p style="margin: 0 0 24px 0; font-family: sans-serif; font-size: 14px; line-height: 1.6; color: #6b7280;">
+    <%= I18n.t('contact_page.confirmation_timeline', locale: @locale) %>
+  </p>
 
-    <p style="margin: 0 0 24px 0; font-family: sans-serif; font-size: 14px; line-height: 1.6; color: #6b7280;">
-      <%= I18n.t('contact_page.confirmation_timeline', locale: @locale) %>
-    </p>
-
-    <p style="margin: 0; font-family: sans-serif; font-size: 14px; color: #374151;">— <span style="font-weight: 900; color: #000000;">Talk</span><span style="font-weight: 900; color: #ea580c;">Invoice</span> Team</p>
-  </div>
+  <p style="margin: 0; font-family: sans-serif; font-size: 14px; color: #374151;">— <span style="font-weight: 900; color: #000000;">Talk</span><span style="font-weight: 900; color: #ea580c;">Invoice</span> Team</p>
 </div>
