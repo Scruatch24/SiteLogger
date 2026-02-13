@@ -198,21 +198,26 @@
 
   /* Paddle Inline Container */
   .checkout-paddle-wrap {
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.08);
+    background: #ffffff;
+    border: 1px solid rgba(255,255,255,0.1);
     border-radius: 24px;
     padding: 1.5rem;
-    backdrop-filter: blur(8px);
     min-height: 400px;
+    color: #0a0a0a;
+    box-shadow: 0 30px 60px rgba(0,0,0,0.35);
   }
   .checkout-paddle-label {
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 900;
     text-transform: uppercase;
     letter-spacing: 0.2em;
-    color: #f97316;
+    color: #0f172a;
     margin-bottom: 1rem;
     text-align: center;
+  }
+  .paddle-checkout-container {
+    background: #fff;
+    border-radius: 20px;
   }
 
   /* Paddle loading state */
@@ -348,7 +353,6 @@
 
       <!-- Right: Paddle Inline Checkout -->
       <div class="checkout-paddle-wrap">
-        <div class="checkout-paddle-label"><%= t('checkout_page.payment_details') %></div>
         <div class="paddle-checkout-container">
           <div class="checkout-loading" id="checkout-loading">
             <div class="checkout-loading-spinner"></div>
