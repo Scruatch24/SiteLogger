@@ -261,7 +261,7 @@ ka:
     note: "მადლობა თანამშრომლობისთვის!"
   invoice_design: "ინვოისის დიზაინი"
   classic: "კლასიკური"
-  professional: "პროფესიონალური"
+  professional: "პრო"
   modern: "თანამედროვე"
   bold: "მკვეთრი"
   minimal: "მინიმალისტური"
@@ -492,10 +492,10 @@ ka:
     signup_free: "უფასოდ რეგისტრაცია"
     elite: "პრემიუმი"
     unlimited: "შეუზღუდავი"
-    priority_ai: "პრიორიტეტული AI და მხარდაჭერა"
+    priority_ai: "პრიორიტეტული AI და საპორტი"
     coming_soon: "მალე დაემატება"
     upgrade_pro: "გახდი Pro"
-    pro_price: "$5/თვეში"
+    pro_price: "$5/თვე"
     already_pro: "უკვე გაქვთ Pro ანგარიში?"
     login_profile: "პროფილში შესვლა"
     keep_previewing: "გამოტოვება"
@@ -603,11 +603,11 @@ ka:
   # Pricing Page
   pricing: "ფასები"
   pricing_page:
-    title_html: 'აირჩიე შენი<br><span class="onb-accent">გეგმა</span>'
-    subtitle: "ყველაფერი რაც გჭირდებათ პროფესიონალური ინვოისების შესაქმნელად — აირჩიეთ შესაფერისი გეგმა."
+    title_html: 'აირჩიე<br><span class="onb-accent">გეგმა</span>'
+    subtitle: "ყველაფერი რაც გჭირდებათ პროფესიონალური ინვოისების შესაქმნელად — აირჩიეთ თქვენთვის შესაფერისი გეგმა."
     free_title: "უფასო"
     pro_title: "PRO"
-    free_label: "დასაწყისი"
+    free_label: "საწყისი"
     pro_label: "პროფესიონალური"
     feature_transcript: "ტრანსკრიპტი"
     feature_voice: "ხმის ჩაწერა"
@@ -617,18 +617,17 @@ ka:
     feature_colors: "ბრენდის ფერები"
     feature_logo: "ბიზნეს ლოგო"
     feature_categories: "საკუთარი კატეგორიები"
-    feature_ai: "პრიორიტეტული AI და მხარდაჭერა"
+    feature_ai: "პრიორიტეტული AI და საპორტი"
     classic_only: "შეზღუდული"
     orange_only: "შეზღუდული"
     all_styles: "ყველა"
     all_colors: "ყველა"
     back_home: "მთავარ გვერდზე"
-    recommended_label: "რეკომენდირებული"
 
   # Checkout Page
   checkout_page:
-    title_html: 'დაასრულე<br><span class="onb-accent">განახლება</span>'
-    subtitle: "ერთი ნაბიჯი გაშორებთ TalkInvoice Pro-ს სრული შესაძლებლობების გახსნას."
+    title_html: 'დაასრულე<br><span class="onb-accent">გადახდა</span>'
+    subtitle: "მხოლოდ ერთი ნაბიჯი გაშორებთ Pro-ს სრული შესაძლებლობების გასახსნელად."
     back_pricing: "ფასებზე დაბრუნება"
     order_summary: "შეკვეთის შეჯამება"
     payment_details: "გადახდის დეტალები"

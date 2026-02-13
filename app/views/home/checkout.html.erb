@@ -21,7 +21,21 @@
     z-index: 0;
   }
 
-  .checkout-grid {
+  /* Typography tracking adjustments */
+  .checkout-page .checkout-headline,
+  .checkout-page .checkout-sub,
+  .checkout-page .checkout-back,
+  .checkout-page .checkout-summary-title,
+  .checkout-page .checkout-plan-name,
+  .checkout-page .checkout-plan-price,
+  .checkout-page .checkout-features li,
+  .checkout-page .checkout-loading-text,
+  .checkout-page .checkout-secure,
+  .checkout-page .checkout-footer-text {
+    letter-spacing: 0;
+  }
+
+  .pricing-grid {
     position: fixed;
     inset: 0;
     background-image:
@@ -139,24 +153,30 @@
     color: #f97316;
     margin-bottom: 1.25rem;
   }
+  .checkout-plan-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    width: 100%;
+    margin-bottom: 1.5rem;
+  }
   .checkout-plan-name {
     font-size: 1.5rem;
     font-weight: 900;
     color: white;
     text-transform: uppercase;
-    letter-spacing: -0.02em;
-    margin-bottom: 0.25rem;
+    margin-bottom: 0;
   }
   .checkout-plan-price {
+    margin-left: auto;
     font-size: 14px;
-    font-weight: 700;
-    color: rgba(255,255,255,0.5);
-    margin-bottom: 1.5rem;
-  }
-  .checkout-plan-price strong {
-    font-size: 1.75rem;
     font-weight: 900;
     color: white;
+    background: linear-gradient(90deg, #f97316, #ea580c);
+    padding: 6px 12px;
+    border-radius: 9999px;
+    box-shadow: 0 6px 18px rgba(249,115,22,0.25);
   }
 
   .checkout-features {
@@ -311,9 +331,9 @@
       <!-- Left: Order Summary -->
       <div class="checkout-summary">
         <div class="checkout-summary-title"><%= t('checkout_page.order_summary') %></div>
-        <div class="checkout-plan-name"><%= t('pricing_page.pro_title') %></div>
-        <div class="checkout-plan-price">
-          <strong><%= t('modal.pro_price') %></strong>
+        <div class="checkout-plan-row">
+          <div class="checkout-plan-name"><%= t('pricing_page.pro_title') %></div>
+          <span class="checkout-plan-price"><%= t('modal.pro_price') %></span>
         </div>
 
         <ul class="checkout-features">

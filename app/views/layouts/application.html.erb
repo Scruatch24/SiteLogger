@@ -68,14 +68,22 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Noto+Sans+Georgian:wght@100..900&display=swap" rel="stylesheet">
 
-    <%= stylesheet_link_tag "tailwind", "data-turbo-track": "reload" %>
+    <%= stylesheet_link_tag "tailwind" %>
 
     <%= javascript_importmap_tags %>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="apple-touch-icon" href="/favicon.svg">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.2.3/css/flag-icons.min.css">
-    <%= stylesheet_link_tag "home", "data-turbo-track": "reload" %>
+    <%= stylesheet_link_tag "home" %>
     <script src="https://cdn.lordicon.com/lordicon.js"></script>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        if (window.Turbo && window.Turbo.session) {
+          window.Turbo.session.drive = false;
+        }
+      });
+    </script>
 
     <!-- Paddle.js -->
     <script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
@@ -270,16 +278,14 @@
         width: 100%;
         height: 100%;
         stroke: #f97316;
-        stroke-width: 2;
-        stroke-dasharray: 60 1000; /* Short energy burst */
-        stroke-dashoffset: 0;
-        animation: zenith-spark 3s linear infinite;
+        stroke-width: 3;
         filter: drop-shadow(0 0 4px #f97316) drop-shadow(0 0 1px #fff);
+        animation: zenith-pulse 2.5s ease-in-out infinite;
       }
 
-      @keyframes zenith-spark {
-        from { stroke-dashoffset: 0; }
-        to { stroke-dashoffset: -1060; } /* Matches a typical path length ratio */
+      @keyframes zenith-pulse {
+        0%, 100% { opacity: 0.3; filter: drop-shadow(0 0 2px #f97316); }
+        50% { opacity: 1; filter: drop-shadow(0 0 8px #f97316) drop-shadow(0 0 2px #fff); }
       }
 
       /* Moving Mesh Background */
@@ -565,21 +571,18 @@
 
                <div class="absolute -top-4 -right-4 w-24 h-24 bg-orange-100 rounded-full blur-2xl opacity-50 group-hover:scale-150 transition-transform"></div>
                
-               <% free_modal_label_classes = [
-                    "text-[10px] font-black uppercase tracking-widest",
-                    (user_signed_in? && current_user.profile&.free?) ? "text-green-400" : "text-orange-600"
-                  ] %>
                <div class="relative space-y-1 mb-8 min-h-[96px] flex flex-col justify-between">
                 <div class="flex items-center justify-between">
-                  <span class="<%= free_modal_label_classes.join(' ') %>">
+                  <span class="text-[10px] font-black uppercase tracking-widest text-orange-600">
                     <% if user_signed_in? && current_user.profile&.free? %>
                       <%= t('current_plan') %>
                     <% else %>
                       <%= t('starting_point') %>
                     <% end %>
                   </span>
+                  <span aria-hidden="true" style="background: #f97316; color: white; font-size: 8px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.16em; padding: 6px 12px; border-radius: 9999px; box-shadow: 0 6px 18px rgba(249,115,22,0.25); display: inline-flex; align-items: center; gap: 4px; opacity: 0; pointer-events: none;"><%= t('modal.elite') %></span>
                 </div>
-                <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
                   <h3 class="text-2xl font-black tracking-tighter uppercase text-black"><%= t('pricing_page.free_title') %></h3>
                   <span aria-hidden="true" style="font-size: 14px; font-weight: 900; color: white; background: #f97316; padding: 6px 12px; border-radius: 9999px; box-shadow: 0 6px 18px rgba(249,115,22,0.25); opacity: 0; pointer-events: none;"><%= t('modal.pro_price') %></span>
                 </div>
@@ -645,8 +648,8 @@
 
                <div class="relative mt-8">
                 <% if user_signed_in? && current_user.profile&.free? %>
-                  <div class="w-full py-4 bg-green-100/40 text-green-600 rounded-2xl text-[10px] font-black uppercase text-center border-2 border-green-400/30 flex items-center justify-center gap-2">
-                    <svg class="w-3 h-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  <div class="w-full py-4 bg-orange-100/50 text-orange-600 rounded-2xl text-[10px] font-black uppercase text-center border-2 border-orange-500/20 flex items-center justify-center gap-2">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     <%= t('modal.you_are_here') %>
                   </div>
                 <% else %>
@@ -663,26 +666,19 @@
 
                <div class="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-transparent pointer-events-none"></div>
                
-               <% pro_modal_label_classes = [
-                    "text-[10px] font-black uppercase tracking-widest",
-                    (user_signed_in? && current_user.profile&.paid?) ? "text-green-400" : "text-orange-500"
-                  ] %>
                <div class="relative space-y-1 mb-8 min-h-[96px] flex flex-col justify-between">
-                <div class="flex items-center justify-between gap-3">
-                  <span class="<%= pro_modal_label_classes.join(' ') %>">
+                <div class="flex items-center">
+                  <span class="text-[10px] font-black uppercase tracking-widest text-orange-500">
                     <% if user_signed_in? && current_user.profile&.paid? %>
                       <%= t('current_plan') %>
                     <% else %>
                       <%= t('professional') %>
                     <% end %>
                   </span>
-                  <span class="text-[9px] font-black uppercase tracking-[0.3em] text-green-400 border border-green-400/40 rounded-full px-4 py-1 bg-green-500/10">
-                    <%= t('pricing_page.recommended_label') %>
-                  </span>
                 </div>
-                <div class="flex items-center justify-between gap-3 w-full">
+                <div class="flex items-center gap-3 justify-between w-full">
                   <h3 class="text-2xl font-black tracking-tighter uppercase text-white"><%= t('pricing_page.pro_title') %></h3>
-                  <span style="font-size: clamp(1rem, 3vw, 1.5rem); font-weight: 900; color: white; background: linear-gradient(90deg, #fb923c, #f97316); padding: 8px 20px; border-radius: 9999px; box-shadow: 0 16px 32px rgba(249,115,22,0.35); letter-spacing: 0.1em;">
+                  <span style="margin-left: auto; font-size: 14px; font-weight: 900; color: white; background: #f97316; padding: 6px 12px; border-radius: 9999px; box-shadow: 0 6px 18px rgba(249,115,22,0.25);">
                     <%= t('modal.pro_price') %>
                   </span>
                 </div>
@@ -692,7 +688,7 @@
                 <!-- Preview Row -->
                 <div class="flex items-center justify-between p-3 bg-orange-500/5 border border-orange-500/10 rounded-2xl min-h-[56px]">
                   <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-xl bg-orange-600/20 border border-orange-500/30 text-orange-500 flex items-center justify-center shrink-0 overflow-hidden">
+                    <div class="w-8 h-8 rounded-xl bg-orange-600/20 border border-orange-500/30 text-orange-500 flex items-center justify-center shrink-0">
                       <div class="w-full h-full flex items-center justify-center" style="animation: eyeBlink 4s infinite ease-in-out;">
                          <svg class="w-5 h-5 text-orange-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <!-- Almond Shape -->
@@ -825,8 +821,8 @@
 
                <div class="relative mt-8">
                 <% if user_signed_in? && current_user.profile&.paid? %>
-                  <div class="w-full py-4 bg-green-500/15 text-green-400 rounded-2xl text-[10px] font-black uppercase text-center border-2 border-green-400/30 flex items-center justify-center gap-2">
-                    <svg class="w-3 h-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  <div class="w-full py-4 bg-orange-500/10 text-orange-500 rounded-2xl text-[10px] font-black uppercase text-center border-2 border-orange-500/20 flex items-center justify-center gap-2">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     <%= t('modal.you_are_here') %>
                   </div>
                 <% elsif user_signed_in? %>

@@ -33,6 +33,18 @@
     z-index: 0;
   }
 
+  /* Typography tracking tweaks */
+  .pricing-page .plan-label,
+  .pricing-page .plan-title,
+  .pricing-page .feature-name,
+  .pricing-page .pricing-headline,
+  .pricing-page .plan-cta,
+  .pricing-page .pricing-back,
+  .pricing-page .pricing-sub,
+  .pricing-page .pricing-footer-text {
+    letter-spacing: 0 !important;
+  }
+
   /* Floating Particles */
   .pricing-particle {
     position: fixed;
@@ -154,52 +166,6 @@
   .plan-free .plan-title { color: black; }
   .plan-pro .plan-title { color: white; }
 
-  .plan-header-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-  }
-
-  .plan-price-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-  }
-
-  .plan-price-badge {
-    margin-left: auto;
-    font-size: clamp(1rem, 3vw, 1.6rem);
-    font-weight: 900;
-    color: white;
-    background: linear-gradient(90deg, #fb923c, #f97316);
-    padding: 0.5rem 1.5rem;
-    border-radius: 9999px;
-    box-shadow: 0 16px 32px rgba(249,115,22,0.35);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .plan-recommendation {
-    font-size: 0.65rem;
-    font-weight: 900;
-    text-transform: uppercase;
-    letter-spacing: 0.3em;
-    color: #4ade80;
-    background: rgba(34,197,94,0.15);
-    border: 1px solid rgba(34,197,94,0.4);
-    padding: 0.3rem 1rem;
-    border-radius: 9999px;
-  }
-
-  .plan-label-active {
-    color: #4ade80 !important;
-  }
-
   /* Feature Row */
   .feature-row {
     display: flex;
@@ -294,18 +260,10 @@
     transform: scale(1.02);
   }
   .plan-cta-current {
-    background: rgba(34,197,94,0.15);
-    color: #16a34a;
-    border: 2px solid rgba(34,197,94,0.3);
+    background: rgba(249,115,22,0.1);
+    color: #f97316;
+    border: 2px solid rgba(249,115,22,0.2);
     cursor: default;
-  }
-  .plan-cta-current svg {
-    color: #16a34a;
-  }
-  .plan-cta-current--dark {
-    background: rgba(34,197,94,0.18);
-    border: 2px solid rgba(34,197,94,0.35);
-    color: #22c55e;
   }
   .plan-cta-pro {
     background: rgba(255,255,255,0.05);
@@ -398,21 +356,15 @@
 
       <!-- FREE PLAN -->
       <div class="plan-card plan-free">
-        <% free_label_classes = "plan-label" %>
-        <% free_label_classes << " plan-label-active" if user_signed_in? && current_user.profile&.free? %>
         <div style="position: relative; margin-bottom: 0.75rem; min-height: 84px; display: flex; flex-direction: column; gap: 8px; justify-content: flex-start;">
-          <div class="plan-header-top">
-            <span class="<%= free_label_classes %>">
-              <% if user_signed_in? && current_user.profile&.free? %>
-                <%= t('current_plan') %>
-              <% else %>
-                <%= t('pricing_page.free_label') %>
-              <% end %>
-            </span>
-          </div>
-          <div class="plan-price-row">
-            <div class="plan-title" style="margin-bottom: 0;"><%= t('pricing_page.free_title') %></div>
-          </div>
+          <span class="plan-label">
+            <% if user_signed_in? && current_user.profile&.free? %>
+              <%= t('current_plan') %>
+            <% else %>
+              <%= t('pricing_page.free_label') %>
+            <% end %>
+          </span>
+          <div class="plan-title" style="margin-bottom: 0;"><%= t('pricing_page.free_title') %></div>
         </div>
 
         <div style="flex: 1;">
@@ -556,22 +508,19 @@
 
       <!-- PRO PLAN -->
       <div class="plan-card plan-pro">
-        <% pro_label_classes = "plan-label" %>
-        <% pro_label_classes << " plan-label-active" if user_signed_in? && current_user.profile&.paid? %>
         <div style="position: relative; margin-bottom: 0.75rem; min-height: 84px; display: flex; flex-direction: column; gap: 8px; justify-content: flex-start;">
-          <div class="plan-header-top">
-            <span class="<%= pro_label_classes %>">
+          <div style="display: flex; align-items: center;">
+            <span class="plan-label">
               <% if user_signed_in? && current_user.profile&.paid? %>
                 <%= t('current_plan') %>
               <% else %>
                 <%= t('pricing_page.pro_label') %>
               <% end %>
             </span>
-            <span class="plan-recommendation"><%= t('pricing_page.recommended_label') %></span>
           </div>
-          <div class="plan-price-row">
+          <div style="display: flex; align-items: center; gap: 10px; justify-content: space-between; width: 100%;">
             <div class="plan-title" style="color: white; margin-bottom: 0;"><%= t('pricing_page.pro_title') %></div>
-            <span class="plan-price-badge">
+            <span style="margin-left: auto; font-size: 14px; font-weight: 900; color: white; background: #f97316; padding: 6px 12px; border-radius: 9999px; box-shadow: 0 6px 18px rgba(249,115,22,0.25);">
               <%= t('modal.pro_price') %>
             </span>
           </div>
@@ -702,7 +651,7 @@
         <!-- CTA -->
         <div>
           <% if user_signed_in? && current_user.profile&.paid? %>
-            <div class="plan-cta plan-cta-current plan-cta-current--dark" style="display: flex; align-items: center; justify-content: center; gap: 6px; cursor: default;">
+            <div class="plan-cta" style="background: rgba(249,115,22,0.1); color: #f97316; border: 2px solid rgba(249,115,22,0.2); display: flex; align-items: center; justify-content: center; gap: 6px; cursor: default;">
               <svg style="width:12px;height:12px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
               <%= t('modal.you_are_here') %>
             </div>
