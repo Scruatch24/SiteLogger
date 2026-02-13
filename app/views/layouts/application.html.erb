@@ -502,7 +502,7 @@
     <main class="app-main flex-1 container mx-auto px-0 md:px-4 py-0 md:py-4 max-w-md md:max-w-6xl">
       <%# Flash Messages (matching industrial aesthetic) %>
       <% flash.each do |type, message| %>
-        <div class="fixed top-4 left-1/2 -translate-x-1/2 z-[50000] w-[calc(100%-2rem)] max-w-md">
+        <div class="fixed top-4 left-1/2 -translate-x-1/2 z-[50000] max-w-[calc(100%-2rem)]">
           <div class="p-4 rounded-2xl border-2 border-black font-black uppercase text-[10px] tracking-widest shadow-[4px_4px_0px_0px_#000000] flex items-center gap-3 <%= type == 'alert' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600' %>">
             <% if type == 'alert' %>
               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
