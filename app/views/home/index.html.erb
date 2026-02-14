@@ -15,7 +15,7 @@
   <%= render 'onboarding' %>
 <% end %>
 
-<div class="text-black font-sans p-4 pb-32 md:pb-10" data-nosnippet>
+<div class="text-black font-sans p-2 md:p-4 pb-32 md:pb-10" data-nosnippet>
 
   <%= render 'svg_symbols' %>
 
@@ -44,7 +44,7 @@
         </div>
 
         <div id="reviewContainer" data-nosnippet class="review-container">
-          <div class="bg-white border-2 border-black rounded-2xl p-6 industrial-shadow space-y-6 review-content relative">
+          <div class="bg-white border-2 border-black rounded-2xl p-3 md:p-6 industrial-shadow space-y-6 review-content relative">
             <!-- Analyzing Overlay -->
             <div id="analyzingOverlay" class="analyzing-overlay"></div>
           
@@ -261,6 +261,9 @@
         credit_amount_caps: "<%= j t('credit_amount_caps') %>",
         price: "<%= j t('price') %>",
         item_discount: "<%= j t('item_discount') %>",
+        tax: "<%= j t('tax') %>",
+        discount: "<%= j t('discount') %>",
+        rate: "<%= j t('rate') %>",
         materials: "<%= j t('materials') %>",
         expenses: "<%= j t('expenses') %>",
         fees: "<%= j t('fees') %>",

@@ -1,37 +1,29 @@
-<div id="laborGroup" class="dynamic-section group relative transition-all duration-300 !mt-12" data-protected="labor">
-  <!-- External Header -->
-  <div class="flex items-center mb-2 px-1">
-    <svg class="h-4 w-4 text-orange-600 mr-2">
-      <use xlink:href="#icon-labor"></use>
-    </svg>
-    <span class="text-base font-black text-orange-600 uppercase tracking-widest"><%= t('labor') %></span>
+<div id="laborGroup" class="dynamic-section space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-500" data-protected="labor">
+  <header class="flex justify-between items-center group border-b-2 border-black pb-1">
+    <div class="flex items-center">
+      <svg class="h-4 w-4 text-orange-600 mr-2">
+        <use xlink:href="#icon-labor"></use>
+      </svg>
+      <span class="text-base font-black text-orange-600 uppercase tracking-widest section-title"><%= t('labor') %></span>
+    </div>
+    <div class="flex gap-2 mb-1 shrink-0">
+      <button type="button" onclick="addLaborItem()" 
+              class="bg-orange-600 text-white w-7 h-7 rounded-full flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] active:scale-95 btn-add-labor-hover transition-all" title="Add Labor Item">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+        </svg>
+      </button>
+      <button type="button" onclick="removeLaborSection()" 
+              class="bg-black text-white w-7 h-7 rounded-full flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] active:scale-95 hover:bg-gray-800 transition-all" title="Remove Section">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <div id="laborContent" class="relative transition-all duration-300">
+    <div id="laborItemsContainer" class="pt-2">
+    </div>
   </div>
-
-  <!-- Content Box -->
-  <div id="laborContent" class="border-2 border-dashed border-orange-200 rounded-2xl bg-orange-50/30 relative transition-all duration-300 px-4 pt-4 pb-8">
-     
-     <!-- Remove Button (Top Right) -->
-     <button type="button" onclick="removeLaborSection()" 
-             class="absolute -top-3.5 -right-3.5 bg-black text-white w-7 h-7 rounded-full flex items-center justify-center shadow-[1px_1px_0px_0px_rgba(0,0,0,0.3)] hover:bg-gray-800 transition-colors z-20" title="Remove Labor">
-       <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-         <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-       </svg>
-     </button>
-
-
-  <!-- Labor Items Container (Visually attached) -->
-  <div id="laborItemsContainer" class="pt-2">
-
-
-     <!-- Add Item Button at Bottom -->
-     <div class="flex justify-center mt-8 section-add-btn-container">
-       <button type="button" onclick="addLaborItem()" 
-               class="bg-orange-600 text-white w-8 h-8 rounded-full flex items-center justify-center shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] active:scale-95 btn-add-labor-hover transition-all" title="Add Labor Item">
-         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
-           <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-         </svg>
-       </button>
-     </div>
-  </div>
-</div>
 </div>

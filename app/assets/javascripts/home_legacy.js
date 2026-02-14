@@ -453,10 +453,7 @@ function updateLaborRowModelUI(row, mode) {
   const oldMode = row.dataset.billingMode || 'hourly';
   row.dataset.billingMode = mode;
   const labelText = mode === 'hourly' ? (window.APP_LANGUAGES?.labor_hours_caps || 'LABOR HOURS') : (window.APP_LANGUAGES?.labor_price_caps || 'LABOR PRICE');
-
-  // Update Label
-  const label = row.querySelector('.labor-label-price');
-  if (label) label.innerText = labelText;
+  const rateLabel = window.APP_LANGUAGES?.rate || 'RATE';
 
   const target = row.querySelector('.labor-inputs-target');
   if (!target) return;
@@ -476,57 +473,111 @@ function updateLaborRowModelUI(row, mode) {
   let newRateValue = "";
 
   if (oldMode === mode) {
-    // No mode change, just preserve
     newPriceValue = oldPriceStr;
     newRateValue = oldRateInput ? oldRateInput.value : defaultRate;
   } else if (oldMode === 'fixed' && mode === 'hourly') {
-    // Fixed -> Hourly: FixedPrice becomes Rate, Hours reset to 1
     newPriceValue = "1";
     newRateValue = cleanNum(oldPrice) || defaultRate;
   } else if (oldMode === 'hourly' && mode === 'fixed') {
-    // Hourly -> Fixed: (Hours * Rate) becomes Price
     newPriceValue = cleanNum(oldPrice * oldRate);
-    newRateValue = defaultRate; // Not used in fixed HTML but good for consistency
+    newRateValue = defaultRate;
   } else {
-    // Default / Fallback
     newPriceValue = oldPriceStr;
     newRateValue = oldRate || defaultRate;
   }
 
-  let newHtml = '';
+  // Preserve tax value and visibility before removing price group
+  const oldPriceGroup = target.querySelector('.labor-price-group');
+  const oldTaxWrapper = oldPriceGroup ? oldPriceGroup.querySelector('.labor-tax-wrapper') : null;
+  const oldTaxInput = oldTaxWrapper ? oldTaxWrapper.querySelector('.tax-menu-input') : null;
+  const taxVal = oldTaxInput ? oldTaxInput.value : '';
+  const taxHidden = oldTaxWrapper ? oldTaxWrapper.classList.contains('hidden') : true;
+  if (oldPriceGroup) oldPriceGroup.remove();
 
-  if (mode === 'hourly') {
-    newHtml = `
+  const taxLabel = window.APP_LANGUAGES?.tax || 'TAX';
+
+  // Build new price group (includes tax on same row)
+  const discountGroup = target.querySelector('.labor-discount-group');
+  const frag = document.createRange().createContextualFragment(
+    mode === 'hourly' ? `
+      <div class="flex flex-col labor-price-group">
+        <div class="flex items-start gap-2">
+          <div class="flex flex-col">
+            <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5 labor-label-price">${labelText}</span>
+            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-orange-50 rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] labor-price-container">
               <div class="flex items-center justify-center bg-orange-600 text-white border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
-                   <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <input type="number" step="0.1" class="labor-price-input bg-transparent border-none p-0 font-black text-black focus:ring-0 outline-none text-left min-w-0 text-sm placeholder:text-gray-300 w-12" 
-                     value="${newPriceValue}"
-                     placeholder="0" oninput="updateTotalsSummary()">
-              <div class="flex items-center justify-center shrink-0">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-              </div>
+              <input type="number" step="0.1" class="labor-price-input bg-transparent border-none p-0 font-black text-black focus:ring-0 outline-none text-left min-w-0 text-sm placeholder:text-gray-300 w-9" 
+                     value="${newPriceValue}" placeholder="0" oninput="updateTotalsSummary()">
+            </div>
+          </div>
+          <div class="flex flex-col">
+            <div class="text-[8px] mb-0.5">&nbsp;</div>
+            <div class="flex items-center h-10">
+              <span class="text-black font-black text-sm select-none">×</span>
+            </div>
+          </div>
+          <div class="flex flex-col">
+            <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${rateLabel}</span>
+            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-orange-50 rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] labor-rate-container">
               <div class="flex items-center justify-center bg-orange-600 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px] labor-currency-symbol">
-                  ${currencySymbol}
+                ${currencySymbol}
               </div>
-              <input type="number" step="0.01" class="rate-menu-input bg-transparent border-none p-0 font-black text-black focus:ring-0 outline-none text-left min-w-0 text-sm placeholder:text-gray-300 flex-1" 
+              <input type="number" step="0.01" class="rate-menu-input bg-transparent border-none p-0 font-black text-black focus:ring-0 outline-none text-left min-w-0 text-sm placeholder:text-gray-300 w-12" 
                      value="${newRateValue}" placeholder="0.00" oninput="updateTotalsSummary()">
-        `;
-  } else {
-    newHtml = `
-              <div class="flex items-center justify-center bg-orange-600 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px] labor-currency-symbol">
-                  ${currencySymbol}
+            </div>
+          </div>
+          <div class="flex flex-col labor-tax-wrapper ${taxHidden ? 'hidden' : ''}">
+            <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${taxLabel}</span>
+            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] tax-wrapper" style="background-color: rgba(54, 65, 83, 0.1);">
+              <div class="flex items-center justify-center bg-gray-700 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px]">
+                <span>%</span>
               </div>
-              <input type="number" step="0.01" class="labor-price-input bg-transparent border-none p-0 font-black text-black focus:ring-0 outline-none text-left min-w-0 text-sm placeholder:text-gray-300 w-full flex-1" 
+              <input type="number" step="0.1" class="tax-menu-input bg-transparent border-none p-0 font-black text-black focus:ring-0 outline-none text-left min-w-0 text-sm placeholder:text-gray-300 w-9"
+                     value="${taxVal}" placeholder="0" oninput="updateTotalsSummary()">
+            </div>
+          </div>
+        </div>
+      </div>
+    ` : `
+      <div class="flex flex-col labor-price-group">
+        <div class="flex items-start gap-2">
+          <div class="flex flex-col">
+            <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5 labor-label-price">${labelText}</span>
+            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-orange-50 rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] labor-price-container">
+              <div class="flex items-center justify-center bg-orange-600 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px] labor-currency-symbol">
+                ${currencySymbol}
+              </div>
+              <input type="number" step="0.01" class="labor-price-input bg-transparent border-none p-0 font-black text-black focus:ring-0 outline-none text-left min-w-0 text-sm placeholder:text-gray-300 w-20" 
                      value="${newPriceValue}" placeholder="0.00" oninput="updateTotalsSummary()">
-        `;
+            </div>
+          </div>
+          <div class="flex flex-col labor-tax-wrapper ${taxHidden ? 'hidden' : ''}">
+            <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${taxLabel}</span>
+            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] tax-wrapper" style="background-color: rgba(54, 65, 83, 0.1);">
+              <div class="flex items-center justify-center bg-gray-700 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px]">
+                <span>%</span>
+              </div>
+              <input type="number" step="0.1" class="tax-menu-input bg-transparent border-none p-0 font-black text-black focus:ring-0 outline-none text-left min-w-0 text-sm placeholder:text-gray-300 w-9"
+                     value="${taxVal}" placeholder="0" oninput="updateTotalsSummary()">
+            </div>
+          </div>
+        </div>
+      </div>
+    `
+  );
+
+  // Insert before discount group
+  if (discountGroup) {
+    target.insertBefore(frag, discountGroup);
+  } else {
+    target.prepend(frag);
   }
 
-  target.innerHTML = newHtml;
-
-  // Update the toggle pills in the dropdown
+  // Update the toggle pills
   const pills = row.querySelectorAll('.billing-pill-btn');
   pills.forEach(btn => {
     btn.classList.toggle('active', btn.dataset.mode === mode);
@@ -540,6 +591,284 @@ window.setLaborRowBillingMode = function (btn, mode) {
   updateTotalsSummary();
 }
 
+window.toggleLaborDiscountDropdown = function (btn) {
+  const dropdown = btn.parentElement.querySelector('.labor-discount-dropdown');
+  if (!dropdown) return;
+  dropdown.classList.toggle('hidden');
+
+  // Close on outside click
+  if (!dropdown.classList.contains('hidden')) {
+    const close = (e) => {
+      if (!btn.parentElement.contains(e.target)) {
+        dropdown.classList.add('hidden');
+        document.removeEventListener('click', close);
+      }
+    };
+    setTimeout(() => document.addEventListener('click', close), 0);
+  }
+}
+
+window.showLaborDiscount = function (btn, type) {
+  const row = btn.closest('.labor-item-row');
+  if (!row) return;
+
+  // Close dropdown
+  const dropdown = btn.closest('.labor-discount-dropdown');
+  if (dropdown) dropdown.classList.add('hidden');
+
+  if (type === 'percent') {
+    // Hide flat, clear its value
+    const flatWrapper = row.querySelector('.labor-discount-flat-wrapper');
+    if (flatWrapper) {
+      flatWrapper.classList.add('hidden');
+      const flatInput = flatWrapper.querySelector('.discount-flat-input');
+      if (flatInput) flatInput.value = '';
+    }
+    const wrapper = row.querySelector('.labor-discount-percent-wrapper');
+    if (wrapper) wrapper.classList.remove('hidden');
+  } else if (type === 'flat') {
+    // Hide percent, clear its value
+    const pctWrapper = row.querySelector('.labor-discount-percent-wrapper');
+    if (pctWrapper) {
+      pctWrapper.classList.add('hidden');
+      const pctInput = pctWrapper.querySelector('.discount-percent-input');
+      if (pctInput) pctInput.value = '';
+    }
+    const wrapper = row.querySelector('.labor-discount-flat-wrapper');
+    if (wrapper) wrapper.classList.remove('hidden');
+  }
+  // Set discount button to active state
+  const discBtn = row.querySelector('.labor-add-discount-btn');
+  if (discBtn) {
+    discBtn.style.backgroundColor = '#00A63E';
+    discBtn.style.borderColor = '#00A63E';
+    discBtn.style.color = 'white';
+  }
+  updateTotalsSummary();
+}
+
+window.removeLaborDiscount = function (btn, type) {
+  const row = btn.closest('.labor-item-row');
+  if (!row) return;
+
+  if (type === 'percent') {
+    const wrapper = row.querySelector('.labor-discount-percent-wrapper');
+    if (wrapper) {
+      wrapper.classList.add('hidden');
+      const input = wrapper.querySelector('.discount-percent-input');
+      if (input) input.value = '';
+    }
+  } else if (type === 'flat') {
+    const wrapper = row.querySelector('.labor-discount-flat-wrapper');
+    if (wrapper) {
+      wrapper.classList.add('hidden');
+      const input = wrapper.querySelector('.discount-flat-input');
+      if (input) input.value = '';
+    }
+  }
+  // Check if any discount is still visible, if not reset button
+  const pctVisible = row.querySelector('.labor-discount-percent-wrapper') && !row.querySelector('.labor-discount-percent-wrapper').classList.contains('hidden');
+  const flatVisible = row.querySelector('.labor-discount-flat-wrapper') && !row.querySelector('.labor-discount-flat-wrapper').classList.contains('hidden');
+  if (!pctVisible && !flatVisible) {
+    const discBtn = row.querySelector('.labor-add-discount-btn');
+    if (discBtn) {
+      discBtn.style.backgroundColor = 'white';
+      discBtn.style.borderColor = '#00A63E';
+      discBtn.style.color = '#00A63E';
+    }
+  }
+  updateTotalsSummary();
+}
+
+window.toggleLaborTax = function (btn) {
+  const row = btn.closest('.labor-item-row');
+  if (!row) return;
+  const wrapper = row.querySelector('.labor-tax-wrapper');
+  if (!wrapper) return;
+  const isVisible = !wrapper.classList.contains('hidden');
+  if (isVisible) {
+    // Deactivate: hide tax, clear value, reset button style
+    wrapper.classList.add('hidden');
+    const input = wrapper.querySelector('.tax-menu-input');
+    if (input) input.value = '';
+    btn.style.backgroundColor = '';
+    btn.style.borderColor = '';
+    btn.style.color = '';
+    btn.classList.add('bg-gray-50', 'border-black', 'text-gray-700');
+  } else {
+    // Activate: show tax, set active button style
+    wrapper.classList.remove('hidden');
+    const input = wrapper.querySelector('.tax-menu-input');
+    if (input && !input.value) input.focus();
+    btn.classList.remove('bg-gray-50', 'border-black', 'text-gray-700');
+    btn.style.backgroundColor = '#364153';
+    btn.style.borderColor = '#364153';
+    btn.style.color = 'white';
+  }
+  updateTotalsSummary();
+}
+
+window.removeLaborTax = function (btn) {
+  const row = btn.closest('.labor-item-row');
+  if (!row) return;
+  const wrapper = row.querySelector('.labor-tax-wrapper');
+  if (wrapper) {
+    wrapper.classList.add('hidden');
+    const input = wrapper.querySelector('.tax-menu-input');
+    if (input) input.value = '';
+  }
+  // Reset the +TAX button style
+  const taxBtn = row.querySelector('.labor-add-tax-btn');
+  if (taxBtn) {
+    taxBtn.style.backgroundColor = '';
+    taxBtn.style.borderColor = '';
+    taxBtn.style.color = '';
+    taxBtn.classList.add('bg-gray-50', 'border-black', 'text-gray-700');
+  }
+  updateTotalsSummary();
+}
+
+// === ITEM (Products/Reimbursements/Fees) Tax & Discount Functions ===
+
+window.toggleItemTax = function (btn) {
+  const row = btn.closest('.item-row');
+  if (!row) return;
+  const wrapper = row.querySelector('.item-tax-wrapper');
+  if (!wrapper) return;
+  const isVisible = !wrapper.classList.contains('hidden');
+  if (isVisible) {
+    // Deactivate: hide tax, clear value, reset button style
+    wrapper.classList.add('hidden');
+    const input = wrapper.querySelector('.tax-menu-input');
+    if (input) input.value = '';
+    row.dataset.taxable = 'false';
+    btn.style.backgroundColor = '';
+    btn.style.borderColor = '';
+    btn.style.color = '';
+    btn.classList.add('bg-gray-50', 'border-black', 'text-gray-700');
+  } else {
+    // Activate: show tax, set active button style
+    wrapper.classList.remove('hidden');
+    row.dataset.taxable = 'true';
+    const input = wrapper.querySelector('.tax-menu-input');
+    if (input && !input.value) {
+      input.value = profileTaxRate || '';
+      input.focus();
+    }
+    btn.classList.remove('bg-gray-50', 'border-black', 'text-gray-700');
+    btn.style.backgroundColor = '#364153';
+    btn.style.borderColor = '#364153';
+    btn.style.color = 'white';
+  }
+  updateTotalsSummary();
+}
+
+window.removeItemTax = function (btn) {
+  const row = btn.closest('.item-row');
+  if (!row) return;
+  const wrapper = row.querySelector('.item-tax-wrapper');
+  if (wrapper) {
+    wrapper.classList.add('hidden');
+    const input = wrapper.querySelector('.tax-menu-input');
+    if (input) input.value = '';
+  }
+  row.dataset.taxable = 'false';
+  // Reset the +TAX button style
+  const taxBtn = row.querySelector('.item-add-tax-btn');
+  if (taxBtn) {
+    taxBtn.style.backgroundColor = '';
+    taxBtn.style.borderColor = '';
+    taxBtn.style.color = '';
+    taxBtn.classList.add('bg-gray-50', 'border-black', 'text-gray-700');
+  }
+  updateTotalsSummary();
+}
+
+window.toggleItemDiscountDropdown = function (btn) {
+  const dropdown = btn.parentElement.querySelector('.item-discount-dropdown');
+  if (!dropdown) return;
+  const isHidden = dropdown.classList.contains('hidden');
+  // Close all other item discount dropdowns
+  document.querySelectorAll('.item-discount-dropdown').forEach(d => d.classList.add('hidden'));
+  if (isHidden) {
+    dropdown.classList.remove('hidden');
+    const close = (e) => {
+      if (!dropdown.contains(e.target) && !btn.contains(e.target)) {
+        dropdown.classList.add('hidden');
+        document.removeEventListener('click', close);
+      }
+    };
+    setTimeout(() => document.addEventListener('click', close), 0);
+  }
+}
+
+window.showItemDiscount = function (btn, type) {
+  const row = btn.closest('.item-row');
+  if (!row) return;
+  const dropdown = btn.closest('.item-discount-dropdown');
+  if (dropdown) dropdown.classList.add('hidden');
+
+  if (type === 'percent') {
+    const flatWrapper = row.querySelector('.item-discount-flat-wrapper');
+    if (flatWrapper) {
+      flatWrapper.classList.add('hidden');
+      const flatInput = flatWrapper.querySelector('.discount-flat-input');
+      if (flatInput) flatInput.value = '';
+    }
+    const wrapper = row.querySelector('.item-discount-percent-wrapper');
+    if (wrapper) wrapper.classList.remove('hidden');
+  } else if (type === 'flat') {
+    const pctWrapper = row.querySelector('.item-discount-percent-wrapper');
+    if (pctWrapper) {
+      pctWrapper.classList.add('hidden');
+      const pctInput = pctWrapper.querySelector('.discount-percent-input');
+      if (pctInput) pctInput.value = '';
+    }
+    const wrapper = row.querySelector('.item-discount-flat-wrapper');
+    if (wrapper) wrapper.classList.remove('hidden');
+  }
+  // Set discount button to active state
+  const discBtn = row.querySelector('.item-add-discount-btn');
+  if (discBtn) {
+    discBtn.style.backgroundColor = '#00A63E';
+    discBtn.style.borderColor = '#00A63E';
+    discBtn.style.color = 'white';
+  }
+  updateTotalsSummary();
+}
+
+window.removeItemDiscount = function (btn, type) {
+  const row = btn.closest('.item-row');
+  if (!row) return;
+
+  if (type === 'percent') {
+    const wrapper = row.querySelector('.item-discount-percent-wrapper');
+    if (wrapper) {
+      wrapper.classList.add('hidden');
+      const input = wrapper.querySelector('.discount-percent-input');
+      if (input) input.value = '';
+    }
+  } else if (type === 'flat') {
+    const wrapper = row.querySelector('.item-discount-flat-wrapper');
+    if (wrapper) {
+      wrapper.classList.add('hidden');
+      const input = wrapper.querySelector('.discount-flat-input');
+      if (input) input.value = '';
+    }
+  }
+  // Check if any discount is still visible, if not reset button
+  const pctVisible = row.querySelector('.item-discount-percent-wrapper') && !row.querySelector('.item-discount-percent-wrapper').classList.contains('hidden');
+  const flatVisible = row.querySelector('.item-discount-flat-wrapper') && !row.querySelector('.item-discount-flat-wrapper').classList.contains('hidden');
+  if (!pctVisible && !flatVisible) {
+    const discBtn = row.querySelector('.item-add-discount-btn');
+    if (discBtn) {
+      discBtn.style.backgroundColor = 'white';
+      discBtn.style.borderColor = '#00A63E';
+      discBtn.style.color = '#00A63E';
+    }
+  }
+  updateTotalsSummary();
+}
 
 function updateTotalsSummary() {
   try {
@@ -629,138 +958,18 @@ function updateTotalsSummary() {
           allItemDiscountsList.push({ name: desc, amount: rowDisc, percent: discPercent });
         }
 
-        // Tax calculation
+        // Tax calculation — taxable if tax input is not empty and not 0
         let rowTax = 0;
-        if (item.dataset.taxable === "true") {
-          const taxRateInput = item.querySelector('.tax-menu-input');
-          const taxRate = (taxRateInput && taxRateInput.value !== "") ? parseFloat(taxRateInput.value) : profileTaxRate;
-          rowTax = rowNet * (taxRate / 100);
+        const taxRateInput = item.querySelector('.tax-menu-input');
+        const taxRateVal = taxRateInput ? parseFloat(taxRateInput.value) : 0;
+        const isTaxable = taxRateVal > 0;
+        if (isTaxable) {
+          rowTax = rowNet * (taxRateVal / 100);
           if (rowTax > 0) {
             totalTax += rowTax;
-            allTaxesList.push({ name: desc, amount: rowTax, rate: taxRate });
+            allTaxesList.push({ name: desc, amount: rowTax, rate: taxRateVal });
           }
         }
-
-        // --- UPDATE BADGES & UI ---
-        const rowCurrencyCode = item.dataset.currencyCode || activeCurrencyCode;
-        const rowCurrencySym = getCurrencySym(rowCurrencyCode);
-
-        // 1. Discount Equation Badges
-        const origPriceBadge = item.querySelector('.badge-original-price');
-        const minusOp = item.querySelector('.badge-minus');
-        const discAmountBadge = item.querySelector('.badge-discount-amount');
-        const equalsOpTop = item.querySelector('.badge-equals-top');
-        const discountedPriceBadge = item.querySelector('.badge-discounted-price');
-
-        if (rowDisc > 0) {
-          if (origPriceBadge) {
-            origPriceBadge.innerHTML = `<span style="transform: rotateX(180deg); display: flex;">${getCurrencyFormat(rowGross, rowCurrencyCode)}</span>`;
-            origPriceBadge.classList.remove('hidden');
-          }
-          if (minusOp) minusOp.classList.remove('hidden');
-          if (discAmountBadge) {
-            discAmountBadge.innerHTML = `<span style="transform: rotateX(180deg); display: flex;">${getCurrencyFormat(rowDisc, rowCurrencyCode)}</span>`;
-            discAmountBadge.classList.remove('hidden');
-          }
-          if (equalsOpTop) equalsOpTop.classList.remove('hidden');
-          if (discountedPriceBadge) {
-            discountedPriceBadge.innerHTML = `<span style="transform: rotateX(180deg); display: flex;">${getCurrencyFormat(rowNet, rowCurrencyCode)}</span>`;
-            discountedPriceBadge.classList.remove('hidden');
-          }
-        } else {
-          [origPriceBadge, minusOp, discAmountBadge, equalsOpTop, discountedPriceBadge].forEach(el => el?.classList.add('hidden'));
-        }
-
-        // 2. Multiplier/Price Badge
-        const laborPriceBadge = item.querySelector('.badge-price');
-        const laborMultiplierBadge = item.querySelector('.badge-multiplier');
-        const isTaxable = item.dataset.taxable === "true";
-
-        // Get tax rate to check if it's actually > 0
-        const taxRateInputCheck = item.querySelector('.tax-menu-input');
-        const currentTaxRateVal = (taxRateInputCheck && taxRateInputCheck.value !== "") ? parseFloat(taxRateInputCheck.value) : profileTaxRate;
-        const hasTaxRate = currentTaxRateVal > 0;
-
-        if (laborPriceBadge) {
-          // Show lower price badge ONLY if taxable with rate > 0 AND price > 0
-          if (rowNet > 0 && isTaxable && hasTaxRate) {
-            laborPriceBadge.innerText = getCurrencyFormat(rowNet, rowCurrencyCode);
-            laborPriceBadge.classList.remove('hidden');
-          } else {
-            laborPriceBadge.classList.add('hidden');
-          }
-        }
-
-        // Only show multiplier if taxable AND has a positive tax rate
-        if (isTaxable && hasTaxRate && rowNet > 0) {
-          if (laborMultiplierBadge) laborMultiplierBadge.classList.remove('hidden');
-        } else {
-          if (laborMultiplierBadge) laborMultiplierBadge.classList.add('hidden');
-        }
-
-        // 3. Tax Equation Badges
-        const laborTaxBadge = item.querySelector('.badge-tax');
-        const laborEqualsBadge = item.querySelector('.badge-equals');
-        const laborAfterTaxBadge = item.querySelector('.badge-after-tax');
-
-        // Only show tax badges if taxable AND tax rate > 0
-        if (isTaxable && hasTaxRate && rowNet > 0) {
-          if (laborTaxBadge) {
-            laborTaxBadge.innerText = `${cleanNum(currentTaxRateVal)}%`;
-            laborTaxBadge.classList.remove('hidden');
-          }
-          if (rowTax > 0) {
-            if (laborEqualsBadge) laborEqualsBadge.classList.remove('hidden');
-            if (laborAfterTaxBadge) {
-              laborAfterTaxBadge.innerText = getCurrencyFormat(rowTax, rowCurrencyCode);
-              laborAfterTaxBadge.classList.remove('hidden');
-            }
-          } else {
-            if (laborEqualsBadge) laborEqualsBadge.classList.add('hidden');
-            if (laborAfterTaxBadge) laborAfterTaxBadge.classList.add('hidden');
-          }
-        } else {
-          [laborTaxBadge, laborEqualsBadge, laborAfterTaxBadge].forEach(el => el?.classList.add('hidden'));
-        }
-
-        // 4. Formula Row Display
-        const formulaRow = item.querySelector('.labor-formula-row');
-        if (formulaRow) {
-          const finalTotal = rowNet + rowTax;
-          if (rowGross <= 0) {
-            // Free item: show currency icon + NO CHARGE
-            const noChargeText = window.APP_LANGUAGES?.no_charge || 'NO CHARGE';
-            formulaRow.innerHTML = `
-                        <div class="flex items-center justify-center bg-orange-600 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px] mr-2">
-                            ${rowCurrencySym}
-                        </div>
-                        <span class="font-black text-black text-[10px] shrink-0">${noChargeText}</span>
-                        <div class="w-2 shrink-0 h-1"></div>
-                    `;
-          } else {
-            formulaRow.innerHTML = `
-                        <div class="flex items-center justify-center bg-orange-600 text-white font-black border border-black rounded-md px-1.5 h-6 shrink-0 select-none text-[10px] min-w-[24px]">
-                            ${getCurrencyFormat(rowNet, rowCurrencyCode)}
-                        </div>
-                        <div class="flex items-center justify-center mx-1 shrink-0">
-                            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-                        </div>
-                        <div class="flex items-center justify-center bg-gray-700 text-white font-black border border-black rounded-md px-1.5 h-6 shrink-0 select-none text-[10px] min-w-[24px]">
-                            ${getCurrencyFormat(rowTax, rowCurrencyCode)}
-                        </div>
-                        <div class="flex items-center justify-center mx-1 shrink-0">
-                            <svg width="8" height="6" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="4" stroke-linecap="round"><path d="M4 8h16M4 16h16"/></svg>
-                        </div>
-                        <div class="flex items-center justify-center bg-orange-600 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px] mr-2">
-                            ${rowCurrencySym}
-                        </div>
-                        <span class="font-black text-black text-sm shrink-0">${cleanNum(finalTotal)}</span>
-                        <div class="w-2 shrink-0 h-1"></div>
-                    `;
-          }
-        }
-
-        updateHamburgerGlow(item);
       });
     }
 
@@ -1098,47 +1307,9 @@ function adjustBadgeSpacing() {
     rows.forEach((row, i) => {
       let isLabelShifted = false;
 
-      // Internal Layout Adjustment (Labor only)
+      // Internal Layout Adjustment (Labor only) — badges removed, minimal adjustment
       if (row.classList.contains('labor-item-row')) {
-        const priceLabel = row.querySelector('.labor-label-price');
-        const priceInputBox = row.querySelector('.labor-price-container > div:last-child'); // The actual input border box
-        // Check for ANY visible top badge (Equation parts or Legacy)
-        const discountBadge = row.querySelector('.badge-original-price:not(.hidden), .badge-discount-amount:not(.hidden), .badge-discounted-price:not(.hidden), .badge-discount:not(.hidden)');
-
-        if (priceLabel && discountBadge) {
-          const labelRect = priceLabel.getBoundingClientRect();
-          const badgeRect = discountBadge.getBoundingClientRect();
-
-          if (labelRect.width > 0 && badgeRect.width > 0) {
-            // If badge overlaps the label (using simple left/right check)
-            // Since badges grow from right to left (RTL), we check if the LEFTMOST edge of the badge set hits the label?
-            // Actually, the badges are in a flex-end (RTL) container. The detected 'discountBadge' is just ONE of them.
-            // We should probably check the container? 
-            // But 'discountBadge' here will likely be the first found, e.g. original-price.
-            if (badgeRect.left < (labelRect.right + 2)) {
-              // Keep label static, push the input field down
-              if (priceInputBox) priceInputBox.style.marginTop = '32px';
-              isLabelShifted = true;
-            } else {
-              if (priceInputBox) priceInputBox.style.marginTop = '';
-            }
-          }
-        } else if (priceInputBox) {
-          priceInputBox.style.marginTop = '';
-        }
-
-        // Ensure label transform is always cleared from previous iterations
-        if (priceLabel) priceLabel.style.transform = '';
-
-        // Mobile Bottom Spacing Adjustment
-        if (window.innerWidth < 768) {
-          const hasBottomBadges = !!row.querySelector('.badge-price:not(.hidden), .badge-tax:not(.hidden), .badge-after-tax:not(.hidden)');
-          if (priceInputBox.parentElement) { // parent is .labor-price-container
-            priceInputBox.parentElement.style.marginBottom = hasBottomBadges ? '25px' : '';
-          }
-        } else if (priceInputBox.parentElement) {
-          priceInputBox.parentElement.style.marginBottom = '';
-        }
+        // No badge overlap checks needed — inline layout handles spacing
       }
 
       // Standard Item Sub-category adjustment (Only if badges are visible)
@@ -1660,7 +1831,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const desc = row.querySelector(".labor-item-input")?.value || "";
         const price = row.querySelector(".labor-price-input")?.value || "";
         const taxRate = row.querySelector(".tax-menu-input")?.value || "";
-        const taxable = row.dataset.taxable === "true";
+        const taxable = taxRate !== "" && parseFloat(taxRate) > 0;
         const discFlat = row.querySelector(".discount-flat-input")?.value || "";
         const discPercent = row.querySelector(".discount-percent-input")?.value || "";
         const rateVal = row.querySelector(".rate-menu-input")?.value || "";
@@ -1678,7 +1849,7 @@ document.addEventListener("DOMContentLoaded", () => {
           laborItems.push({
             desc: desc, price: price, rate: rateVal, taxable: taxable,
             mode: row.dataset.billingMode || "hourly",
-            tax_rate: (taxable && taxRate) ? taxRate : null,
+            tax_rate: taxable ? taxRate : null,
             discount_flat: discFlat || "0", discount_percent: discPercent || "0",
             discount_message: discMessage, sub_categories: subs
           });
@@ -2673,7 +2844,7 @@ function renderCalendar() {
 
   // Empty cells for days before first day of month
   for (let i = 0; i < firstDay; i++) {
-    html += '<div class="w-8 h-8"></div>';
+    html += '<div class="w-9 h-8"></div>';
   }
 
   // Days of the month
@@ -2689,7 +2860,7 @@ function renderCalendar() {
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     const onclick = isBeforeInvoiceDate ? '' : `onclick="selectCalendarDate('${dateStr}')"`;
 
-    let classes = 'w-8 h-8 rounded-lg text-xs font-black flex items-center justify-center cursor-pointer transition-all active:scale-95 active:translate-x-[1px] active:translate-y-[1px] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none bg-white active:bg-orange-600 active:text-white ';
+    let classes = 'w-9 h-8 rounded-lg text-xs font-black flex items-center justify-center cursor-pointer transition-all active:scale-95 active:translate-x-[1px] active:translate-y-[1px] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none bg-white active:bg-orange-600 active:text-white ';
 
     if (isSelected) {
       classes += '!bg-orange-600 !text-white border-2 border-black !shadow-none translate-x-[1px] translate-y-[1px]';
@@ -2781,7 +2952,7 @@ function renderMainCalendar() {
 
   let html = '';
   for (let i = 0; i < firstDay; i++) {
-    html += '<div class="w-8 h-8"></div>';
+    html += '<div class="w-9 h-8"></div>';
   }
 
   for (let day = 1; day <= daysInMonth; day++) {
@@ -2791,7 +2962,7 @@ function renderMainCalendar() {
     const isToday = date.getTime() === today.getTime();
     const isSelected = date.getTime() === selected.getTime();
 
-    let classes = 'w-8 h-8 rounded-lg text-xs font-black flex items-center justify-center cursor-pointer transition-all active:scale-95 active:translate-x-[1px] active:translate-y-[1px] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none bg-white active:bg-orange-600 active:text-white ';
+    let classes = 'w-9 h-8 rounded-lg text-xs font-black flex items-center justify-center cursor-pointer transition-all active:scale-95 active:translate-x-[1px] active:translate-y-[1px] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none bg-white active:bg-orange-600 active:text-white ';
 
     if (isSelected) {
       classes += '!bg-orange-600 !text-white border-2 border-black !shadow-none translate-x-[1px] translate-y-[1px]';
@@ -2853,17 +3024,7 @@ function addFullSection(title, items, isProtected = false, explicitType = null) 
       addLaborSection();
       // Clear existing items in Labor Container (assuming AI sends full list)
       // Exception: If we want to append? Usually AI sends full structure.
-      laborContainer.innerHTML = `
-             <!-- Add Item Button at Bottom -->
-             <div class="flex justify-center mt-8 section-add-btn-container">
-               <button type="button" onclick="addLaborItem()" 
-                       class="bg-orange-600 text-white w-8 h-8 rounded-full flex items-center justify-center shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] active:scale-95 btn-add-labor-hover transition-all" title="Add Labor Item">
-                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
-                   <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-                 </svg>
-               </button>
-             </div>
-          `;
+      laborContainer.innerHTML = '';
 
       if (items && items.length > 0) {
         items.forEach(item => {
@@ -2911,11 +3072,12 @@ function addFullSection(title, items, isProtected = false, explicitType = null) 
     sectionIcon = `<svg class="h-4 w-4 text-orange-600 mr-2"><use xlink:href="#icon-material"></use></svg>`;
     accentColorClass = "text-orange-600";
   } else if (isExpenses) {
-    sectionIcon = `<svg class="h-4 w-4 text-red-600 mr-2"><use xlink:href="#icon-expense"></use></svg>`;
-    accentColorClass = "text-red-600";
+    sectionIcon = `<svg class="h-4 w-4 mr-2" style="color: #E7000B;"><use xlink:href="#icon-expense"></use></svg>`;
+    accentColorClass = "";
   } else if (isFees) {
-    sectionIcon = `<svg class="h-4 w-4 text-blue-500 mr-2"><use xlink:href="#icon-fee"></use></svg>`;
-    accentColorClass = "text-blue-500";
+    sectionIcon = `<svg class="h-4 w-4 mr-2" style="color: #2B7FFF;"><use xlink:href="#icon-fee"></use></svg>`;
+    accentColorClass = "";
+    // We'll apply inline color for fees title below
   } else {
     // Default Tasks Icon (Clipboard)
     sectionIcon = `<svg class="h-4 w-4 text-orange-600 mr-2"><use xlink:href="#icon-labor"></use></svg>`;
@@ -2925,9 +3087,10 @@ function addFullSection(title, items, isProtected = false, explicitType = null) 
   // Auto-protect standard titles
   const forceProtect = isProtected || isMaterials || isExpenses || isFees;
 
+  const sectionInlineColor = isFees ? ' style="color: #2B7FFF;"' : isExpenses ? ' style="color: #E7000B;"' : '';
   const titleElement = forceProtect
-    ? `<div class="flex items-center">${sectionIcon}<span class="text-base font-black ${accentColorClass} uppercase tracking-widest section-title">${title}</span></div>`
-    : `<div class="flex items-center w-2/3">${sectionIcon}<input type="text" value="${title}" class="bg-transparent border-none p-0 text-sm font-black ${accentColorClass} uppercase tracking-widest focus:ring-0 w-full section-title" onblur="validateCategoryName(this)"></div>`;
+    ? `<div class="flex items-center">${sectionIcon}<span class="text-base font-black ${accentColorClass} uppercase tracking-widest section-title"${sectionInlineColor}>${title}</span></div>`
+    : `<div class="flex items-center w-2/3">${sectionIcon}<input type="text" value="${title}" class="bg-transparent border-none p-0 text-sm font-black ${accentColorClass} uppercase tracking-widest focus:ring-0 w-full section-title"${sectionInlineColor} onblur="validateCategoryName(this)"></div>`;
 
   const removeButton = `
         <button type="button" onclick="this.closest('.dynamic-section').remove(); updateTotalsSummary();" 
@@ -2937,8 +3100,18 @@ function addFullSection(title, items, isProtected = false, explicitType = null) 
           </svg>
         </button>`;
 
+  let addBtnBg = "bg-orange-600 hover:bg-orange-700";
+  let addBtnStyle = "";
+  if (isExpenses) {
+    addBtnBg = "";
+    addBtnStyle = "background-color: #E7000B;";
+  } else if (isFees) {
+    addBtnBg = "";
+    addBtnStyle = "background-color: #2B7FFF;";
+  }
+
   const addItemBtn = `<button type="button" onclick="addItem('${sectionId}', '', '', null, '${title}')" 
-               class="bg-orange-600 text-white w-7 h-7 rounded-full flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] active:scale-95 hover:bg-orange-700 transition-all" title="Add Item">
+               class="${addBtnBg} text-white w-7 h-7 rounded-full flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] active:scale-95 transition-all" style="${addBtnStyle}" title="Add Item">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
           </svg>
@@ -2952,7 +3125,7 @@ function addFullSection(title, items, isProtected = false, explicitType = null) 
         ${removeButton}
       </div>
     </header>
-    <div id="${sectionId}" class="pt-6"></div>
+    <div id="${sectionId}" class="pt-2"></div>
   `;
   const type = sectionDiv.dataset.protected || 'other';
   insertSectionInOrder(sectionDiv, type);
@@ -3133,20 +3306,6 @@ function removeLaborSection() {
     const container = document.getElementById('laborItemsContainer');
     if (container) {
       container.querySelectorAll('.labor-item-row').forEach(row => row.remove());
-      // Re-add the "Add Item" button if it was removed with the last item
-      if (!container.querySelector('.section-add-btn-container')) {
-        const addButtonContainer = document.createElement('div');
-        addButtonContainer.className = "flex justify-center mt-8 section-add-btn-container";
-        addButtonContainer.innerHTML = `
-               <button type="button" onclick="addLaborItem()" 
-                       class="bg-orange-600 text-white w-8 h-8 rounded-full flex items-center justify-center shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] active:scale-95 btn-add-labor-hover transition-all" title="Add Labor Item">
-                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
-                   <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-                 </svg>
-               </button>
-            `;
-        container.appendChild(addButtonContainer);
-      }
     }
   }
   updateTotalsSummary();
@@ -3179,7 +3338,7 @@ function removeCreditSection() {
         addButtonContainer.className = "flex justify-center mt-8 section-add-btn-container";
         addButtonContainer.innerHTML = `
                     <button type="button" onclick="addCreditItem('creditItemsContainer')" 
-                            class="bg-red-600 text-white w-8 h-8 rounded-full flex items-center justify-center shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] active:scale-95 hover:bg-red-700 transition-all" title="Add Credit Item">
+                            class="text-white w-9 h-8 rounded-full flex items-center justify-center shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] active:scale-95 transition-all" style="background-color: #E7000B;" title="Add Credit Item">
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
                       </svg>
@@ -3214,6 +3373,17 @@ function addLaborSubCategory(btn) {
   subContainer.appendChild(subItem);
   subItem.querySelector('input').focus();
 
+  // Adjust spacing when subcategories are added
+  const buttonRow = laborItemRow.querySelector('.flex.items-center.gap-2');
+  if (subContainer && buttonRow) {
+    // Keep subcategories spacing (mt-2 mb-2)
+    subContainer.classList.remove('mt-0', 'mb-0');
+    subContainer.classList.add('mt-2', 'mb-2');
+    // Add gap back to button row when subcategories present
+    buttonRow.classList.remove('mb-0', 'md:mb-0');
+    buttonRow.classList.add('mb-1');
+  }
+
   // Update button color to orange
   updateLaborAddBtnColor(laborItemRow);
 }
@@ -3222,7 +3392,57 @@ function removeLaborSubCategory(btn) {
   const laborItemRow = btn.closest('.labor-item-row');
   btn.parentElement.remove();
   if (laborItemRow) {
+    // Adjust spacing when subcategories are removed
+    const subContainer = laborItemRow.querySelector('.labor-sub-categories');
+    const buttonRow = laborItemRow.querySelector('.flex.items-center.gap-2');
+    if (subContainer && buttonRow) {
+      const hasSubCategories = subContainer.children.length > 0;
+      if (hasSubCategories) {
+        // Keep subcategories spacing (mt-2 mb-2)
+        subContainer.classList.remove('mt-0', 'mb-0');
+        subContainer.classList.add('mt-2', 'mb-2');
+        // Add gap back to button row when subcategories present
+        buttonRow.classList.remove('mb-0', 'md:mb-0');
+        buttonRow.classList.add('mb-1');
+      } else {
+        // Remove subcategories spacing when empty
+        subContainer.classList.remove('mt-2', 'mb-2');
+        subContainer.classList.add('mt-0', 'mb-0');
+        // Use responsive spacing when no subcategories
+        buttonRow.classList.remove('mb-1');
+        buttonRow.classList.add('mb-0', 'md:mb-0');
+      }
+    }
     updateLaborAddBtnColor(laborItemRow);
+  }
+}
+
+function removeItemSubCategory(btn) {
+  const itemRow = btn.closest('.item-row');
+  btn.parentElement.remove();
+  if (itemRow) {
+    // Adjust spacing when subcategories are removed
+    const subContainer = itemRow.querySelector('.sub-categories');
+    const buttonRow = itemRow.querySelector('.flex.items-center.gap-2');
+    if (subContainer && buttonRow) {
+      const hasSubCategories = subContainer.children.length > 0;
+      if (hasSubCategories) {
+        // Keep subcategories spacing (mt-2 mb-2)
+        subContainer.classList.remove('mt-0', 'mb-0');
+        subContainer.classList.add('mt-2', 'mb-2');
+        // Add gap back to button row when subcategories present
+        buttonRow.classList.remove('mb-0', 'md:mb-0');
+        buttonRow.classList.add('mb-1');
+      } else {
+        // Remove subcategories spacing when empty
+        subContainer.classList.remove('mt-2', 'mb-2');
+        subContainer.classList.add('mt-0', 'mb-0');
+        // Use responsive spacing when no subcategories
+        buttonRow.classList.remove('mb-1');
+        buttonRow.classList.add('mb-0', 'md:mb-0');
+      }
+    }
+    updateTotalsSummary();
   }
 }
 
@@ -3242,11 +3462,22 @@ function addItemSubCategory(btn) {
     <div class="flex-1 flex items-center border-2 border-black rounded-lg bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-colors relative h-8">
       <input type="text" class="flex-1 bg-transparent border-none text-[11px] font-bold text-black focus:ring-0 py-1 px-3 sub-input placeholder:text-gray-300 min-w-0 outline-none" placeholder="${window.APP_LANGUAGES.subcategory_placeholder || "Sub-category..."}">
     </div>
-    <button type="button" onclick="this.parentElement.remove();" class="w-5 h-8 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors font-bold text-xl flex-shrink-0">×</button>
+    <button type="button" onclick="removeItemSubCategory(this);" class="w-5 h-8 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors font-bold text-xl flex-shrink-0">×</button>
   `;
 
   subContainer.appendChild(subItem);
   subItem.querySelector('input').focus();
+
+  // Adjust spacing when subcategories are added
+  const buttonRow = itemRow.querySelector('.flex.items-center.gap-2');
+  if (subContainer && buttonRow) {
+    // Keep subcategories spacing (mt-2 mb-2)
+    subContainer.classList.remove('mt-0', 'mb-0');
+    subContainer.classList.add('mt-2', 'mb-2');
+    // Add gap back to button row when subcategories present
+    buttonRow.classList.remove('mb-0', 'md:mb-0');
+    buttonRow.classList.add('mb-1');
+  }
 
   // Trigger layout adjustment
   requestAnimationFrame(adjustBadgeSpacing);
@@ -3270,20 +3501,7 @@ function addItemSubCategory(btn) {
 
 
 function updateLaborAddBtnColor(row) {
-  const btn = row.querySelector('.labor-add-sub-btn');
-  const subContainer = row.querySelector('.labor-sub-categories');
-  if (!btn || !subContainer) return;
-
-  const svg = btn.querySelector('svg');
-  if (!svg) return;
-
-  if (subContainer.children.length > 0) {
-    svg.classList.remove('text-black');
-    svg.classList.add('text-orange-600');
-  } else {
-    svg.classList.remove('text-orange-600');
-    svg.classList.add('text-black');
-  }
+  // No-op: keep + button always black
 }
 
 // Add a new Labor/Service item with simplified structure
@@ -3292,11 +3510,9 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
   const container = document.getElementById('laborItemsContainer');
   if (!container) return;
 
-  // Insert before the "Add Item" button container (which is the last child)
-  const addButtonContainer = container.lastElementChild;
-
   const div = document.createElement('div');
-  div.className = "flex flex-col gap-2 w-full labor-item-row animate-in fade-in slide-in-from-left-2 duration-300 border-t-2 border-dashed border-orange-200 pt-6 mt-6 first:border-0 first:pt-0 first:mt-0";
+  div.className = "flex flex-col gap-2 w-full labor-item-row animate-in fade-in slide-in-from-left-2 duration-300 border-t-2 border-dashed pt-6 mt-6 first:border-0 first:pt-0 first:mt-0";
+  div.style.borderColor = "#EA580C";
   // Log ALL addLaborItem attempts for diagnostics
   console.log(`[addLaborItem CALL] Description: "${value}" | Price: "${price}" | TaxableArg: ${taxable} | Scope: "${currentLogTaxScope}"`);
 
@@ -3324,6 +3540,11 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
     }
   }
 
+  // If taxable is true but no explicit taxRate, pre-fill with profileTaxRate for inline input
+  if (taxable && (!taxRate || taxRate === '' || taxRate === '0')) {
+    taxRate = profileTaxRate;
+  }
+
   div.dataset.taxable = taxable;
 
   const currencySymbol = activeCurrencySymbol;
@@ -3345,63 +3566,94 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
   }
 
   const labelText = billingMode === 'hourly' ? (window.APP_LANGUAGES.labor_hours_caps || 'LABOR HOURS') : (window.APP_LANGUAGES.labor_price_caps || 'LABOR PRICE');
-  let laborInputHtml = '';
+  const rateLabel = window.APP_LANGUAGES.rate || 'RATE';
 
+  const taxLabel = window.APP_LANGUAGES.tax || 'TAX';
+  const taxVal = (taxRate !== null && taxRate !== undefined && taxRate !== '') ? taxRate : '';
+
+  const hasTax = taxVal !== '' && taxVal !== '0' && taxVal !== 0 && taxVal !== null && taxVal !== undefined;
+  const hasDiscPercent = discPercent !== '' && discPercent !== '0' && discPercent !== 0 && discPercent !== null && discPercent !== undefined;
+  const hasDiscFlat = discFlat !== '' && discFlat !== '0' && discFlat !== 0 && discFlat !== null && discFlat !== undefined;
+
+  let priceGroupHtml = '';
   if (billingMode === 'hourly') {
-    laborInputHtml = `
-            <div class="labor-inputs-target flex items-center flex-1 min-w-0 h-full px-3 gap-2">
-                <!-- Clock Icon (Stylized) -->
-                <div class="flex items-center justify-center bg-orange-600 text-white border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
-                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-
-                <!-- Hours Input -->
-                <input type="number" step="0.1" class="labor-price-input bg-transparent border-none p-0 font-black text-black focus:ring-0 outline-none text-left min-w-0 text-sm placeholder:text-gray-300 w-12" 
-                       value="${laborPriceVal}"
-                       placeholder="0" 
-                       oninput="updateTotalsSummary()">
-                
-                <!-- Multiplication Icon (Simple) -->
-                <div class="flex items-center justify-center shrink-0">
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                </div>
-
-                <!-- Currency Icon (Stylized) -->
-                <div class="flex items-center justify-center bg-orange-600 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px] labor-currency-symbol">
-                    ${currencySymbol}
-                </div>
-
-                <!-- Rate Input -->
-                <input type="number" step="0.01" class="rate-menu-input bg-transparent border-none p-0 font-black text-black focus:ring-0 outline-none text-left min-w-0 text-sm placeholder:text-gray-300 flex-1" 
-                       value="${defaultRate}" 
-                       placeholder="0.00" 
-                       oninput="updateTotalsSummary()">
+    priceGroupHtml = `
+      <div class="flex flex-col labor-price-group">
+        <div class="flex items-start gap-2">
+          <div class="flex flex-col">
+            <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5 labor-label-price">${labelText}</span>
+            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-orange-50 rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] labor-price-container">
+              <div class="flex items-center justify-center bg-orange-600 text-white border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <input type="number" step="0.1" class="labor-price-input bg-transparent border-none p-0 font-black text-black focus:ring-0 outline-none text-left min-w-0 text-sm placeholder:text-gray-300 w-9" 
+                     value="${laborPriceVal}" placeholder="0" oninput="updateTotalsSummary()">
             </div>
-        `;
+          </div>
+          <div class="flex flex-col">
+            <div class="text-[8px] mb-0.5">&nbsp;</div>
+            <div class="flex items-center h-10">
+              <span class="text-black font-black text-sm select-none">×</span>
+            </div>
+          </div>
+          <div class="flex flex-col">
+            <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${rateLabel}</span>
+            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-orange-50 rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] labor-rate-container">
+              <div class="flex items-center justify-center bg-orange-600 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px] labor-currency-symbol">
+                ${currencySymbol}
+              </div>
+              <input type="number" step="0.01" class="rate-menu-input bg-transparent border-none p-0 font-black text-black focus:ring-0 outline-none text-left min-w-0 text-sm placeholder:text-gray-300 w-12" 
+                     value="${defaultRate}" placeholder="0.00" oninput="updateTotalsSummary()">
+            </div>
+          </div>
+          <div class="flex flex-col labor-tax-wrapper ${hasTax ? '' : 'hidden'}">
+            <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${taxLabel}</span>
+            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] tax-wrapper" style="background-color: rgba(54, 65, 83, 0.1);">
+              <div class="flex items-center justify-center bg-gray-700 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px]">
+                <span>%</span>
+              </div>
+              <input type="number" step="0.1" class="tax-menu-input bg-transparent border-none p-0 font-black text-black focus:ring-0 outline-none text-left min-w-0 text-sm placeholder:text-gray-300 w-9"
+                     value="${taxVal}" placeholder="0" oninput="updateTotalsSummary()">
+            </div>
+          </div>
+        </div>
+      </div>`;
   } else {
-    laborInputHtml = `
-            <div class="labor-inputs-target flex items-center flex-1 min-w-0 h-full px-3 gap-2">
-                <!-- Currency Icon (Stylized) -->
-                <div class="flex items-center justify-center bg-orange-600 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px] labor-currency-symbol">
-                    ${currencySymbol}
-                </div>
-
-                <input type="number" step="0.01" class="labor-price-input bg-transparent border-none p-0 font-black text-black focus:ring-0 outline-none text-left min-w-0 text-sm placeholder:text-gray-300 w-full flex-1" 
-                       value="${laborPriceVal ?? defaultRate}" 
-                       placeholder="0.00" 
-                       oninput="updateTotalsSummary()">
+    priceGroupHtml = `
+      <div class="flex flex-col labor-price-group">
+        <div class="flex items-start gap-2">
+          <div class="flex flex-col">
+            <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5 labor-label-price">${labelText}</span>
+            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-orange-50 rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] labor-price-container">
+              <div class="flex items-center justify-center bg-orange-600 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px] labor-currency-symbol">
+                ${currencySymbol}
+              </div>
+              <input type="number" step="0.01" class="labor-price-input bg-transparent border-none p-0 font-black text-black focus:ring-0 outline-none text-left min-w-0 text-sm placeholder:text-gray-300 w-20" 
+                     value="${laborPriceVal ?? defaultRate}" placeholder="0.00" oninput="updateTotalsSummary()">
             </div>
-        `;
+          </div>
+          <div class="flex flex-col labor-tax-wrapper ${hasTax ? '' : 'hidden'}">
+            <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${taxLabel}</span>
+            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] tax-wrapper" style="background-color: rgba(54, 65, 83, 0.1);">
+              <div class="flex items-center justify-center bg-gray-700 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px]">
+                <span>%</span>
+              </div>
+              <input type="number" step="0.1" class="tax-menu-input bg-transparent border-none p-0 font-black text-black focus:ring-0 outline-none text-left min-w-0 text-sm placeholder:text-gray-300 w-9"
+                     value="${taxVal}" placeholder="0" oninput="updateTotalsSummary()">
+            </div>
+          </div>
+        </div>
+      </div>`;
   }
 
   div.innerHTML = `
     <div class="flex items-center gap-2 w-full">
       <div class="flex flex-1 items-center border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] min-w-0 main-item-box transition-colors relative">
         <!-- Add Sub-category Button -->
-        <button type="button" onclick="addLaborSubCategory(this)" class="h-10 w-10 border-r-2 border-black flex-shrink-0 flex items-center justify-center bg-white transition-colors rounded-l-[10px] labor-add-sub-btn" title="Add sub-category">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-black transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+        <button type="button" onclick="addLaborSubCategory(this)" class="h-8 w-9 border-r-2 border-black flex-shrink-0 flex items-center justify-center bg-white transition-colors rounded-l-[10px] labor-add-sub-btn" title="Add sub-category">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-black transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
           </svg>
           </button>
@@ -3410,173 +3662,90 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
       <button type="button" onclick="this.closest('.labor-item-row').remove(); updateTotalsSummary();" class="remove-labor-btn w-6 h-10 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors font-bold text-xl flex-shrink-0">×</button>
     </div>
     <!-- Sub-categories container -->
-    <div class="labor-sub-categories space-y-2 mt-2 pl-12"></div>
+    <div class="labor-sub-categories space-y-2 mt-2 mb-2 pl-6"></div>
     
-       <!-- Price and Tax Row -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-y-3 md:gap-4 mt-1 relative">
-        <!-- Labor Price with Settings -->
-       <div class="space-y-1 relative labor-price-container">
-           <label class="inline-block text-[9px] font-bold text-gray-500 uppercase ml-1 labor-label-price">${labelText}</label>
-           <div class="flex items-center border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] relative h-[52px]">
-               <!-- Menu Trigger -->
-               <div class="h-full w-10 border-r-2 border-black flex-shrink-0 item-menu-container">
-                  <button type="button" onclick="toggleMenu(this)" class="labor-menu-btn w-full h-full flex flex-col items-center justify-center gap-[3px] hover:bg-gray-50 item-menu-btn rounded-l-[10px]">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 transition-colors slider-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                      <path d="M3 4h18M3 12h18M3 20h18" />
-                      <path class="slider-head-1" d="M12 2v4" />
-                      <path class="slider-head-2" d="M12 10v4" />
-                      <path class="slider-head-3" d="M12 18v4" />
-                    </svg>
-                  </button>
-                  <div class="item-menu-dropdown dropdown-labor-half">
-                    <!-- NEW Billing Model Pill Switch -->
-                    <div class="px-1 py-1">
-                      <div class="billing-switch-group">
-                        <span class="text-[8px] font-black text-gray-400 uppercase tracking-tighter ml-1">${window.APP_LANGUAGES.billing_model || 'Billing Model'}</span>
-                        <div class="billing-pill-container">
-                          <button type="button" class="billing-pill-btn ${billingMode === 'hourly' ? 'active' : ''}" data-mode="hourly" onclick="setLaborRowBillingMode(this, 'hourly')">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                            ${window.APP_LANGUAGES.hourly || 'Hourly'}
-                          </button>
-                          <button type="button" class="billing-pill-btn ${billingMode === 'fixed' ? 'active' : ''}" data-mode="fixed" onclick="setLaborRowBillingMode(this, 'fixed')">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                            ${window.APP_LANGUAGES.fixed || 'Fixed'}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <!-- Divider -->
-                    <div class="h-[1px] bg-gray-100 mx-2 my-0.5"></div>
-                    <!-- Tax Menu -->
-                    <div class="tax-wrapper flex flex-col w-full">
-                        <div class="menu-item menu-item-tax ${div.dataset.taxable === 'true' ? 'active' : ''}" onclick="toggleLaborTaxable(this)">
-                          <span>${window.APP_LANGUAGES.taxable || 'Taxable'}</span>
-                          <div class="menu-icon">%</div>
-                        </div>
-                        <div class="tax-inputs-row ${div.dataset.taxable === 'true' ? 'grid' : 'hidden'} gap-1 p-1 bg-gray-100 animate-in slide-in-from-top-1 duration-200 border border-t-0 border-gray-700 rounded-b-md" style="grid-template-columns: 1fr;">
-                             <div class="relative w-full">
-                               <div class="absolute left-1 top-1/2 -translate-y-1/2 h-5 w-5 flex items-center justify-center bg-gray-100 text-gray-500 font-bold border border-gray-300 rounded-md text-[9px] pointer-events-none select-none z-10">
-                                 <span>%</span>
-                               </div>
-                               <input type="number" step="0.1" class="menu-input tax-menu-input text-right w-full border-gray-400 pl-7 pr-1 bg-white" 
-                                      style="width: 100%"
-                                      value="${(taxRate !== null && taxRate !== undefined && taxRate !== '') ? taxRate : profileTaxRate}" placeholder="%" 
-                                      oninput="updateTotalsSummary()">
-                             </div>
-                        </div>
-                    </div>
-                    <!-- Divider -->
-                    <div class="h-[1px] bg-gray-100 mx-2 my-0.5"></div>
-                    <!-- Discount Menu -->
-                      <div class="discount-wrapper flex flex-col w-full">
-                        <div class="menu-item menu-item-discount ${(discFlat && parseFloat(discFlat) > 0) || (discPercent && parseFloat(discPercent) > 0) ? 'active' : ''}" onclick="toggleDiscount(this)">
-                          <span>${window.APP_LANGUAGES.item_discount || 'Item Discount'}</span>
-                          <div class="menu-icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                              <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
-                            </svg>
-                          </div>
-                        </div>
-                        
-                        <div class="discount-inputs-row ${(discFlat && parseFloat(discFlat) > 0) || (discPercent && parseFloat(discPercent) > 0) ? 'grid' : 'hidden'} gap-1 p-1 bg-green-50 animate-in slide-in-from-top-1 duration-200 border border-t-0 border-green-600 rounded-b-md" style="grid-template-columns: 1fr 1fr;">
-                              <div class="relative w-full">
-                                <div class="absolute left-1 top-1/2 -translate-y-1/2 h-5 w-5 flex items-center justify-center bg-gray-100 text-gray-500 font-bold border border-gray-300 rounded-md text-[9px] pointer-events-none select-none z-10">
-                                  <span class="discount-flat-symbol">${currencySymbol}</span>
-                                </div>
-                                <input type="number" step="0.01" class="menu-input discount-flat-input text-right w-full border-gray-300 pl-7 pr-1 bg-white" 
-                                       style="width: 100%"
-                                       value="${discFlat}"
-                                       placeholder="0.00" 
-                                       oninput="updateTotalsSummary()">
-                              </div>
-                              <div class="relative w-full">
-                                <div class="absolute left-1 top-1/2 -translate-y-1/2 h-5 w-5 flex items-center justify-center bg-gray-100 text-gray-500 font-bold border border-gray-300 rounded-md text-[9px] pointer-events-none select-none z-10">
-                                  <span>%</span>
-                                </div>
-                                <input type="number" step="0.1" class="menu-input discount-percent-input text-right w-full border-gray-300 pl-7 pr-1 bg-white" 
-                                       style="width: 100%"
-                                       value="${discPercent}"
-                                       placeholder="0" 
-                                       oninput="updateTotalsSummary()">
-                              </div>
-
-                       </div>
-                    </div>
-                 </div>
-               </div>
-               
-               ${laborInputHtml}
-               
-                <!-- Top Badges Scrollable Area (Discount) -->
-                <div class="absolute -top-[31px] left-[10px] right-[8px] h-[30px] pointer-events-none z-[90] overflow-visible">
-                    <div class="custom-scrollbar overflow-x-auto h-full pointer-events-auto flex" style="direction: rtl; transform: rotateX(180deg);">
-                        <div class="flex items-center gap-1 shrink-0 h-[24px] px-0.5 whitespace-nowrap" style="direction: ltr; min-width: 100%; justify-content: flex-end;">
-                            <span class="badge badge-original-price hidden bg-orange-600 text-white" 
-                                  style="border: 1px solid black; box-shadow: 2px 0 0 0 #000, 0 2px 0 0 #000, 2px 2px 0 0 #000;"></span>
-                            
-                            <div class="badge-operator badge-minus hidden flex items-center justify-center">
-                                <span style="transform: rotateX(180deg); display: flex;">
-                                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="5" stroke-linecap="round"><path d="M5 12h14"/></svg>
-                                </span>
-                            </div>
-
-                            <span class="badge badge-discount-amount hidden bg-green-600 text-white" 
-                                  style="border: 1px solid black; box-shadow: 2px 0 0 0 #000, 0 2px 0 0 #000, 2px 2px 0 0 #000;"></span>
-                            
-                            <div class="badge-operator badge-equals-top hidden flex items-center justify-center">
-                                <span style="transform: rotateX(180deg); display: flex;">
-                                  <svg width="12" height="10" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="5" stroke-linecap="round"><path d="M4 8h16M4 16h16"/></svg>
-                                </span>
-                            </div>
-                            
-                            <span class="badge badge-discounted-price hidden bg-orange-600 text-white" 
-                                  style="border: 1px solid black; box-shadow: 2px 0 0 0 #000, 0 2px 0 0 #000, 2px 2px 0 0 #000;"></span>
-
-                            <!-- Legacy/Fallback (Hidden) -->
-                            <span class="badge badge-discount hidden"></span>
-                        </div>
-                    </div>
-                </div>
-                <!-- Bottom Badges Scrollable Area -->
-                <div class="absolute -bottom-[31px] left-[10px] right-[8px] h-[30px] pointer-events-none z-[90] overflow-visible">
-                    <div class="custom-scrollbar overflow-x-auto h-full pointer-events-auto flex" style="direction: rtl;">
-                        <div class="flex items-center gap-1 shrink-0 h-[24px] px-0.5 whitespace-nowrap" style="direction: ltr; min-width: 100%; justify-content: flex-end;">
-                            <span class="badge badge-price hidden shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] border border-black bg-orange-600 text-white"></span>
-                            <div class="badge-operator badge-multiplier hidden flex items-center justify-center">
-                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                            </div>
-                            <span class="badge badge-tax hidden shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] border border-black bg-gray-700 text-white"></span>
-                            <div class="badge-operator badge-equals hidden flex items-center justify-center">
-                                <svg width="12" height="10" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="5" stroke-linecap="round"><path d="M4 8h16M4 16h16"/></svg>
-                            </div>
-                            <span class="badge badge-after-tax hidden shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] border border-black bg-gray-700 text-white"></span>
-                        </div>
-                    </div>
-                </div>
-            </div>
+    <!-- Top row: Billing toggle + ADD DISCOUNT button -->
+    <div class="flex items-center gap-2 mb-0 md:mb-0">
+      <div class="billing-pill-container" style="margin:0; border: 2px solid black; border-radius: 10px; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1); overflow: hidden; height: 28px; width: fit-content;">
+        <button type="button" class="billing-pill-btn ${billingMode === 'hourly' ? 'active' : ''}" data-mode="hourly" onclick="setLaborRowBillingMode(this, 'hourly')" style="border-radius: 8px; padding: 0 8px;">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          ${window.APP_LANGUAGES.hourly || 'Hourly'}
+        </button>
+        <button type="button" class="billing-pill-btn ${billingMode === 'fixed' ? 'active' : ''}" data-mode="fixed" onclick="setLaborRowBillingMode(this, 'fixed')" style="border-radius: 8px; padding: 0 8px;">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          ${window.APP_LANGUAGES.fixed || 'Fixed'}
+        </button>
+      </div>
+      <!-- ADD TAX button -->
+      <button type="button" onclick="toggleLaborTax(this)" class="flex items-center gap-1 px-2.5 h-7 border-2 border-black bg-gray-50 rounded-lg shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-[10px] font-black text-gray-700 uppercase tracking-wider hover:bg-gray-100 transition-colors labor-add-tax-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
+        ${window.APP_LANGUAGES.tax || 'Tax'}
+      </button>
+      <!-- ADD DISCOUNT button -->
+      <div class="relative">
+        <button type="button" onclick="toggleLaborDiscountDropdown(this)" class="flex items-center gap-1 px-2.5 h-7 border-2 rounded-lg shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-[10px] font-black uppercase tracking-wider transition-colors labor-add-discount-btn" style="background-color: white; border-color: #00A63E; color: #00A63E;">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
+          ${window.APP_LANGUAGES.discount || 'Discount'}
+        </button>
+        <div class="labor-discount-dropdown hidden absolute left-0 top-full mt-1 z-50 bg-white border-2 border-black rounded-lg shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden min-w-[160px]">
+          <button type="button" onclick="showLaborDiscount(this, 'percent')" class="flex items-center gap-2 w-full px-3 py-2 text-[11px] font-bold text-black hover:bg-green-50 transition-colors">
+            <span class="flex items-center justify-center bg-green-600 text-white font-black border-2 border-black rounded-md h-5 w-5 shrink-0 text-[9px]">%</span>
+            ${window.APP_LANGUAGES.discount || 'Discount'}
+          </button>
+          <button type="button" onclick="showLaborDiscount(this, 'flat')" class="flex items-center gap-2 w-full px-3 py-2 text-[11px] font-bold text-black hover:bg-green-50 transition-colors border-t border-gray-200">
+            <span class="flex items-center justify-center bg-green-600 text-white font-black border-2 border-black rounded-md h-5 w-5 shrink-0 text-[9px] discount-flat-symbol">${currencySymbol}</span>
+            ${window.APP_LANGUAGES.discount || 'Discount'}
+          </button>
         </div>
+      </div>
+    </div>
 
-       <!-- After Tax -->
-        <div class="space-y-1 relative labor-after-tax-container">
-            <label class="inline-block text-[9px] font-bold text-gray-500 uppercase ml-1 transition-all">${window.APP_LANGUAGES.after_tax || "AFTER TAX"}</label>
-            <div class="border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] relative h-[52px] w-max min-w-[120px] max-w-full overflow-visible">
-                <!-- Internal Scrollable Area -->
-                <div class="custom-scrollbar overflow-x-auto h-full flex items-center pl-2">
-                    <div class="flex items-center gap-0 w-max labor-formula-row">
-                        <!-- Rebuilt in JS during updateTotalsSummary -->
-                    </div>
-                </div>
+    <!-- Price / Tax / Discount fields -->
+    <div class="flex flex-col md:flex-row md:flex-wrap items-start md:items-end gap-2 labor-inline-row labor-inputs-target">
+
+      <!-- Hours/Price/Tax — injected from priceGroupHtml -->
+      ${priceGroupHtml}
+
+      <!-- Discount Group -->
+      <div class="flex items-start gap-2 discount-wrapper labor-discount-group">
+        <!-- Percentage Discount (hidden by default) -->
+        <div class="flex items-end gap-1 labor-discount-percent-wrapper ${hasDiscPercent ? '' : 'hidden'}">
+          <div class="flex flex-col">
+            <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${window.APP_LANGUAGES.discount || 'DISCOUNT'}</span>
+            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-green-50 rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+              <div class="flex items-center justify-center bg-green-600 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px]">
+                <span>%</span>
+              </div>
+              <input type="number" step="0.1" class="discount-percent-input bg-transparent border-none p-0 font-black text-black focus:ring-0 outline-none text-left min-w-0 text-sm placeholder:text-gray-300 w-9"
+                     value="${discPercent}"
+                     placeholder="0"
+                     oninput="updateTotalsSummary()">
             </div>
+          </div>
+          <button type="button" onclick="removeLaborDiscount(this, 'percent')" class="w-5 h-10 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors font-bold text-sm flex-shrink-0">×</button>
         </div>
+        <!-- Flat Discount (hidden by default) -->
+        <div class="flex items-end gap-1 labor-discount-flat-wrapper ${hasDiscFlat ? '' : 'hidden'}">
+          <div class="flex flex-col">
+            <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${window.APP_LANGUAGES.discount || 'DISCOUNT'}</span>
+            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-green-50 rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+              <div class="flex items-center justify-center bg-green-600 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px] discount-flat-symbol">
+                ${currencySymbol}
+              </div>
+              <input type="number" step="0.01" class="discount-flat-input bg-transparent border-none p-0 font-black text-black focus:ring-0 outline-none text-left min-w-0 text-sm placeholder:text-gray-300 w-12"
+                     value="${discFlat}"
+                     placeholder="0"
+                     oninput="updateTotalsSummary()">
+            </div>
+          </div>
+          <button type="button" onclick="removeLaborDiscount(this, 'flat')" class="w-5 h-10 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors font-bold text-sm flex-shrink-0">×</button>
+        </div>
+      </div>
+
     </div>
   `;
 
-  if (addButtonContainer && addButtonContainer.classList.contains('flex') && addButtonContainer.querySelector('button[title="Add Labor Item"]')) {
-    container.insertBefore(div, addButtonContainer);
-  } else {
-    container.appendChild(div);
-  }
+  container.appendChild(div);
 
   // Populate Sub-categories
   if (sub_categories && sub_categories.length > 0) {
@@ -3595,6 +3764,47 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
       subContainer.appendChild(subItem);
     });
     updateLaborAddBtnColor(div);
+  }
+
+  // Adjust spacing based on subcategories presence
+  const laborSubContainer = div.querySelector('.labor-sub-categories');
+  const laborButtonRow = div.querySelector('.flex.items-center.gap-2');
+  if (laborSubContainer && laborButtonRow) {
+    const hasSubCategories = laborSubContainer.children.length > 0;
+    if (hasSubCategories) {
+      // Keep subcategories spacing (mt-2 mb-2)
+      laborSubContainer.classList.remove('mt-0', 'mb-0');
+      laborSubContainer.classList.add('mt-2', 'mb-2');
+      // Add gap back to button row when subcategories present
+      laborButtonRow.classList.remove('mb-0', 'md:mb-0');
+      laborButtonRow.classList.add('mb-1');
+    } else {
+      // Remove subcategories spacing when empty
+      laborSubContainer.classList.remove('mt-2', 'mb-2');
+      laborSubContainer.classList.add('mt-0', 'mb-0');
+      // Use responsive spacing when no subcategories
+      laborButtonRow.classList.remove('mb-1');
+      laborButtonRow.classList.add('mb-0', 'md:mb-0');
+    }
+  }
+
+  // Set initial active states for +TAX and +DISCOUNT buttons
+  if (hasTax) {
+    const taxBtn = div.querySelector('.labor-add-tax-btn');
+    if (taxBtn) {
+      taxBtn.classList.remove('bg-gray-50', 'border-black', 'text-gray-700');
+      taxBtn.style.backgroundColor = '#364153';
+      taxBtn.style.borderColor = '#364153';
+      taxBtn.style.color = 'white';
+    }
+  }
+  if (hasDiscPercent || hasDiscFlat) {
+    const discBtn = div.querySelector('.labor-add-discount-btn');
+    if (discBtn) {
+      discBtn.style.backgroundColor = '#00A63E';
+      discBtn.style.borderColor = '#00A63E';
+      discBtn.style.color = 'white';
+    }
   }
 
   // Only focus when user explicitly clicks add (no value pre-filled AND not suppressed)
@@ -3645,7 +3855,8 @@ function addCreditItem(containerId, reason = (window.APP_LANGUAGES?.courtesy_cre
   if (!container) return;
 
   const div = document.createElement('div');
-  div.className = "flex flex-col gap-2 w-full animate-in fade-in slide-in-from-left-2 duration-300 credit-item-row border-t-2 border-dashed border-red-200 pt-6 mt-6 first:border-0 first:pt-0 first:mt-0";
+  div.className = "flex flex-col gap-2 w-full animate-in fade-in slide-in-from-left-2 duration-300 credit-item-row border-t-2 border-dashed pt-6 mt-6 first:border-0 first:pt-0 first:mt-0";
+  div.style.borderColor = "#E7000B";
 
   const currencySymbol = typeof activeCurrencySymbol !== 'undefined' ? activeCurrencySymbol : "$";
 
@@ -3656,7 +3867,7 @@ function addCreditItem(containerId, reason = (window.APP_LANGUAGES?.courtesy_cre
         ${window.APP_LANGUAGES.credit_amount_caps || "CREDIT AMOUNT"}
       </label>
       <div class="flex items-center border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] relative h-[52px]">
-          <span class="flex items-center justify-center bg-red-600 text-white font-black border-2 border-black rounded-lg h-6 w-6 ml-2 shrink-0 select-none text-[10px] credit-unit-indicator">${currencySymbol}</span>
+          <span class="flex items-center justify-center text-white font-black border-2 border-black rounded-lg h-6 w-6 ml-2 shrink-0 select-none text-[10px] credit-unit-indicator" style="background-color: #E7000B;">${currencySymbol}</span>
           <input type="number" step="0.01" 
                  class="credit-amount-input bg-transparent border-none py-3 pl-2 pr-2 font-black text-black focus:ring-0 outline-none text-left min-w-0 text-sm placeholder:text-gray-300 w-full flex-1"
                  value="${amount}"
@@ -3881,10 +4092,12 @@ function updateBadge(row) {
     const displayRate = parseFloat(taxRate); // Strip .0
     taxBadge.innerText = `${displayRate}%`;
     taxBadge.classList.remove('hidden');
-    row.querySelector('.menu-item-tax').classList.add('active');
+    const menuTax = row.querySelector('.menu-item-tax');
+    if (menuTax) menuTax.classList.add('active');
   } else {
     taxBadge.classList.add('hidden');
-    row.querySelector('.menu-item-tax').classList.toggle('active', isTaxable);
+    const menuTax = row.querySelector('.menu-item-tax');
+    if (menuTax) menuTax.classList.toggle('active', isTaxable);
   }
 
   // 3. Update Equation visibility and Result Badge
@@ -4345,15 +4558,20 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
   // Default taxable logic and item naming
   const lowerTitle = (sectionTitle || "").toLowerCase();
 
+  // Detect section type from container's parent data-protected attribute (most reliable)
+  const containerEl = document.getElementById(containerId);
+  const parentSection = containerEl ? containerEl.closest('.dynamic-section') : null;
+  const protectedType = parentSection ? (parentSection.dataset.protected || "") : "";
+
   // Localized checks
   const matKey = (window.APP_LANGUAGES.materials || "").toLowerCase();
   const feeKey = (window.APP_LANGUAGES.fees || "").toLowerCase();
   const expKey = (window.APP_LANGUAGES.expenses || "").toLowerCase();
 
-  const isLaborSection = /labor|service|install|diag|repair|maintenance|tech|professional/i.test(lowerTitle) || (window.APP_LANGUAGES.professional_services && lowerTitle.includes(window.APP_LANGUAGES.professional_services.toLowerCase()));
-  const isMaterialSection = /material|part|item/i.test(lowerTitle) || (matKey && lowerTitle.includes(matKey));
-  const isFeeSection = /fee|surcharge/i.test(lowerTitle) || (feeKey && lowerTitle.includes(feeKey));
-  const isExpenseSection = /expense|reimburse/i.test(lowerTitle) || (expKey && lowerTitle.includes(expKey));
+  const isLaborSection = protectedType === 'labor' || /labor|service|install|diag|repair|maintenance|tech|professional/i.test(lowerTitle) || (window.APP_LANGUAGES.professional_services && lowerTitle.includes(window.APP_LANGUAGES.professional_services.toLowerCase()));
+  const isMaterialSection = protectedType === 'materials' || /material|part|item/i.test(lowerTitle) || (matKey && lowerTitle.includes(matKey));
+  const isFeeSection = protectedType === 'fees' || /fee|surcharge/i.test(lowerTitle) || (feeKey && lowerTitle.includes(feeKey));
+  const isExpenseSection = protectedType === 'expenses' || /expense|reimburse/i.test(lowerTitle) || (expKey && lowerTitle.includes(expKey));
 
   // DEFAULT ITEM NAME based on section
   if (!finalValue || finalValue.trim() === "") {
@@ -4417,232 +4635,135 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
     taxRate = globalRate;
   }
 
+  // Determine divider color based on section type
+  let dividerClasses = "border-t-2 border-dashed pt-6 mt-6 first:border-0 first:pt-0 first:mt-0";
+  let dividerInlineStyle = "";
+  if (isExpenseSection) {
+    dividerInlineStyle = "border-color: #E7000B;";
+  } else if (isFeeSection) {
+    dividerInlineStyle = "border-color: #2B7FFF;";
+  } else {
+    // Default for LABOR and PRODUCTS
+    dividerInlineStyle = "border-color: #EA580C;";
+  }
+
   const div = document.createElement('div');
   div.dataset.taxable = taxable;
   div.dataset.symbol = currencySymbol;
   div.dataset.qty = finalQty;
-  // Adjusted margin (mb-14) for optimal spacing
-  div.className = "flex flex-col gap-2 mb-14 w-full animate-in fade-in slide-in-from-left-2 duration-300 item-row transition-all";
+  div.className = `flex flex-col gap-2 w-full animate-in fade-in slide-in-from-left-2 duration-300 item-row transition-all ${dividerClasses}`;
+  if (dividerInlineStyle) div.style.cssText = dividerInlineStyle;
 
   // Inputs (Price and Tax)
   const hasPrice = price && price !== "" && price !== "0" && price !== "0.00";
   const priceVal = hasPrice ? cleanNum(price) : "";
 
   // Discount Logic for Initial Load
-  const hasDiscount = (discFlat && parseFloat(discFlat) > 0) || (discPercent && parseFloat(discPercent) > 0);
-  const discActiveClass = hasDiscount ? "active" : "";
   const discFlatVal = discFlat ? cleanNum(discFlat) : "";
   const discPercentVal = discPercent ? cleanNum(discPercent) : "";
-
-  const priceActiveClass = hasPrice ? "active" : "";
-  const taxActiveClass = taxable ? "active" : "";
-
-  // Style for locked state
-  const lockedStyle = taxable ? 'opacity: 0.5;' : '';
-  const cursorStyle = taxable ? 'cursor: not-allowed;' : '';
+  const hasDiscPercent = discPercentVal !== '' && discPercentVal !== '0' && parseFloat(discPercentVal) > 0;
+  const hasDiscFlat = discFlatVal !== '' && discFlatVal !== '0' && parseFloat(discFlatVal) > 0;
 
   div.innerHTML = `
       <div class="flex items-center gap-2 w-full">
         <div class="flex flex-1 items-center border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] min-w-0 main-item-box transition-colors relative">
-          
-          <!-- Hamburger Menu Container -->
-          <div class="h-10 w-10 border-r-2 border-black flex-shrink-0 item-menu-container">
-            <button type="button" onclick="toggleMenu(this)" class="w-full h-full flex flex-col items-center justify-center gap-[3px] btn-hamburger-hover item-menu-btn rounded-l-[10px]">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 transition-colors slider-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                <path d="M3 4h18M3 12h18M3 20h18" />
-                <path class="slider-head-1" d="M12 2v4" />
-                <path class="slider-head-2" d="M12 10v4" />
-                <path class="slider-head-3" d="M12 18v4" />
-              </svg>
-            </button>
-            
-            <div class="item-menu-dropdown dropdown-standard">
-              
-              <!-- Subcategory Option (NEW) -->
-              <div class="menu-item menu-item-subcategory" onclick="addItemSubCategory(this)">
-                <span>${window.APP_LANGUAGES.add_subcategory || "Add Subcategory"}</span>
-                <div class="menu-icon">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-                  </svg>
-                </div>
-              </div>
-              
-              <!-- Divider -->
-              <div class="h-[1px] bg-gray-100 mx-2 my-0.5"></div>
-            
-            <!-- Tax Menu Item (MOVED TOP) -->
-            <div class="tax-wrapper flex flex-col w-full">
-                <div class="menu-item menu-item-tax ${taxActiveClass}" onclick="toggleTaxable(this)">
-                  <span>${window.APP_LANGUAGES.taxable || 'Taxable'}</span>
-                  <div class="menu-icon">%</div>
-                </div>
-                
-                <div class="tax-inputs-row ${taxable ? 'grid' : 'hidden'} gap-1 p-1 bg-gray-100 animate-in slide-in-from-top-1 duration-200 border border-t-0 border-gray-700 rounded-b-md"
-                     style="grid-template-columns: 1fr;">
-                     <div class="relative w-full">
-                       <div class="absolute left-1 top-1/2 -translate-y-1/2 h-5 w-5 flex items-center justify-center bg-gray-100 text-gray-500 font-bold border border-gray-300 rounded-md text-[9px] pointer-events-none select-none z-10">
-                         <span>%</span>
-                       </div>
-                       <input type="number" step="0.1" class="menu-input tax-menu-input text-right w-full border-gray-400 pl-7 pr-1 bg-white" 
-                              style="width: 100%"
-                              value="${(taxRate !== null && taxRate !== undefined && taxRate !== '') ? taxRate : profileTaxRate}" placeholder="%" 
-                              oninput="updateBadge(this.closest('.item-row'))">
-                     </div>
-                </div>
-            </div>
-            <!-- Divider -->
-            <div class="h-[1px] bg-gray-100 mx-2 my-0.5"></div>
-            <!-- Price Menu Item (Moved Middle) -->
-            <div class="price-wrapper flex flex-col w-full">
-                <div class="menu-item menu-item-price ${priceActiveClass}" onclick="togglePrice(this)"
-                     style="${cursorStyle}">
-                  <span style="${lockedStyle}">${window.APP_LANGUAGES.price || 'Price'}</span>
-                  <div class="menu-icon price-menu-icon" style="${lockedStyle}">${currencySymbol}</div>
-                </div>
-
-                <div class="price-inputs-row ${hasPrice ? 'grid' : 'hidden'} gap-1 p-1 bg-orange-50 animate-in slide-in-from-top-1 duration-200 border border-t-0 border-orange-600 rounded-b-md"
-                     style="grid-template-columns: 1fr;">
-                     <div class="relative w-full">
-                        <div class="absolute left-1 top-1/2 -translate-y-1/2 h-5 w-5 flex items-center justify-center bg-gray-100 text-gray-500 font-bold border border-gray-300 rounded-md text-[9px] pointer-events-none select-none z-10">
-                           <span class="price-input-symbol">${currencySymbol}</span>
-                        </div>
-                        <input type="number" step="0.01" class="menu-input price-menu-input text-right w-full border-orange-200 pl-7 pr-1 bg-white" 
-                               style="width: 100%"
-                               value="${priceVal}" placeholder="0.00" 
-                               oninput="updateBadge(this.closest('.item-row'))">
-                     </div>
-                </div>
-            </div>
-            <!-- Divider -->
-            <div class="h-[1px] bg-gray-100 mx-2 my-0.5"></div>
-            <!-- Discount Menu Item (Moved Last) -->
-            <div class="discount-wrapper flex flex-col w-full">
-                <div class="menu-item menu-item-discount ${discActiveClass}" onclick="toggleDiscount(this)">
-                  <span>${window.APP_LANGUAGES.item_discount || 'Item Discount'}</span>
-                  <div class="menu-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
-                    </svg>
-                  </div>
-                </div>
-                
-                <!-- Inline Input Container -->
-                <div class="discount-inputs-row ${hasDiscount ? 'grid' : 'hidden'} gap-1 p-1 bg-green-50 animate-in slide-in-from-top-1 duration-200 border border-t-0 border-green-600 rounded-b-md" 
-                     style="grid-template-columns: 1fr 1fr;">
-                     <div class="relative w-full">
-                       <div class="absolute left-1 top-1/2 -translate-y-1/2 h-5 w-5 flex items-center justify-center bg-gray-100 text-gray-500 font-bold border border-gray-300 rounded-md text-[9px] pointer-events-none select-none z-10">
-                         <span class="discount-flat-symbol">${currencySymbol}</span>
-                       </div>
-                       <input type="number" step="0.01" class="menu-input discount-flat-input text-right w-full border-gray-300 pl-7 pr-1 bg-white" 
-                              style="width: 100%"
-                              value="${discFlatVal}"
-                              placeholder="0.00" 
-                              oninput="updateBadge(this.closest('.item-row'))">
-                     </div>
-                     <div class="relative w-full">
-                       <div class="absolute left-1 top-1/2 -translate-y-1/2 h-5 w-5 flex items-center justify-center bg-gray-100 text-gray-500 font-bold border border-gray-300 rounded-md text-[9px] pointer-events-none select-none z-10">
-                         <span>%</span>
-                       </div>
-                       <input type="number" step="0.1" class="menu-input discount-percent-input text-right w-full border-gray-300 pl-7 pr-1 bg-white" 
-                              style="width: 100%"
-                              value="${discPercentVal}"
-                              placeholder="0" 
-                              oninput="updateBadge(this.closest('.item-row'))">
-                      </div>
-
-                 </div>
-            </div>
-
-          </div>
+          <!-- Add Sub-category Button -->
+          <button type="button" onclick="addItemSubCategory(this)" class="h-8 w-8 border-r-2 border-black flex-shrink-0 flex items-center justify-center bg-white transition-colors rounded-l-[10px] item-add-sub-btn" title="Add sub-category">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-black transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
+          <input type="text" value="${finalValue}" 
+                 class="flex-1 bg-transparent border-none text-sm font-bold text-black focus:ring-0 py-2 px-3 item-input placeholder:text-gray-300 min-w-0"
+                 placeholder="${window.APP_LANGUAGES.description_placeholder || "Description..."}" oninput="updateTotalsSummary()">
         </div>
-  
-        <input type="text" value="${finalValue}" 
-               class="flex-1 bg-transparent border-none text-sm font-bold text-black focus:ring-0 py-2 px-3 item-input placeholder:text-gray-300 min-w-0"
-               placeholder="${window.APP_LANGUAGES.description_placeholder || "Description..."}" oninput="updateTotalsSummary()">
-        
-         <div class="flex items-center gap-0.5 px-1 border-l-2 border-black h-10 group/qty bg-gray-50/50 rounded-r-[10px] shrink-0 overflow-hidden transition-all duration-200">
-          <span class="text-[13px] font-black text-black select-none translate-y-[0.5px]">×</span>
-          <input type="number" 
-                 class="qty-input bg-transparent border-none p-0 font-black text-black focus:ring-0 outline-none text-center text-xs md:text-sm placeholder:text-gray-300"
-                 style="min-width: 0; width: 20px;"
-                 value="${finalQty}" placeholder="1" 
-                 oninput="updateBadge(this.closest('.item-row')); resizeQtyInput(this);"
-                 onblur="if(this.value==='' || parseFloat(this.value)<=0){this.value='1'; updateBadge(this.closest('.item-row')); resizeQtyInput(this);}">
-        </div>
-        
-        <!-- Top Badges Scrollable Area (Discount) -->
-      <div class="absolute -top-[31px] left-[10px] right-[8px] h-[30px] pointer-events-none z-[90] overflow-visible">
-          <div class="custom-scrollbar overflow-x-auto h-full pointer-events-auto flex" style="direction: rtl; transform: rotateX(180deg);">
-              <div class="flex items-center gap-1 shrink-0 h-[24px] px-0.5" style="direction: ltr; min-width: 100%; justify-content: flex-end;">
-                  <!-- Formula: Original - Discount = Final -->
-                  
-                  <span class="badge badge-original-price hidden bg-orange-600 text-white" 
-                        style="border: 1px solid black; box-shadow: 2px 0 0 0 #000, 0 2px 0 0 #000, 2px 2px 0 0 #000;"></span>
-                  
-                  <div class="badge-operator badge-minus hidden flex items-center justify-center">
-                      <span style="transform: rotateX(180deg); display: flex;">
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="5" stroke-linecap="round"><path d="M5 12h14"/></svg>
-                      </span>
-                  </div>
-                  
-                  <span class="badge badge-discount-amount hidden bg-green-600 text-white"
-                        style="border: 1px solid black; box-shadow: 2px 0 0 0 #000, 0 2px 0 0 #000, 2px 2px 0 0 #000;"></span>
-                  
-                  <div class="badge-operator badge-equals-top hidden flex items-center justify-center">
-                      <span style="transform: rotateX(180deg); display: flex;">
-                        <svg width="12" height="10" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="5" stroke-linecap="round"><path d="M4 8h16M4 16h16"/></svg>
-                      </span>
-                  </div>
-                  
-                  <span class="badge badge-discounted-price hidden bg-orange-600 text-white"
-                        style="border: 1px solid black; box-shadow: 2px 0 0 0 #000, 0 2px 0 0 #000, 2px 2px 0 0 #000;"></span>
-                  
-                  <!-- Legacy Fallback (Hidden) -->
-                  <span class="badge badge-discount hidden"></span>
-              </div>
-          </div>
+        <button type="button" onclick="this.closest('.item-row').remove(); updateTotalsSummary();" 
+                class="remove-item-btn w-6 h-10 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors font-bold text-xl flex-shrink-0">×</button>
       </div>
+      <!-- Sub-categories container -->
+      <div class="sub-categories pl-6 space-y-2 mt-2 mb-2"></div>
       
-      <!-- Bottom Badges Scrollable Area -->
-      <div class="absolute -bottom-[31px] left-[10px] right-[8px] h-[30px] pointer-events-none z-[90] overflow-visible">
-          <div class="custom-scrollbar overflow-x-auto h-full pointer-events-auto flex" style="direction: rtl;">
-              <div class="flex items-center gap-1 shrink-0 h-[24px] px-0.5" style="direction: ltr; min-width: 100%; justify-content: flex-end;">
-                  <span class="badge badge-price hidden shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] border border-black bg-orange-600 text-white"></span>
-                  <div class="badge-operator badge-multiplier hidden flex items-center justify-center">
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                  </div>
-                  <span class="badge badge-tax hidden shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] border border-black bg-gray-700 text-white"></span>
-                  <div class="badge-operator badge-equals hidden flex items-center justify-center">
-                      <svg width="12" height="10" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="5" stroke-linecap="round"><path d="M4 8h16M4 16h16"/></svg>
-                  </div>
-                  <span class="badge badge-after-tax hidden shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] border border-black bg-gray-700 text-white"></span>
-              </div>
+      <!-- Top row: + TAX and + DISCOUNT buttons -->
+      <div class="flex items-center gap-2 mb-0 md:mb-0">
+        <!-- ADD TAX button -->
+        <button type="button" onclick="toggleItemTax(this)" class="flex items-center gap-1 px-2.5 h-7 border-2 border-black bg-gray-50 rounded-lg shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-[10px] font-black text-gray-700 uppercase tracking-wider hover:bg-gray-100 transition-colors item-add-tax-btn">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
+          ${window.APP_LANGUAGES.tax || 'Tax'}
+        </button>
+        <!-- ADD DISCOUNT button -->
+        <div class="relative">
+          <button type="button" onclick="toggleItemDiscountDropdown(this)" class="flex items-center gap-1 px-2.5 h-7 border-2 rounded-lg shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-[10px] font-black uppercase tracking-wider transition-colors item-add-discount-btn" style="background-color: white; border-color: #00A63E; color: #00A63E;">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
+            ${window.APP_LANGUAGES.discount || 'Discount'}
+          </button>
+          <div class="item-discount-dropdown hidden absolute left-0 top-full mt-1 z-50 bg-white border-2 border-black rounded-lg shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden min-w-[160px]">
+            <button type="button" onclick="showItemDiscount(this, 'percent')" class="flex items-center gap-2 w-full px-3 py-2 text-[11px] font-bold text-black hover:bg-green-50 transition-colors">
+              <span class="flex items-center justify-center bg-green-600 text-white font-black border-2 border-black rounded-md h-5 w-5 shrink-0 text-[9px]">%</span>
+              ${window.APP_LANGUAGES.discount || 'Discount'}
+            </button>
+            <button type="button" onclick="showItemDiscount(this, 'flat')" class="flex items-center gap-2 w-full px-3 py-2 text-[11px] font-bold text-black hover:bg-green-50 transition-colors border-t border-gray-200">
+              <span class="flex items-center justify-center bg-green-600 text-white font-black border-2 border-black rounded-md h-5 w-5 shrink-0 text-[9px] discount-flat-symbol">${currencySymbol}</span>
+              ${window.APP_LANGUAGES.discount || 'Discount'}
+            </button>
           </div>
-      </div>
-      </div>
-      <button type="button" 
-              onclick="this.closest('.item-row').remove(); updateTotalsSummary();" 
-              class="remove-item-btn w-6 h-10 flex items-center justify-center text-gray-300 btn-remove-item-hover transition-colors font-bold text-xl flex-shrink-0">
-        ×
-      </button>
-    </div>
-    <!-- Sub-categories container -->
-    <div class="sub-categories pl-6 space-y-2 mt-2"></div>
-
-    <!-- Item Subtotal Box -->
-    <div class="item-subtotal-container pl-6 mt-1 hidden animate-in fade-in slide-in-from-top-1 duration-300">
-      <div class="flex flex-col gap-1">
-        <label class="item-subtotal-label text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">${window.APP_LANGUAGES.after_tax || "AFTER TAX"}</label>
-        <div class="border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] relative h-[52px] w-max min-w-[120px] max-w-full overflow-visible">
-            <div class="custom-scrollbar overflow-x-auto h-full flex items-center pl-2">
-                <div class="flex items-center gap-0 w-max item-formula-row">
-                    <!-- Formula injected here in updateBadge -->
-                </div>
-            </div>
         </div>
       </div>
-    </div>
+      <!-- Price / Tax / Discount fields (flex-wrap so discount wraps on mobile) -->
+      <div class="flex flex-wrap items-start gap-2 item-inputs-target">
+        <!-- PRICE (always visible) -->
+        <div class="flex flex-col">
+          <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${window.APP_LANGUAGES.price || 'PRICE'}</span>
+          <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-orange-50 rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+            <div class="flex items-center justify-center bg-orange-600 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px] price-input-symbol">
+              ${currencySymbol}
+            </div>
+            <input type="number" step="0.01" class="price-menu-input bg-transparent border-none p-0 font-black text-black focus:ring-0 outline-none text-left min-w-0 text-sm placeholder:text-gray-300 w-20"
+                   value="${priceVal}" placeholder="0.00" oninput="updateTotalsSummary()">
+          </div>
+        </div>
+        <!-- TAX (hidden by default, shown via + TAX button) -->
+        <div class="flex flex-col item-tax-wrapper ${taxable ? '' : 'hidden'}">
+          <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${window.APP_LANGUAGES.tax || 'TAX'}</span>
+          <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] tax-wrapper" style="background-color: rgba(54, 65, 83, 0.1);">
+            <div class="flex items-center justify-center bg-gray-700 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px]">
+              <span>%</span>
+            </div>
+            <input type="number" step="0.1" class="tax-menu-input bg-transparent border-none p-0 font-black text-black focus:ring-0 outline-none text-left min-w-0 text-sm placeholder:text-gray-300 w-9"
+                   value="${(taxRate !== null && taxRate !== undefined && taxRate !== '') ? taxRate : profileTaxRate}" placeholder="0" oninput="updateTotalsSummary()">
+          </div>
+        </div>
+        <!-- Discount Group -->
+        <div class="flex items-start gap-2 discount-wrapper item-discount-group">
+          <!-- Percentage Discount (hidden by default) -->
+          <div class="flex items-end gap-1 item-discount-percent-wrapper ${hasDiscPercent ? '' : 'hidden'}">
+            <div class="flex flex-col">
+              <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${window.APP_LANGUAGES.discount || 'Discount'}</span>
+              <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-green-50 rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+                <div class="flex items-center justify-center bg-green-600 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px]">
+                  <span>%</span>
+                </div>
+                <input type="number" step="0.1" class="discount-percent-input bg-transparent border-none p-0 font-black text-black focus:ring-0 outline-none text-left min-w-0 text-sm placeholder:text-gray-300 w-9"
+                       value="${discPercentVal}" placeholder="0" oninput="updateTotalsSummary()">
+              </div>
+            </div>
+            <button type="button" onclick="removeItemDiscount(this, 'percent')" class="w-5 h-10 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors font-bold text-sm flex-shrink-0">×</button>
+          </div>
+          <!-- Flat Discount (hidden by default) -->
+          <div class="flex items-end gap-1 item-discount-flat-wrapper ${hasDiscFlat ? '' : 'hidden'}">
+            <div class="flex flex-col">
+              <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${window.APP_LANGUAGES.discount || 'DISCOUNT'}</span>
+              <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-green-50 rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+                <div class="flex items-center justify-center bg-green-600 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px] discount-flat-symbol">
+                  ${currencySymbol}
+                </div>
+                <input type="number" step="0.01" class="discount-flat-input bg-transparent border-none p-0 font-black text-black focus:ring-0 outline-none text-left min-w-0 text-sm placeholder:text-gray-300 w-12"
+                       value="${discFlatVal}" placeholder="0" oninput="updateTotalsSummary()">
+              </div>
+            </div>
+            <button type="button" onclick="removeItemDiscount(this, 'flat')" class="w-5 h-10 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors font-bold text-sm flex-shrink-0">×</button>
+          </div>
+        </div>
+      </div>
     `;
   // Finalize
   document.getElementById(containerId).appendChild(div);
@@ -4659,15 +4780,54 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
         <div class="flex-1 flex items-center border-2 border-black rounded-lg bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-colors relative h-8">
           <input type="text" class="flex-1 bg-transparent border-none text-[11px] font-bold text-black focus:ring-0 py-1 px-3 sub-input placeholder:text-gray-300 min-w-0 outline-none" value="${String(sub).replace(/"/g, '&quot;')}" placeholder="${window.APP_LANGUAGES.subcategory_placeholder || "Sub-category..."}">
         </div>
-        <button type="button" onclick="this.parentElement.remove();" class="w-5 h-8 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors font-bold text-sm flex-shrink-0">×</button>
+        <button type="button" onclick="removeItemSubCategory(this);" class="w-5 h-8 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors font-bold text-sm flex-shrink-0">×</button>
       `;
       subContainer.appendChild(subItem);
     });
   }
 
-  randomizeIcon(div); // RANDOMIZE ON CREATION
-  updateBadge(div);
-  updateHamburgerGlow(div);
+  // Adjust spacing based on subcategories presence
+  const subContainer = div.querySelector('.sub-categories');
+  const buttonRow = div.querySelector('.flex.items-center.gap-2');
+  if (subContainer && buttonRow) {
+    const hasSubCategories = subContainer.children.length > 0;
+    if (hasSubCategories) {
+      // Keep subcategories spacing (mt-2 mb-2)
+      subContainer.classList.remove('mt-0', 'mb-0');
+      subContainer.classList.add('mt-2', 'mb-2');
+      // Add gap back to button row when subcategories present
+      buttonRow.classList.remove('mb-0', 'md:mb-0');
+      buttonRow.classList.add('mb-1');
+    } else {
+      // Remove subcategories spacing when empty
+      subContainer.classList.remove('mt-2', 'mb-2');
+      subContainer.classList.add('mt-0', 'mb-0');
+      // Use responsive spacing when no subcategories
+      buttonRow.classList.remove('mb-1');
+      buttonRow.classList.add('mb-0', 'md:mb-0');
+    }
+  }
+
+  // Set initial active states for +TAX and +DISCOUNT buttons
+  if (taxable) {
+    const taxBtn = div.querySelector('.item-add-tax-btn');
+    if (taxBtn) {
+      taxBtn.classList.remove('bg-gray-50', 'border-black', 'text-gray-700');
+      taxBtn.style.backgroundColor = '#364153';
+      taxBtn.style.borderColor = '#364153';
+      taxBtn.style.color = 'white';
+    }
+  }
+  if (hasDiscPercent || hasDiscFlat) {
+    const discBtn = div.querySelector('.item-add-discount-btn');
+    if (discBtn) {
+      discBtn.style.backgroundColor = '#00A63E';
+      discBtn.style.borderColor = '#00A63E';
+      discBtn.style.color = 'white';
+    }
+  }
+
+  updateTotalsSummary();
   setTimeout(() => {
     const qi = div.querySelector('.qty-input');
     if (qi) resizeQtyInput(qi);
@@ -5569,61 +5729,9 @@ function showError(msg) {
 }
 
 function toggleLaborGroup() {
-  const group = document.getElementById('laborGroup');
   const content = document.getElementById('laborContent');
-  const chevron = document.getElementById('laborChevron');
-  const pill = document.getElementById('laborChevronPill');
-  const btn = document.getElementById('laborToggleBtn');
-  const btnText = btn.querySelector('span');
-
-  const isCollapsed = content.classList.contains('hidden');
-
-  if (isCollapsed) {
-    // EXPAND (Opening)
-    content.classList.remove('hidden');
-
-    // Group: Restore container look
-    group.classList.remove('h-14', 'bg-white', 'border-solid', 'border-black', 'shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]', 'labor-group-hover', 'cursor-pointer');
-    group.classList.add('border-dashed', 'border-orange-200', 'bg-orange-50/30', '!mt-12');
-
-    // Button: Move to Top Right (exactly matching Credit's remove button location)
-    btn.classList.remove('relative', 'w-full', 'h-full', 'justify-between', 'px-4', 'left-4', '-top-5', 'right-4');
-    btn.classList.add('absolute', '-top-3.5', '-right-3.5', 'bg-transparent', 'px-0');
-
-    // Text: Hide when open
-    btnText.classList.add('hidden');
-
-    // Chevron Pill: White arrow on orange circle (matching w-7 h-7 size)
-    pill.classList.remove('w-5', 'h-5');
-    pill.classList.add('bg-orange-600', 'w-7', 'h-7', 'shadow-[1px_1px_0px_0px_rgba(0,0,0,0.3)]');
-    chevron.classList.remove('text-orange-400');
-    chevron.classList.add('text-white');
-
-    chevron.style.transform = 'rotate(0deg)';
-  } else {
-    // COLLAPSE (Closing)
-    content.classList.add('hidden');
-
-    // Group: Become button-like
-    group.classList.remove('border-dashed', 'border-orange-200', 'bg-orange-50/30', '!mt-12');
-    group.classList.add('h-14', 'bg-white', 'border-solid', 'border-black', 'shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]', 'labor-group-hover', 'cursor-pointer');
-
-    // Button: Restore original left position/size
-    btn.classList.remove('absolute', '-top-3.5', '-right-3.5', 'bg-transparent', 'px-0');
-    btn.classList.add('relative', 'w-full', 'h-full', 'justify-between', 'pl-4', 'pr-7', 'left-4');
-
-    // Text: Show and set to black
-    btnText.classList.remove('hidden', 'text-orange-400');
-    btnText.classList.add('text-black');
-
-    // Chevron Pill: Reset to normal size and filled orange
-    pill.classList.remove('w-7', 'h-7');
-    pill.classList.add('bg-orange-600', 'w-5', 'h-5');
-    chevron.classList.remove('text-orange-400');
-    chevron.classList.add('text-white');
-
-    chevron.style.transform = 'rotate(-90deg)';
-  }
+  if (!content) return;
+  content.classList.toggle('hidden');
 }
 
 

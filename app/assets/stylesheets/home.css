@@ -735,6 +735,7 @@
 
   input[type=number] {
       -moz-appearance: textfield;
+      appearance: textfield;
   }
 
   /* Subcategory Input hit area fix */
@@ -1212,6 +1213,21 @@
   .billing-pill-btn svg {
       width: 10px;
       height: 10px;
+  }
+
+  /* Labor Inline Row Polish */
+  .labor-inline-row input[type="number"]::-webkit-inner-spin-button,
+  .labor-inline-row input[type="number"]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+  }
+  .labor-inline-row input[type="number"] {
+      -moz-appearance: textfield;
+      appearance: textfield;
+  }
+
+  .labor-inline-row input:focus {
+      color: black;
   }
 
   .menu-item {

@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@source "../javascripts";
 
 @theme {
   --font-sans: 'Inter', 'Noto Sans Georgian', sans-serif;
