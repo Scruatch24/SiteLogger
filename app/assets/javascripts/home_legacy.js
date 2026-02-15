@@ -3717,7 +3717,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
         <!-- Percentage Discount (hidden by default) -->
         <div class="flex items-end gap-1 labor-discount-percent-wrapper ${hasDiscPercent ? '' : 'hidden'}">
           <div class="flex flex-col">
-            <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${window.APP_LANGUAGES.discount || 'DISCOUNT'}</span>
+            <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${window.APP_LANGUAGES.labor_discount || 'DISCOUNT'}</span>
             <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-green-50 rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
               <div class="flex items-center justify-center bg-green-600 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px]">
                 <span>%</span>
@@ -3733,7 +3733,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
         <!-- Flat Discount (hidden by default) -->
         <div class="flex items-end gap-1 labor-discount-flat-wrapper ${hasDiscFlat ? '' : 'hidden'}">
           <div class="flex flex-col">
-            <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${window.APP_LANGUAGES.discount || 'DISCOUNT'}</span>
+            <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${window.APP_LANGUAGES.labor_discount || 'DISCOUNT'}</span>
             <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-green-50 rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
               <div class="flex items-center justify-center bg-green-600 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px] discount-flat-symbol">
                 ${currencySymbol}
@@ -3872,7 +3872,7 @@ function addCreditItem(containerId, reason = (window.APP_LANGUAGES?.courtesy_cre
 
     <div class="flex flex-wrap items-start gap-2">
       <div class="flex flex-col">
-        <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${window.APP_LANGUAGES.amount || 'AMOUNT'}</span>
+        <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${window.APP_LANGUAGES.credit_amount || 'QUANTITY'}</span>
         <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]" style="background-color: rgba(231, 0, 11, 0.08);">
           <div class="flex items-center justify-center text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px] credit-unit-indicator" style="background-color: #E7000B;">
             ${currencySymbol}
@@ -4744,7 +4744,7 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
           <!-- Flat Discount (hidden by default) -->
           <div class="flex items-end gap-1 item-discount-flat-wrapper ${hasDiscFlat ? '' : 'hidden'}">
             <div class="flex flex-col">
-              <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${window.APP_LANGUAGES.discount || 'DISCOUNT'}</span>
+              <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${window.APP_LANGUAGES.labor_discount || 'DISCOUNT'}</span>
               <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-green-50 rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
                 <div class="flex items-center justify-center bg-green-600 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px] discount-flat-symbol">
                   ${currencySymbol}

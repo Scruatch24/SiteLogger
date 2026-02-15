@@ -192,7 +192,7 @@ ka:
   credit: "კრედიტები"
   add_credit: "კრედიტების დამატება"
   deposit_credit: "დეპოზიტი / კრედიტი"
-  amount: "თანხა"
+  credit_amount: "რაოდენობა"
   due_date: "გადახდის ვადა"
   set_date: "თარიღის მითითება"
   
@@ -341,7 +341,7 @@ ka:
   price: "ფასი"
   item_discount: "ფასდაკლება"
   tax: "დაბეგვრა"
-  discount: "ფასდაკლება"
+  labor_discount: "ფასდაკლება"
   rate: "ტარიფი"
   credit_amount_caps: "კრედიტის ოდენობა"
   materials: "პროდუქტები"

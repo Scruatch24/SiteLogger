@@ -192,7 +192,7 @@ en:
   credit: "Credits"
   add_credit: "Add Credits"
   deposit_credit: "Deposit / Credit"
-  amount: "Amount"
+  credit_amount: "QUANTITY"
   due_date: "Due Date"
   set_date: "Set Date"
   
@@ -341,7 +341,7 @@ en:
   price: "PRICE"
   item_discount: "ITEM DISCOUNT"
   tax: "TAX"
-  discount: "DISCOUNT"
+  labor_discount: "DISCOUNT"
   rate: "RATE"
   credit_amount_caps: "CREDIT AMOUNT"
   materials: "PRODUCTS"
