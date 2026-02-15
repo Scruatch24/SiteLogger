@@ -33,15 +33,15 @@ module LogsHelper
     global_hourly_rate = log.try(:hourly_rate).present? ? log.try(:hourly_rate).to_f : profile.hourly_rate.to_f
 
     raw_sections.each_with_index do |section, s_idx|
-      title = section["title"].to_s.downcase
       report_items = []
 
-      # Determine item type/category based on section title
-      category_key = case title
-      when /labor|service|სამუშაო|მომსახურება/i then :labor
-      when /material|მასალ/i then :material
-      when /expense|ხარჯ/i then :expense
-      when /fee|მოსაკრებ|საკომისიო|შესაკრებ/i then :fee
+      # Determine item type/category via canonical section type inference
+      inferred_type = infer_recreate_section_type(section["title"], section["type"])
+      category_key = case inferred_type
+      when "labor" then :labor
+      when "materials" then :material
+      when "expenses" then :expense
+      when "fees" then :fee
       else :other
       end
 
@@ -333,5 +333,42 @@ module LogsHelper
       d = I18n.t("professional_services", default: "Work performed")
     end
     d
+  end
+
+  def recreate_sections_for_log(log)
+    raw_sections = if log.tasks.is_a?(String)
+                     JSON.parse(log.tasks.presence || "[]") rescue []
+    else
+                     log.tasks || []
+    end
+
+    return [] unless raw_sections.is_a?(Array)
+
+    raw_sections.map do |section|
+      next section unless section.is_a?(Hash)
+
+      section_hash = section.deep_stringify_keys
+      inferred_type = infer_recreate_section_type(section_hash["title"], section_hash["type"])
+      section_hash["type"] = inferred_type if inferred_type.present?
+      section_hash
+    end
+  end
+
+  def infer_recreate_section_type(title, existing_type = nil)
+    normalized_existing = existing_type.to_s.downcase
+
+    return "labor" if normalized_existing == "labor"
+    return "materials" if %w[materials material product products part parts].include?(normalized_existing)
+    return "expenses" if %w[expenses expense reimbursement reimbursements reimburse].include?(normalized_existing)
+    return "fees" if %w[fees fee surcharge surcharges].include?(normalized_existing)
+
+    lower_title = title.to_s.downcase
+
+    return "labor" if lower_title.match?(/labor|service|სამუშაო|მომსახურება/)
+    return "materials" if lower_title.match?(/material|product|part|მასალ|პროდუქტ/)
+    return "expenses" if lower_title.match?(/expense|reimburse|ხარჯ|ანაზღაურებ/)
+    return "fees" if lower_title.match?(/fee|surcharge|მოსაკრებ|საკომისიო|შესაკრებ/)
+
+    nil
   end
 end

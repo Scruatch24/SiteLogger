@@ -177,7 +177,7 @@ window.renderGlobalCurrencyList = function (filter = "") {
         `;
 
       // Update price indicators globally
-      document.querySelectorAll('#creditUnitIndicator').forEach(el => el.innerText = c.s);
+      document.querySelectorAll('.credit-unit-indicator').forEach(el => el.innerText = c.s);
       document.getElementById('discountCurrencySymbol').innerText = c.s;
 
       // Update any existing price-input-symbol in generic items
@@ -486,12 +486,11 @@ function updateLaborRowModelUI(row, mode) {
     newRateValue = oldRate || defaultRate;
   }
 
-  // Preserve tax value and visibility before removing price group
+  // Preserve tax value before removing price group
   const oldPriceGroup = target.querySelector('.labor-price-group');
   const oldTaxWrapper = oldPriceGroup ? oldPriceGroup.querySelector('.labor-tax-wrapper') : null;
   const oldTaxInput = oldTaxWrapper ? oldTaxWrapper.querySelector('.tax-menu-input') : null;
   const taxVal = oldTaxInput ? oldTaxInput.value : '';
-  const taxHidden = oldTaxWrapper ? oldTaxWrapper.classList.contains('hidden') : true;
   if (oldPriceGroup) oldPriceGroup.remove();
 
   const taxLabel = window.APP_LANGUAGES?.tax || 'TAX';
@@ -530,7 +529,7 @@ function updateLaborRowModelUI(row, mode) {
                      value="${newRateValue}" placeholder="0.00" oninput="updateTotalsSummary()">
             </div>
           </div>
-          <div class="flex flex-col labor-tax-wrapper ${taxHidden ? 'hidden' : ''}">
+          <div class="flex flex-col labor-tax-wrapper">
             <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${taxLabel}</span>
             <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] tax-wrapper" style="background-color: rgba(54, 65, 83, 0.1);">
               <div class="flex items-center justify-center bg-gray-700 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px]">
@@ -555,7 +554,7 @@ function updateLaborRowModelUI(row, mode) {
                      value="${newPriceValue}" placeholder="0.00" oninput="updateTotalsSummary()">
             </div>
           </div>
-          <div class="flex flex-col labor-tax-wrapper ${taxHidden ? 'hidden' : ''}">
+          <div class="flex flex-col labor-tax-wrapper">
             <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${taxLabel}</span>
             <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] tax-wrapper" style="background-color: rgba(54, 65, 83, 0.1);">
               <div class="flex items-center justify-center bg-gray-700 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px]">
@@ -591,16 +590,51 @@ window.setLaborRowBillingMode = function (btn, mode) {
   updateTotalsSummary();
 }
 
+function setLaborDiscountButtonState(btn, active) {
+  if (!btn) return;
+  if (active) {
+    btn.style.backgroundColor = '#00A63E';
+    btn.style.borderColor = '#00A63E';
+    btn.style.color = 'white';
+  } else {
+    btn.style.backgroundColor = 'white';
+    btn.style.borderColor = '#00A63E';
+    btn.style.color = '#00A63E';
+  }
+}
+
+function laborDiscountIsActive(row) {
+  if (!row) return false;
+  const pctWrap = row.querySelector('.labor-discount-percent-wrapper');
+  const flatWrap = row.querySelector('.labor-discount-flat-wrapper');
+  const pctVisible = pctWrap && !pctWrap.classList.contains('hidden');
+  const flatVisible = flatWrap && !flatWrap.classList.contains('hidden');
+  const pctVal = parseFloat(row.querySelector('.discount-percent-input')?.value) || 0;
+  const flatVal = parseFloat(row.querySelector('.discount-flat-input')?.value) || 0;
+  return pctVisible || flatVisible || pctVal > 0 || flatVal > 0;
+}
+
 window.toggleLaborDiscountDropdown = function (btn) {
+  const row = btn.closest('.labor-item-row');
   const dropdown = btn.parentElement.querySelector('.labor-discount-dropdown');
   if (!dropdown) return;
+  const isOpening = dropdown.classList.contains('hidden');
   dropdown.classList.toggle('hidden');
+
+  if (isOpening) {
+    setLaborDiscountButtonState(btn, true);
+  } else if (!laborDiscountIsActive(row)) {
+    setLaborDiscountButtonState(btn, false);
+  }
 
   // Close on outside click
   if (!dropdown.classList.contains('hidden')) {
     const close = (e) => {
       if (!btn.parentElement.contains(e.target)) {
         dropdown.classList.add('hidden');
+        if (!laborDiscountIsActive(row)) {
+          setLaborDiscountButtonState(btn, false);
+        }
         document.removeEventListener('click', close);
       }
     };
@@ -639,11 +673,7 @@ window.showLaborDiscount = function (btn, type) {
   }
   // Set discount button to active state
   const discBtn = row.querySelector('.labor-add-discount-btn');
-  if (discBtn) {
-    discBtn.style.backgroundColor = '#00A63E';
-    discBtn.style.borderColor = '#00A63E';
-    discBtn.style.color = 'white';
-  }
+  setLaborDiscountButtonState(discBtn, true);
   updateTotalsSummary();
 }
 
@@ -671,117 +701,96 @@ window.removeLaborDiscount = function (btn, type) {
   const flatVisible = row.querySelector('.labor-discount-flat-wrapper') && !row.querySelector('.labor-discount-flat-wrapper').classList.contains('hidden');
   if (!pctVisible && !flatVisible) {
     const discBtn = row.querySelector('.labor-add-discount-btn');
-    if (discBtn) {
-      discBtn.style.backgroundColor = 'white';
-      discBtn.style.borderColor = '#00A63E';
-      discBtn.style.color = '#00A63E';
-    }
-  }
-  updateTotalsSummary();
-}
-
-window.toggleLaborTax = function (btn) {
-  const row = btn.closest('.labor-item-row');
-  if (!row) return;
-  const wrapper = row.querySelector('.labor-tax-wrapper');
-  if (!wrapper) return;
-  const isVisible = !wrapper.classList.contains('hidden');
-  if (isVisible) {
-    // Deactivate: hide tax, clear value, reset button style
-    wrapper.classList.add('hidden');
-    const input = wrapper.querySelector('.tax-menu-input');
-    if (input) input.value = '';
-    btn.style.backgroundColor = '';
-    btn.style.borderColor = '';
-    btn.style.color = '';
-    btn.classList.add('bg-gray-50', 'border-black', 'text-gray-700');
-  } else {
-    // Activate: show tax, set active button style
-    wrapper.classList.remove('hidden');
-    const input = wrapper.querySelector('.tax-menu-input');
-    if (input && !input.value) input.focus();
-    btn.classList.remove('bg-gray-50', 'border-black', 'text-gray-700');
-    btn.style.backgroundColor = '#364153';
-    btn.style.borderColor = '#364153';
-    btn.style.color = 'white';
-  }
-  updateTotalsSummary();
-}
-
-window.removeLaborTax = function (btn) {
-  const row = btn.closest('.labor-item-row');
-  if (!row) return;
-  const wrapper = row.querySelector('.labor-tax-wrapper');
-  if (wrapper) {
-    wrapper.classList.add('hidden');
-    const input = wrapper.querySelector('.tax-menu-input');
-    if (input) input.value = '';
-  }
-  // Reset the +TAX button style
-  const taxBtn = row.querySelector('.labor-add-tax-btn');
-  if (taxBtn) {
-    taxBtn.style.backgroundColor = '';
-    taxBtn.style.borderColor = '';
-    taxBtn.style.color = '';
-    taxBtn.classList.add('bg-gray-50', 'border-black', 'text-gray-700');
+    setLaborDiscountButtonState(discBtn, false);
   }
   updateTotalsSummary();
 }
 
 // === ITEM (Products/Reimbursements/Fees) Tax & Discount Functions ===
 
-window.toggleItemTax = function (btn) {
-  const row = btn.closest('.item-row');
-  if (!row) return;
-  const wrapper = row.querySelector('.item-tax-wrapper');
-  if (!wrapper) return;
-  const isVisible = !wrapper.classList.contains('hidden');
-  if (isVisible) {
-    // Deactivate: hide tax, clear value, reset button style
-    wrapper.classList.add('hidden');
-    const input = wrapper.querySelector('.tax-menu-input');
-    if (input) input.value = '';
-    row.dataset.taxable = 'false';
-    btn.style.backgroundColor = '';
-    btn.style.borderColor = '';
-    btn.style.color = '';
-    btn.classList.add('bg-gray-50', 'border-black', 'text-gray-700');
-  } else {
-    // Activate: show tax, set active button style
-    wrapper.classList.remove('hidden');
-    row.dataset.taxable = 'true';
-    const input = wrapper.querySelector('.tax-menu-input');
-    if (input && !input.value) {
-      input.value = profileTaxRate || '';
-      input.focus();
-    }
-    btn.classList.remove('bg-gray-50', 'border-black', 'text-gray-700');
-    btn.style.backgroundColor = '#364153';
-    btn.style.borderColor = '#364153';
+function setItemDiscountButtonState(btn, active) {
+  if (!btn) return;
+  if (active) {
+    btn.style.backgroundColor = '#00A63E';
+    btn.style.borderColor = '#00A63E';
     btn.style.color = 'white';
+  } else {
+    btn.style.backgroundColor = 'white';
+    btn.style.borderColor = '#00A63E';
+    btn.style.color = '#00A63E';
   }
-  updateTotalsSummary();
 }
 
-window.removeItemTax = function (btn) {
-  const row = btn.closest('.item-row');
+function setItemPriceButtonState(btn, active) {
+  if (!btn) return;
+  if (active) {
+    btn.style.backgroundColor = '#EA580C';
+    btn.style.borderColor = '#EA580C';
+    btn.style.color = 'white';
+  } else {
+    btn.style.backgroundColor = 'white';
+    btn.style.borderColor = '#EA580C';
+    btn.style.color = '#EA580C';
+  }
+}
+
+function setItemPriceActive(row, active, options = {}) {
   if (!row) return;
-  const wrapper = row.querySelector('.item-tax-wrapper');
-  if (wrapper) {
-    wrapper.classList.add('hidden');
-    const input = wrapper.querySelector('.tax-menu-input');
-    if (input) input.value = '';
+
+  const clearValues = options.clearValues !== false;
+  const suppressTotals = options.suppressTotals === true;
+
+  row.dataset.priceActive = active ? 'true' : 'false';
+
+  const priceBtn = row.querySelector('.item-add-price-btn');
+  const priceWrapper = row.querySelector('.item-price-wrapper');
+  const taxWrapper = row.querySelector('.item-tax-wrapper');
+  const discountWrap = row.querySelector('.item-add-discount-wrap');
+  const discountGroup = row.querySelector('.item-discount-group');
+
+  if (priceWrapper) priceWrapper.classList.toggle('hidden', !active);
+  if (taxWrapper) taxWrapper.classList.toggle('hidden', !active);
+  if (discountWrap) discountWrap.classList.toggle('hidden', !active);
+  if (discountGroup) discountGroup.classList.toggle('hidden', !active);
+
+  if (!active && clearValues) {
+    const priceInput = row.querySelector('.price-menu-input');
+    const taxInput = row.querySelector('.tax-menu-input');
+    if (priceInput) priceInput.value = '';
+    if (taxInput) taxInput.value = '';
+
+    const pctWrap = row.querySelector('.item-discount-percent-wrapper');
+    const flatWrap = row.querySelector('.item-discount-flat-wrapper');
+    if (pctWrap) {
+      pctWrap.classList.add('hidden');
+      const pctInput = pctWrap.querySelector('.discount-percent-input');
+      if (pctInput) pctInput.value = '';
+    }
+    if (flatWrap) {
+      flatWrap.classList.add('hidden');
+      const flatInput = flatWrap.querySelector('.discount-flat-input');
+      if (flatInput) flatInput.value = '';
+    }
+
+    const dropdown = row.querySelector('.item-discount-dropdown');
+    if (dropdown) dropdown.classList.add('hidden');
+
+    setItemDiscountButtonState(row.querySelector('.item-add-discount-btn'), false);
   }
-  row.dataset.taxable = 'false';
-  // Reset the +TAX button style
-  const taxBtn = row.querySelector('.item-add-tax-btn');
-  if (taxBtn) {
-    taxBtn.style.backgroundColor = '';
-    taxBtn.style.borderColor = '';
-    taxBtn.style.color = '';
-    taxBtn.classList.add('bg-gray-50', 'border-black', 'text-gray-700');
+
+  setItemPriceButtonState(priceBtn, active);
+
+  if (!suppressTotals) {
+    updateTotalsSummary();
   }
-  updateTotalsSummary();
+}
+
+window.toggleItemPrice = function (btn) {
+  const row = btn.closest('.item-row');
+  if (!row || row.dataset.priceToggleEligible !== 'true') return;
+
+  const isActive = row.dataset.priceActive === 'true';
+  setItemPriceActive(row, !isActive);
 }
 
 window.toggleItemDiscountDropdown = function (btn) {
@@ -829,11 +838,7 @@ window.showItemDiscount = function (btn, type) {
   }
   // Set discount button to active state
   const discBtn = row.querySelector('.item-add-discount-btn');
-  if (discBtn) {
-    discBtn.style.backgroundColor = '#00A63E';
-    discBtn.style.borderColor = '#00A63E';
-    discBtn.style.color = 'white';
-  }
+  setItemDiscountButtonState(discBtn, true);
   updateTotalsSummary();
 }
 
@@ -861,11 +866,7 @@ window.removeItemDiscount = function (btn, type) {
   const flatVisible = row.querySelector('.item-discount-flat-wrapper') && !row.querySelector('.item-discount-flat-wrapper').classList.contains('hidden');
   if (!pctVisible && !flatVisible) {
     const discBtn = row.querySelector('.item-add-discount-btn');
-    if (discBtn) {
-      discBtn.style.backgroundColor = 'white';
-      discBtn.style.borderColor = '#00A63E';
-      discBtn.style.color = '#00A63E';
-    }
+    setItemDiscountButtonState(discBtn, false);
   }
   updateTotalsSummary();
 }
@@ -942,6 +943,13 @@ function updateTotalsSummary() {
 
         let discFlat = parseFloat(item.querySelector('.discount-flat-input')?.value) || 0;
         let discPercent = parseFloat(item.querySelector('.discount-percent-input')?.value) || 0;
+        const laborDiscBtn = item.querySelector('.labor-add-discount-btn');
+        if (laborDiscBtn) {
+          const isLaborDiscountActive = discFlat > 0 || discPercent > 0;
+          const pctVisible = item.querySelector('.labor-discount-percent-wrapper') && !item.querySelector('.labor-discount-percent-wrapper').classList.contains('hidden');
+          const flatVisible = item.querySelector('.labor-discount-flat-wrapper') && !item.querySelector('.labor-discount-flat-wrapper').classList.contains('hidden');
+          setLaborDiscountButtonState(laborDiscBtn, isLaborDiscountActive || pctVisible || flatVisible);
+        }
 
         // Discount logic (Math.min below handles capping without destroying user input)
         const rowDisc = Math.min(rowGross, discFlat + (rowGross * (discPercent / 100)));
@@ -961,8 +969,9 @@ function updateTotalsSummary() {
         // Tax calculation — taxable if tax input is not empty and not 0
         let rowTax = 0;
         const taxRateInput = item.querySelector('.tax-menu-input');
-        const taxRateVal = taxRateInput ? parseFloat(taxRateInput.value) : 0;
+        const taxRateVal = taxRateInput ? (parseFloat(taxRateInput.value) || 0) : 0;
         const isTaxable = taxRateVal > 0;
+        item.dataset.taxable = isTaxable ? 'true' : 'false';
         if (isTaxable) {
           rowTax = rowNet * (taxRateVal / 100);
           if (rowTax > 0) {
@@ -981,6 +990,18 @@ function updateTotalsSummary() {
 
       let discFlat = parseFloat(item.querySelector('.discount-flat-input')?.value) || 0;
       let discPercent = parseFloat(item.querySelector('.discount-percent-input')?.value) || 0;
+      const taxRateInput = item.querySelector('.tax-menu-input');
+      const taxRateVal = taxRateInput ? (parseFloat(taxRateInput.value) || 0) : 0;
+      const isTaxable = taxRateVal > 0;
+      item.dataset.taxable = isTaxable ? 'true' : 'false';
+      const itemDiscBtn = item.querySelector('.item-add-discount-btn');
+      if (itemDiscBtn) {
+        const isItemDiscountActive = discFlat > 0 || discPercent > 0;
+        const isPriceEnabled = item.dataset.priceActive !== 'false';
+        const pctVisible = item.querySelector('.item-discount-percent-wrapper') && !item.querySelector('.item-discount-percent-wrapper').classList.contains('hidden');
+        const flatVisible = item.querySelector('.item-discount-flat-wrapper') && !item.querySelector('.item-discount-flat-wrapper').classList.contains('hidden');
+        setItemDiscountButtonState(itemDiscBtn, isPriceEnabled && (isItemDiscountActive || pctVisible || flatVisible));
+      }
 
       // Discount logic (Math.min below handles capping without destroying user input)
       const rowDisc = Math.min(rowGross, discFlat + (rowGross * (discPercent / 100)));
@@ -1001,13 +1022,11 @@ function updateTotalsSummary() {
       }
 
       let rowTax = 0;
-      if (item.dataset.taxable === 'true') {
-        const taxRateInput = item.querySelector('.tax-menu-input');
-        const taxRate = (taxRateInput && taxRateInput.value !== "") ? parseFloat(taxRateInput.value) : profileTaxRate;
-        rowTax = rowNet * (taxRate / 100);
+      if (isTaxable) {
+        rowTax = rowNet * (taxRateVal / 100);
         if (rowTax > 0) {
           totalTax += rowTax;
-          allTaxesList.push({ name: displayName, amount: rowTax, rate: taxRate });
+          allTaxesList.push({ name: displayName, amount: rowTax, rate: taxRateVal });
         }
       }
 
@@ -1043,7 +1062,6 @@ function updateTotalsSummary() {
       // 2. Multiplier/Price Badge
       const itemPriceBadge = item.querySelector('.badge-price');
       const itemMultiplierBadge = item.querySelector('.badge-multiplier');
-      const isTaxable = item.dataset.taxable === 'true';
       if (itemPriceBadge) {
         // Show if price > 0 AND (Tax is on OR Discount is off)
         if (rowNet > 0 && (isTaxable || rowDisc === 0)) {
@@ -1067,8 +1085,7 @@ function updateTotalsSummary() {
       const itemEqualsBadge = item.querySelector('.badge-equals');
       const itemAfterTaxBadge = item.querySelector('.badge-after-tax');
       if (isTaxable && rowNet > 0) {
-        const taxRateInput = item.querySelector('.tax-menu-input');
-        const ctxTaxRate = (taxRateInput && taxRateInput.value !== "") ? parseFloat(taxRateInput.value) : profileTaxRate;
+        const ctxTaxRate = taxRateVal;
         if (itemTaxBadge) {
           itemTaxBadge.innerText = `${cleanNum(ctxTaxRate)}%`;
           itemTaxBadge.classList.remove('hidden');
@@ -1866,7 +1883,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const desc = row.querySelector(".item-input")?.value || "";
         const price = row.querySelector(".price-menu-input")?.value || "";
         const taxRate = row.querySelector(".tax-menu-input")?.value || "";
-        const taxable = row.dataset.taxable === "true";
+        const taxable = taxRate !== "" && parseFloat(taxRate) > 0;
         const qty = row.querySelector(".qty-input")?.value || "1";
         const discFlat = row.querySelector(".discount-flat-input")?.value || "";
         const discPercent = row.querySelector(".discount-percent-input")?.value || "";
@@ -3013,8 +3030,9 @@ function addFullSection(title, items, isProtected = false, explicitType = null) 
   const sectionId = "section_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
 
   // 1. Detect if this is a Labor/Service section
-  const lowerTitle = title.toLowerCase();
-  const isLaborService = (explicitType === 'labor') || /labor|service|install|repair|maintenance|diag|tech|professional/i.test(lowerTitle);
+  const lowerTitle = (title || '').toString().toLowerCase();
+  const normalizedType = (explicitType || '').toString().toLowerCase();
+  const isLaborService = (normalizedType === 'labor') || /labor|labour|service|install|repair|maintenance|diag|tech|professional/i.test(lowerTitle);
 
   if (isLaborService) {
     // Route to the special Labor Items Container
@@ -3054,15 +3072,23 @@ function addFullSection(title, items, isProtected = false, explicitType = null) 
   const sectionDiv = document.createElement('div');
   sectionDiv.className = "dynamic-section space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-500";
   // Determine identifier for protection
-  if (isProtected) sectionDiv.dataset.protected = explicitType || title.toLowerCase();
+  if (isProtected) sectionDiv.dataset.protected = explicitType || lowerTitle;
 
-  const isMaterials = (explicitType === 'materials') || /material/.test(lowerTitle);
-  const isExpenses = (explicitType === 'expenses') || /expense/.test(lowerTitle);
-  const isFees = (explicitType === 'fees') || /fee/.test(lowerTitle);
+  const isMaterials = ['materials', 'material', 'products', 'product', 'parts', 'part'].includes(normalizedType) || /material|product|part/.test(lowerTitle);
+  const isExpenses = ['expenses', 'expense', 'reimbursements', 'reimbursement', 'reimburse'].includes(normalizedType) || /expense|reimburse/.test(lowerTitle);
+  const isFees = ['fees', 'fee', 'surcharges', 'surcharge'].includes(normalizedType) || /fee|surcharge/.test(lowerTitle);
 
   if (isMaterials) sectionDiv.dataset.protected = "materials";
   else if (isExpenses) sectionDiv.dataset.protected = "expenses";
   else if (isFees) sectionDiv.dataset.protected = "fees";
+
+  const resolvedTitle = isMaterials
+    ? (window.APP_LANGUAGES.materials || "Materials")
+    : isExpenses
+      ? (window.APP_LANGUAGES.expenses || "Expenses")
+      : isFees
+        ? (window.APP_LANGUAGES.fees || "Fees")
+        : title;
 
   // Icons and Colors for sections
   let sectionIcon = "";
@@ -3089,8 +3115,8 @@ function addFullSection(title, items, isProtected = false, explicitType = null) 
 
   const sectionInlineColor = isFees ? ' style="color: #2B7FFF;"' : isExpenses ? ' style="color: #E7000B;"' : '';
   const titleElement = forceProtect
-    ? `<div class="flex items-center">${sectionIcon}<span class="text-base font-black ${accentColorClass} uppercase tracking-widest section-title"${sectionInlineColor}>${title}</span></div>`
-    : `<div class="flex items-center w-2/3">${sectionIcon}<input type="text" value="${title}" class="bg-transparent border-none p-0 text-sm font-black ${accentColorClass} uppercase tracking-widest focus:ring-0 w-full section-title"${sectionInlineColor} onblur="validateCategoryName(this)"></div>`;
+    ? `<div class="flex items-center">${sectionIcon}<span class="text-base font-black ${accentColorClass} uppercase tracking-widest section-title"${sectionInlineColor}>${resolvedTitle}</span></div>`
+    : `<div class="flex items-center w-2/3">${sectionIcon}<input type="text" value="${resolvedTitle}" class="bg-transparent border-none p-0 text-sm font-black ${accentColorClass} uppercase tracking-widest focus:ring-0 w-full section-title"${sectionInlineColor} onblur="validateCategoryName(this)"></div>`;
 
   const removeButton = `
         <button type="button" onclick="this.closest('.dynamic-section').remove(); updateTotalsSummary();" 
@@ -3110,7 +3136,7 @@ function addFullSection(title, items, isProtected = false, explicitType = null) 
     addBtnStyle = "background-color: #2B7FFF;";
   }
 
-  const addItemBtn = `<button type="button" onclick="addItem('${sectionId}', '', '', null, '${title}')" 
+  const addItemBtn = `<button type="button" onclick="addItem('${sectionId}', '', '', null, '${resolvedTitle}')" 
                class="${addBtnBg} text-white w-7 h-7 rounded-full flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] active:scale-95 transition-all" style="${addBtnStyle}" title="Add Item">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
@@ -3132,7 +3158,7 @@ function addFullSection(title, items, isProtected = false, explicitType = null) 
 
   // If no items provided, add an empty item automatically
   if (items.length === 0) {
-    addItem(sectionId, "", "", null, title);
+    addItem(sectionId, "", "", null, resolvedTitle);
   } else {
     items.forEach(item => {
       if (!item) return;
@@ -3163,7 +3189,7 @@ function addFullSection(title, items, isProtected = false, explicitType = null) 
       }
 
       const sub_categories = (item && typeof item === 'object') ? (item.sub_categories || []) : [];
-      addItem(sectionId, val, price, taxable, title, taxRate, (item.qty && item.qty !== 'N/A') ? item.qty : 1, discFlat, discPercent, sub_categories, false);
+      addItem(sectionId, val, price, taxable, resolvedTitle, taxRate, (item.qty && item.qty !== 'N/A') ? item.qty : 1, discFlat, discPercent, sub_categories, false);
     });
   }
 }
@@ -3329,23 +3355,9 @@ function removeCreditSection() {
   const container = document.getElementById('creditItemsContainer');
   if (group) {
     group.classList.add('hidden');
-    // Remove only credit rows, preserving the "Add" button
+    // Remove all credit rows
     if (container) {
       container.querySelectorAll('.credit-item-row').forEach(row => row.remove());
-      // Re-add the "Add Item" button if it was removed with the last item
-      if (!container.querySelector('.section-add-btn-container')) {
-        const addButtonContainer = document.createElement('div');
-        addButtonContainer.className = "flex justify-center mt-8 section-add-btn-container";
-        addButtonContainer.innerHTML = `
-                    <button type="button" onclick="addCreditItem('creditItemsContainer')" 
-                            class="text-white w-9 h-8 rounded-full flex items-center justify-center shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] active:scale-95 transition-all" style="background-color: #E7000B;" title="Add Credit Item">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-                      </svg>
-                    </button>
-                `;
-        container.appendChild(addButtonContainer);
-      }
     }
   }
   updateTotalsSummary();
@@ -3365,7 +3377,7 @@ function addLaborSubCategory(btn) {
   subItem.innerHTML = `
     <div class="w-2 h-2 rounded-full bg-black flex-shrink-0"></div>
     <div class="flex-1 flex items-center border-2 border-black rounded-lg bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-colors relative h-8">
-      <input type="text" class="flex-1 bg-transparent border-none text-[11px] font-bold text-black focus:ring-0 py-1 px-3 labor-sub-input placeholder:text-gray-300 min-w-0 outline-none" placeholder="${window.APP_LANGUAGES.subcategory_placeholder || "Sub-category..."}">
+      <input type="text" class="flex-1 bg-transparent border-none text-[11px] font-bold text-black focus:ring-0 py-1 px-3 labor-sub-input placeholder:text-gray-300 min-w-0 outline-none" placeholder="${window.APP_LANGUAGES.subcategory_placeholder || "Description..."}">
     </div>
     <button type="button" onclick="removeLaborSubCategory(this)" class="w-5 h-8 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors font-bold text-xl flex-shrink-0">×</button>
   `;
@@ -3374,7 +3386,7 @@ function addLaborSubCategory(btn) {
   subItem.querySelector('input').focus();
 
   // Adjust spacing when subcategories are added
-  const buttonRow = laborItemRow.querySelector('.flex.items-center.gap-2');
+  const buttonRow = laborItemRow.querySelector('.labor-action-row');
   if (subContainer && buttonRow) {
     // Keep subcategories spacing (mt-2 mb-2)
     subContainer.classList.remove('mt-0', 'mb-0');
@@ -3394,7 +3406,7 @@ function removeLaborSubCategory(btn) {
   if (laborItemRow) {
     // Adjust spacing when subcategories are removed
     const subContainer = laborItemRow.querySelector('.labor-sub-categories');
-    const buttonRow = laborItemRow.querySelector('.flex.items-center.gap-2');
+    const buttonRow = laborItemRow.querySelector('.labor-action-row');
     if (subContainer && buttonRow) {
       const hasSubCategories = subContainer.children.length > 0;
       if (hasSubCategories) {
@@ -3423,7 +3435,7 @@ function removeItemSubCategory(btn) {
   if (itemRow) {
     // Adjust spacing when subcategories are removed
     const subContainer = itemRow.querySelector('.sub-categories');
-    const buttonRow = itemRow.querySelector('.flex.items-center.gap-2');
+    const buttonRow = itemRow.querySelector('.item-action-row');
     if (subContainer && buttonRow) {
       const hasSubCategories = subContainer.children.length > 0;
       if (hasSubCategories) {
@@ -3460,7 +3472,7 @@ function addItemSubCategory(btn) {
   subItem.innerHTML = `
     <div class="w-2 h-2 rounded-full bg-black flex-shrink-0"></div>
     <div class="flex-1 flex items-center border-2 border-black rounded-lg bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-colors relative h-8">
-      <input type="text" class="flex-1 bg-transparent border-none text-[11px] font-bold text-black focus:ring-0 py-1 px-3 sub-input placeholder:text-gray-300 min-w-0 outline-none" placeholder="${window.APP_LANGUAGES.subcategory_placeholder || "Sub-category..."}">
+      <input type="text" class="flex-1 bg-transparent border-none text-[11px] font-bold text-black focus:ring-0 py-1 px-3 sub-input placeholder:text-gray-300 min-w-0 outline-none" placeholder="${window.APP_LANGUAGES.subcategory_placeholder || "Description..."}">
     </div>
     <button type="button" onclick="removeItemSubCategory(this);" class="w-5 h-8 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors font-bold text-xl flex-shrink-0">×</button>
   `;
@@ -3469,7 +3481,7 @@ function addItemSubCategory(btn) {
   subItem.querySelector('input').focus();
 
   // Adjust spacing when subcategories are added
-  const buttonRow = itemRow.querySelector('.flex.items-center.gap-2');
+  const buttonRow = itemRow.querySelector('.item-action-row');
   if (subContainer && buttonRow) {
     // Keep subcategories spacing (mt-2 mb-2)
     subContainer.classList.remove('mt-0', 'mb-0');
@@ -3545,7 +3557,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
     taxRate = profileTaxRate;
   }
 
-  div.dataset.taxable = taxable;
+  div.dataset.taxable = (taxRate !== null && taxRate !== undefined && taxRate !== '' && parseFloat(taxRate) > 0) ? 'true' : 'false';
 
   const currencySymbol = activeCurrencySymbol;
   div.dataset.symbol = currencySymbol;
@@ -3571,7 +3583,6 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
   const taxLabel = window.APP_LANGUAGES.tax || 'TAX';
   const taxVal = (taxRate !== null && taxRate !== undefined && taxRate !== '') ? taxRate : '';
 
-  const hasTax = taxVal !== '' && taxVal !== '0' && taxVal !== 0 && taxVal !== null && taxVal !== undefined;
   const hasDiscPercent = discPercent !== '' && discPercent !== '0' && discPercent !== 0 && discPercent !== null && discPercent !== undefined;
   const hasDiscFlat = discFlat !== '' && discFlat !== '0' && discFlat !== 0 && discFlat !== null && discFlat !== undefined;
 
@@ -3608,7 +3619,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
                      value="${defaultRate}" placeholder="0.00" oninput="updateTotalsSummary()">
             </div>
           </div>
-          <div class="flex flex-col labor-tax-wrapper ${hasTax ? '' : 'hidden'}">
+          <div class="flex flex-col labor-tax-wrapper">
             <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${taxLabel}</span>
             <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] tax-wrapper" style="background-color: rgba(54, 65, 83, 0.1);">
               <div class="flex items-center justify-center bg-gray-700 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px]">
@@ -3634,7 +3645,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
                      value="${laborPriceVal ?? defaultRate}" placeholder="0.00" oninput="updateTotalsSummary()">
             </div>
           </div>
-          <div class="flex flex-col labor-tax-wrapper ${hasTax ? '' : 'hidden'}">
+          <div class="flex flex-col labor-tax-wrapper">
             <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${taxLabel}</span>
             <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] tax-wrapper" style="background-color: rgba(54, 65, 83, 0.1);">
               <div class="flex items-center justify-center bg-gray-700 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px]">
@@ -3652,7 +3663,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
     <div class="flex items-center gap-2 w-full">
       <div class="flex flex-1 items-center border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] min-w-0 main-item-box transition-colors relative">
         <!-- Add Sub-category Button -->
-        <button type="button" onclick="addLaborSubCategory(this)" class="h-8 w-9 border-r-2 border-black flex-shrink-0 flex items-center justify-center bg-white transition-colors rounded-l-[10px] labor-add-sub-btn" title="Add sub-category">
+        <button type="button" onclick="addLaborSubCategory(this)" class="h-8 w-9 border-r-2 border-black flex-shrink-0 flex items-center justify-center bg-white transition-colors rounded-l-[10px] labor-add-sub-btn" title="${window.APP_LANGUAGES.add_subcategory || 'Add Description'}">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-black transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
           </svg>
@@ -3665,7 +3676,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
     <div class="labor-sub-categories space-y-2 mt-2 mb-2 pl-6"></div>
     
     <!-- Top row: Billing toggle + ADD DISCOUNT button -->
-    <div class="flex items-center gap-2 mb-0 md:mb-0">
+    <div class="flex items-center gap-2 mb-0 md:mb-0 labor-action-row">
       <div class="billing-pill-container" style="margin:0; border: 2px solid black; border-radius: 10px; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1); overflow: hidden; height: 28px; width: fit-content;">
         <button type="button" class="billing-pill-btn ${billingMode === 'hourly' ? 'active' : ''}" data-mode="hourly" onclick="setLaborRowBillingMode(this, 'hourly')" style="border-radius: 8px; padding: 0 8px;">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -3676,16 +3687,11 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
           ${window.APP_LANGUAGES.fixed || 'Fixed'}
         </button>
       </div>
-      <!-- ADD TAX button -->
-      <button type="button" onclick="toggleLaborTax(this)" class="flex items-center gap-1 px-2.5 h-7 border-2 border-black bg-gray-50 rounded-lg shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-[10px] font-black text-gray-700 uppercase tracking-wider hover:bg-gray-100 transition-colors labor-add-tax-btn">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
-        ${window.APP_LANGUAGES.tax || 'Tax'}
-      </button>
       <!-- ADD DISCOUNT button -->
       <div class="relative">
         <button type="button" onclick="toggleLaborDiscountDropdown(this)" class="flex items-center gap-1 px-2.5 h-7 border-2 rounded-lg shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-[10px] font-black uppercase tracking-wider transition-colors labor-add-discount-btn" style="background-color: white; border-color: #00A63E; color: #00A63E;">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
-          ${window.APP_LANGUAGES.discount || 'Discount'}
+          ${window.APP_LANGUAGES.add_discount || 'ADD DISCOUNT'}
         </button>
         <div class="labor-discount-dropdown hidden absolute left-0 top-full mt-1 z-50 bg-white border-2 border-black rounded-lg shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden min-w-[160px]">
           <button type="button" onclick="showLaborDiscount(this, 'percent')" class="flex items-center gap-2 w-full px-3 py-2 text-[11px] font-bold text-black hover:bg-green-50 transition-colors">
@@ -3757,7 +3763,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
       subItem.innerHTML = `
         <div class="w-2 h-2 rounded-full bg-black flex-shrink-0"></div>
         <div class="flex-1 flex items-center border-2 border-black rounded-lg bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-colors relative h-8">
-          <input type="text" class="flex-1 bg-transparent border-none text-[11px] font-bold text-black focus:ring-0 py-1 px-3 labor-sub-input placeholder:text-gray-300 min-w-0 outline-none" value="${String(sub).replace(/"/g, '&quot;')}" placeholder="${window.APP_LANGUAGES.subcategory_placeholder || "Sub-category..."}">
+          <input type="text" class="flex-1 bg-transparent border-none text-[11px] font-bold text-black focus:ring-0 py-1 px-3 labor-sub-input placeholder:text-gray-300 min-w-0 outline-none" value="${String(sub).replace(/"/g, '&quot;')}" placeholder="${window.APP_LANGUAGES.subcategory_placeholder || "Description..."}">
         </div>
         <button type="button" onclick="removeLaborSubCategory(this)" class="w-5 h-8 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors font-bold text-sm flex-shrink-0">×</button>
       `;
@@ -3768,7 +3774,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
 
   // Adjust spacing based on subcategories presence
   const laborSubContainer = div.querySelector('.labor-sub-categories');
-  const laborButtonRow = div.querySelector('.flex.items-center.gap-2');
+  const laborButtonRow = div.querySelector('.labor-action-row');
   if (laborSubContainer && laborButtonRow) {
     const hasSubCategories = laborSubContainer.children.length > 0;
     if (hasSubCategories) {
@@ -3788,16 +3794,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
     }
   }
 
-  // Set initial active states for +TAX and +DISCOUNT buttons
-  if (hasTax) {
-    const taxBtn = div.querySelector('.labor-add-tax-btn');
-    if (taxBtn) {
-      taxBtn.classList.remove('bg-gray-50', 'border-black', 'text-gray-700');
-      taxBtn.style.backgroundColor = '#364153';
-      taxBtn.style.borderColor = '#364153';
-      taxBtn.style.color = 'white';
-    }
-  }
+  // Set initial active state for +DISCOUNT button
   if (hasDiscPercent || hasDiscFlat) {
     const discBtn = div.querySelector('.labor-add-discount-btn');
     if (discBtn) {
@@ -3840,7 +3837,7 @@ function removeCreditSection() {
   const container = document.getElementById('creditItemsContainer');
   if (group) {
     group.classList.add('hidden');
-    // Remove only credit rows, preserving the "Add" button
+    // Remove all credit rows
     if (container) {
       container.querySelectorAll('.credit-item-row').forEach(row => row.remove());
     }
@@ -3848,9 +3845,8 @@ function removeCreditSection() {
   updateTotalsSummary();
 }
 
-// Add Credit item - just a reason input (price is set via the global Credit popover)
-// Add Credit item (Amount + Reason)
-function addCreditItem(containerId, reason = (window.APP_LANGUAGES?.courtesy_credit || "Courtesy Credit"), amount = "") {
+// Add Credit item (Reason + Amount)
+function addCreditItem(containerId, reason = (window.APP_LANGUAGES?.courtesy_credit || "Courtesy Credit"), amount = "50") {
   const container = document.getElementById(containerId);
   if (!container) return;
 
@@ -3861,42 +3857,37 @@ function addCreditItem(containerId, reason = (window.APP_LANGUAGES?.courtesy_cre
   const currencySymbol = typeof activeCurrencySymbol !== 'undefined' ? activeCurrencySymbol : "$";
 
   div.innerHTML = `
-    <!-- Amount Input Section -->
-    <div class="space-y-1 relative w-1/2">
-      <label class="block text-[9px] font-bold text-gray-500 uppercase ml-1">
-        ${window.APP_LANGUAGES.credit_amount_caps || "CREDIT AMOUNT"}
-      </label>
-      <div class="flex items-center border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] relative h-[52px]">
-          <span class="flex items-center justify-center text-white font-black border-2 border-black rounded-lg h-6 w-6 ml-2 shrink-0 select-none text-[10px] credit-unit-indicator" style="background-color: #E7000B;">${currencySymbol}</span>
-          <input type="number" step="0.01" 
-                 class="credit-amount-input bg-transparent border-none py-3 pl-2 pr-2 font-black text-black focus:ring-0 outline-none text-left min-w-0 text-sm placeholder:text-gray-300 w-full flex-1"
-                 value="${amount}"
-                 placeholder="${window.APP_LANGUAGES.amount || "Amount"}"
-                 oninput="updateTotalsSummary()">
-      </div>
-    </div>
-
-    <!-- Reason Input Section + Remove -->
     <div class="flex items-center gap-2 w-full">
-      <div class="flex flex-1 items-center border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] min-w-0 main-item-box transition-colors relative h-[52px]">
-        <input type="text" value="${reason || (window.APP_LANGUAGES?.courtesy_credit || 'Courtesy Credit')}" class="flex-1 bg-transparent border-none text-sm font-bold text-black focus:ring-0 py-3 px-4 credit-reason-input placeholder:text-gray-300 min-w-0 rounded-xl"
-               placeholder="${window.APP_LANGUAGES.reason_for_credit || (window.APP_LANGUAGES?.courtesy_credit || 'Courtesy Credit')}">
+      <div class="flex flex-1 items-center border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] min-w-0 main-item-box transition-colors relative">
+        <input type="text" value="${reason || (window.APP_LANGUAGES?.courtesy_credit || 'Courtesy Credit')}" class="flex-1 bg-transparent border-none text-sm font-bold text-black focus:ring-0 py-2 px-3 credit-reason-input placeholder:text-gray-300 min-w-0 rounded-xl"
+               placeholder="${window.APP_LANGUAGES.reason_for_credit || (window.APP_LANGUAGES?.courtesy_credit || 'Courtesy Credit')}" oninput="updateTotalsSummary()">
       </div>
-      
+
       <button type="button" 
               onclick="this.closest('.credit-item-row').remove(); updateTotalsSummary();" 
               class="remove-credit-btn w-6 h-10 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors font-bold text-xl flex-shrink-0">
         ×
       </button>
     </div>
+
+    <div class="flex flex-wrap items-start gap-2">
+      <div class="flex flex-col">
+        <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${window.APP_LANGUAGES.amount || 'AMOUNT'}</span>
+        <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]" style="background-color: rgba(231, 0, 11, 0.08);">
+          <div class="flex items-center justify-center text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px] credit-unit-indicator" style="background-color: #E7000B;">
+            ${currencySymbol}
+          </div>
+          <input type="number" step="0.01"
+                 class="credit-amount-input bg-transparent border-none p-0 font-black text-black focus:ring-0 outline-none text-left min-w-0 text-sm placeholder:text-gray-300 w-20"
+                 value="${amount}"
+                 placeholder="0.00"
+                 oninput="updateTotalsSummary()">
+        </div>
+      </div>
+    </div>
   `;
 
-  const addButtonDiv = container.querySelector('.section-add-btn-container');
-  if (addButtonDiv) {
-    container.insertBefore(div, addButtonDiv);
-  } else {
-    container.appendChild(div);
-  }
+  container.appendChild(div);
 }
 
 function randomizeIcon(container) {
@@ -3973,7 +3964,8 @@ function updateBadge(row) {
   const priceVal = parseFloat(priceInput.value) || 0;
   const taxRate = parseFloat(taxInput.value) || 0;
   const currencySymbol = activeCurrencySymbol;
-  const isTaxable = row.dataset.taxable === "true";
+  const isTaxable = taxRate > 0;
+  row.dataset.taxable = isTaxable ? "true" : "false";
 
   // Read quantity from input if available, otherwise fallback to dataset
   const qtyInput = row.querySelector('.qty-input');
@@ -4581,13 +4573,6 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
     else finalValue = window.APP_LANGUAGES.item || "Item";
   }
 
-  // Default Price for manually added items in these sections (NOT for AI-processed items)
-  if (isManualAdd && (!price || price === "" || parseFloat(price) === 0)) {
-    if (isMaterialSection || isExpenseSection || isFeeSection) {
-      price = "100";
-    }
-  }
-
   // Log ALL addItem attempts for diagnostics
   console.log(`[addItem CALL] Section: "${sectionTitle}" | Price: "${price}" | TaxableArg: ${taxable} | Scope: "${currentLogTaxScope}"`);
 
@@ -4631,7 +4616,7 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
 
   // Default Tax Rate
   const globalRate = profileTaxRate;
-  if (taxRate === null || taxRate === undefined || taxRate === '') {
+  if ((taxRate === null || taxRate === undefined || taxRate === '') && taxable) {
     taxRate = globalRate;
   }
 
@@ -4647,13 +4632,6 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
     dividerInlineStyle = "border-color: #EA580C;";
   }
 
-  const div = document.createElement('div');
-  div.dataset.taxable = taxable;
-  div.dataset.symbol = currencySymbol;
-  div.dataset.qty = finalQty;
-  div.className = `flex flex-col gap-2 w-full animate-in fade-in slide-in-from-left-2 duration-300 item-row transition-all ${dividerClasses}`;
-  if (dividerInlineStyle) div.style.cssText = dividerInlineStyle;
-
   // Inputs (Price and Tax)
   const hasPrice = price && price !== "" && price !== "0" && price !== "0.00";
   const priceVal = hasPrice ? cleanNum(price) : "";
@@ -4663,12 +4641,31 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
   const discPercentVal = discPercent ? cleanNum(discPercent) : "";
   const hasDiscPercent = discPercentVal !== '' && discPercentVal !== '0' && parseFloat(discPercentVal) > 0;
   const hasDiscFlat = discFlatVal !== '' && discFlatVal !== '0' && parseFloat(discFlatVal) > 0;
+  const hasTaxPreset = taxRate !== null && taxRate !== undefined && taxRate !== '' && parseFloat(taxRate) > 0;
+  const usesPriceToggle = isMaterialSection || isExpenseSection || isFeeSection;
+  const isPriceActiveDefault = usesPriceToggle ? (hasPrice || hasTaxPreset || hasDiscPercent || hasDiscFlat) : true;
+
+  const div = document.createElement('div');
+  div.dataset.taxable = (taxRate !== null && taxRate !== undefined && taxRate !== '' && parseFloat(taxRate) > 0) ? 'true' : 'false';
+  div.dataset.symbol = currencySymbol;
+  div.dataset.qty = finalQty;
+  div.dataset.priceToggleEligible = usesPriceToggle ? 'true' : 'false';
+  div.dataset.priceActive = isPriceActiveDefault ? 'true' : 'false';
+  div.className = `flex flex-col gap-2 w-full animate-in fade-in slide-in-from-left-2 duration-300 item-row transition-all ${dividerClasses}`;
+  if (dividerInlineStyle) div.style.cssText = dividerInlineStyle;
+
+  const addPriceButtonHtml = usesPriceToggle
+    ? `<button type="button" onclick="toggleItemPrice(this)" class="flex items-center gap-1 px-2.5 h-7 border-2 rounded-lg shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-[10px] font-black uppercase tracking-wider transition-colors item-add-price-btn" style="background-color: white; border-color: #EA580C; color: #EA580C;">
+         <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
+         ${window.APP_LANGUAGES.add_price || 'ADD PRICE'}
+       </button>`
+    : '';
 
   div.innerHTML = `
       <div class="flex items-center gap-2 w-full">
         <div class="flex flex-1 items-center border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] min-w-0 main-item-box transition-colors relative">
           <!-- Add Sub-category Button -->
-          <button type="button" onclick="addItemSubCategory(this)" class="h-8 w-8 border-r-2 border-black flex-shrink-0 flex items-center justify-center bg-white transition-colors rounded-l-[10px] item-add-sub-btn" title="Add sub-category">
+          <button type="button" onclick="addItemSubCategory(this)" class="h-8 w-8 border-r-2 border-black flex-shrink-0 flex items-center justify-center bg-white transition-colors rounded-l-[10px] item-add-sub-btn" title="${window.APP_LANGUAGES.add_subcategory || 'Add Description'}">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-black transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
               <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
             </svg>
@@ -4683,18 +4680,14 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
       <!-- Sub-categories container -->
       <div class="sub-categories pl-6 space-y-2 mt-2 mb-2"></div>
       
-      <!-- Top row: + TAX and + DISCOUNT buttons -->
-      <div class="flex items-center gap-2 mb-0 md:mb-0">
-        <!-- ADD TAX button -->
-        <button type="button" onclick="toggleItemTax(this)" class="flex items-center gap-1 px-2.5 h-7 border-2 border-black bg-gray-50 rounded-lg shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-[10px] font-black text-gray-700 uppercase tracking-wider hover:bg-gray-100 transition-colors item-add-tax-btn">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
-          ${window.APP_LANGUAGES.tax || 'Tax'}
-        </button>
+      <!-- Top row: ADD PRICE + ADD DISCOUNT buttons -->
+      <div class="flex items-center gap-2 mb-0 md:mb-0 item-action-row">
+        ${addPriceButtonHtml}
         <!-- ADD DISCOUNT button -->
-        <div class="relative">
+        <div class="relative item-add-discount-wrap ${usesPriceToggle && !isPriceActiveDefault ? 'hidden' : ''}">
           <button type="button" onclick="toggleItemDiscountDropdown(this)" class="flex items-center gap-1 px-2.5 h-7 border-2 rounded-lg shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-[10px] font-black uppercase tracking-wider transition-colors item-add-discount-btn" style="background-color: white; border-color: #00A63E; color: #00A63E;">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
-            ${window.APP_LANGUAGES.discount || 'Discount'}
+            ${window.APP_LANGUAGES.add_discount || 'ADD DISCOUNT'}
           </button>
           <div class="item-discount-dropdown hidden absolute left-0 top-full mt-1 z-50 bg-white border-2 border-black rounded-lg shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden min-w-[160px]">
             <button type="button" onclick="showItemDiscount(this, 'percent')" class="flex items-center gap-2 w-full px-3 py-2 text-[11px] font-bold text-black hover:bg-green-50 transition-colors">
@@ -4710,8 +4703,8 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
       </div>
       <!-- Price / Tax / Discount fields (flex-wrap so discount wraps on mobile) -->
       <div class="flex flex-wrap items-start gap-2 item-inputs-target">
-        <!-- PRICE (always visible) -->
-        <div class="flex flex-col">
+        <!-- PRICE -->
+        <div class="flex flex-col item-price-wrapper ${usesPriceToggle && !isPriceActiveDefault ? 'hidden' : ''}">
           <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${window.APP_LANGUAGES.price || 'PRICE'}</span>
           <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-orange-50 rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
             <div class="flex items-center justify-center bg-orange-600 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px] price-input-symbol">
@@ -4721,19 +4714,19 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
                    value="${priceVal}" placeholder="0.00" oninput="updateTotalsSummary()">
           </div>
         </div>
-        <!-- TAX (hidden by default, shown via + TAX button) -->
-        <div class="flex flex-col item-tax-wrapper ${taxable ? '' : 'hidden'}">
+        <!-- TAX -->
+        <div class="flex flex-col item-tax-wrapper ${usesPriceToggle && !isPriceActiveDefault ? 'hidden' : ''}">
           <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${window.APP_LANGUAGES.tax || 'TAX'}</span>
           <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] tax-wrapper" style="background-color: rgba(54, 65, 83, 0.1);">
             <div class="flex items-center justify-center bg-gray-700 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px]">
               <span>%</span>
             </div>
             <input type="number" step="0.1" class="tax-menu-input bg-transparent border-none p-0 font-black text-black focus:ring-0 outline-none text-left min-w-0 text-sm placeholder:text-gray-300 w-9"
-                   value="${(taxRate !== null && taxRate !== undefined && taxRate !== '') ? taxRate : profileTaxRate}" placeholder="0" oninput="updateTotalsSummary()">
+                   value="${(taxRate !== null && taxRate !== undefined && taxRate !== '') ? taxRate : ''}" placeholder="0" oninput="updateTotalsSummary()">
           </div>
         </div>
         <!-- Discount Group -->
-        <div class="flex items-start gap-2 discount-wrapper item-discount-group">
+        <div class="flex items-start gap-2 discount-wrapper item-discount-group ${usesPriceToggle && !isPriceActiveDefault ? 'hidden' : ''}">
           <!-- Percentage Discount (hidden by default) -->
           <div class="flex items-end gap-1 item-discount-percent-wrapper ${hasDiscPercent ? '' : 'hidden'}">
             <div class="flex flex-col">
@@ -4778,7 +4771,7 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
       subItem.innerHTML = `
         <div class="w-2 h-2 rounded-full bg-black flex-shrink-0"></div>
         <div class="flex-1 flex items-center border-2 border-black rounded-lg bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-colors relative h-8">
-          <input type="text" class="flex-1 bg-transparent border-none text-[11px] font-bold text-black focus:ring-0 py-1 px-3 sub-input placeholder:text-gray-300 min-w-0 outline-none" value="${String(sub).replace(/"/g, '&quot;')}" placeholder="${window.APP_LANGUAGES.subcategory_placeholder || "Sub-category..."}">
+          <input type="text" class="flex-1 bg-transparent border-none text-[11px] font-bold text-black focus:ring-0 py-1 px-3 sub-input placeholder:text-gray-300 min-w-0 outline-none" value="${String(sub).replace(/"/g, '&quot;')}" placeholder="${window.APP_LANGUAGES.subcategory_placeholder || "Description..."}">
         </div>
         <button type="button" onclick="removeItemSubCategory(this);" class="w-5 h-8 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors font-bold text-sm flex-shrink-0">×</button>
       `;
@@ -4788,7 +4781,7 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
 
   // Adjust spacing based on subcategories presence
   const subContainer = div.querySelector('.sub-categories');
-  const buttonRow = div.querySelector('.flex.items-center.gap-2');
+  const buttonRow = div.querySelector('.item-action-row');
   if (subContainer && buttonRow) {
     const hasSubCategories = subContainer.children.length > 0;
     if (hasSubCategories) {
@@ -4808,23 +4801,12 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
     }
   }
 
-  // Set initial active states for +TAX and +DISCOUNT buttons
-  if (taxable) {
-    const taxBtn = div.querySelector('.item-add-tax-btn');
-    if (taxBtn) {
-      taxBtn.classList.remove('bg-gray-50', 'border-black', 'text-gray-700');
-      taxBtn.style.backgroundColor = '#364153';
-      taxBtn.style.borderColor = '#364153';
-      taxBtn.style.color = 'white';
-    }
-  }
-  if (hasDiscPercent || hasDiscFlat) {
-    const discBtn = div.querySelector('.item-add-discount-btn');
-    if (discBtn) {
-      discBtn.style.backgroundColor = '#00A63E';
-      discBtn.style.borderColor = '#00A63E';
-      discBtn.style.color = 'white';
-    }
+  // Set initial active states for row action buttons
+  const discBtn = div.querySelector('.item-add-discount-btn');
+  setItemDiscountButtonState(discBtn, hasDiscPercent || hasDiscFlat);
+
+  if (usesPriceToggle) {
+    setItemPriceActive(div, isPriceActiveDefault, { clearValues: false, suppressTotals: true });
   }
 
   updateTotalsSummary();
@@ -4914,7 +4896,7 @@ function updateUI(data) {
     document.querySelectorAll('.price-input-symbol').forEach(el => el.innerText = currencySymbol);
     document.querySelectorAll('.discount-flat-symbol').forEach(el => el.innerText = currencySymbol);
     document.querySelectorAll('.labor-currency-symbol').forEach(el => el.innerText = currencySymbol);
-    document.querySelectorAll('#creditUnitIndicator').forEach(el => el.innerText = currencySymbol);
+    document.querySelectorAll('.credit-unit-indicator').forEach(el => el.innerText = currencySymbol);
     document.querySelectorAll('.badge-price').forEach(el => {
       // Since badges often contain calculations, we might need a more complex update logic
       // but for now, we'll let updateBadge handle it since it's called in most places.
@@ -5651,24 +5633,12 @@ function updateUIWithoutTranscript(data) {
 
     // Credits
     if (data.credits && data.credits.length > 0) {
-      showCreditSection();
-      const creditContainer = document.getElementById("creditsItemsContainer");
+      addCreditSection(true);
+      const creditContainer = document.getElementById("creditItemsContainer");
       if (creditContainer) {
-        const existingRows = creditContainer.querySelectorAll('.credit-item-row');
-        existingRows.forEach((row, idx) => { if (idx > 0) row.remove(); });
-
-        data.credits.forEach((credit, idx) => {
-          if (idx === 0) {
-            const firstRow = creditContainer.querySelector('.credit-item-row');
-            if (firstRow) {
-              const amountInput = firstRow.querySelector('input[placeholder*="Amount"], input[id*="credit"]');
-              const reasonInput = firstRow.querySelector('input[placeholder*="reason"], input[placeholder*="Reason"]');
-              if (amountInput) amountInput.value = credit.amount || "";
-              if (reasonInput) reasonInput.value = credit.reason || "";
-            }
-          } else {
-            addCreditItem(credit.amount, credit.reason);
-          }
+        creditContainer.querySelectorAll('.credit-item-row').forEach(row => row.remove());
+        data.credits.forEach(credit => {
+          addCreditItem('creditItemsContainer', credit.reason, credit.amount);
         });
       }
     }
