@@ -503,7 +503,7 @@ function updateLaborRowModelUI(row, mode) {
         <div class="flex items-start gap-2">
           <div class="flex flex-col">
             <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5 labor-label-price">${labelText}</span>
-            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-orange-50 rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] labor-price-container">
+            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-white rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] labor-price-container">
               <div class="flex items-center justify-center bg-orange-600 text-white border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -521,7 +521,7 @@ function updateLaborRowModelUI(row, mode) {
           </div>
           <div class="flex flex-col">
             <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${rateLabel}</span>
-            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-orange-50 rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] labor-rate-container">
+            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-white rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] labor-rate-container">
               <div class="flex items-center justify-center bg-orange-600 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px] labor-currency-symbol">
                 ${currencySymbol}
               </div>
@@ -531,7 +531,7 @@ function updateLaborRowModelUI(row, mode) {
           </div>
           <div class="flex flex-col labor-tax-wrapper">
             <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${taxLabel}</span>
-            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] tax-wrapper" style="background-color: rgba(54, 65, 83, 0.1);">
+            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] tax-wrapper" style="background-color: white;">
               <div class="flex items-center justify-center bg-gray-700 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px]">
                 <span>%</span>
               </div>
@@ -546,7 +546,7 @@ function updateLaborRowModelUI(row, mode) {
         <div class="flex items-start gap-2">
           <div class="flex flex-col">
             <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5 labor-label-price">${labelText}</span>
-            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-orange-50 rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] labor-price-container">
+            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-white rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] labor-price-container">
               <div class="flex items-center justify-center bg-orange-600 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px] labor-currency-symbol">
                 ${currencySymbol}
               </div>
@@ -556,7 +556,7 @@ function updateLaborRowModelUI(row, mode) {
           </div>
           <div class="flex flex-col labor-tax-wrapper">
             <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${taxLabel}</span>
-            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] tax-wrapper" style="background-color: rgba(54, 65, 83, 0.1);">
+            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] tax-wrapper" style="background-color: white;">
               <div class="flex items-center justify-center bg-gray-700 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px]">
                 <span>%</span>
               </div>
@@ -3593,7 +3593,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
         <div class="flex items-start gap-2">
           <div class="flex flex-col">
             <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5 labor-label-price">${labelText}</span>
-            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-orange-50 rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] labor-price-container">
+            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-white rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] labor-price-container">
               <div class="flex items-center justify-center bg-orange-600 text-white border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -3611,7 +3611,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
           </div>
           <div class="flex flex-col">
             <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${rateLabel}</span>
-            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-orange-50 rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] labor-rate-container">
+            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-white rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] labor-rate-container">
               <div class="flex items-center justify-center bg-orange-600 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px] labor-currency-symbol">
                 ${currencySymbol}
               </div>
@@ -3621,7 +3621,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
           </div>
           <div class="flex flex-col labor-tax-wrapper">
             <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${taxLabel}</span>
-            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] tax-wrapper" style="background-color: rgba(54, 65, 83, 0.1);">
+            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] tax-wrapper" style="background-color: white;">
               <div class="flex items-center justify-center bg-gray-700 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px]">
                 <span>%</span>
               </div>
@@ -3637,7 +3637,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
         <div class="flex items-start gap-2">
           <div class="flex flex-col">
             <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5 labor-label-price">${labelText}</span>
-            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-orange-50 rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] labor-price-container">
+            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-white rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] labor-price-container">
               <div class="flex items-center justify-center bg-orange-600 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px] labor-currency-symbol">
                 ${currencySymbol}
               </div>
@@ -3647,7 +3647,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
           </div>
           <div class="flex flex-col labor-tax-wrapper">
             <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${taxLabel}</span>
-            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] tax-wrapper" style="background-color: rgba(54, 65, 83, 0.1);">
+            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] tax-wrapper" style="background-color: white;">
               <div class="flex items-center justify-center bg-gray-700 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px]">
                 <span>%</span>
               </div>
@@ -3718,7 +3718,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
         <div class="flex items-end gap-1 labor-discount-percent-wrapper ${hasDiscPercent ? '' : 'hidden'}">
           <div class="flex flex-col">
             <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${window.APP_LANGUAGES.discount || 'DISCOUNT'}</span>
-            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-green-50 rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-white rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
               <div class="flex items-center justify-center bg-green-600 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px]">
                 <span>%</span>
               </div>
@@ -3734,7 +3734,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
         <div class="flex items-end gap-1 labor-discount-flat-wrapper ${hasDiscFlat ? '' : 'hidden'}">
           <div class="flex flex-col">
             <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${window.APP_LANGUAGES.discount || 'DISCOUNT'}</span>
-            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-green-50 rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-white rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
               <div class="flex items-center justify-center bg-green-600 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px] discount-flat-symbol">
                 ${currencySymbol}
               </div>
@@ -3873,7 +3873,7 @@ function addCreditItem(containerId, reason = (window.APP_LANGUAGES?.courtesy_cre
     <div class="flex flex-wrap items-start gap-2">
       <div class="flex flex-col">
         <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${window.APP_LANGUAGES.credit_quantity || window.APP_LANGUAGES.amount || 'AMOUNT'}</span>
-        <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]" style="background-color: rgba(231, 0, 11, 0.08);">
+        <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]" style="background-color: white;">
           <div class="flex items-center justify-center text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px] credit-unit-indicator" style="background-color: #E7000B;">
             ${currencySymbol}
           </div>
@@ -4706,7 +4706,7 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
         <!-- PRICE -->
         <div class="flex flex-col item-price-wrapper ${usesPriceToggle && !isPriceActiveDefault ? 'hidden' : ''}">
           <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${window.APP_LANGUAGES.price || 'PRICE'}</span>
-          <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-orange-50 rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+          <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-white rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
             <div class="flex items-center justify-center bg-orange-600 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px] price-input-symbol">
               ${currencySymbol}
             </div>
@@ -4717,7 +4717,7 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
         <!-- TAX -->
         <div class="flex flex-col item-tax-wrapper ${usesPriceToggle && !isPriceActiveDefault ? 'hidden' : ''}">
           <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${window.APP_LANGUAGES.tax || 'TAX'}</span>
-          <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] tax-wrapper" style="background-color: rgba(54, 65, 83, 0.1);">
+          <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] tax-wrapper" style="background-color: white;">
             <div class="flex items-center justify-center bg-gray-700 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px]">
               <span>%</span>
             </div>
@@ -4731,7 +4731,7 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
           <div class="flex items-end gap-1 item-discount-percent-wrapper ${hasDiscPercent ? '' : 'hidden'}">
             <div class="flex flex-col">
               <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${window.APP_LANGUAGES.discount || 'Discount'}</span>
-              <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-green-50 rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+              <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-white rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
                 <div class="flex items-center justify-center bg-green-600 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px]">
                   <span>%</span>
                 </div>
@@ -4745,7 +4745,7 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
           <div class="flex items-end gap-1 item-discount-flat-wrapper ${hasDiscFlat ? '' : 'hidden'}">
             <div class="flex flex-col">
               <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${window.APP_LANGUAGES.discount || 'DISCOUNT'}</span>
-              <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-green-50 rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+              <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-white rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
                 <div class="flex items-center justify-center bg-green-600 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px] discount-flat-symbol">
                   ${currencySymbol}
                 </div>
