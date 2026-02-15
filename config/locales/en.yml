@@ -344,7 +344,7 @@ en:
   tax: "TAX"
   discount: "DISCOUNT"
   rate: "RATE"
-  credit_quantity: "QUANTITY"
+  credit_quantity: "AMOUNT"
   credit_amount_caps: "CREDIT AMOUNT"
   materials: "PRODUCTS"
   expenses: "REIMBURSEMENTS"
