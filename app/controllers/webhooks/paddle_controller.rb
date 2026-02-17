@@ -38,7 +38,7 @@ class Webhooks::PaddleController < ActionController::Base
     data = event["data"] || {}
     customer = data["customer"] || {}
     customer_id = data["customer_id"].presence || customer["id"].presence
-    email = customer["email"].presence
+    email = customer["email"].presence || data["customer_email"].presence
     price_id = (data["items"]&.first || {})["price_id"]
     subscription_id = data["subscription_id"]
 
@@ -61,7 +61,9 @@ class Webhooks::PaddleController < ActionController::Base
       paddle_customer_email: effective_email,
       paddle_subscription_status: "active"
     }
-    update_attrs[:paddle_customer_id] = customer_id if customer_id.present?
+    if profile.has_attribute?(:paddle_customer_id) && customer_id.present?
+      update_attrs[:paddle_customer_id] = customer_id
+    end
     update_attrs[:paddle_subscription_id] = subscription_id if subscription_id.present?
 
     profile.update_columns(update_attrs)
@@ -69,7 +71,7 @@ class Webhooks::PaddleController < ActionController::Base
 
   def handle_subscription_event(event)
     data = event["data"] || {}
-    customer_id = data["customer_id"]  # Customer ID is directly in data, not in customer object
+    customer_id = data["customer_id"].presence || data.dig("customer", "id")
     subscription_id = data["id"]
     status = data["status"]
     price_id = (data["items"]&.first || {})["price_id"]
@@ -90,19 +92,23 @@ class Webhooks::PaddleController < ActionController::Base
 
     Rails.logger.info "Paddle subscription event: found profile #{profile.id}, updating plan to paid"
 
-    profile.update_columns(
+    update_attrs = {
       plan: "paid",
       paddle_subscription_id: subscription_id,
       paddle_subscription_status: status,
       paddle_price_id: price_id,
-      paddle_customer_id: customer_id,
       paddle_next_bill_at: next_billing_time
-    )
+    }
+    if profile.has_attribute?(:paddle_customer_id) && customer_id.present?
+      update_attrs[:paddle_customer_id] = customer_id
+    end
+
+    profile.update_columns(update_attrs)
   end
 
   def handle_subscription_status_change(event)
     data = event["data"] || {}
-    customer_id = data["customer_id"]  # Customer ID is directly in data
+    customer_id = data["customer_id"].presence || data.dig("customer", "id")
     status = data["status"]
     subscription_id = data["id"]
 
@@ -117,12 +123,16 @@ class Webhooks::PaddleController < ActionController::Base
       return
     end
 
-    profile.update_columns(
+    update_attrs = {
       paddle_subscription_id: subscription_id,
       paddle_subscription_status: status,
-      paddle_customer_id: customer_id,
       plan: status == "canceled" ? "free" : profile.plan
-    )
+    }
+    if profile.has_attribute?(:paddle_customer_id) && customer_id.present?
+      update_attrs[:paddle_customer_id] = customer_id
+    end
+
+    profile.update_columns(update_attrs)
   end
 
   def handle_customer_created(event)
@@ -133,10 +143,12 @@ class Webhooks::PaddleController < ActionController::Base
     profile = find_profile(email)
     return unless profile
 
-    profile.update_columns(
-      paddle_customer_email: email,
-      paddle_customer_id: customer_id
-    )
+    update_attrs = { paddle_customer_email: email }
+    if profile.has_attribute?(:paddle_customer_id) && customer_id.present?
+      update_attrs[:paddle_customer_id] = customer_id
+    end
+
+    profile.update_columns(update_attrs)
   end
 
   def find_profile(email)
@@ -146,8 +158,10 @@ class Webhooks::PaddleController < ActionController::Base
   end
 
   def find_profile_for_event(customer_id:, email:, custom_data:)
-    profile = Profile.find_by(paddle_customer_id: customer_id) if customer_id.present?
-    return profile if profile
+    if customer_id.present? && Profile.column_names.include?("paddle_customer_id")
+      profile = Profile.find_by(paddle_customer_id: customer_id)
+      return profile if profile
+    end
 
     profile = find_profile(email)
     return profile if profile

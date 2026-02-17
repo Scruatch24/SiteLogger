@@ -122,6 +122,67 @@ class HomeController < ApplicationController
   def checkout
   end
 
+  def confirm_checkout
+    unless user_signed_in?
+      return render json: { success: false, error: "unauthorized" }, status: :unauthorized
+    end
+
+    transaction_id = params[:transaction_id].to_s.strip
+    if transaction_id.blank?
+      return render json: { success: false, error: "missing_transaction_id" }, status: :unprocessable_entity
+    end
+
+    api_key = ENV["PADDLE_API_KEY"].to_s
+    if api_key.blank?
+      return render json: { success: false, error: "paddle_api_key_missing" }, status: :unprocessable_entity
+    end
+
+    transaction = paddle_transaction_details(api_key: api_key, transaction_id: transaction_id)
+    if transaction.blank?
+      return render json: { success: false, error: "transaction_not_found" }, status: :unprocessable_entity
+    end
+
+    status = transaction["status"].to_s.downcase
+    unless [ "paid", "completed", "billed" ].include?(status)
+      return render json: { success: false, error: "transaction_not_paid", status: status }, status: :unprocessable_entity
+    end
+
+    customer_id = transaction["customer_id"].presence || transaction.dig("customer", "id")
+    customer_email = transaction.dig("customer", "email").presence ||
+      transaction["customer_email"].presence
+    custom_data_user_id = transaction.dig("custom_data", "user_id").to_s
+    subscription_id = transaction["subscription_id"]
+    item = (transaction["items"] || []).first || {}
+    price_id = item["price_id"].presence || item.dig("price", "id")
+
+    profile = current_user.profile
+    owned_by_current_user =
+      custom_data_user_id == current_user.id.to_s ||
+      customer_email.to_s.casecmp(current_user.email.to_s).zero? ||
+      (profile.respond_to?(:paddle_customer_id) && profile.paddle_customer_id.to_s == customer_id.to_s)
+
+    unless owned_by_current_user
+      return render json: { success: false, error: "transaction_user_mismatch" }, status: :forbidden
+    end
+
+    update_attrs = {
+      plan: "paid",
+      paddle_price_id: price_id,
+      paddle_customer_email: (customer_email.presence || current_user.email),
+      paddle_subscription_status: "active"
+    }
+    if profile.respond_to?(:paddle_customer_id) && customer_id.present?
+      update_attrs[:paddle_customer_id] = customer_id
+    end
+    update_attrs[:paddle_subscription_id] = subscription_id if subscription_id.present?
+
+    profile.update_columns(update_attrs)
+    render json: { success: true }
+  rescue => e
+    Rails.logger.warn("PADDLE CHECKOUT CONFIRM ERROR: #{e.message}")
+    render json: { success: false, error: "checkout_confirm_failed" }, status: :unprocessable_entity
+  end
+
   def index
     @categories = if user_signed_in?
       # Ensure Favorites category exists and has correct styling (Self-Healing)
@@ -1369,6 +1430,26 @@ PROMPT
 
   def paddle_api_base_url
     Rails.env.production? ? "https://api.paddle.com" : "https://sandbox-api.paddle.com"
+  end
+
+  def paddle_transaction_details(api_key:, transaction_id:)
+    uri = URI("#{paddle_api_base_url}/transactions/#{CGI.escape(transaction_id.to_s)}")
+    req = Net::HTTP::Get.new(uri)
+    req["Authorization"] = "Bearer #{api_key}"
+
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = true
+    http.read_timeout = 8
+    http.open_timeout = 5
+
+    resp = http.request(req)
+    return nil unless resp.is_a?(Net::HTTPSuccess)
+
+    body = JSON.parse(resp.body) rescue {}
+    body["data"]
+  rescue => e
+    Rails.logger.warn("PADDLE TRANSACTION LOOKUP ERROR: #{e.message}")
+    nil
   end
 
   def paddle_customer_portal_url(api_key:, customer_id:)

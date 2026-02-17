@@ -22,6 +22,7 @@ Rails.application.routes.draw do
   get "privacy", to: "home#privacy"
   get "refund", to: "home#refund"
   get "checkout", to: "home#checkout"
+  post "checkout/confirm", to: "home#confirm_checkout"
 
   # Use 'match' with 'via' to allow both POST and PATCH
   match "save_settings", to: "home#save_settings", via: [ :post, :patch ]

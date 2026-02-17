@@ -410,6 +410,39 @@
       successUrl: successUrl
     };
 
+    settings.eventCallback = function(event) {
+      if (!event || event.name !== 'checkout.completed') return;
+
+      var eventData = event.data || {};
+      var transactionId = eventData.transaction_id || eventData.transactionId || eventData.id;
+      if (!transactionId) return;
+
+      var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+      var csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+
+      fetch('<%= url_for("/checkout/confirm") %>', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken
+        },
+        body: JSON.stringify({ transaction_id: transactionId })
+      })
+        .then(function(response) {
+          return response.json().catch(function() { return { success: false }; }).then(function(body) {
+            return { ok: response.ok, body: body };
+          });
+        })
+        .then(function(result) {
+          if (result.ok && result.body && result.body.success) {
+            window.location.href = '<%= subscription_path %>?upgraded=1';
+          }
+        })
+        .catch(function(err) {
+          console.warn('Checkout confirmation failed', err);
+        });
+    };
+
     <% if user_signed_in? && current_user.email.present? %>
       settings.customer = { email: '<%= current_user.email %>' };
       settings.customData = {
