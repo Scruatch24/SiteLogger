@@ -213,6 +213,15 @@
     height: 16px;
   }
 
+  .wand-mask-icon {
+    width: 14px;
+    height: 14px;
+    -webkit-mask: url('<%= asset_path("icons/wand.svg") %>') center / 92% 92% no-repeat;
+    mask: url('<%= asset_path("icons/wand.svg") %>') center / 92% 92% no-repeat;
+  }
+  .plan-free .wand-mask-icon { background: #ffffff; }
+  .plan-pro .wand-mask-icon { background: #f97316; }
+
   .feature-name {
     font-size: 11px;
     font-weight: 900;
@@ -379,6 +388,17 @@
             <span class="feature-value"><%= t('modal.chars', count: 300) %></span>
           </div>
 
+          <!-- Text Enhancement -->
+          <div class="feature-row">
+            <div class="feature-left">
+              <div class="feature-icon">
+                <div class="wand-mask-icon" aria-hidden="true"></div>
+              </div>
+              <span class="feature-name"><%= t('pricing_page.feature_text_enhancement') %></span>
+            </div>
+            <span class="feature-value">5</span>
+          </div>
+
           <!-- Voice -->
           <div class="feature-row">
             <div class="feature-left">
@@ -498,6 +518,13 @@
                 <%= t('modal.you_are_here') %>
               </div>
             </div>
+          <% elsif user_signed_in? && current_user.profile&.paid? %>
+            <div class="plan-cta plan-cta-current">
+              <div style="display: flex; align-items: center; justify-content: center; gap: 6px;">
+                <svg style="width:12px;height:12px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <%= t('modal.you_are_on_pro') %>
+              </div>
+            </div>
           <% else %>
             <%= link_to new_user_registration_path, class: "plan-cta plan-cta-free" do %>
               <%= t('modal.signup_free') %>
@@ -536,6 +563,17 @@
               <span class="feature-name"><%= t('pricing_page.feature_transcript') %></span>
             </div>
             <span class="feature-value"><%= t('modal.chars', count: "10,000") %></span>
+          </div>
+
+          <!-- Text Enhancement -->
+          <div class="feature-row">
+            <div class="feature-left">
+              <div class="feature-icon">
+                <div class="wand-mask-icon" aria-hidden="true"></div>
+              </div>
+              <span class="feature-name"><%= t('pricing_page.feature_text_enhancement') %></span>
+            </div>
+            <span class="feature-value unlimited"><%= t('pricing_page.unlimited_bilingual') %></span>
           </div>
 
           <!-- Voice -->

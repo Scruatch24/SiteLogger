@@ -4,7 +4,7 @@ ka:
   seo_description: "შექმენით პროფესიონალური ინვოისები მხოლოდ თქვენი ხმით. AI-ზე დაფუძნებული ავტომატური გამოთვლები და სწრაფი PDF გენერაცია კონტრაქტორებისთვის, ფრილანსერებისთვისა და მომსახურე პერსონალთათვის."
 
   # Navigation
-  settings: "პარამეტრები"
+  settings: "პრეფერენციები"
   history: "ჩანაწერები"
   profile: "პროფილი"
   log_out: "გამოსვლა"
@@ -19,7 +19,7 @@ ka:
   english: "ინგლისური"
   georgian: "ქართული"
   save_changes: "შენახვა"
-  save_settings: "პარამეტრების შენახვა"
+  save_settings: "შენახვა"
   changes_saved: "ცვლილებები შენახულია!"
   manage: "მართვა"
   delete: "წაშლა"
@@ -47,6 +47,8 @@ ka:
   create_pdf: "PDF-ის შექმნა"
   fixed_amount: "ფიქსირებული თანხა"
   percentage: "პროცენტი"
+  discount_percentage_type: "პროცენტული"
+  discount_flat_type: "ფიქსირებული"
   discount_message: "ფასდაკლების შეტყობინება:"
   reason_placeholder: "ფასდაკლების მიზეზი..."
   add_fee: "მოსაკრებლების დამატება"
@@ -160,6 +162,9 @@ ka:
   rec: "ჩაწერა"
   live_transcript: "LIVE ტრანსკრიპტი"
   transcript_placeholder: "შეიყვანეთ ტექსტი ან ჩაწერეთ ხმა..."
+  enhance_text: "გაუმჯობესება"
+  enhancing_text: "უმჯობესდება..."
+  enhance_text_title: "ტექსტის გაუმჯობესება AI-ის უკეთ გასაგებად"
   apply: "გამოყენება"
   analyze_text: "ტექსტის ანალიზი"
   
@@ -290,7 +295,7 @@ ka:
   remove_logo_hint: "ამ ქმედების გაუქმება შეუძლებელია, თუ ახალ ლოგოს არ ატვირთავთ."
   yes_remove_it: "დიახ, წაშალეთ"
   sign_up_to_save: "დარეგისტრირდით შესანახად"
-  save_settings: "პარამეტრების შენახვა"
+  save_settings: "შენახვა"
   guest_profile:
     business_name: "შპს ალიანს ჯგუფი"
     email: "info@mybusiness.ge"
@@ -337,9 +342,10 @@ ka:
   after_tax: "დაბეგვრის შემდეგ"
   add_subcategory: "აღწერის დამატება"
   add_price: "ფასის დამატება"
-  add_discount: "ფასდაკლების დამატება"
+  add_discount: "ფასდაკლება"
   labor_add_discount: "ფასდაკლება"
   price: "ფასი"
+  quantity: "რაოდ."
   item_discount: "ფასდაკლება"
   tax: "დაბეგვრა"
   discount: "ფასდაკლება"
@@ -551,14 +557,16 @@ ka:
     login_profile: "პროფილში შესვლა"
     keep_previewing: "გამოტოვება"
     you_are_here: "თქვენ აქ ხართ"
+    you_are_on_pro: "თქვენ PRO-ზე ხართ"
 
   # Navigation
   nav:
     home: "მთავარი"
     history: "ისტორია"
     profile: "პროფილი"
-    settings: "პარამეტრები"
+    settings: "პრეფერენციები"
     pricing: "ფასები"
+    subscription: "გეგმა"
     sign_in: "შესვლა"
     sign_up: "სცადე უფასოდ"
     log_out: "გასვლა"
@@ -658,7 +666,7 @@ ka:
   # Pricing Page
   pricing: "ფასები"
   pricing_page:
-    title_html: 'აირჩიე<br><span class="onb-accent">გეგმა</span>'
+    title_html: 'აირჩიე <span class="onb-accent">გეგმა</span>'
     subtitle: "ყველაფერი რაც გჭირდებათ პროფესიონალური ინვოისების შესაქმნელად — აირჩიეთ თქვენთვის შესაფერისი გეგმა."
     free_title: "უფასო"
     pro_title: "PRO"
@@ -673,11 +681,40 @@ ka:
     feature_logo: "ბიზნეს ლოგო"
     feature_categories: "საკუთარი კატეგორიები"
     feature_ai: "პრიორიტეტული AI და საპორტი"
+    feature_text_enhancement: "ტექსტის გაუმჯობესება"
+    unlimited_bilingual: "შეუზღუდავი"
     classic_only: "შეზღუდული"
     orange_only: "შეზღუდული"
     all_styles: "ყველა"
     all_colors: "ყველა"
     back_home: "მთავარ გვერდზე"
+
+  # Subscription Page
+  subscription_page:
+    title_html: 'მართე შენი <span class="onb-accent">გეგმა</span>'
+    subtitle: "ერთ გვერდზე ნახე გეგმა, ბილინგის სტატუსი და შემდეგი განახლება."
+    back_home: "მთავარ გვერდზე"
+    current_plan: "მიმდინარე გეგმა"
+    plan_pro: "PRO"
+    plan_free: "FREE"
+    status: "სტატუსი"
+    status_active: "აქტიური"
+    status_inactive: "არააქტიური"
+    status_unknown: "უცნობი"
+    next_billing: "შემდეგი გადახდა"
+    customer_email: "ბილინგის ელფოსტა"
+    subscription_id: "გამოწერის ID"
+    price_id: "ფასის ID"
+    not_available: "მიუწვდომელია"
+    manage_billing: "ბილინგის მართვა"
+    manage_billing_soon: "პორტალი მალე დაემატება"
+    billing_portal_unavailable: "ბილინგის პორტალი დროებით მიუწვდომელია. სცადე ცოტა მოგვიანებით."
+    billing_portal_customer_missing: "შენი ბილინგის ჩანაწერი ჯერ ვერ მოიძებნა. დაუკავშირდი მხარდაჭერას."
+    contact_support: "მხარდაჭერასთან დაკავშირება"
+    compare_plans: "გეგმების შედარება"
+    free_title: "თქვენ იყენებთ უფასო გეგმას"
+    free_subtitle: "გახდი Pro და მიიღე შეუზღუდავი შესაძლებლობები და პრემიუმ ფუნქციები."
+    upgrade_now: "გახდი Pro"
 
   # Checkout Page
   checkout_page:

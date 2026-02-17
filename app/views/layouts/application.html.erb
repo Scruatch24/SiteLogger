@@ -114,14 +114,8 @@
 
     <style>
       /* Global Prevent Auto-Zoom on Focus (iOS) and Double-Tap Zoom */
-      html[lang="ka"] body {
-        letter-spacing: -0.015em; /* Tighten Georgian text more */
-      }
-      html[lang="ka"] .tracking-widest {
-        letter-spacing: 0.01em !important; /* Significantly reduce tracking-widest for Georgian */
-      }
-      html[lang="ka"] .tracking-wider {
-        letter-spacing: 0.005em !important;
+      body, body * {
+        letter-spacing: 0 !important;
       }
 
       @media (max-width: 767px) {
@@ -548,14 +542,14 @@
           <!-- Header: Sleek & Minimal -->
           <div class="relative pt-2 pb-6 text-center md:text-left flex flex-col md:flex-row md:items-end justify-between items-center gap-4">
             <div class="space-y-2">
-              <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-600/10 border border-orange-600/20 text-orange-500 text-[10px] font-black uppercase tracking-[0.2em] mb-2 leading-none">
+              <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-600/10 border border-orange-600/20 text-orange-500 text-[10px] font-black uppercase mb-2 leading-none">
                 <span class="relative flex h-2 w-2">
                   <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
                   <span class="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
                 </span>
                 <%= t('limit_reached') %>
               </div>
-              <h2 class="text-3xl md:text-5xl font-black tracking-tighter uppercase leading-none text-white"><%= t('unlock_power').split(' ').take(t('unlock_power').split(' ').length - 2).join(' ') %> <span class="text-orange-500"><%= t('unlock_power').split(' ').last(2).join(' ') %></span></h2>
+              <h2 class="text-3xl md:text-5xl font-black uppercase text-white"><%= t('unlock_power').split(' ').take(t('unlock_power').split(' ').length - 2).join(' ') %> <span class="text-orange-500"><%= t('unlock_power').split(' ').last(2).join(' ') %></span></h2>
             </div>
             <button onclick="closePremiumModal()" class="w-12 h-12 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-white transition-all hover:scale-110 active:scale-90">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
@@ -573,7 +567,7 @@
                
                <div class="relative space-y-1 mb-8 flex flex-col justify-between">
                 <div class="flex items-center justify-between">
-                  <span class="text-[10px] font-black uppercase tracking-widest text-orange-600">
+                  <span class="text-[10px] font-black uppercase text-orange-600">
                     <% if user_signed_in? && current_user.profile&.free? %>
                       <%= t('current_plan') %>
                     <% else %>
@@ -583,7 +577,7 @@
                   <span aria-hidden="true" style="background: #f97316; color: white; font-size: 8px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.16em; padding: 6px 12px; border-radius: 9999px; box-shadow: 0 6px 18px rgba(249,115,22,0.25); display: inline-flex; align-items: center; gap: 4px; opacity: 0; pointer-events: none;"><%= t('modal.elite') %></span>
                 </div>
                 <div class="flex items-center gap-3">
-                  <h3 class="text-2xl font-black tracking-tighter uppercase text-black"><%= t('pricing_page.free_title') %></h3>
+                  <h3 class="text-2xl font-black uppercase text-black"><%= t('pricing_page.free_title') %></h3>
                   <span aria-hidden="true" style="font-size: 14px; font-weight: 900; color: white; background: #f97316; padding: 6px 12px; border-radius: 9999px; box-shadow: 0 6px 18px rgba(249,115,22,0.25); opacity: 0; pointer-events: none;"><%= t('modal.pro_price') %></span>
                 </div>
               </div>
@@ -598,7 +592,7 @@
                         <circle cx="12" cy="12" r="3" />
                       </svg>
                     </div>
-                    <span class="text-[11px] font-black text-orange-600 uppercase tracking-widest"><%= t('modal.preview') %></span>
+                    <span class="text-[11px] font-black text-orange-600 uppercase"><%= t('modal.preview') %></span>
                   </div>
                   <span class="text-sm font-black text-black"><%= t('modal.per_day_count', count: 20) %></span>
                 </div>
@@ -609,9 +603,9 @@
                     <div class="w-8 h-8 rounded-xl bg-orange-500 text-white flex items-center justify-center shrink-0 shadow-lg shadow-orange-500/20">
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 6h16M4 12h8m-8 6h16" stroke-width="2.5" stroke-linecap="round"/></svg>
                     </div>
-                    <span class="text-[11px] font-black text-orange-600 uppercase tracking-widest"><%= t('modal.transcript') %></span>
+                    <span class="text-[11px] font-black text-orange-600 uppercase"><%= t('modal.transcript') %></span>
                   </div>
-                  <span class="text-sm font-black text-black uppercase tracking-tight"><%= t('modal.chars', count: 300) %></span>
+                  <span class="text-sm font-black text-black uppercase"><%= t('modal.chars', count: 300) %></span>
                 </div>
 
                 <!-- Voice Record -->
@@ -625,9 +619,9 @@
                         <line x1="8" y1="22" x2="16" y2="22" />
                       </svg>
                     </div>
-                    <span class="text-[11px] font-black text-orange-600 uppercase tracking-widest"><%= t('modal.voice') %></span>
+                    <span class="text-[11px] font-black text-orange-600 uppercase"><%= t('modal.voice') %></span>
                   </div>
-                  <span class="text-sm font-black text-black uppercase tracking-tight"><%= t('modal.seconds', count: 60) %></span>
+                  <span class="text-sm font-black text-black uppercase"><%= t('modal.seconds', count: 60) %></span>
                 </div>
 
                 <!-- Daily Exports -->
@@ -639,9 +633,9 @@
                         <path d="m12 15 4-4m-4 4-4-4m4 4V4" />
                       </svg>
                     </div>
-                    <span class="text-[11px] font-black text-orange-600 uppercase tracking-widest"><%= t('modal.exports') %></span>
+                    <span class="text-[11px] font-black text-orange-600 uppercase"><%= t('modal.exports') %></span>
                   </div>
-                  <span class="text-sm font-black text-black uppercase tracking-tight"><%= t('modal.per_day_count', count: 5) %></span>
+                  <span class="text-sm font-black text-black uppercase"><%= t('modal.per_day_count', count: 5) %></span>
                 </div>
 
               </div>
@@ -651,6 +645,11 @@
                   <div class="w-full py-4 bg-orange-100/50 text-orange-600 rounded-2xl text-[10px] font-black uppercase text-center border-2 border-orange-500/20 flex items-center justify-center gap-2">
                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     <%= t('modal.you_are_here') %>
+                  </div>
+                <% elsif user_signed_in? && current_user.profile&.paid? %>
+                  <div class="w-full py-4 bg-orange-100/50 text-orange-600 rounded-2xl text-[10px] font-black uppercase text-center border-2 border-orange-500/20 flex items-center justify-center gap-2">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    <%= t('modal.you_are_on_pro') %>
                   </div>
                 <% else %>
                   <%= link_to new_user_registration_path, class: "group/btn block w-full py-4 bg-black text-white rounded-2xl text-[10px] font-black uppercase text-center transition-all hover:bg-orange-600 hover:scale-[1.02] shadow-[0_10px_20px_rgba(0,0,0,0.1)] active:scale-95 flex items-center justify-center gap-2" do %>
@@ -668,7 +667,7 @@
                
                <div class="relative space-y-1 mb-8 flex flex-col justify-between">
                 <div class="flex items-center">
-                  <span class="text-[10px] font-black uppercase tracking-widest text-orange-500">
+                  <span class="text-[10px] font-black uppercase text-orange-500">
                     <% if user_signed_in? && current_user.profile&.paid? %>
                       <%= t('current_plan') %>
                     <% else %>
@@ -677,7 +676,7 @@
                   </span>
                 </div>
                 <div class="flex items-center gap-3 justify-between w-full">
-                  <h3 class="text-2xl font-black tracking-tighter uppercase text-white"><%= t('pricing_page.pro_title') %></h3>
+                  <h3 class="text-2xl font-black uppercase text-white"><%= t('pricing_page.pro_title') %></h3>
                   <span style="margin-left: auto; font-size: 14px; font-weight: 900; color: white; background: #f97316; padding: 6px 12px; border-radius: 9999px; box-shadow: 0 6px 18px rgba(249,115,22,0.25);">
                     <%= t('modal.pro_price') %>
                   </span>
@@ -704,13 +703,13 @@
                             2s-4s: Pause (50%)
                          */
                          @keyframes eyeLook {
-                           0%, 15% { transform: translate(0, 0); }
-                           25% { transform: translate(-3px, 0); } /* Move Left */
-                           35% { transform: translate(-3px, 0); } /* Hold Left */
-                           45% { transform: translate(3px, 0); }  /* Move Right */
-                           55% { transform: translate(3px, 0); }  /* Hold Right */
-                           66% { transform: translate(0, 0); }
-                           100% { transform: translate(0, 0); }   /* Wait */
+                           0%, 15% { transform: translateX(0); }
+                           25% { transform: translateX(-3px); } /* Move Left */
+                           35% { transform: translateX(-3px); } /* Hold Left */
+                           45% { transform: translateX(3px); }  /* Move Right */
+                           55% { transform: translateX(3px); }  /* Hold Right */
+                           66% { transform: translateX(0); }
+                           100% { transform: translateX(0); }   /* Wait */
                          }
                          @keyframes eyeBlink {
                            0%, 55% { transform: scaleY(1); }
@@ -719,7 +718,7 @@
                          }
                        </style>
                     </div>
-                    <span class="text-[11px] font-black text-orange-500 uppercase tracking-widest"><%= t('modal.preview') %></span>
+                    <span class="text-[11px] font-black text-orange-500 uppercase"><%= t('modal.preview') %></span>
                   </div>
                   <span class="text-sm font-black text-green-400 uppercase"><%= t('modal.unlimited') %></span>
                 </div>
@@ -751,9 +750,9 @@
                         </style>
                       </svg>
                     </div>
-                    <span class="text-[11px] font-black text-orange-500 uppercase tracking-widest"><%= t('modal.transcript') %></span>
+                    <span class="text-[11px] font-black text-orange-500 uppercase"><%= t('modal.transcript') %></span>
                   </div>
-                  <span class="text-sm font-black text-orange-100 uppercase tracking-tighter"><%= t('modal.chars', count: "10,000") %></span>
+                  <span class="text-sm font-black text-orange-100 uppercase"><%= t('modal.chars', count: "10,000") %></span>
                 </div>
 
                 <!-- Voice record Row -->
@@ -790,9 +789,9 @@
                         }
                       </style>
                     </div>
-                    <span class="text-[11px] font-black text-orange-500 uppercase tracking-widest"><%= t('modal.voice') %></span>
+                    <span class="text-[11px] font-black text-orange-500 uppercase"><%= t('modal.voice') %></span>
                   </div>
-                  <span class="text-sm font-black text-orange-100 uppercase tracking-tighter text-right"><%= t('modal.seconds', count: 300) %></span>
+                  <span class="text-sm font-black text-orange-100 uppercase text-right"><%= t('modal.seconds', count: 300) %></span>
                 </div>
 
                 <!-- Exports Row -->
@@ -812,7 +811,7 @@
                         }
                       </style>
                     </div>
-                    <span class="text-[11px] font-black text-orange-500 uppercase tracking-widest"><%= t('modal.exports') %></span>
+                    <span class="text-[11px] font-black text-orange-500 uppercase"><%= t('modal.exports') %></span>
                   </div>
                   <span class="text-sm font-black text-green-400 uppercase"><%= t('modal.unlimited') %></span>
                 </div>
@@ -826,11 +825,11 @@
                     <%= t('modal.you_are_here') %>
                   </div>
                 <% elsif user_signed_in? %>
-                  <button onclick="openPaddleCheckout()" class="w-full py-4 text-white rounded-2xl text-[10px] font-black uppercase text-center tracking-[0.15em] transition-all active:scale-95" style="background: linear-gradient(to right, #f97316, #ea580c); box-shadow: 0 6px 18px rgba(249,115,22,0.25); transition: all 0.3s ease;" onmouseover="this.style.transform='scale(1.02)'; this.style.boxShadow='0 10px 30px rgba(249,115,22,0.4)';" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 6px 18px rgba(249,115,22,0.25)';">
+                  <button onclick="openPaddleCheckout()" class="w-full py-4 text-white rounded-2xl text-[10px] font-black uppercase text-center transition-all active:scale-95" style="background: linear-gradient(to right, #f97316, #ea580c); box-shadow: 0 6px 18px rgba(249,115,22,0.25); transition: all 0.3s ease;" onmouseover="this.style.transform='scale(1.02)'; this.style.boxShadow='0 10px 30px rgba(249,115,22,0.4)';" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 6px 18px rgba(249,115,22,0.25)';">
                     <%= t('modal.upgrade_pro') %>
                   </button>
                 <% else %>
-                  <%= link_to new_user_registration_path, class: "block w-full py-4 text-white rounded-2xl text-[10px] font-black uppercase text-center tracking-[0.15em] transition-all active:scale-95", style: "background: linear-gradient(to right, #f97316, #ea580c); box-shadow: 0 6px 18px rgba(249,115,22,0.25); text-decoration: none; transition: all 0.3s ease;", onmouseover: "this.style.transform='scale(1.02)'; this.style.boxShadow='0 10px 30px rgba(249,115,22,0.4)';", onmouseout: "this.style.transform='scale(1)'; this.style.boxShadow='0 6px 18px rgba(249,115,22,0.25)';" do %>
+                  <%= link_to new_user_registration_path, class: "block w-full py-4 text-white rounded-2xl text-[10px] font-black uppercase text-center", style: "background: linear-gradient(to right, #f97316, #ea580c); box-shadow: 0 6px 18px rgba(249,115,22,0.25); text-decoration: none; transition: all 0.3s ease;", onmouseover: "this.style.transform='scale(1.02)'; this.style.boxShadow='0 10px 30px rgba(249,115,22,0.4)';", onmouseout: "this.style.transform='scale(1)'; this.style.boxShadow='0 6px 18px rgba(249,115,22,0.25)';" do %>
 
                     <%= t('modal.upgrade_pro') %>
                   <% end %>
@@ -845,13 +844,13 @@
         <div class="relative p-5 md:p-8 border-t border-white/10 shrink-0 bg-black/20">
           <div class="flex flex-col md:flex-row items-center justify-between gap-4 md:gap-6">
             <div class="text-center md:text-left">
-              <span class="block text-[10px] font-black uppercase text-gray-500 tracking-widest mb-0.5 md:mb-1"><%= t('modal.already_pro') %></span>
-              <%= link_to new_user_session_path, class: "group text-xs font-black text-white hover:text-orange-500 transition-colors flex items-center gap-2 uppercase tracking-tighter" do %>
+              <span class="block text-[10px] font-black uppercase text-gray-500 mb-0.5 md:mb-1"><%= t('modal.already_pro') %></span>
+              <%= link_to new_user_session_path, class: "group text-xs font-black text-white hover:text-orange-500 transition-colors flex items-center gap-2 uppercase" do %>
                 <%= t('modal.login_profile') %>
                 <svg class="w-3 h-3 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M17 8l4 4m0 0l-4 4m4-4H3" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
               <% end %>
             </div>
-            <button onclick="closePremiumModal()" class="w-full md:w-auto px-12 py-3 md:py-5 bg-white/5 hover:bg-white/10 border border-white/20 rounded-2xl text-[10px] font-black uppercase text-white tracking-[0.2em] transition-all hover:scale-105 active:scale-95 shadow-xl">
+            <button onclick="closePremiumModal()" class="w-full md:w-auto px-12 py-3 md:py-5 bg-white/5 hover:bg-white/10 border border-white/20 rounded-2xl text-[10px] font-black uppercase text-white transition-all hover:scale-105 active:scale-95 shadow-xl">
               <%= t('modal.keep_previewing') %>
             </button>
           </div>

@@ -226,6 +226,14 @@ window.setTranscriptLanguage = function (lang) {
   document.getElementById('languageMenu')?.classList.add('hidden');
   document.getElementById('langChevron')?.classList.remove('rotate-180');
 
+  // Restart live recognition with new language if currently active
+  if (window.liveRecognition) {
+    const targetInput = document.getElementById('mainTranscript');
+    try { window.liveRecognition.stop(); } catch (e) { }
+    window.liveRecognition = null;
+    if (targetInput) startLiveTranscription(targetInput);
+  }
+
   // Sync with server (document_language) to prevent flickering on reload
   fetch('/set_transcript_language?language=' + normalizedLang, {
     method: 'POST',
@@ -513,7 +521,7 @@ function updateLaborRowModelUI(row, mode) {
                      value="${newPriceValue}" placeholder="0" oninput="updateTotalsSummary()">
             </div>
           </div>
-          <div class="flex flex-col">
+          <div class="flex flex-col" style="margin-right: -2px;">
             <div class="text-[8px] mb-0.5">&nbsp;</div>
             <div class="flex items-center h-10">
               <span class="text-black font-black text-sm select-none">×</span>
@@ -734,6 +742,57 @@ function setItemPriceButtonState(btn, active) {
   }
 }
 
+function isProductsExpensesFeesTaxScope(scopeValue, sectionType = "") {
+  const scopeTokens = (scopeValue || "")
+    .toLowerCase()
+    .split(',')
+    .map(t => t.trim())
+    .filter(Boolean);
+
+  if (scopeTokens.length === 0) return false;
+
+  const hasProducts = scopeTokens.some(t => t.includes('material') || t.includes('part') || t.includes('product'));
+  const hasExpenses = scopeTokens.some(t => t.includes('expense') || t.includes('reimburse'));
+  const hasFees = scopeTokens.some(t => t.includes('fee') || t.includes('surcharge'));
+  const isAllScope = scopeTokens.some(t => t === 'total' || t === 'all') || scopeTokens.length >= 4;
+
+  if (isAllScope) return true;
+
+  const normalizedSection = (sectionType || "").toLowerCase();
+  if (normalizedSection === 'materials') return hasProducts;
+  if (normalizedSection === 'expenses') return hasExpenses;
+  if (normalizedSection === 'fees') return hasFees;
+
+  return false;
+}
+
+function applyItemAddPriceDefaults(row) {
+  if (!row || row.dataset.priceToggleEligible !== 'true') return;
+
+  const sectionType = row.closest('.dynamic-section')?.dataset?.protected || '';
+  if (!isProductsExpensesFeesTaxScope(currentLogTaxScope, sectionType)) return;
+
+  const priceInput = row.querySelector('.price-menu-input');
+  if (priceInput) {
+    const currentPrice = parseFloat(priceInput.value);
+    if (priceInput.value === '' || isNaN(currentPrice) || currentPrice === 0) {
+      priceInput.value = '50';
+    }
+  }
+
+  const taxInput = row.querySelector('.tax-menu-input');
+  if (!taxInput) return;
+
+  const defaultTaxRate = parseFloat(profileTaxRate);
+  if (isNaN(defaultTaxRate) || defaultTaxRate <= 0) return;
+
+  const currentTaxRaw = String(taxInput.value || '').trim();
+  const currentTax = parseFloat(currentTaxRaw);
+  if (currentTaxRaw === '' || isNaN(currentTax) || currentTax === 0) {
+    taxInput.value = cleanNum(defaultTaxRate);
+  }
+}
+
 function setItemPriceActive(row, active, options = {}) {
   if (!row) return;
 
@@ -745,19 +804,28 @@ function setItemPriceActive(row, active, options = {}) {
   const priceBtn = row.querySelector('.item-add-price-btn');
   const priceWrapper = row.querySelector('.item-price-wrapper');
   const taxWrapper = row.querySelector('.item-tax-wrapper');
+  const qtyWrapper = row.querySelector('.item-qty-wrapper');
   const discountWrap = row.querySelector('.item-add-discount-wrap');
   const discountGroup = row.querySelector('.item-discount-group');
 
   if (priceWrapper) priceWrapper.classList.toggle('hidden', !active);
   if (taxWrapper) taxWrapper.classList.toggle('hidden', !active);
+  if (qtyWrapper) qtyWrapper.classList.toggle('hidden', !active);
   if (discountWrap) discountWrap.classList.toggle('hidden', !active);
   if (discountGroup) discountGroup.classList.toggle('hidden', !active);
+
+  if (active) {
+    applyItemAddPriceDefaults(row);
+  }
 
   if (!active && clearValues) {
     const priceInput = row.querySelector('.price-menu-input');
     const taxInput = row.querySelector('.tax-menu-input');
+    const qtyInput = row.querySelector('.qty-input');
     if (priceInput) priceInput.value = '';
     if (taxInput) taxInput.value = '';
+    if (qtyInput) qtyInput.value = '1';
+    row.dataset.qty = '1';
 
     const pctWrap = row.querySelector('.item-discount-percent-wrapper');
     const flatWrap = row.querySelector('.item-discount-flat-wrapper');
@@ -1498,23 +1566,63 @@ function startLiveTranscription(targetInput) {
   const recognition = new SpeechRecognition();
   recognition.continuous = true;
   recognition.interimResults = true;
-  recognition.lang = 'en-US';
+
+  // Dynamic language based on selected transcription language
+  const savedLang = localStorage.getItem('transcriptLanguage') || 'en';
+  recognition.lang = (savedLang === 'ge' || savedLang === 'ka') ? 'ka-GE' : 'en-US';
+
+  let typeTimer = null;
 
   recognition.onresult = (event) => {
     let fullTranscript = '';
     for (let i = 0; i < event.results.length; ++i) {
       fullTranscript += event.results[i][0].transcript;
     }
+    if (!fullTranscript) return;
 
-    if (fullTranscript) {
-      targetInput.value = fullTranscript;
-      autoResize(targetInput);
-      if (window.updateDynamicCountersCheck) {
-        window.updateDynamicCountersCheck(targetInput);
-      } else if (window.updateDynamicCounters) {
-        window.updateDynamicCounters();
+    // Typing animation for insertions and speech corrections
+    if (typeTimer) { clearInterval(typeTimer); typeTimer = null; }
+
+    const target = fullTranscript;
+    let current = targetInput.value || '';
+
+    const commonPrefixLen = (a, b) => {
+      const max = Math.min(a.length, b.length);
+      let i = 0;
+      while (i < max && a[i] === b[i]) i += 1;
+      return i;
+    };
+
+    if (current === target) return;
+
+    typeTimer = setInterval(() => {
+      if (current === target) {
+        clearInterval(typeTimer);
+        typeTimer = null;
+        if (window.updateDynamicCountersCheck) {
+          window.updateDynamicCountersCheck(targetInput);
+        } else if (window.updateDynamicCounters) {
+          window.updateDynamicCounters();
+        }
+        return;
       }
-    }
+
+      const prefix = commonPrefixLen(current, target);
+
+      if (current.length > target.length || prefix < current.length) {
+        // Backspace animation for corrections/deletions
+        const toDelete = Math.max(1, Math.ceil((current.length - prefix) / 3));
+        current = current.slice(0, Math.max(prefix, current.length - toDelete));
+      } else {
+        // Type forward animation for additions
+        const remaining = target.length - current.length;
+        const toAdd = Math.max(1, Math.ceil(remaining / 8));
+        current = target.slice(0, current.length + toAdd);
+      }
+
+      targetInput.value = current;
+      autoResize(targetInput);
+    }, 18);
   };
 
   recognition.onerror = (event) => {
@@ -1522,6 +1630,7 @@ function startLiveTranscription(targetInput) {
   };
 
   recognition.onend = () => {
+    if (typeTimer) { clearInterval(typeTimer); typeTimer = null; }
     window.liveRecognition = null;
   };
 
@@ -1532,6 +1641,7 @@ function startLiveTranscription(targetInput) {
 document.addEventListener("DOMContentLoaded", () => {
   const recordBtn = document.getElementById("recordButton");
   const transcriptArea = document.getElementById("mainTranscript");
+  const enhanceTranscriptBtn = document.getElementById("enhanceTranscriptBtn");
   const buttonText = document.getElementById("buttonText");
   const charLimit = window.profileCharLimit || 2000;
   const audioLimit = window.profileAudioLimit || 120;
@@ -1543,6 +1653,60 @@ document.addEventListener("DOMContentLoaded", () => {
   let recordingInterval = null;
 
   if (!recordBtn) return;
+
+  if (enhanceTranscriptBtn && transcriptArea) {
+    enhanceTranscriptBtn.onclick = async () => {
+      const labelEl = enhanceTranscriptBtn.querySelector("span");
+      const originalLabel = enhanceTranscriptBtn.dataset.labelDefault || labelEl?.innerText || window.APP_LANGUAGES.enhance_text || "Enhance";
+      const loadingLabel = enhanceTranscriptBtn.dataset.labelLoading || window.APP_LANGUAGES.enhancing_text || "Enhancing...";
+      const sourceText = transcriptArea.value.trim();
+      const limit = window.profileCharLimit || 2000;
+
+      if (!sourceText) return;
+      if (sourceText.length > limit) {
+        showError("Your transcript would exceed your character limit (" + limit + "). Upgrade to generate longer transcripts.");
+        return;
+      }
+
+      enhanceTranscriptBtn.disabled = true;
+      enhanceTranscriptBtn.classList.add("opacity-50", "cursor-not-allowed");
+      if (labelEl) labelEl.innerText = loadingLabel;
+
+      try {
+        const res = await fetch("/enhance_transcript_text", {
+          method: "POST",
+          headers: {
+            "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]').content,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            manual_text: sourceText,
+            language: localStorage.getItem('transcriptLanguage') || window.profileSystemLanguage || 'en'
+          })
+        });
+
+        const data = await res.json();
+        if (!res.ok || data.error) {
+          showError(data.error || (window.APP_LANGUAGES.processing_error || "Failed to enhance text."));
+        } else if (data.enhanced_text) {
+          transcriptArea.value = data.enhanced_text.substring(0, limit);
+          autoResize(transcriptArea);
+          if (window.updateDynamicCountersCheck) {
+            window.updateDynamicCountersCheck(transcriptArea);
+          } else if (window.updateDynamicCounters) {
+            window.updateDynamicCounters();
+          }
+        }
+      } catch (e) {
+        showError(window.APP_LANGUAGES.network_error || "Network error.");
+      } finally {
+        enhanceTranscriptBtn.disabled = false;
+        enhanceTranscriptBtn.classList.remove("opacity-50", "cursor-not-allowed");
+        if (labelEl) labelEl.innerText = originalLabel;
+      }
+    };
+  }
+
   recordBtn.onclick = async () => {
     if (isAnalyzing) {
       if (analysisAbortController) analysisAbortController.abort();
@@ -1702,7 +1866,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const formData = new FormData();
       formData.append("audio", audioBlob);
       formData.append("audio_duration", durationSec);
-      formData.append("manual_text", currentText);
+      formData.append("browser_transcript", currentText);
       formData.append("language", localStorage.getItem('transcriptLanguage') || window.profileSystemLanguage || 'en');
 
       const res = await fetch("/process_audio", {
@@ -3603,7 +3767,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
                      value="${laborPriceVal}" placeholder="0" oninput="updateTotalsSummary()">
             </div>
           </div>
-          <div class="flex flex-col">
+          <div class="flex flex-col" style="margin-right: -2px;">
             <div class="text-[8px] mb-0.5">&nbsp;</div>
             <div class="flex items-center h-10">
               <span class="text-black font-black text-sm select-none">×</span>
@@ -3696,11 +3860,11 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
         <div class="labor-discount-dropdown hidden absolute left-0 top-full mt-1 z-50 bg-white border-2 border-black rounded-lg shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden min-w-[160px]">
           <button type="button" onclick="showLaborDiscount(this, 'percent')" class="flex items-center gap-2 w-full px-3 py-2 text-[11px] font-bold text-black hover:bg-green-50 transition-colors">
             <span class="flex items-center justify-center bg-green-600 text-white font-black border-2 border-black rounded-md h-5 w-5 shrink-0 text-[9px]">%</span>
-            ${window.APP_LANGUAGES.discount || 'Discount'}
+            ${window.APP_LANGUAGES.discount_percentage_type || 'Percentage'}
           </button>
           <button type="button" onclick="showLaborDiscount(this, 'flat')" class="flex items-center gap-2 w-full px-3 py-2 text-[11px] font-bold text-black hover:bg-green-50 transition-colors border-t border-gray-200">
             <span class="flex items-center justify-center bg-green-600 text-white font-black border-2 border-black rounded-md h-5 w-5 shrink-0 text-[9px] discount-flat-symbol">${currencySymbol}</span>
-            ${window.APP_LANGUAGES.discount || 'Discount'}
+            ${window.APP_LANGUAGES.discount_flat_type || 'Flat'}
           </button>
         </div>
       </div>
@@ -4692,11 +4856,11 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
           <div class="item-discount-dropdown hidden absolute left-0 top-full mt-1 z-50 bg-white border-2 border-black rounded-lg shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden min-w-[160px]">
             <button type="button" onclick="showItemDiscount(this, 'percent')" class="flex items-center gap-2 w-full px-3 py-2 text-[11px] font-bold text-black hover:bg-green-50 transition-colors">
               <span class="flex items-center justify-center bg-green-600 text-white font-black border-2 border-black rounded-md h-5 w-5 shrink-0 text-[9px]">%</span>
-              ${window.APP_LANGUAGES.discount || 'Discount'}
+              ${window.APP_LANGUAGES.discount_percentage_type || 'Percentage'}
             </button>
             <button type="button" onclick="showItemDiscount(this, 'flat')" class="flex items-center gap-2 w-full px-3 py-2 text-[11px] font-bold text-black hover:bg-green-50 transition-colors border-t border-gray-200">
               <span class="flex items-center justify-center bg-green-600 text-white font-black border-2 border-black rounded-md h-5 w-5 shrink-0 text-[9px] discount-flat-symbol">${currencySymbol}</span>
-              ${window.APP_LANGUAGES.discount || 'Discount'}
+              ${window.APP_LANGUAGES.discount_flat_type || 'Flat'}
             </button>
           </div>
         </div>
@@ -4725,6 +4889,15 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
                    value="${(taxRate !== null && taxRate !== undefined && taxRate !== '') ? taxRate : ''}" placeholder="0" oninput="updateTotalsSummary()">
           </div>
         </div>
+        ${usesPriceToggle ? `
+        <!-- QUANTITY -->
+        <div class="flex flex-col item-qty-wrapper ${!isPriceActiveDefault ? 'hidden' : ''}">
+          <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${window.APP_LANGUAGES.quantity || 'QTY'}</span>
+          <div class="flex items-center px-2.5 h-10 border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]" style="background-color: white;">
+            <input type="number" step="1" min="0" class="qty-input bg-transparent border-none p-0 font-black text-black focus:ring-0 outline-none text-left min-w-0 text-sm placeholder:text-gray-300 w-8"
+                   value="${finalQty}" placeholder="1" oninput="updateTotalsSummary()">
+          </div>
+        </div>` : ''}
         <!-- Discount Group -->
         <div class="flex items-start gap-2 discount-wrapper item-discount-group ${usesPriceToggle && !isPriceActiveDefault ? 'hidden' : ''}">
           <!-- Percentage Discount (hidden by default) -->
@@ -4810,10 +4983,6 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
   }
 
   updateTotalsSummary();
-  setTimeout(() => {
-    const qi = div.querySelector('.qty-input');
-    if (qi) resizeQtyInput(qi);
-  }, 50);
   return div;
 }
 

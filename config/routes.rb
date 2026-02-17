@@ -9,10 +9,13 @@ Rails.application.routes.draw do
   post "complete_onboarding", to: "home#complete_onboarding"
   post "set_transcript_language", to: "home#set_transcript_language"
   post "process_audio", to: "home#process_audio"
+  post "enhance_transcript_text", to: "home#enhance_transcript_text"
   get "history", to: "home#history"
   get "settings", to: "home#settings"
   get "profile", to: "home#profile"
   get "pricing", to: "home#pricing"
+  get "subscription", to: "home#subscription"
+  post "subscription/billing_portal", to: "home#create_billing_portal", as: :subscription_billing_portal
   get "contact", to: "home#contact"
   post "send_contact", to: "home#send_contact"
   get "terms", to: "home#terms"

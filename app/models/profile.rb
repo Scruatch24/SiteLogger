@@ -46,6 +46,12 @@ class Profile < ApplicationRecord
       "paid" => nil
     }.freeze
 
+    ENHANCEMENT_LIMITS = {
+      "guest" => 3,
+      "free" => 5,
+      "paid" => nil
+    }.freeze
+
     def char_limit
       PLAN_LIMITS[plan.presence || "guest"] || 150
     end
@@ -62,6 +68,10 @@ class Profile < ApplicationRecord
       PREVIEW_LIMITS[plan.presence || "guest"]
     end
 
+    def enhancement_limit
+      ENHANCEMENT_LIMITS[plan.presence || "guest"]
+    end
+
     def guest?
       plan.blank? || plan == "guest"
     end
@@ -72,6 +82,16 @@ class Profile < ApplicationRecord
 
     def paid?
       plan == "paid"
+    end
+
+    def ever_paid?
+      return true if paid?
+
+      paddle_subscription_id.present? ||
+        paddle_subscription_status.present? ||
+        paddle_price_id.present? ||
+        paddle_next_bill_at.present? ||
+        (respond_to?(:paddle_customer_id) && paddle_customer_id.present?)
     end
 
     private

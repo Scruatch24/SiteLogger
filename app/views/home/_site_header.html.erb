@@ -29,11 +29,20 @@
       <%= link_to settings_path, class: "site-nav-link #{is_active.call('/settings')}" do %>
         <%= t('nav.settings') %>
       <% end %>
-      <%= link_to pricing_path, class: "site-nav-link site-nav-pricing #{is_active.call('/pricing')}" do %>
-        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24" stroke="none">
-          <path d="M12 2.4c.33 0 .63.2.76.5l1.87 4.34 4.64.36c.63.05.88.84.38 1.23l-3.55 3.05 1.06 4.44c.13.55-.44.98-.94.7L12 14.72l-4.22 2.3c-.5.28-1.07-.15-.94-.7l1.06-4.44-3.55-3.05c-.5-.39-.25-1.18.38-1.23l4.64-.36 1.87-4.34c.13-.3.43-.5.76-.5z" />
-        </svg>
-        <%= t('nav.pricing') %>
+      <% if user_signed_in? && current_user.profile&.ever_paid? %>
+        <%= link_to subscription_path, class: "site-nav-link site-nav-pricing #{is_active.call('/subscription')}" do %>
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24" stroke="none">
+            <path d="M12 2.4c.33 0 .63.2.76.5l1.87 4.34 4.64.36c.63.05.88.84.38 1.23l-3.55 3.05 1.06 4.44c.13.55-.44.98-.94.7L12 14.72l-4.22 2.3c-.5.28-1.07-.15-.94-.7l1.06-4.44-3.55-3.05c-.5-.39-.25-1.18.38-1.23l4.64-.36 1.87-4.34c.13-.3.43-.5.76-.5z" />
+          </svg>
+          <%= t('nav.subscription') %>
+        <% end %>
+      <% else %>
+        <%= link_to pricing_path, class: "site-nav-link site-nav-pricing #{is_active.call('/pricing')}" do %>
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24" stroke="none">
+            <path d="M12 2.4c.33 0 .63.2.76.5l1.87 4.34 4.64.36c.63.05.88.84.38 1.23l-3.55 3.05 1.06 4.44c.13.55-.44.98-.94.7L12 14.72l-4.22 2.3c-.5.28-1.07-.15-.94-.7l1.06-4.44-3.55-3.05c-.5-.39-.25-1.18.38-1.23l4.64-.36 1.87-4.34c.13-.3.43-.5.76-.5z" />
+          </svg>
+          <%= t('nav.pricing') %>
+        <% end %>
       <% end %>
     </div>
 
@@ -41,7 +50,12 @@
     <div class="site-auth-links">
       <% if user_signed_in? %>
         <button type="button" onclick="window.showLogoutModal()" class="site-auth-btn site-auth-logout">
-          <%= t('nav.log_out') %>
+          <span class="inline-flex items-center gap-1.5">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+            </svg>
+            <%= t('nav.log_out') %>
+          </span>
         </button>
       <% else %>
         <%= link_to new_user_session_path, class: "site-auth-btn site-auth-signin" do %>
@@ -84,15 +98,27 @@
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
         <%= t('nav.settings') %>
       <% end %>
-      <%= link_to pricing_path, class: "site-mobile-link site-mobile-pricing #{is_active.call('/pricing')}" do %>
-        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" stroke="none"><path d="M12 2.4c.33 0 .63.2.76.5l1.87 4.34 4.64.36c.63.05.88.84.38 1.23l-3.55 3.05 1.06 4.44c.13.55-.44.98-.94.7L12 14.72l-4.22 2.3c-.5.28-1.07-.15-.94-.7l1.06-4.44-3.55-3.05c-.5-.39-.25-1.18.38-1.23l4.64-.36 1.87-4.34c.13-.3.43-.5.76-.5z"/></svg>
-        <%= t('nav.pricing') %>
+      <% if user_signed_in? && current_user.profile&.ever_paid? %>
+        <%= link_to subscription_path, class: "site-mobile-link site-mobile-pricing #{is_active.call('/subscription')}" do %>
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" stroke="none"><path d="M12 2.4c.33 0 .63.2.76.5l1.87 4.34 4.64.36c.63.05.88.84.38 1.23l-3.55 3.05 1.06 4.44c.13.55-.44.98-.94.7L12 14.72l-4.22 2.3c-.5.28-1.07-.15-.94-.7l1.06-4.44-3.55-3.05c-.5-.39-.25-1.18.38-1.23l4.64-.36 1.87-4.34c.13-.3.43-.5.76-.5z"/></svg>
+          <%= t('nav.subscription') %>
+        <% end %>
+      <% else %>
+        <%= link_to pricing_path, class: "site-mobile-link site-mobile-pricing #{is_active.call('/pricing')}" do %>
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" stroke="none"><path d="M12 2.4c.33 0 .63.2.76.5l1.87 4.34 4.64.36c.63.05.88.84.38 1.23l-3.55 3.05 1.06 4.44c.13.55-.44.98-.94.7L12 14.72l-4.22 2.3c-.5.28-1.07-.15-.94-.7l1.06-4.44-3.55-3.05c-.5-.39-.25-1.18.38-1.23l4.64-.36 1.87-4.34c.13-.3.43-.5.76-.5z"/></svg>
+          <%= t('nav.pricing') %>
+        <% end %>
       <% end %>
     </div>
     <div class="site-mobile-auth">
       <% if user_signed_in? %>
         <button type="button" onclick="window.showLogoutModal()" class="site-mobile-auth-btn site-auth-logout">
-          <%= t('nav.log_out') %>
+          <span class="inline-flex items-center gap-1.5">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+            </svg>
+            <%= t('nav.log_out') %>
+          </span>
         </button>
       <% else %>
         <%= link_to new_user_session_path, class: "site-mobile-auth-btn site-auth-signin" do %>

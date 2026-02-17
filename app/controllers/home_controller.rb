@@ -4,6 +4,8 @@ class HomeController < ApplicationController
   require "uri"
   require "json"
   require "base64"
+  require "digest"
+  require "cgi"
 
 
 
@@ -39,6 +41,48 @@ class HomeController < ApplicationController
   end
 
   def pricing
+  end
+
+  def subscription
+    unless user_signed_in? && current_user.profile&.ever_paid?
+      redirect_to pricing_path and return
+    end
+  end
+
+  def create_billing_portal
+    profile = current_user&.profile
+
+    unless user_signed_in? && profile&.ever_paid?
+      redirect_to pricing_path and return
+    end
+
+    api_key = ENV["PADDLE_API_KEY"].to_s
+    if api_key.blank?
+      redirect_to subscription_path, alert: t("subscription_page.billing_portal_unavailable") and return
+    end
+
+    customer_id = profile_paddle_customer_id(profile)
+    if customer_id.blank? && profile.paddle_subscription_id.present?
+      customer_id = paddle_customer_id_for_subscription(api_key: api_key, subscription_id: profile.paddle_subscription_id)
+    end
+
+    if customer_id.blank?
+      redirect_to subscription_path, alert: t("subscription_page.billing_portal_customer_missing") and return
+    end
+
+    portal_url = paddle_customer_portal_url(api_key: api_key, customer_id: customer_id)
+    if portal_url.blank?
+      redirect_to subscription_path, alert: t("subscription_page.billing_portal_unavailable") and return
+    end
+
+    if profile.respond_to?(:paddle_customer_id) && profile.paddle_customer_id.blank?
+      profile.update_columns(paddle_customer_id: customer_id)
+    end
+
+    redirect_to portal_url, allow_other_host: true
+  rescue => e
+    Rails.logger.warn("PADDLE BILLING PORTAL ERROR: #{e.message}")
+    redirect_to subscription_path, alert: t("subscription_page.billing_portal_unavailable")
   end
 
   def contact
@@ -175,6 +219,161 @@ class HomeController < ApplicationController
     head :ok
   end
 
+  def enhance_transcript_text
+    api_key = ENV["GEMINI_API_KEY"]
+    limit = @profile.char_limit
+    enhancement_limit = @profile.enhancement_limit
+    raw_text = params[:manual_text].to_s.strip
+
+    if raw_text.blank?
+      return render json: { error: t("input_empty", default: "Input empty") }, status: :unprocessable_entity
+    end
+
+    if raw_text.length > limit
+      return render json: { error: "#{t('transcript_limit_exceeded')} (#{limit})." }, status: :unprocessable_entity
+    end
+
+    if enhancement_limit.present?
+      usage_scope = UsageEvent.where(event_type: "text_enhancement")
+                              .where("created_at >= ?", Time.current.beginning_of_day)
+
+      usage_scope = if user_signed_in?
+        usage_scope.where(user_id: current_user.id)
+      else
+        usage_scope.where(user_id: nil, ip_address: client_ip)
+      end
+
+      if usage_scope.count >= enhancement_limit
+        return render json: {
+          error: t("daily_limit_reached", limit: enhancement_limit)
+        }, status: :too_many_requests
+      end
+    end
+
+    doc_language = (params[:language] || @profile.try(:transcription_language) || session[:transcription_language] || @profile.try(:document_language) || "en").to_s.downcase
+    target_language_name = case doc_language
+    when "ge", "ka"
+      "Georgian"
+    when "en"
+      "English"
+    else
+      "the language identified by ISO code '#{doc_language}'"
+    end
+    output_language_rule = "Return output only in #{target_language_name}."
+
+    instruction = <<~TEXT
+      You rewrite transcript text so downstream invoice extraction is more reliable.
+      This output will be consumed by a separate strict JSON invoice extraction AI model.
+      Rewrite for machine-readability: clear sentence boundaries, explicit wording, and minimal ambiguity.
+      Keep all facts unchanged: names, quantities, prices, dates, and technical details.
+      Keep all numbers/currency values exact as provided.
+      Improve grammar, punctuation, and clarity. Remove filler words/repetitions.
+      Do NOT add any new information.
+      If USER TEXT is not already in #{target_language_name}, first translate it to #{target_language_name}, then enhance it.
+      If USER TEXT is already in #{target_language_name}, do not translate.
+      #{output_language_rule}
+      Output MUST be at most #{limit} characters.
+      Return ONLY the rewritten text. No JSON, no markdown, no quotes.
+
+      USER TEXT:
+      #{raw_text}
+    TEXT
+
+    primary_model = ENV["GEMINI_PRIMARY_MODEL"].presence || "gemini-2.5-flash-lite"
+    fallback_model = ENV["GEMINI_FALLBACK_MODEL"].presence || "gemini-2.5-flash"
+    model_chain = [ primary_model, fallback_model ].map { |m| m.to_s.strip }.reject(&:blank?).uniq.take(2)
+
+    enhanced_text = nil
+
+    model_chain.each do |gemini_model|
+      body = gemini_generate_content(
+        api_key: api_key,
+        model: gemini_model,
+        prompt_parts: [ { text: instruction } ],
+        cached_instruction_name: nil
+      )
+
+      if body["error"].present?
+        Rails.logger.warn("ENHANCE MODEL ERROR (#{gemini_model}): #{body["error"].to_json}")
+        next
+      end
+
+      parts = body.dig("candidates", 0, "content", "parts")
+      candidate = parts&.map { |p| p["text"] }&.join(" ")&.to_s&.strip
+      next if candidate.blank?
+
+      candidate = candidate.gsub(/\A```(?:text)?\s*/i, "").gsub(/\s*```\z/, "").strip
+      candidate = candidate.gsub(/\A["“”']+|["“”']+\z/, "").strip
+      next if candidate.blank?
+
+      enhanced_text = candidate[0, limit]
+      break
+    end
+
+    if enhanced_text.blank?
+      return render json: { error: t("ai_failed_response") }, status: 500
+    end
+
+    # Conservative guardrail: reject only when a classifier is highly confident
+    # the enhanced transcript is incoherent or unrelated to invoice extraction.
+    begin
+      validator_prompt = <<~TEXT
+        You validate whether transcript text is usable for invoice JSON extraction.
+        Return invoice_related=false ONLY when the text is clearly gibberish/incoherent
+        OR clearly unrelated to invoicing/billing/work log/services/products/expenses.
+        If uncertain, return true.
+
+        Return STRICT JSON only:
+        {"invoice_related": true/false, "confidence": 0.0-1.0}
+
+        TEXT:
+        #{enhanced_text}
+      TEXT
+
+      validation_model = model_chain.first || "gemini-2.5-flash-lite"
+      validation_body = gemini_generate_content(
+        api_key: api_key,
+        model: validation_model,
+        prompt_parts: [ { text: validator_prompt } ],
+        cached_instruction_name: nil
+      )
+
+      validation_parts = validation_body.dig("candidates", 0, "content", "parts")
+      validation_raw = validation_parts&.map { |p| p["text"] }&.join(" ")&.to_s&.strip
+
+      if validation_raw.present?
+        validation_json = validation_raw[/\{.*\}/m]
+        if validation_json.present?
+          parsed = JSON.parse(validation_json) rescue nil
+          invoice_related = parsed.is_a?(Hash) ? parsed["invoice_related"] : nil
+          confidence = parsed.is_a?(Hash) ? parsed["confidence"].to_f : 0.0
+
+          if invoice_related == false && confidence >= 0.8
+            return render json: { error: t("input_unclear") }, status: :unprocessable_entity
+          end
+        end
+      end
+    rescue => e
+      Rails.logger.warn("ENHANCE VALIDATION SKIPPED: #{e.message}")
+    end
+
+    begin
+      UsageEvent.create!(
+        user_id: current_user&.id,
+        ip_address: client_ip,
+        session_id: session.id.to_s,
+        event_type: "text_enhancement"
+      )
+    rescue => e
+      Rails.logger.warn("ENHANCE USAGE LOGGING FAILED: #{e.message}")
+    end
+
+    render json: { enhanced_text: enhanced_text }
+  rescue => e
+    Rails.logger.error("ENHANCE TRANSCRIPT ERROR: #{e.message}\n#{e.backtrace.join("\n")}")
+    render json: { error: t("processing_error") }, status: 500
+  end
+
   def save_settings
     if @profile.guest?
       return render json: { success: false, errors: [ t('guests_cannot_save') ] }, status: :forbidden
@@ -203,12 +402,13 @@ class HomeController < ApplicationController
 
   def process_audio
     api_key = ENV["GEMINI_API_KEY"]
-    is_manual_text = params[:manual_text].present?
+    has_audio = params[:audio].present?
+    is_manual_text = !has_audio && params[:manual_text].present?
     mode = @profile.billing_mode || "hourly"
     limit = @profile.char_limit
 
     # Server-side Audio Duration Check
-    if !is_manual_text && params[:audio_duration].present? && params[:audio_duration].to_f < 1.0
+    if has_audio && params[:audio_duration].present? && params[:audio_duration].to_f < 1.0
        return render json: { error: t("audio_too_short") }, status: :unprocessable_entity
     end
 
@@ -217,7 +417,7 @@ class HomeController < ApplicationController
     # We allow a 250-character buffer on the server to account for the overhead
     # of [User clarification...] tags added during refinements.
     # The frontend strictly enforces the raw user limit of #{limit}.
-    if current_length > (limit + 250)
+    if is_manual_text && current_length > (limit + 250)
       return render json: {
         error: "#{t('transcript_limit_exceeded')} (#{limit + 250})."
       }, status: :unprocessable_entity
@@ -229,7 +429,7 @@ class HomeController < ApplicationController
         audio = params[:audio]
         audio_data = Base64.strict_encode64(audio.read)
 
-        uri = URI("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent")
+        uri = URI("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent")
         http = Net::HTTP.new(uri.host, uri.port)
         http.use_ssl = true
         http.read_timeout = 15
@@ -279,11 +479,22 @@ class HomeController < ApplicationController
       { labor: "Labor/Service", materials: "Materials/Products", expenses: "Expenses", fees: "Fees", notes: "Field Notes" }
     end
 
+    hours_per_workday = (@profile.hours_per_workday.presence || 8).to_f
+    hours_per_workday = hours_per_workday.to_i if (hours_per_workday % 1).zero?
+    three_days_hours = hours_per_workday * 3
+    half_day_hours = hours_per_workday / 2.0
+    today_for_prompt = Date.today.strftime("%b %d, %Y")
+
     begin
       instruction = <<~PROMPT
         #{lang_context}
         You are a STRICT data extractor for casual contractors (plumbers, electricians, techs).
 Your job: convert spoken notes or written text into a single valid JSON invoice object. Be robust to slang and casual phrasing, but never invent financial values or change accounting semantics.
+
+AUDIO RECONCILIATION RULE:
+- If both audio and a "BROWSER LIVE TRANSCRIPT" text block are provided, use the AUDIO as the primary source of truth and treat browser text as a noisy hint.
+- Reconcile phrase-by-phrase and keep whichever wording is more accurate from either source.
+- The "raw_summary" field MUST contain the final reconciled transcript text.
 
 ----------------------------
 CORE DIRECTIVES (non-negotiable)
@@ -325,8 +536,8 @@ NATURAL LANGUAGE / SLANG RULESET (pragmatic)
 - AMBIGUOUS QUANTITY: If user implies a range or uncertainty (e.g. "3 or 4", "maybe 5 or 6"), ALWAYS extract the HIGHER number.
 - If user mentions a rate earlier (e.g., “$90 an hour”) assume it persists for subsequent hourly items until explicitly changed.
 - If user says "usual rate", "standard rate", or "same rate", leave rate fields as NULL (system will apply defaults).
-- DAY REFERENCES: When user mentions "day", "half day", "workday", or "X days" for labor time, convert using #{@profile.hours_per_workday || 8} hours per day. Examples: "three days" = #{(@profile.hours_per_workday || 8) * 3} hours, "half day" = #{(@profile.hours_per_workday || 8) / 2.0} hours.
-- DATE EXTRACTION: If user mentions WHEN the work was done (e.g., "yesterday", "last Tuesday", "on February 5th", "this was from last week", "the job was on Monday", "set the date to...", "change the date to..."), extract this as the invoice date and return it in the "date" field. Use format "MMM DD, YYYY" (e.g., "Feb 07, 2026"). Today's date is #{Date.today.strftime('%b %d, %Y')}. If no date is mentioned, return null for the "date" field.
+- DAY REFERENCES: When user mentions "day", "half day", "workday", or "X days" for labor time, convert using #{hours_per_workday} hours per day. Examples: "three days" = #{three_days_hours} hours, "half day" = #{half_day_hours} hours.
+- DATE EXTRACTION: If user mentions WHEN the work was done (e.g., "yesterday", "last Tuesday", "on February 5th", "this was from last week", "the job was on Monday", "set the date to...", "change the date to..."), extract this as the invoice date and return it in the "date" field. Use format "MMM DD, YYYY" (e.g., "Feb 07, 2026"). Today's date is #{today_for_prompt}. If no date is mentioned, return null for the "date" field.
 
 ----------------------------
 CATEGORY RULES (must map correctly)
@@ -508,11 +719,28 @@ FINAL REMINDERS (CRITICAL)
 - FREE ITEMS: If user says "უფასოდ", "უფასოდ ჩავუთვლი", "free", "no charge", "on the house" about ANY item, that item MUST have price=0, rate=0, hours=0, mode="fixed", taxable=false. This is NON-NEGOTIABLE.
 PROMPT
 
+      instruction_for_cache = normalize_gemini_instruction_for_cache(
+        instruction,
+        today_for_prompt: today_for_prompt,
+        hours_per_workday: hours_per_workday,
+        three_days_hours: three_days_hours,
+        half_day_hours: half_day_hours
+      )
+      runtime_cache_context = gemini_runtime_instruction_context(
+        today_for_prompt: today_for_prompt,
+        hours_per_workday: hours_per_workday,
+        three_days_hours: three_days_hours,
+        half_day_hours: half_day_hours
+      )
+
+      primary_model = ENV["GEMINI_PRIMARY_MODEL"].presence || "gemini-2.5-flash-lite"
+      fallback_model = ENV["GEMINI_FALLBACK_MODEL"].presence || "gemini-2.5-flash"
+      model_chain = [ primary_model, fallback_model ].map { |m| m.to_s.strip }.reject(&:blank?).uniq.take(2)
+
+      user_input_parts = []
+
       if is_manual_text
-        prompt_parts = [
-          { text: instruction },
-          { text: "USER INPUT (MANUAL TEXT):\n#{params[:manual_text]}" }
-        ]
+        user_input_parts << { text: "USER INPUT (MANUAL TEXT):\n#{params[:manual_text]}" }
       else
         audio = params[:audio]
         return render json: { error: t('no_audio') }, status: 400 unless audio
@@ -521,51 +749,105 @@ PROMPT
           return render json: { error: t('audio_too_large') }, status: 413
         end
 
+        browser_transcript = params[:browser_transcript].to_s.strip
+        if browser_transcript.present?
+          user_input_parts << {
+            text: "BROWSER LIVE TRANSCRIPT (NOISY HINT, MAY CONTAIN ERRORS):\n#{browser_transcript}"
+          }
+        end
+
         audio_data = Base64.strict_encode64(audio.read)
-        prompt_parts = [
-          { text: instruction },
-          { inline_data: { mime_type: audio.content_type, data: audio_data } }
-        ]
+        user_input_parts << { inline_data: { mime_type: audio.content_type, data: audio_data } }
       end
 
-      uri = URI("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent")
-      http = Net::HTTP.new(uri.host, uri.port)
-      http.use_ssl = true
-      http.read_timeout = 30
-      http.open_timeout = 10
+      raw = nil
+      json = nil
+      last_body = {}
+      used_model = nil
 
-      req = Net::HTTP::Post.new(uri, "Content-Type" => "application/json", "x-goog-api-key" => api_key)
-      req.body = {
-        contents: [ { parts: prompt_parts        } ]
-      }.to_json
+      model_chain.each_with_index do |gemini_model, idx|
+        cache_key, cached_instruction_name = gemini_instruction_cached_content(
+          api_key: api_key,
+          model: gemini_model,
+          instruction: instruction_for_cache
+        )
+        use_cached_instruction = cached_instruction_name.present?
 
-      res = http.request(req)
-      body = JSON.parse(res.body) rescue {}
+        prompt_parts = []
+        prompt_parts << { text: instruction } unless use_cached_instruction
+        prompt_parts << { text: runtime_cache_context } if use_cached_instruction
+        prompt_parts.concat(user_input_parts)
 
-      parts = body.dig("candidates", 0, "content", "parts")
-      raw = parts&.map { |p| p["text"] }&.join("\n")
+        body = gemini_generate_content(
+          api_key: api_key,
+          model: gemini_model,
+          prompt_parts: prompt_parts,
+          cached_instruction_name: (use_cached_instruction ? cached_instruction_name : nil)
+        )
 
-      unless raw
-        Rails.logger.error "AI FAILURE: No raw text in response. Body: #{body.to_json}"
+        if use_cached_instruction && body["error"].present?
+          Rails.logger.warn("GEMINI CACHE FALLBACK (#{gemini_model}): #{body["error"].to_json}")
+          Rails.cache.delete(cache_key) if cache_key.present?
+
+          fallback_parts = prompt_parts.dup
+          fallback_parts.unshift({ text: instruction })
+
+          body = gemini_generate_content(
+            api_key: api_key,
+            model: gemini_model,
+            prompt_parts: fallback_parts,
+            cached_instruction_name: nil
+          )
+        end
+
+        last_body = body
+
+        if body["error"].present?
+          Rails.logger.warn("AI MODEL ERROR (#{gemini_model}): #{body["error"].to_json}")
+          next
+        end
+
+        parts = body.dig("candidates", 0, "content", "parts")
+        candidate_raw = parts&.map { |p| p["text"] }&.join("\n")
+
+        if candidate_raw.blank?
+          Rails.logger.warn("AI MODEL EMPTY RAW (#{gemini_model}).")
+          next
+        end
+
+        raw = candidate_raw
+        Rails.logger.info "AI RAW RESPONSE (#{gemini_model}): #{raw}"
+
+        # More robust JSON extraction to handle preamble or "thinking" blocks
+        json_match = raw.match(/\{[\s\S]*\}/m)
+        candidate_json = nil
+        if json_match
+          begin
+            candidate_json = JSON.parse(json_match[0])
+          rescue => e
+            Rails.logger.error "AI JSON PARSE ERROR (#{gemini_model}): #{e.message}. Raw: #{raw}"
+          end
+        else
+          Rails.logger.error "AI NO JSON FOUND IN RAW (#{gemini_model}): #{raw}"
+        end
+
+        if candidate_json
+          json = candidate_json
+          used_model = gemini_model
+          break
+        elsif idx < (model_chain.length - 1)
+          Rails.logger.warn("AI MODEL FALLBACK: invalid JSON from #{gemini_model}, retrying with #{model_chain[idx + 1]}")
+        end
+      end
+
+      if raw.blank?
+        Rails.logger.error "AI FAILURE: No raw text in response. Body: #{last_body.to_json}"
         return render json: { error: t('ai_failed_response') }, status: 500
       end
 
-      Rails.logger.info "AI RAW RESPONSE: #{raw}"
-
-      # More robust JSON extraction to handle preamble or "thinking" blocks
-      json_match = raw.match(/\{[\s\S]*\}/m)
-      json = nil
-      if json_match
-        begin
-          json = JSON.parse(json_match[0])
-        rescue => e
-          Rails.logger.error "AI JSON PARSE ERROR: #{e.message}. Raw: #{raw}"
-        end
-      else
-        Rails.logger.error "AI NO JSON FOUND IN RAW: #{raw}"
-      end
-
       return render json: { error: t('invalid_ai_output') }, status: 422 unless json
+
+      Rails.logger.info "AI MODEL USED: #{used_model || model_chain.first}"
 
       if json["error"]
         Rails.logger.warn "AI RETURNED ERROR: #{json["error"]}"
@@ -580,7 +862,7 @@ PROMPT
       # --- POST-PROCESSING: Detect free items from original input ---
       # The AI sometimes ignores free-intent phrases and assigns a price anyway.
       # Scan the original input for free-intent patterns and zero out matching items.
-      original_input = (params[:manual_text] || json["raw_summary"]).to_s
+      original_input = (params[:manual_text].presence || params[:browser_transcript].presence || json["raw_summary"]).to_s
       free_kw = /უფასოდ|უფასო|\bfree\b|no charge|complimentary|on the house/i
       if original_input.match?(free_kw)
         # Extract sentences (split on period) that contain a free keyword
@@ -961,6 +1243,112 @@ PROMPT
   end
 
 
+  def gemini_generate_content(api_key:, model:, prompt_parts:, cached_instruction_name: nil)
+    uri = URI("https://generativelanguage.googleapis.com/v1beta/models/#{model}:generateContent")
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = true
+    http.read_timeout = 30
+    http.open_timeout = 10
+
+    req = Net::HTTP::Post.new(uri, "Content-Type" => "application/json", "x-goog-api-key" => api_key)
+    payload = {
+      contents: [ { parts: prompt_parts } ]
+    }
+    payload[:cachedContent] = cached_instruction_name if cached_instruction_name.present?
+    req.body = payload.to_json
+
+    res = http.request(req)
+    JSON.parse(res.body) rescue {}
+  rescue => e
+    Rails.logger.error("GEMINI REQUEST ERROR (#{model}): #{e.message}")
+    { "error" => { "message" => e.message } }
+  end
+
+
+  def normalize_gemini_instruction_for_cache(instruction, today_for_prompt:, hours_per_workday:, three_days_hours:, half_day_hours:)
+    normalized = instruction.to_s.dup
+
+    normalized.gsub!(
+      "convert using #{hours_per_workday} hours per day. Examples: \"three days\" = #{three_days_hours} hours, \"half day\" = #{half_day_hours} hours.",
+      "convert using HOURS_PER_WORKDAY hours per day. Examples: \"three days\" = HOURS_PER_WORKDAY_x3 hours, \"half day\" = HOURS_PER_WORKDAY_div2 hours."
+    )
+    normalized.gsub!("Today's date is #{today_for_prompt}.", "Today's date is CURRENT_DATE.")
+
+    normalized
+  end
+
+
+  def gemini_runtime_instruction_context(today_for_prompt:, hours_per_workday:, three_days_hours:, half_day_hours:)
+    <<~TEXT.strip
+      RUNTIME CONTEXT (overrides cached placeholders):
+      - Today's date is #{today_for_prompt}.
+      - For day references, use #{hours_per_workday} hours per day.
+      - Example conversions: three days = #{three_days_hours} hours, half day = #{half_day_hours} hours.
+    TEXT
+  end
+
+
+  def gemini_instruction_cached_content(api_key:, model:, instruction:)
+    return [ nil, nil ] if api_key.blank?
+    return [ nil, nil ] if ENV["GEMINI_PROMPT_CACHE_ENABLED"].to_s.downcase == "false"
+
+    fingerprint = Digest::SHA256.hexdigest("#{model}\n#{instruction}")
+    cache_key = "gemini_instruction_cache:v2:#{fingerprint}"
+    cached_name = Rails.cache.read(cache_key).to_s.strip
+    return [ cache_key, cached_name ] if cached_name.present?
+
+    uri = URI("https://generativelanguage.googleapis.com/v1beta/cachedContents")
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = true
+    http.read_timeout = 15
+    http.open_timeout = 5
+
+    req = Net::HTTP::Post.new(uri, "Content-Type" => "application/json", "x-goog-api-key" => api_key)
+    requested_ttl = ENV["GEMINI_PROMPT_CACHE_TTL"].presence || "604800s"
+    effective_ttl = requested_ttl
+
+    req.body = {
+      model: "models/#{model}",
+      contents: [ {
+        role: "user",
+        parts: [ { text: instruction } ]
+      } ],
+      ttl: requested_ttl
+    }.to_json
+
+    res = http.request(req)
+    body = JSON.parse(res.body) rescue {}
+
+    if body["name"].blank? && requested_ttl != "86400s"
+      effective_ttl = "86400s"
+      req.body = {
+        model: "models/#{model}",
+        contents: [ {
+          role: "user",
+          parts: [ { text: instruction } ]
+        } ],
+        ttl: effective_ttl
+      }.to_json
+      res = http.request(req)
+      body = JSON.parse(res.body) rescue {}
+    end
+
+    created_name = body["name"].to_s.strip
+
+    if created_name.present?
+      local_expiry = (effective_ttl == "86400s") ? 20.hours : 6.days
+      Rails.cache.write(cache_key, created_name, expires_in: local_expiry)
+      return [ cache_key, created_name ]
+    end
+
+    Rails.logger.warn("GEMINI CACHE CREATE FAILED: #{body.to_json}")
+    [ cache_key, nil ]
+  rescue => e
+    Rails.logger.warn("GEMINI CACHE ERROR: #{e.message}")
+    [ nil, nil ]
+  end
+
+
   def clean_num(val)
     return nil if val.blank?
 
@@ -977,6 +1365,62 @@ PROMPT
     return false if val.nil?
     str = val.to_s.downcase.strip
     [ "true", "1", "yes", "on" ].include?(str)
+  end
+
+  def paddle_api_base_url
+    Rails.env.production? ? "https://api.paddle.com" : "https://sandbox-api.paddle.com"
+  end
+
+  def paddle_customer_portal_url(api_key:, customer_id:)
+    uri = URI("#{paddle_api_base_url}/customers/#{CGI.escape(customer_id.to_s)}/portal-sessions")
+    req = Net::HTTP::Post.new(uri)
+    req["Authorization"] = "Bearer #{api_key}"
+    req["Content-Type"] = "application/json"
+    req.body = { return_url: subscription_url }.to_json
+
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = true
+    http.read_timeout = 8
+    http.open_timeout = 5
+
+    resp = http.request(req)
+    return nil unless resp.is_a?(Net::HTTPSuccess)
+
+    body = JSON.parse(resp.body) rescue {}
+    data = body["data"] || {}
+    data["url"].presence ||
+      data.dig("urls", "general", "overview").presence ||
+      data.dig("urls", "overview").presence ||
+      data.dig("urls", "general").presence
+  rescue => e
+    Rails.logger.warn("PADDLE PORTAL SESSION ERROR: #{e.message}")
+    nil
+  end
+
+  def paddle_customer_id_for_subscription(api_key:, subscription_id:)
+    uri = URI("#{paddle_api_base_url}/subscriptions/#{CGI.escape(subscription_id.to_s)}")
+    req = Net::HTTP::Get.new(uri)
+    req["Authorization"] = "Bearer #{api_key}"
+
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = true
+    http.read_timeout = 8
+    http.open_timeout = 5
+
+    resp = http.request(req)
+    return nil unless resp.is_a?(Net::HTTPSuccess)
+
+    body = JSON.parse(resp.body) rescue {}
+    body.dig("data", "customer_id").to_s.presence
+  rescue => e
+    Rails.logger.warn("PADDLE SUBSCRIPTION LOOKUP ERROR: #{e.message}")
+    nil
+  end
+
+  def profile_paddle_customer_id(profile)
+    return nil unless profile.respond_to?(:paddle_customer_id)
+
+    profile.paddle_customer_id.to_s.presence
   end
 
   def profile_params

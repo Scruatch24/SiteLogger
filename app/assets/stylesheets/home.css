@@ -149,7 +149,8 @@
       pointer-events: auto;
     }
     .site-logo-text {
-      font-size: 0.95rem;
+      font-size: 0.9rem;
+      margin-left: -4px;
     }
   }
 
@@ -208,9 +209,13 @@
     }
   }
   .site-auth-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     padding: 0.4rem 1rem;
     font-size: 10px;
     font-weight: 900;
+    line-height: 1;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     border-radius: 10px;
@@ -281,8 +286,7 @@
     transition: all 0.2s ease;
     white-space: nowrap;
   }
-  .site-mobile-quick-link:hover,
-  .site-mobile-quick-link:active {
+  .site-mobile-quick-link:hover, .site-mobile-quick-link:active {
     color: black;
     background: #f3f4f6;
   }
@@ -402,9 +406,13 @@
   }
   .site-mobile-auth-btn {
     flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     padding: 0.75rem 1rem;
     font-size: 10px;
     font-weight: 900;
+    line-height: 1;
     text-transform: uppercase;
     letter-spacing: 0.1em;
     border-radius: 12px;

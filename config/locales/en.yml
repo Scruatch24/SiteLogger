@@ -4,7 +4,7 @@ en:
   seo_description: "Create professional invoices by speaking. AI-powered voice recording, automatic calculations, and instant PDF generation for contractors, freelancers, and service providers."
 
   # Navigation
-  settings: "Settings"
+  settings: "Preferences"
   history: "History"
   profile: "Profile"
   log_out: "Log Out"
@@ -19,7 +19,7 @@ en:
   english: "English"
   georgian: "Georgian"
   save_changes: "Save Changes"
-  save_settings: "Save Settings"
+  save_settings: "Save"
   changes_saved: "Changes Saved!"
   manage: "Manage"
   delete: "Delete"
@@ -47,6 +47,8 @@ en:
   create_pdf: "CREATE PDF"
   fixed_amount: "Fixed amount"
   percentage: "Percentage"
+  discount_percentage_type: "Percentage"
+  discount_flat_type: "Flat"
   discount_message: "Discount message:"
   reason_placeholder: "Reason for discount..."
   add_fee: "Add Fees"
@@ -160,6 +162,9 @@ en:
   rec: "REC"
   live_transcript: "Live Transcript"
   transcript_placeholder: "Paste text or record voice..."
+  enhance_text: "Enhance"
+  enhancing_text: "Enhancing..."
+  enhance_text_title: "Enhance text for better AI understanding"
   apply: "Apply"
   analyze_text: "Analyze Text"
   
@@ -290,7 +295,7 @@ en:
   remove_logo_hint: "This action cannot be undone unless you upload a new logo."
   yes_remove_it: "Yes, Remove It"
   sign_up_to_save: "Sign up to save"
-  save_settings: "Save Settings"
+  save_settings: "Save"
   guest_profile:
     business_name: "ACME Contracting LTD"
     email: "billing@acme-industrial.com"
@@ -340,6 +345,7 @@ en:
   add_discount: "ADD DISCOUNT"
   labor_add_discount: "ADD DISCOUNT"
   price: "PRICE"
+  quantity: "QTY"
   item_discount: "ITEM DISCOUNT"
   tax: "TAX"
   discount: "DISCOUNT"
@@ -541,14 +547,16 @@ en:
     login_profile: "Login to Profile"
     keep_previewing: "Keep Previewing"
     you_are_here: "You are here"
+    you_are_on_pro: "You are on PRO"
 
   # Navigation
   nav:
     home: "Home"
     history: "History"
     profile: "Profile"
-    settings: "Settings"
+    settings: "Preferences"
     pricing: "Pricing"
+    subscription: "Subscription"
     sign_in: "Sign In"
     sign_up: "Try Free"
     log_out: "Log Out"
@@ -650,7 +658,7 @@ en:
   # Pricing Page
   pricing: "Pricing"
   pricing_page:
-    title_html: 'Choose Your<br><span class="onb-accent">Plan</span>'
+    title_html: 'Choose <span class="onb-accent">Plan</span>'
     subtitle: "Everything you need to create professional invoices — pick the plan that fits."
     free_title: "Free"
     pro_title: "Pro"
@@ -665,11 +673,40 @@ en:
     feature_logo: "Business Logo"
     feature_categories: "Custom Categories"
     feature_ai: "Priority AI & Support"
+    feature_text_enhancement: "TEXT ENHANCEMENT"
+    unlimited_bilingual: "UNLIMITED"
     classic_only: "Limited"
     orange_only: "Limited"
     all_styles: "All"
     all_colors: "All"
     back_home: "Back to Home"
+
+  # Subscription Page
+  subscription_page:
+    title_html: 'Manage Your <span class="onb-accent">Subscription</span>'
+    subtitle: "Track your plan, billing status, and renewal details in one place."
+    back_home: "Back to Home"
+    current_plan: "Current Plan"
+    plan_pro: "PRO"
+    plan_free: "FREE"
+    status: "Status"
+    status_active: "Active"
+    status_inactive: "Inactive"
+    status_unknown: "Unknown"
+    next_billing: "Next Billing"
+    customer_email: "Billing Email"
+    subscription_id: "Subscription ID"
+    price_id: "Price ID"
+    not_available: "Not available"
+    manage_billing: "Manage Billing"
+    manage_billing_soon: "Portal coming soon"
+    billing_portal_unavailable: "Billing portal is temporarily unavailable. Please try again shortly."
+    billing_portal_customer_missing: "We could not find your billing customer record yet. Please contact support."
+    contact_support: "Contact Support"
+    compare_plans: "Compare Plans"
+    free_title: "You're on Free plan"
+    free_subtitle: "Upgrade any time to unlock unlimited previews, exports, and premium features."
+    upgrade_now: "Upgrade to Pro"
 
   # Checkout Page
   checkout_page:

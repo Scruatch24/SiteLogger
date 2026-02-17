@@ -57,8 +57,13 @@
     </div>
   </div>
   
-  <!-- Apply Action Button -->
-  <div class="flex justify-end pr-1">
+  <!-- Transcript Actions -->
+  <div class="flex items-center justify-between pr-1 gap-3">
+    <button id="enhanceTranscriptBtn" type="button" data-nosnippet data-label-default="<%= t('enhance_text') %>" data-label-loading="<%= t('enhancing_text') %>" class="flex items-center gap-2 px-3.5 py-2 bg-white border-2 border-black text-black rounded-xl active:scale-95 transition-all shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50" title="<%= t('enhance_text_title') %>">
+      <%= image_tag "icons/wand.svg", alt: "", class: "h-3.5 w-3.5" %>
+      <span class="text-[10px] font-black uppercase tracking-widest"><%= t('enhance_text') %></span>
+    </button>
+
     <button id="reParseBtn" data-nosnippet class="flex items-center gap-2 px-4 py-2 bg-orange-500 border-2 border-black text-white rounded-xl active:scale-95 transition-all apply-btn-hover shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]" title="Analyze Text">
       <span class="text-[10px] font-black uppercase tracking-widest"><%= t('apply') %></span>
       <svg class="h-3.5 w-3.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
