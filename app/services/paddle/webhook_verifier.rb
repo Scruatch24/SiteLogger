@@ -35,7 +35,7 @@ module Paddle
     private
 
     def parse_ts_h1(signature)
-      parts = signature.split(";").map { |p| p.split("=", 2) }.to_h
+      parts = signature.split(/[;,]/).map { |p| p.strip.split("=", 2) }.to_h
       [ parts["ts"], parts["h1"] ]
     end
 

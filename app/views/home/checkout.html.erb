@@ -412,6 +412,10 @@
 
     <% if user_signed_in? && current_user.email.present? %>
       settings.customer = { email: '<%= current_user.email %>' };
+      settings.customData = {
+        user_id: '<%= current_user.id %>',
+        email: '<%= current_user.email %>'
+      };
     <% end %>
 
     Paddle.Checkout.open(settings);

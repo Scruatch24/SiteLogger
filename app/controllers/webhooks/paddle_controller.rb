@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class Webhooks::PaddleController < ApplicationController
+class Webhooks::PaddleController < ActionController::Base
   skip_before_action :verify_authenticity_token
   before_action :verify_signature!
 
@@ -10,10 +10,10 @@ class Webhooks::PaddleController < ApplicationController
     case event["event_type"]
     when "customer.created"
       handle_customer_created(event)
-    when "transaction.completed"
+    when "transaction.completed", "transaction.paid"
       handle_transaction_completed(event)
-    when "transaction.created", "transaction.ready", "transaction.paid", "transaction.updated"
-      # These events are intermediate states, we only care about completed transactions
+    when "transaction.created", "transaction.ready", "transaction.updated"
+      # These events are intermediate states, we only care about paid/completed transactions
       Rails.logger.info("Paddle transaction event: #{event['event_type']} - status: #{event.dig('data', 'status')}")
     when "subscription.created", "subscription.activated", "subscription.updated"
       handle_subscription_event(event)
@@ -37,20 +37,34 @@ class Webhooks::PaddleController < ApplicationController
   def handle_transaction_completed(event)
     data = event["data"] || {}
     customer = data["customer"] || {}
-    email = customer["email"] || resolve_customer_email(customer["id"])
-    customer_id = customer["id"]
+    customer_id = data["customer_id"].presence || customer["id"].presence
+    email = customer["email"].presence
     price_id = (data["items"]&.first || {})["price_id"]
+    subscription_id = data["subscription_id"]
 
-    profile = find_profile(email)
-    return unless profile
+    profile = find_profile_for_event(
+      customer_id: customer_id,
+      email: email,
+      custom_data: data["custom_data"]
+    )
 
-    profile.update_columns(
+    if profile.nil?
+      Rails.logger.warn("Paddle transaction event: no matching profile found (customer_id=#{customer_id.inspect}, email=#{email.inspect})")
+      return
+    end
+
+    effective_email = email.presence || profile.email.presence || profile.user&.email
+
+    update_attrs = {
       plan: "paid",
       paddle_price_id: price_id,
-      paddle_customer_email: email,
-      paddle_customer_id: customer_id,
+      paddle_customer_email: effective_email,
       paddle_subscription_status: "active"
-    )
+    }
+    update_attrs[:paddle_customer_id] = customer_id if customer_id.present?
+    update_attrs[:paddle_subscription_id] = subscription_id if subscription_id.present?
+
+    profile.update_columns(update_attrs)
   end
 
   def handle_subscription_event(event)
@@ -63,17 +77,16 @@ class Webhooks::PaddleController < ApplicationController
 
     Rails.logger.info "Paddle subscription event: customer_id=#{customer_id.inspect}, subscription_id=#{subscription_id.inspect}"
 
-    # First try to find profile by customer_id (more efficient)
-    profile = Profile.find_by(paddle_customer_id: customer_id)
-    
-    # If not found, try to resolve email and find by email
+    profile = find_profile_for_event(
+      customer_id: customer_id,
+      email: nil,
+      custom_data: data["custom_data"]
+    )
+
     unless profile
-      # For subscription events, we need to get the customer email via API since it's not in the event
-      email = resolve_customer_email(customer_id)
-      profile = find_profile(email)
+      Rails.logger.warn("Paddle subscription event: no matching profile found (customer_id=#{customer_id.inspect}, subscription_id=#{subscription_id.inspect})")
+      return
     end
-    
-    return unless profile
 
     Rails.logger.info "Paddle subscription event: found profile #{profile.id}, updating plan to paid"
 
@@ -93,16 +106,16 @@ class Webhooks::PaddleController < ApplicationController
     status = data["status"]
     subscription_id = data["id"]
 
-    # First try to find profile by customer_id (more efficient)
-    profile = Profile.find_by(paddle_customer_id: customer_id)
-    
-    # If not found, try to resolve email and find by email
+    profile = find_profile_for_event(
+      customer_id: customer_id,
+      email: nil,
+      custom_data: data["custom_data"]
+    )
+
     unless profile
-      email = resolve_customer_email(customer_id)
-      profile = find_profile(email)
+      Rails.logger.warn("Paddle subscription status event: no matching profile found (customer_id=#{customer_id.inspect}, subscription_id=#{subscription_id.inspect}, status=#{status.inspect})")
+      return
     end
-    
-    return unless profile
 
     profile.update_columns(
       paddle_subscription_id: subscription_id,
@@ -130,6 +143,30 @@ class Webhooks::PaddleController < ApplicationController
     return nil if email.blank?
 
     Profile.find_by(email: email) || Profile.joins(:user).find_by(users: { email: email })
+  end
+
+  def find_profile_for_event(customer_id:, email:, custom_data:)
+    profile = Profile.find_by(paddle_customer_id: customer_id) if customer_id.present?
+    return profile if profile
+
+    profile = find_profile(email)
+    return profile if profile
+
+    custom_user_id = extract_user_id_from_custom_data(custom_data)
+    profile = Profile.find_by(user_id: custom_user_id) if custom_user_id.present?
+    return profile if profile
+
+    resolved_email = resolve_customer_email(customer_id)
+    find_profile(resolved_email)
+  end
+
+  def extract_user_id_from_custom_data(custom_data)
+    return nil unless custom_data.is_a?(Hash)
+
+    value = custom_data["user_id"] || custom_data[:user_id]
+    return nil if value.blank?
+
+    value.to_i
   end
 
   def resolve_customer_email(customer_id)
