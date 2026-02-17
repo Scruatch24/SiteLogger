@@ -88,7 +88,57 @@
     <!-- Paddle.js -->
     <script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
     <script>
+      function confirmPaddleCheckoutTransaction(transactionId) {
+        if (!transactionId) return Promise.resolve(false);
+
+        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+
+        return fetch('<%= checkout_confirm_path %>', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': csrfToken
+          },
+          body: JSON.stringify({ transaction_id: transactionId })
+        })
+          .then(function(response) {
+            return response.json().catch(function() { return { success: false }; }).then(function(body) {
+              return { ok: response.ok, body: body };
+            });
+          })
+          .then(function(result) {
+            return !!(result.ok && result.body && result.body.success);
+          })
+          .catch(function(err) {
+            console.warn('Paddle checkout confirmation failed', err);
+            return false;
+          });
+      }
+
       document.addEventListener('DOMContentLoaded', function() {
+        const isSignedIn = <%= user_signed_in? ? 'true' : 'false' %>;
+
+        if (isSignedIn) {
+          const params = new URLSearchParams(window.location.search);
+          const txFromUrl = params.get('transaction_id') || params.get('transactionId');
+          if (txFromUrl) {
+            confirmPaddleCheckoutTransaction(txFromUrl).then(function(confirmed) {
+              if (!confirmed) return;
+              if (window.location.pathname !== '<%= subscription_path %>') {
+                window.location.href = '<%= subscription_path %>?upgraded=1';
+                return;
+              }
+
+              params.delete('transaction_id');
+              params.delete('transactionId');
+              const next = params.toString();
+              const cleanUrl = window.location.pathname + (next ? ('?' + next) : '') + window.location.hash;
+              window.history.replaceState({}, document.title, cleanUrl);
+            });
+          }
+        }
+
         if (typeof Paddle === 'undefined') return;
 
         const paddleToken = '<%= ENV["PADDLE_CLIENT_TOKEN"].to_s %>';
@@ -102,7 +152,22 @@
           Paddle.Environment && Paddle.Environment.set('sandbox');
         <% end %>
 
-        const initOptions = { token: paddleToken };
+        const initOptions = {
+          token: paddleToken,
+          eventCallback: function(event) {
+            if (!isSignedIn || !event || event.name !== 'checkout.completed') return;
+
+            const eventData = event.data || {};
+            const transactionId = eventData.transaction_id || eventData.transactionId || eventData.id;
+            if (!transactionId) return;
+
+            confirmPaddleCheckoutTransaction(transactionId).then(function(confirmed) {
+              if (confirmed) {
+                window.location.href = '<%= subscription_path %>?upgraded=1';
+              }
+            });
+          }
+        };
 
         Paddle.Initialize(initOptions);
       });

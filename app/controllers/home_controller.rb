@@ -1429,7 +1429,9 @@ PROMPT
   end
 
   def paddle_api_base_url
-    Rails.env.production? ? "https://api.paddle.com" : "https://sandbox-api.paddle.com"
+    paddle_env = ENV["PADDLE_ENVIRONMENT"].to_s.downcase
+    use_sandbox = paddle_env == "sandbox" || (paddle_env.blank? && !Rails.env.production?)
+    use_sandbox ? "https://sandbox-api.paddle.com" : "https://api.paddle.com"
   end
 
   def paddle_transaction_details(api_key:, transaction_id:)

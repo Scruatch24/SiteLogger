@@ -190,8 +190,7 @@ class Webhooks::PaddleController < ActionController::Base
 
     require "net/http"
     require "json"
-    base_url = Rails.env.production? ? "https://api.paddle.com" : "https://sandbox-api.paddle.com"
-    uri = URI("#{base_url}/customers/#{customer_id}")
+    uri = URI("#{paddle_api_base_url}/customers/#{customer_id}")
     req = Net::HTTP::Get.new(uri)
     req["Authorization"] = "Bearer #{api_key}"
     http = Net::HTTP.new(uri.host, uri.port)
@@ -207,6 +206,12 @@ class Webhooks::PaddleController < ActionController::Base
   rescue StandardError => e
     Rails.logger.warn("Paddle resolve_customer_email failed: #{e.message}")
     nil
+  end
+
+  def paddle_api_base_url
+    paddle_env = ENV["PADDLE_ENVIRONMENT"].to_s.downcase
+    use_sandbox = paddle_env == "sandbox" || (paddle_env.blank? && !Rails.env.production?)
+    use_sandbox ? "https://sandbox-api.paddle.com" : "https://api.paddle.com"
   end
 
   def verify_signature!
