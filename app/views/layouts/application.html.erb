@@ -88,32 +88,56 @@
     <!-- Paddle.js -->
     <script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
     <script>
-      function confirmPaddleCheckoutTransaction(transactionId) {
+      function confirmPaddleCheckoutTransaction(transactionId, options) {
         if (!transactionId) return Promise.resolve(false);
+
+        options = options || {};
+        const maxAttempts = options.maxAttempts || 8;
+        const initialDelayMs = options.initialDelayMs || 1200;
 
         const csrfMeta = document.querySelector('meta[name="csrf-token"]');
         const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
 
-        return fetch('<%= checkout_confirm_path %>', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-Token': csrfToken
-          },
-          body: JSON.stringify({ transaction_id: transactionId })
-        })
-          .then(function(response) {
-            return response.json().catch(function() { return { success: false }; }).then(function(body) {
-              return { ok: response.ok, body: body };
+        function runAttempt(attempt) {
+          return fetch('<%= checkout_confirm_path %>', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRF-Token': csrfToken
+            },
+            body: JSON.stringify({ transaction_id: transactionId })
+          })
+            .then(function(response) {
+              return response.json().catch(function() { return { success: false }; }).then(function(body) {
+                return { ok: response.ok, status: response.status, body: body || {} };
+              });
+            })
+            .then(function(result) {
+              if (result.ok && result.body && result.body.success) return true;
+
+              const retryable = !!(result.body && result.body.retryable);
+              if (!retryable || attempt >= maxAttempts) return false;
+
+              const waitMs = initialDelayMs * Math.min(attempt, 4);
+              return new Promise(function(resolve) {
+                setTimeout(function() {
+                  resolve(runAttempt(attempt + 1));
+                }, waitMs);
+              });
+            })
+            .catch(function(err) {
+              console.warn('Paddle checkout confirmation failed', err);
+              if (attempt >= maxAttempts) return false;
+              const waitMs = initialDelayMs * Math.min(attempt, 4);
+              return new Promise(function(resolve) {
+                setTimeout(function() {
+                  resolve(runAttempt(attempt + 1));
+                }, waitMs);
+              });
             });
-          })
-          .then(function(result) {
-            return !!(result.ok && result.body && result.body.success);
-          })
-          .catch(function(err) {
-            console.warn('Paddle checkout confirmation failed', err);
-            return false;
-          });
+        }
+
+        return runAttempt(1);
       }
 
       document.addEventListener('DOMContentLoaded', function() {

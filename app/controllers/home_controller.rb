@@ -139,12 +139,15 @@ class HomeController < ApplicationController
 
     transaction = paddle_transaction_details(api_key: api_key, transaction_id: transaction_id)
     if transaction.blank?
-      return render json: { success: false, error: "transaction_not_found" }, status: :unprocessable_entity
+      Rails.logger.info("PADDLE CHECKOUT CONFIRM: transaction not found yet (transaction_id=#{transaction_id})")
+      return render json: { success: false, error: "transaction_not_found", retryable: true }, status: :accepted
     end
 
     status = transaction["status"].to_s.downcase
     unless [ "paid", "completed", "billed" ].include?(status)
-      return render json: { success: false, error: "transaction_not_paid", status: status }, status: :unprocessable_entity
+      retryable = [ "ready", "draft", "pending", "processing" ].include?(status)
+      Rails.logger.info("PADDLE CHECKOUT CONFIRM: not paid yet (transaction_id=#{transaction_id}, status=#{status}, retryable=#{retryable})")
+      return render json: { success: false, error: "transaction_not_paid", status: status, retryable: retryable }, status: (retryable ? :accepted : :unprocessable_entity)
     end
 
     customer_id = transaction["customer_id"].presence || transaction.dig("customer", "id")
@@ -162,6 +165,7 @@ class HomeController < ApplicationController
       (profile.respond_to?(:paddle_customer_id) && profile.paddle_customer_id.to_s == customer_id.to_s)
 
     unless owned_by_current_user
+      Rails.logger.warn("PADDLE CHECKOUT CONFIRM: user mismatch (transaction_id=#{transaction_id}, user_id=#{current_user.id})")
       return render json: { success: false, error: "transaction_user_mismatch" }, status: :forbidden
     end
 
@@ -177,6 +181,7 @@ class HomeController < ApplicationController
     update_attrs[:paddle_subscription_id] = subscription_id if subscription_id.present?
 
     profile.update_columns(update_attrs)
+    Rails.logger.info("PADDLE CHECKOUT CONFIRM: upgraded profile_id=#{profile.id} transaction_id=#{transaction_id}")
     render json: { success: true }
   rescue => e
     Rails.logger.warn("PADDLE CHECKOUT CONFIRM ERROR: #{e.message}")
@@ -1435,23 +1440,36 @@ PROMPT
   end
 
   def paddle_transaction_details(api_key:, transaction_id:)
-    uri = URI("#{paddle_api_base_url}/transactions/#{CGI.escape(transaction_id.to_s)}")
-    req = Net::HTTP::Get.new(uri)
-    req["Authorization"] = "Bearer #{api_key}"
+    urls = [ paddle_api_base_url, alternate_paddle_api_base_url ].compact.uniq
 
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = true
-    http.read_timeout = 8
-    http.open_timeout = 5
+    urls.each do |base_url|
+      uri = URI("#{base_url}/transactions/#{CGI.escape(transaction_id.to_s)}")
+      req = Net::HTTP::Get.new(uri)
+      req["Authorization"] = "Bearer #{api_key}"
 
-    resp = http.request(req)
-    return nil unless resp.is_a?(Net::HTTPSuccess)
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = true
+      http.read_timeout = 8
+      http.open_timeout = 5
 
-    body = JSON.parse(resp.body) rescue {}
-    body["data"]
+      resp = http.request(req)
+      if resp.is_a?(Net::HTTPSuccess)
+        body = JSON.parse(resp.body) rescue {}
+        data = body["data"]
+        return data if data.present?
+      else
+        Rails.logger.info("PADDLE TRANSACTION LOOKUP non-success: host=#{uri.host} code=#{resp.code}")
+      end
+    end
+
+    nil
   rescue => e
     Rails.logger.warn("PADDLE TRANSACTION LOOKUP ERROR: #{e.message}")
     nil
+  end
+
+  def alternate_paddle_api_base_url
+    paddle_api_base_url == "https://sandbox-api.paddle.com" ? "https://api.paddle.com" : "https://sandbox-api.paddle.com"
   end
 
   def paddle_customer_portal_url(api_key:, customer_id:)
