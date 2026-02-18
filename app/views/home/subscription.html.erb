@@ -10,6 +10,8 @@ elsif raw_status.present?
 else
   t('subscription_page.status_unknown')
 end %>
+<% plan_label = paid_plan ? t('subscription_page.plan_pro') : t('subscription_page.plan_free') %>
+<% plan_price_label = paid_plan ? (ENV['PADDLE_PLAN_PRICE_LABEL'].presence || t('modal.pro_price')) : '$0/month' %>
 <% next_billing_value = if profile&.paddle_next_bill_at.present?
   l(profile.paddle_next_bill_at, format: :long)
 elsif paid_plan
@@ -17,11 +19,25 @@ elsif paid_plan
 else
   t('subscription_page.not_available')
 end %>
+<% next_charge_value = if profile&.paddle_next_bill_at.present? && paid_plan
+  plan_price_label
+elsif paid_plan
+  t('subscription_page.no_scheduled_charge')
+else
+  t('subscription_page.not_available')
+end %>
 <% show_manage_billing = paid_plan || has_subscription_history %>
-<% plan_label = paid_plan ? t('subscription_page.plan_pro') : t('subscription_page.plan_free') %>
 <% billing_email = profile&.paddle_customer_email.presence || current_user.email || t('subscription_page.not_available') %>
-<% subscription_reference = profile&.paddle_subscription_id.presence || t('subscription_page.not_available') %>
-<% price_reference = profile&.paddle_price_id.presence || t('subscription_page.not_available') %>
+<% month_range = Time.current.beginning_of_month..Time.current.end_of_month %>
+<% invoices_generated = current_user.logs.kept.where(created_at: month_range).count %>
+<% invoice_limit = paid_plan ? nil : 150 %>
+<% invoice_progress = invoice_limit.present? ? [ ((invoices_generated.to_f / invoice_limit) * 100).round, 100 ].min : 22 %>
+<% recordings_completed = TrackingEvent.where(user_id: current_user.id, event_name: 'recording_completed').where(created_at: month_range).count %>
+<% estimated_voice_minutes = ((recordings_completed * (profile&.audio_limit || 0)) / 60.0).round(1) %>
+<% voice_limit_minutes = paid_plan ? nil : 300.0 %>
+<% voice_progress = voice_limit_minutes.present? ? [ ((estimated_voice_minutes / voice_limit_minutes) * 100).round, 100 ].min : 18 %>
+<% invoice_meter_text = invoice_limit.present? ? "#{invoices_generated} / #{invoice_limit}" : "#{invoices_generated} / Unlimited" %>
+<% voice_meter_text = voice_limit_minutes.present? ? "#{estimated_voice_minutes} / #{voice_limit_minutes.to_i} min" : "#{estimated_voice_minutes} min / Unlimited" %>
 
 <style>
   .subscription-page {
@@ -76,13 +92,9 @@ end %>
     z-index: 1;
     max-width: 980px;
     margin: 0 auto;
-    padding: 2.1rem 1.2rem 4rem;
-    font-family: "Space Grotesk", "Sora", "Segoe UI", sans-serif;
+    padding: 2rem 1.2rem 4rem;
     color: #f8fafc;
-  }
-
-  .sub-topbar {
-    margin-bottom: 1.3rem;
+    font-family: "Sora", "Segoe UI", sans-serif;
   }
 
   .sub-back {
@@ -90,22 +102,16 @@ end %>
     align-items: center;
     gap: 8px;
     color: rgba(255,255,255,0.72);
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
+    font-size: 10px;
+    font-weight: 800;
     text-transform: uppercase;
+    letter-spacing: 0.1em;
     text-decoration: none;
-    padding: 11px 16px;
     border-radius: 999px;
-    border: 1px solid rgba(255,255,255,0.18);
-    background: rgba(9,9,11,0.52);
-    transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
-  }
-
-  .sub-back:hover {
-    color: white;
-    background: rgba(249,115,22,0.16);
-    transform: translateX(-2px);
+    padding: 11px 15px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.14);
+    transition: all 0.2s ease;
   }
 
   .sub-back svg {
@@ -113,280 +119,312 @@ end %>
     height: 13px;
   }
 
-  .sub-hero {
-    margin-bottom: 1.4rem;
+  .sub-back:hover {
+    color: #ffffff;
+    border-color: rgba(249,115,22,0.45);
+    background: rgba(249,115,22,0.15);
   }
 
-  .sub-kicker {
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: rgba(255,255,255,0.58);
-    margin-bottom: 0.55rem;
+  .subscription-header {
+    margin: 1.2rem 0 1.4rem;
   }
 
-  .sub-title {
-    font-size: clamp(2rem, 5.3vw, 3.5rem);
-    line-height: 0.98;
-    letter-spacing: -0.01em;
-    text-transform: uppercase;
+  .subscription-title {
     margin: 0;
-    color: #f8fafc;
+    font-size: clamp(2rem, 5.7vw, 3.4rem);
+    line-height: 1;
+    text-transform: uppercase;
+    letter-spacing: -0.01em;
   }
 
-  .sub-title .onb-accent {
+  .subscription-title .onb-accent {
     color: #f97316;
   }
 
-  .sub-subtitle {
-    margin: 0.9rem 0 0;
+  .subscription-subtitle {
+    margin: 0.8rem 0 0;
     max-width: 700px;
-    font-size: 15px;
-    color: rgba(255,255,255,0.7);
-    line-height: 1.55;
+    font-size: 14px;
+    color: rgba(255,255,255,0.66);
+    line-height: 1.6;
   }
 
-  .sub-panel {
-    position: relative;
-    border-radius: 34px;
-    overflow: hidden;
-    border: 1px solid rgba(255,255,255,0.16);
-    background:
-      radial-gradient(circle at 85% 12%, rgba(249,115,22,0.19), transparent 45%),
-      radial-gradient(circle at 10% 80%, rgba(59,130,246,0.16), transparent 42%),
-      rgba(4,6,12,0.82);
-    box-shadow: 0 24px 64px rgba(0,0,0,0.48);
+  .sub-section {
+    border-radius: 24px;
+    border: 1px solid rgba(255,255,255,0.14);
+    background: rgba(4,6,12,0.72);
     backdrop-filter: blur(8px);
+    box-shadow: 0 16px 40px rgba(0,0,0,0.35);
+    padding: 1.15rem;
   }
 
-  .sub-panel::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: 34px;
-    border: 1px solid rgba(249,115,22,0.24);
-    pointer-events: none;
+  .sub-section + .sub-section {
+    margin-top: 0.95rem;
   }
 
-  .sub-main {
-    position: relative;
-    z-index: 1;
-    padding: 1.55rem;
-  }
-
-  .sub-main-top {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    gap: 0.8rem;
-    align-items: center;
-    margin-bottom: 1.2rem;
-  }
-
-  .sub-plan-pill {
-    display: inline-flex;
-    align-items: center;
-    padding: 8px 14px;
-    border-radius: 999px;
+  .sub-section-title {
+    margin: 0 0 0.9rem;
     font-size: 11px;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: #fff7ed;
-    border: 1px solid rgba(249,115,22,0.45);
-    background: rgba(249,115,22,0.18);
-  }
-
-  .sub-status {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    border-radius: 999px;
-    padding: 7px 12px;
-    font-size: 11px;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  .sub-status::before {
-    content: "";
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: currentColor;
-    box-shadow: 0 0 12px currentColor;
-  }
-
-  .sub-status.active {
-    color: #4ade80;
-    border: 1px solid rgba(74,222,128,0.35);
-    background: rgba(74,222,128,0.12);
-  }
-
-  .sub-status.inactive {
-    color: #f87171;
-    border: 1px solid rgba(248,113,113,0.36);
-    background: rgba(248,113,113,0.12);
-  }
-
-  .sub-layout {
-    display: grid;
-    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
-    gap: 1rem;
-  }
-
-  .sub-column {
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.12);
-    border-radius: 22px;
-    padding: 1rem;
-  }
-
-  .sub-column-label {
-    font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.11em;
-    color: rgba(255,255,255,0.58);
-    margin-bottom: 0.6rem;
+    color: rgba(255,255,255,0.75);
   }
 
-  .sub-info-card {
+  .sub-plan-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0.8rem;
+  }
+
+  .sub-surface {
     border-radius: 16px;
-    border: 1px solid rgba(255,255,255,0.09);
+    border: 1px solid rgba(255,255,255,0.12);
     background: rgba(255,255,255,0.03);
-    padding: 0.8rem;
-  }
-
-  .sub-info-card + .sub-info-card {
-    margin-top: 0.55rem;
+    padding: 0.9rem;
   }
 
   .sub-key {
     font-size: 10px;
     text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: rgba(255,255,255,0.52);
-    margin-bottom: 0.35rem;
+    letter-spacing: 0.08em;
+    color: rgba(255,255,255,0.54);
+    margin-bottom: 0.3rem;
   }
 
   .sub-value {
     font-size: 14px;
     font-weight: 700;
     color: #f8fafc;
-    line-height: 1.35;
     word-break: break-word;
   }
 
-  .sub-note {
-    margin-top: 0.75rem;
-    font-size: 12px;
-    line-height: 1.5;
-    color: rgba(255,255,255,0.68);
+  .sub-status-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: 10px;
+    text-transform: uppercase;
+    font-weight: 800;
+    letter-spacing: 0.07em;
   }
 
-  .sub-note strong {
-    color: #fff;
+  .sub-status-chip::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .sub-status-chip.active {
+    color: #4ade80;
+    border: 1px solid rgba(74,222,128,0.34);
+    background: rgba(74,222,128,0.14);
+  }
+
+  .sub-status-chip.inactive {
+    color: #f87171;
+    border: 1px solid rgba(248,113,113,0.35);
+    background: rgba(248,113,113,0.14);
+  }
+
+  .sub-feature-list {
+    margin: 0;
+    padding-left: 1rem;
+    display: grid;
+    gap: 0.28rem;
+    color: rgba(255,255,255,0.8);
+    font-size: 12px;
+    line-height: 1.45;
   }
 
   .sub-actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    margin-top: 0.9rem;
+    display: flex;
+    flex-wrap: wrap;
     gap: 0.55rem;
-    margin-top: 0.75rem;
   }
 
-  .sub-action-form {
+  .sub-btn-form {
     margin: 0;
   }
 
-  .sub-action-btn {
-    width: 100%;
-    border-radius: 14px;
-    border: 1px solid rgba(255,255,255,0.18);
-    background: rgba(255,255,255,0.04);
+  .sub-btn {
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.05);
     color: #f8fafc;
     text-decoration: none;
-    padding: 10px 12px;
+    padding: 9px 12px;
     font-size: 10px;
     font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.08em;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+    transition: all 0.2s ease;
   }
 
-  .sub-action-btn:hover {
-    color: #fff;
-    border-color: rgba(249,115,22,0.5);
-    background: rgba(249,115,22,0.16);
-    transform: translateY(-1px);
+  .sub-btn:hover {
+    color: #ffffff;
+    border-color: rgba(249,115,22,0.55);
+    background: rgba(249,115,22,0.18);
   }
 
-  .sub-action-btn--primary {
-    border-color: transparent;
+  .sub-btn.primary {
     background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
-    box-shadow: 0 12px 24px rgba(249,115,22,0.28);
+    border-color: transparent;
+    box-shadow: 0 8px 20px rgba(249,115,22,0.33);
   }
 
-  .sub-tech {
-    margin-top: 1rem;
-    border-top: 1px dashed rgba(255,255,255,0.2);
-    padding-top: 0.9rem;
+  .sub-btn.danger {
+    border-color: rgba(248,113,113,0.45);
+    background: rgba(248,113,113,0.15);
   }
 
-  .sub-tech summary {
-    cursor: pointer;
-    list-style: none;
-    font-size: 10px;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: rgba(255,255,255,0.65);
+  .sub-btn.danger:hover {
+    border-color: rgba(248,113,113,0.75);
+    background: rgba(248,113,113,0.25);
   }
 
-  .sub-tech summary::-webkit-details-marker {
-    display: none;
-  }
-
-  .sub-tech-grid {
-    margin-top: 0.65rem;
+  .usage-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 0.55rem;
+    gap: 0.7rem;
   }
 
-  .sub-tech-item {
-    border-radius: 14px;
+  .usage-progress {
+    margin-top: 0.55rem;
+    height: 8px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.12);
+    overflow: hidden;
+  }
+
+  .usage-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #f97316 0%, #fb923c 100%);
+  }
+
+  .usage-note {
+    margin-top: 0.65rem;
+    font-size: 11px;
+    color: rgba(255,255,255,0.62);
+  }
+
+  .billing-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0.7rem;
+  }
+
+  .plan-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.8rem;
+  }
+
+  .plan-option-card {
+    border-radius: 18px;
+    border: 1px solid rgba(255,255,255,0.14);
+    background: rgba(255,255,255,0.03);
+    padding: 0.95rem;
+  }
+
+  .plan-option-card.current {
+    border-color: rgba(249,115,22,0.6);
+    box-shadow: inset 0 0 0 1px rgba(249,115,22,0.35);
+  }
+
+  .plan-option-title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 800;
+  }
+
+  .plan-option-price {
+    margin-top: 0.25rem;
+    font-size: 12px;
+    color: rgba(255,255,255,0.72);
+  }
+
+  .plan-option-badge {
+    display: inline-flex;
+    margin-top: 0.55rem;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    font-weight: 800;
+    color: #fed7aa;
+    border: 1px solid rgba(249,115,22,0.5);
+    border-radius: 999px;
+    padding: 4px 9px;
+    background: rgba(249,115,22,0.14);
+  }
+
+  .history-table {
+    width: 100%;
+    border-collapse: collapse;
     border: 1px solid rgba(255,255,255,0.12);
-    background: rgba(255,255,255,0.02);
-    padding: 0.65rem;
+    border-radius: 14px;
+    overflow: hidden;
   }
 
-  @media (max-width: 900px) {
-    .sub-layout {
+  .history-table th,
+  .history-table td {
+    padding: 0.7rem;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    text-align: left;
+    font-size: 12px;
+  }
+
+  .history-table th {
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 10px;
+    color: rgba(255,255,255,0.7);
+    background: rgba(255,255,255,0.04);
+  }
+
+  .history-table tr:last-child td {
+    border-bottom: none;
+  }
+
+  .history-empty {
+    color: rgba(255,255,255,0.68);
+  }
+
+  .danger-zone {
+    border-color: rgba(248,113,113,0.5);
+    background: rgba(248,113,113,0.08);
+  }
+
+  .danger-copy {
+    font-size: 12px;
+    color: rgba(255,255,255,0.78);
+    line-height: 1.55;
+  }
+
+  @media (max-width: 880px) {
+    .sub-plan-grid,
+    .usage-grid,
+    .billing-grid,
+    .plan-options {
       grid-template-columns: 1fr;
     }
   }
 
-  @media (max-width: 680px) {
+  @media (max-width: 640px) {
     .subscription-content {
-      padding: 1.6rem 0.85rem 3.3rem;
+      padding: 1.45rem 0.85rem 3rem;
     }
 
-    .sub-main {
-      padding: 1rem;
-    }
-
-    .sub-title {
-      font-size: clamp(1.8rem, 8vw, 2.4rem);
-    }
-
-    .sub-actions,
-    .sub-tech-grid {
-      grid-template-columns: 1fr;
+    .history-table {
+      display: block;
+      overflow-x: auto;
     }
   }
 </style>
@@ -400,91 +438,193 @@ end %>
   <% end %>
 
   <div class="subscription-content">
-    <div class="sub-topbar">
-      <%= link_to root_path, class: 'sub-back' do %>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M19 12H5"/><path d="m12 19-7-7 7-7"/>
-        </svg>
-        <%= t('subscription_page.back_home') %>
+    <%= link_to root_path, class: 'sub-back' do %>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M19 12H5"/><path d="m12 19-7-7 7-7"/>
+      </svg>
+      <%= t('subscription_page.back_home') %>
+    <% end %>
+
+    <header class="subscription-header">
+      <h1 class="subscription-title"><%= raw t('subscription_page.title_html') %></h1>
+      <p class="subscription-subtitle"><%= t('subscription_page.subtitle') %></p>
+    </header>
+
+    <section class="sub-section">
+      <h2 class="sub-section-title">Current Plan</h2>
+      <div class="sub-plan-grid">
+        <div class="sub-surface">
+          <div class="sub-key">Plan Name</div>
+          <div class="sub-value"><%= plan_label %></div>
+
+          <div class="sub-key" style="margin-top:0.7rem;">Price</div>
+          <div class="sub-value"><%= plan_price_label %></div>
+
+          <div class="sub-key" style="margin-top:0.7rem;">Plan Features</div>
+          <ul class="sub-feature-list">
+            <% if paid_plan %>
+              <li>10,000 transcript characters</li>
+              <li>Up to 300 voice seconds per recording</li>
+              <li>Unlimited previews and exports</li>
+              <li>Priority AI and support</li>
+            <% else %>
+              <li>300 transcript characters</li>
+              <li>Up to 60 voice seconds per recording</li>
+              <li>5 exports per day</li>
+              <li>Upgrade to unlock Pro features</li>
+            <% end %>
+          </ul>
+        </div>
+
+        <div class="sub-surface">
+          <div class="sub-key">Status</div>
+          <div class="sub-status-chip <%= status_active ? 'active' : 'inactive' %>"><%= status_label %></div>
+
+          <div class="sub-key" style="margin-top:0.7rem;"><%= t('subscription_page.next_billing') %></div>
+          <div class="sub-value"><%= next_billing_value %></div>
+
+          <div class="sub-key" style="margin-top:0.7rem;">Next Charge Amount</div>
+          <div class="sub-value"><%= next_charge_value %></div>
+
+          <div class="sub-actions">
+            <%= link_to pricing_path, class: 'sub-btn' do %>
+              Change Plan
+            <% end %>
+            <% if show_manage_billing %>
+              <%= button_to 'Cancel Subscription', subscription_billing_portal_path, method: :post, class: 'sub-btn danger', form: { class: 'sub-btn-form' } %>
+            <% else %>
+              <%= link_to contact_path, class: 'sub-btn danger' do %>
+                Cancel Subscription
+              <% end %>
+            <% end %>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="sub-section">
+      <h2 class="sub-section-title">Usage</h2>
+      <div class="usage-grid">
+        <div class="sub-surface">
+          <div class="sub-key">Invoices Generated This Month</div>
+          <div class="sub-value"><%= invoice_meter_text %></div>
+          <div class="usage-progress">
+            <div class="usage-fill" style="width:<%= invoice_progress %>%;"></div>
+          </div>
+        </div>
+
+        <div class="sub-surface">
+          <div class="sub-key">Voice Minutes Used (Estimated)</div>
+          <div class="sub-value"><%= voice_meter_text %></div>
+          <div class="usage-progress">
+            <div class="usage-fill" style="width:<%= voice_progress %>%;"></div>
+          </div>
+        </div>
+      </div>
+      <p class="usage-note">Usage is shown early to keep limits transparent and avoid surprises.</p>
+    </section>
+
+    <section class="sub-section">
+      <h2 class="sub-section-title">Billing Information</h2>
+      <div class="billing-grid">
+        <div class="sub-surface">
+          <div class="sub-key">Payment Method</div>
+          <div class="sub-value">Managed securely in Paddle billing portal</div>
+        </div>
+        <div class="sub-surface">
+          <div class="sub-key"><%= t('subscription_page.customer_email') %></div>
+          <div class="sub-value"><%= billing_email %></div>
+        </div>
+        <div class="sub-surface">
+          <div class="sub-key">Last Payment</div>
+          <div class="sub-value"><%= t('subscription_page.not_available') %></div>
+        </div>
+      </div>
+      <div class="sub-actions">
+        <% if show_manage_billing %>
+          <%= button_to 'Update Payment Method', subscription_billing_portal_path, method: :post, class: 'sub-btn', form: { class: 'sub-btn-form' } %>
+          <%= button_to 'Download Invoices / Receipts', subscription_billing_portal_path, method: :post, class: 'sub-btn', form: { class: 'sub-btn-form' } %>
+        <% else %>
+          <%= link_to contact_path, class: 'sub-btn' do %>
+            Contact Support
+          <% end %>
+        <% end %>
+      </div>
+    </section>
+
+    <section class="sub-section">
+      <h2 class="sub-section-title">Plan Options</h2>
+      <div class="plan-options">
+        <article class="plan-option-card <%= paid_plan ? '' : 'current' %>">
+          <h3 class="plan-option-title">Free</h3>
+          <div class="plan-option-price">$0/month</div>
+          <ul class="sub-feature-list" style="margin-top:0.7rem;">
+            <li>300 transcript characters</li>
+            <li>60 voice seconds per recording</li>
+            <li>5 exports per day</li>
+          </ul>
+          <% unless paid_plan %>
+            <div class="plan-option-badge">Current Plan</div>
+          <% end %>
+        </article>
+
+        <article class="plan-option-card <%= paid_plan ? 'current' : '' %>">
+          <h3 class="plan-option-title">Pro</h3>
+          <div class="plan-option-price"><%= ENV['PADDLE_PLAN_PRICE_LABEL'].presence || t('modal.pro_price') %></div>
+          <ul class="sub-feature-list" style="margin-top:0.7rem;">
+            <li>10,000 transcript characters</li>
+            <li>300 voice seconds per recording</li>
+            <li>Unlimited previews and exports</li>
+            <li>Priority AI and support</li>
+          </ul>
+          <% if paid_plan %>
+            <div class="plan-option-badge">Current Plan</div>
+          <% else %>
+            <div class="sub-actions" style="margin-top:0.75rem;">
+              <%= link_to checkout_path, class: 'sub-btn primary' do %>
+                <%= t('subscription_page.upgrade_now') %>
+              <% end %>
+            </div>
+          <% end %>
+        </article>
+      </div>
+    </section>
+
+    <section class="sub-section">
+      <h2 class="sub-section-title">Billing History</h2>
+      <table class="history-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Amount</th>
+            <th>Status</th>
+            <th>Receipt</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td colspan="4" class="history-empty">No synced billing transactions yet. Open billing portal to view and download official receipts.</td>
+          </tr>
+        </tbody>
+      </table>
+      <% if show_manage_billing %>
+        <div class="sub-actions">
+          <%= button_to 'Open Billing Portal', subscription_billing_portal_path, method: :post, class: 'sub-btn', form: { class: 'sub-btn-form' } %>
+        </div>
       <% end %>
-    </div>
+    </section>
 
-    <div class="sub-hero">
-      <div class="sub-kicker"><%= t('subscription_page.manage_billing') %></div>
-      <h1 class="sub-title"><%= raw t('subscription_page.title_html') %></h1>
-      <p class="sub-subtitle"><%= t('subscription_page.subtitle') %></p>
-    </div>
-
-    <section class="sub-panel">
-      <div class="sub-main">
-        <div class="sub-main-top">
-          <div class="sub-plan-pill"><%= plan_label %></div>
-          <div class="sub-status <%= status_active ? 'active' : 'inactive' %>">
-            <%= t('subscription_page.status') %>: <%= status_label %>
-          </div>
-        </div>
-
-        <div class="sub-layout">
-          <div class="sub-column">
-            <div class="sub-column-label"><%= t('subscription_page.current_plan') %></div>
-
-            <article class="sub-info-card">
-              <div class="sub-key"><%= t('subscription_page.next_billing') %></div>
-              <div class="sub-value"><%= next_billing_value %></div>
-            </article>
-
-            <article class="sub-info-card">
-              <div class="sub-key"><%= t('subscription_page.customer_email') %></div>
-              <div class="sub-value"><%= billing_email %></div>
-            </article>
-
-            <% if profile&.paddle_next_bill_at.blank? %>
-              <p class="sub-note"><%= t('subscription_page.next_billing_hint') %></p>
-            <% end %>
-
-            <% unless paid_plan %>
-              <p class="sub-note">
-                <strong><%= t('subscription_page.free_title') %></strong><br>
-                <%= t('subscription_page.free_subtitle') %>
-              </p>
-            <% end %>
-          </div>
-
-          <div class="sub-column">
-            <div class="sub-column-label"><%= t('subscription_page.manage_billing') %></div>
-
-            <div class="sub-actions">
-              <% if show_manage_billing %>
-                <%= button_to t('subscription_page.manage_billing'), subscription_billing_portal_path, method: :post, class: 'sub-action-btn', form: { class: 'sub-action-form' } %>
-              <% end %>
-              <% unless paid_plan %>
-                <%= link_to checkout_path, class: 'sub-action-btn sub-action-btn--primary' do %>
-                  <%= t('subscription_page.upgrade_now') %>
-                <% end %>
-              <% end %>
-              <%= link_to pricing_path, class: 'sub-action-btn' do %>
-                <%= t('subscription_page.compare_plans') %>
-              <% end %>
-              <%= link_to contact_path, class: 'sub-action-btn' do %>
-                <%= t('subscription_page.contact_support') %>
-              <% end %>
-            </div>
-          </div>
-        </div>
-
-        <details class="sub-tech">
-          <summary><%= t('subscription_page.show_technical_details') %></summary>
-          <div class="sub-tech-grid">
-            <div class="sub-tech-item">
-              <div class="sub-key"><%= t('subscription_page.subscription_id') %></div>
-              <div class="sub-value"><%= subscription_reference %></div>
-            </div>
-            <div class="sub-tech-item">
-              <div class="sub-key"><%= t('subscription_page.price_id') %></div>
-              <div class="sub-value"><%= price_reference %></div>
-            </div>
-          </div>
-        </details>
+    <section class="sub-section danger-zone">
+      <h2 class="sub-section-title">Cancel Subscription</h2>
+      <p class="danger-copy">If you cancel, you keep access until the end of your current billing period. No hidden steps. No hidden pricing.</p>
+      <div class="sub-actions">
+        <% if show_manage_billing %>
+          <%= button_to 'Cancel in Billing Portal', subscription_billing_portal_path, method: :post, class: 'sub-btn danger', form: { class: 'sub-btn-form' } %>
+        <% else %>
+          <%= link_to contact_path, class: 'sub-btn danger' do %>
+            Contact Support to Cancel
+          <% end %>
+        <% end %>
       </div>
     </section>
   </div>
