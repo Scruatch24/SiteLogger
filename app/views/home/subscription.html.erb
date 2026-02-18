@@ -12,7 +12,9 @@ else
 end %>
 <% plan_label = paid_plan ? t('subscription_page.plan_pro') : t('subscription_page.plan_free') %>
 <% plan_price_label = paid_plan ? (ENV['PADDLE_PLAN_PRICE_LABEL'].presence || t('modal.pro_price')) : '$0/month' %>
-<% next_billing_value = if profile&.paddle_next_bill_at.present?
+<% next_billing_value = if @billing_next_billing_label.present?
+  @billing_next_billing_label
+elsif profile&.paddle_next_bill_at.present?
   l(profile.paddle_next_bill_at, format: :long)
 elsif paid_plan && status_active
   t('subscription_page.pending_billing_sync')
@@ -21,7 +23,9 @@ elsif paid_plan
 else
   t('subscription_page.not_applicable')
 end %>
-<% next_charge_value = if profile&.paddle_next_bill_at.present? && paid_plan
+<% next_charge_value = if @billing_next_charge_label.present?
+  @billing_next_charge_label
+elsif profile&.paddle_next_bill_at.present? && paid_plan
   plan_price_label
 elsif paid_plan && status_active
   t('subscription_page.pending_billing_sync')

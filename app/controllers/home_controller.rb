@@ -1567,6 +1567,8 @@ PROMPT
     @billing_payment_method_label = t("subscription_page.not_available")
     @billing_last_payment_label = t("subscription_page.not_available")
     @billing_history_rows = []
+    @billing_next_billing_label = nil
+    @billing_next_charge_label = nil
 
     return if profile.blank?
 
@@ -1575,6 +1577,8 @@ PROMPT
       @billing_payment_method_label = cached_snapshot[:payment_method] if cached_snapshot[:payment_method].present?
       @billing_last_payment_label = cached_snapshot[:last_payment] if cached_snapshot[:last_payment].present?
       @billing_history_rows = normalize_billing_history_rows(cached_snapshot[:history_rows])
+      @billing_next_billing_label = cached_snapshot[:next_billing] if cached_snapshot[:next_billing].present?
+      @billing_next_charge_label = cached_snapshot[:next_charge] if cached_snapshot[:next_charge].present?
     end
 
     api_key = ENV["PADDLE_API_KEY"].to_s
@@ -1590,9 +1594,42 @@ PROMPT
     history_rows = normalize_billing_history_rows(rows)
     @billing_history_rows = history_rows if history_rows.present?
 
+    subscription_data = paddle_subscription_data(api_key: api_key, subscription_id: profile.paddle_subscription_id)
+    if subscription_data.present?
+      next_billed_at = parse_paddle_time(subscription_data["next_billed_at"] || subscription_data["next_billing_at"])
+      @billing_next_billing_label = l(next_billed_at, format: :long) if next_billed_at.present?
+
+      next_charge_label = paddle_subscription_next_charge_label(subscription_data)
+      @billing_next_charge_label = next_charge_label if next_charge_label.present?
+    end
+
+    if @billing_next_billing_label.blank? || @billing_next_charge_label.blank?
+      upcoming_row = rows.find { |row| billing_upcoming_status?(row[:status_raw]) }
+      if upcoming_row.present?
+        if @billing_next_billing_label.blank? && upcoming_row[:date].present? && upcoming_row[:date] != t("subscription_page.not_available")
+          @billing_next_billing_label = upcoming_row[:date]
+        end
+
+        if @billing_next_charge_label.blank? && upcoming_row[:amount].present? && upcoming_row[:amount] != t("subscription_page.not_available")
+          @billing_next_charge_label = upcoming_row[:amount]
+        end
+      end
+    end
+
     if @billing_payment_method_label == t("subscription_page.not_available")
       transaction_method = rows.find { |row| row[:payment_method_label].present? }&.dig(:payment_method_label)
       @billing_payment_method_label = transaction_method if transaction_method.present?
+
+      if @billing_payment_method_label == t("subscription_page.not_available")
+        candidate_tx_id = rows.find { |row| row[:status_kind] == "completed" }&.dig(:id) || rows.first&.dig(:id)
+        if candidate_tx_id.present?
+          tx_details = paddle_transaction_details(api_key: api_key, transaction_id: candidate_tx_id)
+          if tx_details.is_a?(Hash)
+            detailed_method = paddle_payment_method_label_from_transaction(tx_details)
+            @billing_payment_method_label = detailed_method if detailed_method.present?
+          end
+        end
+      end
     end
 
     latest_paid = rows.find { |row| row[:status_kind] == "completed" }
@@ -1602,13 +1639,17 @@ PROMPT
 
     has_real_payment_method = @billing_payment_method_label.present? && @billing_payment_method_label != t("subscription_page.not_available")
     has_real_last_payment = @billing_last_payment_label.present? && @billing_last_payment_label != t("subscription_page.not_available")
+    has_real_next_billing = @billing_next_billing_label.present? && @billing_next_billing_label != t("subscription_page.not_available")
+    has_real_next_charge = @billing_next_charge_label.present? && @billing_next_charge_label != t("subscription_page.not_available")
 
-    if has_real_payment_method || has_real_last_payment || @billing_history_rows.present?
+    if has_real_payment_method || has_real_last_payment || @billing_history_rows.present? || has_real_next_billing || has_real_next_charge
       write_subscription_billing_cache(
         profile: profile,
         payment_method: @billing_payment_method_label,
         last_payment: @billing_last_payment_label,
-        history_rows: @billing_history_rows
+        history_rows: @billing_history_rows,
+        next_billing: @billing_next_billing_label,
+        next_charge: @billing_next_charge_label
       )
     end
   rescue => e
@@ -1754,6 +1795,54 @@ PROMPT
     nil
   end
 
+  def billing_upcoming_status?(status_raw)
+    %w[ready draft incomplete pending scheduled].include?(status_raw.to_s.downcase)
+  end
+
+  def paddle_subscription_data(api_key:, subscription_id:)
+    return {} if subscription_id.blank?
+
+    body = paddle_get_json(api_key: api_key, path: "/subscriptions/#{CGI.escape(subscription_id.to_s)}")
+    body.is_a?(Hash) ? (body["data"] || {}) : {}
+  rescue => e
+    Rails.logger.warn("PADDLE SUBSCRIPTION DATA LOOKUP ERROR: #{e.message}")
+    {}
+  end
+
+  def paddle_subscription_next_charge_label(subscription_data)
+    return nil unless subscription_data.is_a?(Hash)
+
+    item = Array(subscription_data["items"]).first || {}
+    price = item["price"] || {}
+    unit_price = price["unit_price"]
+    next_transaction = subscription_data["next_transaction"] || {}
+
+    amount = if unit_price.is_a?(Hash)
+      unit_price["amount"]
+    else
+      unit_price.presence
+    end
+    amount ||= next_transaction.dig("details", "totals", "grand_total")
+    amount ||= next_transaction.dig("details", "totals", "total")
+
+    currency = if unit_price.is_a?(Hash)
+      unit_price["currency_code"]
+    else
+      nil
+    end
+    currency ||= price["currency_code"]
+    currency ||= next_transaction.dig("details", "totals", "currency_code")
+    currency ||= next_transaction["currency_code"]
+    currency ||= subscription_data["currency_code"]
+
+    return nil if amount.blank?
+
+    format_paddle_money(amount: amount, currency: currency.presence || "USD")
+  rescue => e
+    Rails.logger.warn("PADDLE SUBSCRIPTION NEXT CHARGE PARSE ERROR: #{e.message}")
+    nil
+  end
+
   def paddle_payment_method_label_from_transaction(transaction)
     return nil unless transaction.is_a?(Hash)
 
@@ -1893,20 +1982,24 @@ PROMPT
     {
       payment_method: snapshot[:payment_method].presence || snapshot["payment_method"].presence,
       last_payment: snapshot[:last_payment].presence || snapshot["last_payment"].presence,
-      history_rows: normalize_billing_history_rows(snapshot[:history_rows] || snapshot["history_rows"])
+      history_rows: normalize_billing_history_rows(snapshot[:history_rows] || snapshot["history_rows"]),
+      next_billing: snapshot[:next_billing].presence || snapshot["next_billing"].presence,
+      next_charge: snapshot[:next_charge].presence || snapshot["next_charge"].presence
     }
   rescue => e
     Rails.logger.warn("SUBSCRIPTION BILLING CACHE READ ERROR: #{e.message}")
     nil
   end
 
-  def write_subscription_billing_cache(profile:, payment_method:, last_payment:, history_rows:)
+  def write_subscription_billing_cache(profile:, payment_method:, last_payment:, history_rows:, next_billing: nil, next_charge: nil)
     return if profile.blank?
 
     payload = {
       payment_method: payment_method,
       last_payment: last_payment,
-      history_rows: normalize_billing_history_rows(history_rows)
+      history_rows: normalize_billing_history_rows(history_rows),
+      next_billing: next_billing,
+      next_charge: next_charge
     }
 
     Rails.cache.write(subscription_billing_cache_key(profile), payload, expires_in: 12.hours)
