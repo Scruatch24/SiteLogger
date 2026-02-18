@@ -1574,11 +1574,10 @@ PROMPT
 
     cached_snapshot = read_subscription_billing_cache(profile)
     if cached_snapshot.present?
-      @billing_payment_method_label = cached_snapshot[:payment_method] if cached_snapshot[:payment_method].present?
+      cached_method = normalized_payment_method_label(cached_snapshot[:payment_method])
+      @billing_payment_method_label = cached_method if cached_method.present?
       @billing_last_payment_label = cached_snapshot[:last_payment] if cached_snapshot[:last_payment].present?
       @billing_history_rows = normalize_billing_history_rows(cached_snapshot[:history_rows])
-      @billing_next_billing_label = cached_snapshot[:next_billing] if cached_snapshot[:next_billing].present?
-      @billing_next_charge_label = cached_snapshot[:next_charge] if cached_snapshot[:next_charge].present?
     end
 
     api_key = ENV["PADDLE_API_KEY"].to_s
@@ -1587,11 +1586,14 @@ PROMPT
     customer_id = resolve_paddle_customer_id(profile: profile, api_key: api_key)
     return if customer_id.blank?
 
-    payment_method = paddle_customer_payment_method(api_key: api_key, customer_id: customer_id)
+    payment_method = normalized_payment_method_label(
+      paddle_customer_payment_method(api_key: api_key, customer_id: customer_id)
+    )
     @billing_payment_method_label = payment_method if payment_method.present?
 
     rows = paddle_customer_transactions(api_key: api_key, customer_id: customer_id, limit: 50)
     history_rows = normalize_billing_history_rows(rows)
+    history_rows = hydrate_billing_history_receipts(api_key: api_key, rows: history_rows)
     @billing_history_rows = history_rows if history_rows.present?
 
     subscription_data = paddle_subscription_data(api_key: api_key, subscription_id: profile.paddle_subscription_id)
@@ -1606,18 +1608,15 @@ PROMPT
     if @billing_next_billing_label.blank? || @billing_next_charge_label.blank?
       upcoming_row = rows.find { |row| billing_upcoming_status?(row[:status_raw]) }
       if upcoming_row.present?
-        if @billing_next_billing_label.blank? && upcoming_row[:date].present? && upcoming_row[:date] != t("subscription_page.not_available")
-          @billing_next_billing_label = upcoming_row[:date]
-        end
-
-        if @billing_next_charge_label.blank? && upcoming_row[:amount].present? && upcoming_row[:amount] != t("subscription_page.not_available")
-          @billing_next_charge_label = upcoming_row[:amount]
+        if @billing_next_billing_label.blank? && upcoming_row[:next_billing_label].present?
+          @billing_next_billing_label = upcoming_row[:next_billing_label]
         end
       end
     end
 
     if @billing_payment_method_label == t("subscription_page.not_available")
       transaction_method = rows.find { |row| row[:payment_method_label].present? }&.dig(:payment_method_label)
+      transaction_method = normalized_payment_method_label(transaction_method)
       @billing_payment_method_label = transaction_method if transaction_method.present?
 
       if @billing_payment_method_label == t("subscription_page.not_available")
@@ -1625,7 +1624,9 @@ PROMPT
         if candidate_tx_id.present?
           tx_details = paddle_transaction_details(api_key: api_key, transaction_id: candidate_tx_id)
           if tx_details.is_a?(Hash)
-            detailed_method = paddle_payment_method_label_from_transaction(tx_details)
+            detailed_method = normalized_payment_method_label(
+              paddle_payment_method_label_from_transaction(tx_details)
+            )
             @billing_payment_method_label = detailed_method if detailed_method.present?
           end
         end
@@ -1755,6 +1756,8 @@ PROMPT
     rows = transactions.map do |tx|
       billed_at = parse_paddle_time(tx["billed_at"] || tx["created_at"] || tx["updated_at"])
       date_label = billed_at.present? ? l(billed_at, format: :long) : t("subscription_page.not_available")
+      next_billing_at = paddle_transaction_next_billing_time(tx)
+      next_billing_label = next_billing_at.present? ? l(next_billing_at, format: :long) : nil
       status_raw = tx["status"].to_s.downcase
       status_kind = billing_history_status_kind(status_raw)
       status_label = if status_kind == "completed"
@@ -1767,16 +1770,24 @@ PROMPT
         t("subscription_page.not_available")
       end
       amount_label = format_paddle_transaction_amount(tx)
-      receipt_url = tx["invoice_url"].presence || tx["receipt_url"].presence || tx.dig("invoice", "url").presence
+      invoice_id = tx["invoice_id"].presence || tx.dig("invoice", "id").presence || tx.dig("details", "invoice_id").presence
+      receipt_url = tx["invoice_url"].presence ||
+        tx["receipt_url"].presence ||
+        tx.dig("invoice", "url").presence ||
+        tx.dig("invoice", "hosted_url").presence ||
+        tx.dig("invoice", "download_url").presence ||
+        tx.dig("details", "invoice", "url").presence
 
       {
         id: tx["id"].to_s,
         date: date_label,
+        next_billing_label: next_billing_label,
         amount: amount_label,
         status: status_label,
         status_kind: status_kind,
         status_raw: status_raw,
         receipt_url: receipt_url,
+        invoice_id: invoice_id,
         payment_method_label: paddle_payment_method_label_from_transaction(tx)
       }
     end.compact
@@ -1836,11 +1847,52 @@ PROMPT
     currency ||= subscription_data["currency_code"]
 
     return nil if amount.blank?
+    return nil if amount.to_f <= 0
 
     format_paddle_money(amount: amount, currency: currency.presence || "USD")
   rescue => e
     Rails.logger.warn("PADDLE SUBSCRIPTION NEXT CHARGE PARSE ERROR: #{e.message}")
     nil
+  end
+
+  def paddle_transaction_next_billing_time(transaction)
+    line_items = transaction.dig("details", "line_items")
+    first_line_item = line_items.is_a?(Array) ? line_items.first : nil
+
+    parse_paddle_time(
+      transaction["billed_at"] ||
+      transaction["due_at"] ||
+      transaction["scheduled_at"] ||
+      transaction["scheduled_for"] ||
+      transaction.dig("billing_period", "starts_at") ||
+      transaction.dig("details", "billing_period", "starts_at") ||
+      first_line_item&.dig("billing_period", "starts_at") ||
+      first_line_item&.dig("period", "starts_at")
+    )
+  end
+
+  def hydrate_billing_history_receipts(api_key:, rows:)
+    Array(rows).map do |row|
+      symbolized_row = row.to_h.symbolize_keys
+      next symbolized_row if symbolized_row[:receipt_url].present? || symbolized_row[:invoice_id].blank?
+
+      fallback_url = paddle_invoice_receipt_url(api_key: api_key, invoice_id: symbolized_row[:invoice_id])
+      symbolized_row[:receipt_url] = fallback_url if fallback_url.present?
+      symbolized_row
+    end
+  rescue => e
+    Rails.logger.warn("PADDLE HISTORY RECEIPT HYDRATION ERROR: #{e.message}")
+    rows
+  end
+
+  def normalized_payment_method_label(label)
+    candidate = label.to_s.strip
+    return nil if candidate.blank?
+
+    generic_labels = %w[automatic manual subscription]
+    return nil if generic_labels.include?(candidate.downcase)
+
+    candidate
   end
 
   def paddle_payment_method_label_from_transaction(transaction)
@@ -2025,11 +2077,13 @@ PROMPT
       {
         id: hash[:id].to_s,
         date: hash[:date].presence || t("subscription_page.not_available"),
+        next_billing_label: hash[:next_billing_label].presence,
         amount: hash[:amount].presence || t("subscription_page.not_available"),
         status: status_kind == "completed" ? "Completed" : "Failed",
         status_kind: status_kind,
         status_raw: status_raw,
         receipt_url: hash[:receipt_url].presence,
+        invoice_id: hash[:invoice_id].presence,
         payment_method_label: hash[:payment_method_label].presence
       }
     end.first(10)

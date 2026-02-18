@@ -541,7 +541,7 @@ ka:
     transcript: "ტრანსკრიპტი"
     voice: "ხმა"
     exports: "ექსპორტი"
-    chars: "%{count} სიმბოლო"
+    chars: "%{count}"
     seconds: "%{count} წამი"
     per_day: "დღეში"
     per_day_count: "დღეში %{count}"

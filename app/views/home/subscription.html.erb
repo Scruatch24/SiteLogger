@@ -25,7 +25,7 @@ else
 end %>
 <% next_charge_value = if @billing_next_charge_label.present?
   @billing_next_charge_label
-elsif profile&.paddle_next_bill_at.present? && paid_plan
+elsif paid_plan && (@billing_next_billing_label.present? || profile&.paddle_next_bill_at.present?)
   plan_price_label
 elsif paid_plan && status_active
   t('subscription_page.pending_billing_sync')
