@@ -1586,20 +1586,24 @@ PROMPT
     payment_method = paddle_customer_payment_method(api_key: api_key, customer_id: customer_id)
     @billing_payment_method_label = payment_method if payment_method.present?
 
-    rows = paddle_customer_transactions(api_key: api_key, customer_id: customer_id, limit: 10)
-    @billing_history_rows = rows if rows.present?
+    rows = paddle_customer_transactions(api_key: api_key, customer_id: customer_id, limit: 50)
+    history_rows = normalize_billing_history_rows(rows)
+    @billing_history_rows = history_rows if history_rows.present?
 
     if @billing_payment_method_label == t("subscription_page.not_available")
       transaction_method = rows.find { |row| row[:payment_method_label].present? }&.dig(:payment_method_label)
       @billing_payment_method_label = transaction_method if transaction_method.present?
     end
 
-    latest_paid = rows.find { |row| row[:status_kind] == "completed" } || rows.first
+    latest_paid = rows.find { |row| row[:status_kind] == "completed" }
     if latest_paid.present?
       @billing_last_payment_label = "#{latest_paid[:amount]} · #{latest_paid[:date]}"
     end
 
-    if payment_method.present? || rows.present?
+    has_real_payment_method = @billing_payment_method_label.present? && @billing_payment_method_label != t("subscription_page.not_available")
+    has_real_last_payment = @billing_last_payment_label.present? && @billing_last_payment_label != t("subscription_page.not_available")
+
+    if has_real_payment_method || has_real_last_payment || @billing_history_rows.present?
       write_subscription_billing_cache(
         profile: profile,
         payment_method: @billing_payment_method_label,
@@ -1712,9 +1716,15 @@ PROMPT
       date_label = billed_at.present? ? l(billed_at, format: :long) : t("subscription_page.not_available")
       status_raw = tx["status"].to_s.downcase
       status_kind = billing_history_status_kind(status_raw)
-      next if status_kind.blank?
-
-      status_label = status_kind == "completed" ? "Completed" : "Failed"
+      status_label = if status_kind == "completed"
+        "Completed"
+      elsif status_kind == "failed"
+        "Failed"
+      elsif status_raw.present?
+        status_raw.humanize
+      else
+        t("subscription_page.not_available")
+      end
       amount_label = format_paddle_transaction_amount(tx)
       receipt_url = tx["invoice_url"].presence || tx["receipt_url"].presence || tx.dig("invoice", "url").presence
 
@@ -1738,8 +1748,8 @@ PROMPT
 
   def billing_history_status_kind(status_raw)
     raw = status_raw.to_s.downcase
-    return "completed" if %w[completed paid billed].include?(raw)
-    return "failed" if %w[failed past_due past-due canceled cancelled declined refused].include?(raw)
+    return "completed" if %w[completed complete paid billed succeeded successful success processed settled].include?(raw)
+    return "failed" if %w[failed failure past_due past-due canceled cancelled declined refused rejected error].include?(raw)
 
     nil
   end
@@ -1749,16 +1759,23 @@ PROMPT
 
     payments = transaction["payments"]
     first_payment = payments.is_a?(Array) ? payments.first : nil
+    method_details = first_payment&.dig("method_details") || {}
+    method_details_card = method_details.is_a?(Hash) ? (method_details["card"] || {}) : {}
 
-    brand = first_payment&.dig("method_details", "card_brand") ||
-      first_payment&.dig("method_details", "brand") ||
-      transaction.dig("billing_details", "payment_method", "card_brand")
-    last4 = first_payment&.dig("method_details", "last4") ||
-      first_payment&.dig("method_details", "card_last4") ||
-      transaction.dig("billing_details", "payment_method", "last4")
-    type = first_payment&.dig("method_details", "type") ||
+    brand = method_details["card_brand"] ||
+      method_details["brand"] ||
+      method_details_card["brand"] ||
+      transaction.dig("billing_details", "payment_method", "card_brand") ||
+      transaction.dig("billing_details", "card", "brand")
+    last4 = method_details["last4"] ||
+      method_details["card_last4"] ||
+      method_details_card["last4"] ||
+      transaction.dig("billing_details", "payment_method", "last4") ||
+      transaction.dig("billing_details", "card", "last4")
+    type = method_details["type"] ||
       first_payment&.dig("method") ||
       transaction.dig("billing_details", "payment_method", "type") ||
+      transaction["payment_method_type"] ||
       transaction["collection_mode"]
 
     if brand.present? && last4.present?

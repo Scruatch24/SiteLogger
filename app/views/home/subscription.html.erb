@@ -599,8 +599,8 @@ end %>
       </div>
       <div class="sub-actions">
         <% if show_manage_billing %>
-          <%= button_to 'Update Payment Method', subscription_billing_portal_path, method: :post, class: 'sub-btn', form: { class: 'sub-btn-form' } %>
-          <%= button_to 'Download Invoices / Receipts', subscription_billing_portal_path, method: :post, class: 'sub-btn', form: { class: 'sub-btn-form' } %>
+          <%= button_to 'Update Payment Method', subscription_billing_portal_path, method: :post, class: 'sub-btn', form: { class: 'sub-btn-form', target: '_blank', data: { turbo: false } } %>
+          <%= button_to 'Download Invoices / Receipts', subscription_billing_portal_path, method: :post, class: 'sub-btn', form: { class: 'sub-btn-form', target: '_blank', data: { turbo: false } } %>
         <% else %>
           <%= link_to contact_path, class: 'sub-btn' do %>
             Contact Support
@@ -722,7 +722,7 @@ end %>
       </table>
       <% if show_manage_billing %>
         <div class="sub-actions">
-          <%= button_to 'Open Billing Portal', subscription_billing_portal_path, method: :post, class: 'sub-btn', form: { class: 'sub-btn-form' } %>
+          <%= button_to 'Open Billing Portal', subscription_billing_portal_path, method: :post, class: 'sub-btn', form: { class: 'sub-btn-form', target: '_blank', data: { turbo: false } } %>
         </div>
       <% end %>
     </section>
@@ -732,7 +732,7 @@ end %>
       <p class="danger-copy">If you cancel, you keep access until the end of your current billing period. No hidden steps. No hidden pricing.</p>
       <div class="sub-actions">
         <% if show_manage_billing %>
-          <%= button_to 'Cancel in Billing Portal', subscription_billing_portal_path, method: :post, class: 'sub-btn danger', form: { class: 'sub-btn-form' } %>
+          <%= button_to 'Cancel in Billing Portal', subscription_billing_portal_path, method: :post, class: 'sub-btn danger', form: { class: 'sub-btn-form', target: '_blank', data: { turbo: false } } %>
         <% else %>
           <%= link_to contact_path, class: 'sub-btn danger' do %>
             Contact Support to Cancel
