@@ -10,6 +10,14 @@ elsif raw_status.present?
 else
   t('subscription_page.status_unknown')
 end %>
+<% next_billing_value = if profile&.paddle_next_bill_at.present?
+  l(profile.paddle_next_bill_at, format: :long)
+elsif paid_plan
+  t('subscription_page.no_scheduled_billing')
+else
+  t('subscription_page.not_available')
+end %>
+<% show_manage_billing = paid_plan || has_subscription_history %>
 
 <style>
   .subscription-page {
@@ -124,23 +132,28 @@ end %>
 
   .subscription-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1.25rem;
-  }
-
-  @media (max-width: 780px) {
-    .subscription-grid {
-      grid-template-columns: 1fr;
-    }
+    grid-template-columns: 1fr;
+    max-width: 760px;
+    margin: 0 auto;
   }
 
   .subscription-card {
     border-radius: 28px;
-    padding: 1.25rem;
+    padding: 1.5rem;
     border: 2px solid rgba(249,115,22,0.28);
     background: rgba(0,0,0,0.4);
     box-shadow: 0 18px 40px rgba(0,0,0,0.35);
     backdrop-filter: blur(8px);
+  }
+
+  .subscription-section + .subscription-section {
+    margin-top: 1.2rem;
+  }
+
+  .subscription-divider {
+    height: 1px;
+    background: linear-gradient(90deg, rgba(249,115,22,0), rgba(249,115,22,0.45), rgba(249,115,22,0));
+    margin: 1rem 0 0.4rem;
   }
 
   .subscription-card-title {
@@ -215,6 +228,39 @@ end %>
     word-break: break-word;
   }
 
+  .subscription-note {
+    margin-top: 0.85rem;
+    font-size: 11px;
+    line-height: 1.5;
+    color: rgba(255,255,255,0.62);
+  }
+
+  .subscription-tech {
+    margin-top: 0.9rem;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 14px;
+    padding: 0.55rem 0.7rem;
+    background: rgba(255,255,255,0.02);
+  }
+
+  .subscription-tech summary {
+    cursor: pointer;
+    list-style: none;
+    font-size: 10px;
+    text-transform: uppercase;
+    font-weight: 800;
+    color: rgba(255,255,255,0.62);
+  }
+
+  .subscription-tech summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .subscription-tech[open] summary {
+    color: rgba(255,255,255,0.85);
+    margin-bottom: 0.5rem;
+  }
+
   .subscription-actions {
     display: flex;
     flex-wrap: wrap;
@@ -261,9 +307,20 @@ end %>
     cursor: not-allowed;
   }
 
-  .subscription-footer {
-    margin-top: 1.25rem;
-    text-align: center;
+  @media (max-width: 780px) {
+    .subscription-card {
+      padding: 1.15rem;
+    }
+
+    .subscription-row {
+      align-items: flex-start;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .subscription-value {
+      text-align: left;
+    }
   }
 </style>
 
@@ -292,69 +349,73 @@ end %>
 
     <div class="subscription-grid">
       <div class="subscription-card">
-        <div class="subscription-card-title"><%= t('subscription_page.current_plan') %></div>
+        <div class="subscription-section">
+          <div class="subscription-card-title"><%= t('subscription_page.current_plan') %></div>
 
-        <div class="subscription-plan-pill">
-          <%= paid_plan ? t('subscription_page.plan_pro') : t('subscription_page.plan_free') %>
+          <div class="subscription-plan-pill">
+            <%= paid_plan ? t('subscription_page.plan_pro') : t('subscription_page.plan_free') %>
+          </div>
+
+          <div class="subscription-status <%= status_active ? 'active' : 'inactive' %>">
+            <span>●</span>
+            <%= t('subscription_page.status') %>: <%= status_label %>
+          </div>
+
+          <% unless paid_plan %>
+            <p class="subscription-note" style="margin-top:0.2rem;">
+              <strong style="display:block; color:white;"><%= t('subscription_page.free_title') %></strong>
+              <%= t('subscription_page.free_subtitle') %>
+            </p>
+          <% end %>
         </div>
 
-        <div class="subscription-status <%= status_active ? 'active' : 'inactive' %>">
-          <span>●</span>
-          <%= t('subscription_page.status') %>: <%= status_label %>
-        </div>
+        <div class="subscription-divider"></div>
 
-        <% if paid_plan %>
+        <div class="subscription-section">
+          <div class="subscription-card-title"><%= t('subscription_page.manage_billing') %></div>
+
+          <div class="subscription-row" style="border-top:none; margin-top:0; padding-top:0;">
+            <span class="subscription-key"><%= t('subscription_page.next_billing') %></span>
+            <span class="subscription-value"><%= next_billing_value %></span>
+          </div>
+
+          <div class="subscription-row">
+            <span class="subscription-key"><%= t('subscription_page.customer_email') %></span>
+            <span class="subscription-value"><%= profile&.paddle_customer_email.presence || current_user.email || t('subscription_page.not_available') %></span>
+          </div>
+
+          <% if profile&.paddle_next_bill_at.blank? %>
+            <p class="subscription-note"><%= t('subscription_page.next_billing_hint') %></p>
+          <% end %>
+
+          <details class="subscription-tech">
+            <summary><%= t('subscription_page.show_technical_details') %></summary>
+            <div class="subscription-row" style="border-top:none; margin-top:0; padding-top:0;">
+              <span class="subscription-key"><%= t('subscription_page.subscription_id') %></span>
+              <span class="subscription-value"><%= profile&.paddle_subscription_id.presence || t('subscription_page.not_available') %></span>
+            </div>
+            <div class="subscription-row">
+              <span class="subscription-key"><%= t('subscription_page.price_id') %></span>
+              <span class="subscription-value"><%= profile&.paddle_price_id.presence || t('subscription_page.not_available') %></span>
+            </div>
+          </details>
+
           <div class="subscription-actions">
-            <%= button_to t('subscription_page.manage_billing'), subscription_billing_portal_path, method: :post, class: 'sub-btn', form: { class: 'sub-btn-form' } %>
+            <% if show_manage_billing %>
+              <%= button_to t('subscription_page.manage_billing'), subscription_billing_portal_path, method: :post, class: 'sub-btn', form: { class: 'sub-btn-form' } %>
+            <% end %>
+            <% unless paid_plan %>
+              <%= link_to checkout_path, class: 'sub-btn primary' do %>
+                <%= t('subscription_page.upgrade_now') %>
+              <% end %>
+            <% end %>
+            <%= link_to pricing_path, class: 'sub-btn' do %>
+              <%= t('subscription_page.compare_plans') %>
+            <% end %>
             <%= link_to contact_path, class: 'sub-btn' do %>
               <%= t('subscription_page.contact_support') %>
             <% end %>
           </div>
-        <% else %>
-          <div class="subscription-row" style="border-top: none; padding-top: 0; margin-top: 0.55rem;">
-            <div class="subscription-value" style="text-align: left; color: rgba(255,255,255,0.75); line-height: 1.5;">
-              <strong style="display:block; color:white;"><%= t('subscription_page.free_title') %></strong>
-              <%= t('subscription_page.free_subtitle') %>
-            </div>
-          </div>
-          <div class="subscription-actions">
-            <% if has_subscription_history %>
-              <%= button_to t('subscription_page.manage_billing'), subscription_billing_portal_path, method: :post, class: 'sub-btn', form: { class: 'sub-btn-form' } %>
-            <% end %>
-            <%= link_to checkout_path, class: 'sub-btn primary' do %>
-              <%= t('subscription_page.upgrade_now') %>
-            <% end %>
-          </div>
-        <% end %>
-      </div>
-
-      <div class="subscription-card">
-        <div class="subscription-card-title"><%= t('subscription_page.manage_billing') %></div>
-
-        <div class="subscription-row" style="border-top:none; margin-top:0; padding-top:0;">
-          <span class="subscription-key"><%= t('subscription_page.next_billing') %></span>
-          <span class="subscription-value"><%= profile&.paddle_next_bill_at.present? ? l(profile.paddle_next_bill_at, format: :long) : t('subscription_page.not_available') %></span>
-        </div>
-
-        <div class="subscription-row">
-          <span class="subscription-key"><%= t('subscription_page.customer_email') %></span>
-          <span class="subscription-value"><%= profile&.paddle_customer_email.presence || current_user.email || t('subscription_page.not_available') %></span>
-        </div>
-
-        <div class="subscription-row">
-          <span class="subscription-key"><%= t('subscription_page.subscription_id') %></span>
-          <span class="subscription-value"><%= profile&.paddle_subscription_id.presence || t('subscription_page.not_available') %></span>
-        </div>
-
-        <div class="subscription-row">
-          <span class="subscription-key"><%= t('subscription_page.price_id') %></span>
-          <span class="subscription-value"><%= profile&.paddle_price_id.presence || t('subscription_page.not_available') %></span>
-        </div>
-
-        <div class="subscription-footer">
-          <%= link_to pricing_path, class: 'sub-btn' do %>
-            <%= t('subscription_page.compare_plans') %>
-          <% end %>
         </div>
       </div>
     </div>
