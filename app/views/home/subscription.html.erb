@@ -570,10 +570,6 @@ end %>
           <div class="sub-key" style="margin-top:0.7rem;">Next Charge Amount</div>
           <div class="sub-value"><%= next_charge_value %></div>
 
-          <% if paid_plan && profile&.paddle_next_bill_at.blank? %>
-            <div class="sub-note"><%= t('subscription_page.next_billing_hint') %></div>
-          <% end %>
-
           <div class="sub-actions">
             <%= link_to pricing_path, class: 'sub-btn' do %>
               Change Plan
@@ -601,8 +597,8 @@ end %>
       </div>
       <div class="sub-actions">
         <% if show_manage_billing %>
-          <%= button_to 'Update Payment Method', subscription_billing_portal_path, method: :post, class: 'sub-btn', form: { class: 'sub-btn-form', target: '_blank', data: { turbo: false } } %>
-          <%= button_to 'Download Invoices / Receipts', subscription_billing_portal_path, method: :post, class: 'sub-btn', form: { class: 'sub-btn-form', target: '_blank', data: { turbo: false } } %>
+          <%= button_to 'Update Payment Method', subscription_billing_portal_path, method: :post, class: 'sub-btn', form: { class: 'sub-btn-form', data: { turbo: false } } %>
+          <%= button_to 'Download Invoices / Receipts', subscription_billing_portal_path, method: :post, class: 'sub-btn', form: { class: 'sub-btn-form', data: { turbo: false } } %>
         <% else %>
           <%= link_to contact_path, class: 'sub-btn' do %>
             Contact Support
@@ -692,7 +688,7 @@ end %>
             <th>Date</th>
             <th>Amount</th>
             <th>Status</th>
-            <th>Receipt</th>
+            <th>Transaction ID</th>
           </tr>
         </thead>
         <tbody>
@@ -705,26 +701,24 @@ end %>
                   <span class="history-status <%= row[:status_kind] %>"><%= row[:status] %></span>
                 </td>
                 <td>
-                  <% if row[:receipt_url].present? %>
-                    <%= link_to row[:receipt_url], class: 'sub-btn', target: '_blank', rel: 'noopener' do %>
-                      Download
-                    <% end %>
+                  <% if row[:id].present? %>
+                    <span style="font-family:monospace;font-size:11px;color:rgba(255,255,255,0.6);"><%= row[:id] %></span>
                   <% else %>
-                    <span class="history-empty"><%= t('subscription_page.not_available') %></span>
+                    <span class="history-empty">—</span>
                   <% end %>
                 </td>
               </tr>
             <% end %>
           <% else %>
             <tr>
-              <td colspan="4" class="history-empty">No synced billing transactions yet. Open billing portal to view and download official receipts.</td>
+              <td colspan="4" class="history-empty">No billing transactions yet.</td>
             </tr>
           <% end %>
         </tbody>
       </table>
       <% if show_manage_billing %>
         <div class="sub-actions">
-          <%= button_to 'Open Billing Portal', subscription_billing_portal_path, method: :post, class: 'sub-btn', form: { class: 'sub-btn-form', target: '_blank', data: { turbo: false } } %>
+          <%= button_to 'Open Billing Portal', subscription_billing_portal_path, method: :post, class: 'sub-btn', form: { class: 'sub-btn-form', data: { turbo: false } } %>
         </div>
       <% end %>
     </section>
@@ -734,7 +728,7 @@ end %>
       <p class="danger-copy">If you cancel, you keep access until the end of your current billing period. No hidden steps. No hidden pricing.</p>
       <div class="sub-actions">
         <% if show_manage_billing %>
-          <%= button_to 'Cancel in Billing Portal', subscription_billing_portal_path, method: :post, class: 'sub-btn danger', form: { class: 'sub-btn-form', target: '_blank', data: { turbo: false } } %>
+          <%= button_to 'Cancel in Billing Portal', subscription_billing_portal_path, method: :post, class: 'sub-btn danger', form: { class: 'sub-btn-form', data: { turbo: false } } %>
         <% else %>
           <%= link_to contact_path, class: 'sub-btn danger' do %>
             Contact Support to Cancel

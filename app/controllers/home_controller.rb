@@ -71,6 +71,7 @@ class HomeController < ApplicationController
     end
 
     portal_result = paddle_customer_portal_url(api_key: api_key, customer_id: resolved_customer_id)
+    Rails.logger.info("BILLING PORTAL: customer_id=#{resolved_customer_id} result_class=#{portal_result.class} result=#{portal_result.to_s[0..80]}")
     if portal_result == :customer_missing
       if profile.respond_to?(:paddle_customer_id) && profile.paddle_customer_id.present?
         profile.update_columns(paddle_customer_id: nil)
@@ -1578,6 +1579,8 @@ PROMPT
       @billing_payment_method_label = cached_method if cached_method.present?
       @billing_last_payment_label = cached_snapshot[:last_payment] if cached_snapshot[:last_payment].present?
       @billing_history_rows = normalize_billing_history_rows(cached_snapshot[:history_rows])
+      @billing_next_billing_label = cached_snapshot[:next_billing] if cached_snapshot[:next_billing].present?
+      @billing_next_charge_label = cached_snapshot[:next_charge] if cached_snapshot[:next_charge].present?
     end
 
     api_key = ENV["PADDLE_API_KEY"].to_s
@@ -1586,64 +1589,59 @@ PROMPT
     customer_id = resolve_paddle_customer_id(profile: profile, api_key: api_key)
     return if customer_id.blank?
 
-    payment_method = normalized_payment_method_label(
-      paddle_customer_payment_method(api_key: api_key, customer_id: customer_id)
-    )
-    @billing_payment_method_label = payment_method if payment_method.present?
-
+    # --- 1. Fetch transactions (single API call) ---
     rows = paddle_customer_transactions(api_key: api_key, customer_id: customer_id, limit: 50)
     history_rows = normalize_billing_history_rows(rows)
-    history_rows = hydrate_billing_history_receipts(api_key: api_key, rows: history_rows)
     @billing_history_rows = history_rows if history_rows.present?
 
-    subscription_data = paddle_subscription_data(api_key: api_key, subscription_id: profile.paddle_subscription_id)
-    if subscription_data.present?
-      next_billed_at = paddle_subscription_next_billing_time(subscription_data)
-      @billing_next_billing_label = l(next_billed_at, format: :long) if next_billed_at.present?
-
-      next_charge_label = paddle_subscription_next_charge_label(subscription_data)
-      @billing_next_charge_label = next_charge_label if next_charge_label.present?
-    end
-
-    if @billing_next_billing_label.blank? || @billing_next_charge_label.blank?
-      upcoming_row = rows.find { |row| billing_upcoming_status?(row[:status_raw]) }
-      if upcoming_row.present?
-        if @billing_next_billing_label.blank? && upcoming_row[:next_billing_label].present?
-          @billing_next_billing_label = upcoming_row[:next_billing_label]
-        end
+    # --- 2. Discover subscription_id from transactions if missing on profile ---
+    effective_subscription_id = profile.paddle_subscription_id.presence
+    if effective_subscription_id.blank?
+      latest_completed = rows.find { |row| row[:status_kind] == "completed" && row[:subscription_id].present? }
+      latest_completed ||= rows.find { |row| row[:subscription_id].present? }
+      discovered_sub_id = latest_completed&.dig(:subscription_id)
+      if discovered_sub_id.present?
+        effective_subscription_id = discovered_sub_id
+        profile.update_columns(paddle_subscription_id: discovered_sub_id) if profile.respond_to?(:paddle_subscription_id)
+        Rails.logger.info("BILLING: Discovered and stored subscription_id=#{discovered_sub_id}")
       end
     end
 
+    # --- 3. Fetch subscription data (single API call) → next billing + next charge ---
+    if effective_subscription_id.present?
+      subscription_data = paddle_subscription_data(api_key: api_key, subscription_id: effective_subscription_id)
+      if subscription_data.present?
+        next_billed_at = paddle_subscription_next_billing_time(subscription_data)
+        @billing_next_billing_label = l(next_billed_at, format: :long) if next_billed_at.present?
+
+        next_charge_label = paddle_subscription_next_charge_label(subscription_data)
+        @billing_next_charge_label = next_charge_label if next_charge_label.present?
+      end
+    end
+
+    # --- 4. Extract payment method from transaction payments array ---
     if @billing_payment_method_label == t("subscription_page.not_available")
-      transaction_method = rows.find { |row| row[:payment_method_label].present? }&.dig(:payment_method_label)
-      transaction_method = normalized_payment_method_label(transaction_method)
-      @billing_payment_method_label = transaction_method if transaction_method.present?
-
-      if @billing_payment_method_label == t("subscription_page.not_available")
-        candidate_tx_id = rows.find { |row| row[:status_kind] == "completed" }&.dig(:id) || rows.first&.dig(:id)
-        if candidate_tx_id.present?
-          tx_details = paddle_transaction_details(api_key: api_key, transaction_id: candidate_tx_id)
-          if tx_details.is_a?(Hash)
-            detailed_method = normalized_payment_method_label(
-              paddle_payment_method_label_from_transaction(tx_details)
-            )
-            @billing_payment_method_label = detailed_method if detailed_method.present?
-          end
-        end
-      end
+      card_label = rows.filter_map { |row| row[:payment_method_label].presence }.first
+      card_label = normalized_payment_method_label(card_label)
+      @billing_payment_method_label = card_label if card_label.present?
     end
 
+    # --- 5. Last payment from latest completed transaction ---
     latest_paid = rows.find { |row| row[:status_kind] == "completed" }
     if latest_paid.present?
       @billing_last_payment_label = "#{latest_paid[:amount]} · #{latest_paid[:date]}"
     end
 
-    has_real_payment_method = @billing_payment_method_label.present? && @billing_payment_method_label != t("subscription_page.not_available")
-    has_real_last_payment = @billing_last_payment_label.present? && @billing_last_payment_label != t("subscription_page.not_available")
-    has_real_next_billing = @billing_next_billing_label.present? && @billing_next_billing_label != t("subscription_page.not_available")
-    has_real_next_charge = @billing_next_charge_label.present? && @billing_next_charge_label != t("subscription_page.not_available")
+    # --- 6. Cache everything ---
+    has_real_data = [
+      @billing_payment_method_label != t("subscription_page.not_available"),
+      @billing_last_payment_label != t("subscription_page.not_available"),
+      @billing_history_rows.present?,
+      @billing_next_billing_label.present?,
+      @billing_next_charge_label.present?
+    ].any?
 
-    if has_real_payment_method || has_real_last_payment || @billing_history_rows.present? || has_real_next_billing || has_real_next_charge
+    if has_real_data
       write_subscription_billing_cache(
         profile: profile,
         payment_method: @billing_payment_method_label,
@@ -1780,6 +1778,7 @@ PROMPT
 
       {
         id: tx["id"].to_s,
+        subscription_id: tx["subscription_id"].to_s.presence,
         date: date_label,
         next_billing_label: next_billing_label,
         amount: amount_label,
@@ -1813,7 +1812,7 @@ PROMPT
   def paddle_subscription_data(api_key:, subscription_id:)
     return {} if subscription_id.blank?
 
-    body = paddle_get_json(api_key: api_key, path: "/subscriptions/#{CGI.escape(subscription_id.to_s)}")
+    body = paddle_get_json(api_key: api_key, path: "/subscriptions/#{CGI.escape(subscription_id.to_s)}", params: { include: "next_transaction" })
     body.is_a?(Hash) ? (body["data"] || {}) : {}
   rescue => e
     Rails.logger.warn("PADDLE SUBSCRIPTION DATA LOOKUP ERROR: #{e.message}")
@@ -1946,30 +1945,25 @@ PROMPT
     return nil unless transaction.is_a?(Hash)
 
     payments = transaction["payments"]
-    first_payment = payments.is_a?(Array) ? payments.first : nil
-    method_details = first_payment&.dig("method_details") || {}
-    method_details_card = method_details.is_a?(Hash) ? (method_details["card"] || {}) : {}
+    return nil unless payments.is_a?(Array)
 
-    brand = method_details["card_brand"] ||
-      method_details["brand"] ||
-      method_details_card["brand"] ||
-      transaction.dig("billing_details", "payment_method", "card_brand") ||
-      transaction.dig("billing_details", "card", "brand")
-    last4 = method_details["last4"] ||
-      method_details["card_last4"] ||
-      method_details_card["last4"] ||
-      transaction.dig("billing_details", "payment_method", "last4") ||
-      transaction.dig("billing_details", "card", "last4")
-    type = method_details["type"] ||
-      first_payment&.dig("method") ||
-      transaction.dig("billing_details", "payment_method", "type") ||
-      transaction["payment_method_type"] ||
-      transaction["collection_mode"]
+    # Find the first successful (captured) payment with method_details
+    payment = payments.find { |p| p.is_a?(Hash) && p["status"] == "captured" && p.dig("method_details", "card").present? }
+    payment ||= payments.find { |p| p.is_a?(Hash) && p.dig("method_details", "card").present? }
+    payment ||= payments.first
+    return nil unless payment.is_a?(Hash)
+
+    method_details = payment["method_details"] || {}
+    card = method_details["card"] || {}
+
+    # Paddle returns card brand as "type" (e.g. "visa", "mastercard")
+    brand = card["type"] || card["brand"] || method_details["card_brand"] || method_details["brand"]
+    last4 = card["last4"] || method_details["last4"] || method_details["card_last4"]
 
     if brand.present? && last4.present?
       "#{brand.to_s.titleize} •••• #{last4}"
-    elsif type.present?
-      normalized_payment_method_label(type.to_s.tr("_", " ").titleize)
+    elsif brand.present?
+      brand.to_s.titleize
     end
   end
 
