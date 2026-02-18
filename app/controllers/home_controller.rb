@@ -63,29 +63,39 @@ class HomeController < ApplicationController
       redirect_to subscription_path, alert: t("subscription_page.billing_portal_unavailable") and return
     end
 
-    customer_id = profile_paddle_customer_id(profile)
-    if customer_id.blank? && profile.paddle_subscription_id.present?
-      customer_id = paddle_customer_id_for_subscription(api_key: api_key, subscription_id: profile.paddle_subscription_id)
-    end
-    if customer_id.blank?
-      email_for_lookup = profile.paddle_customer_email.presence || profile.email.presence || current_user&.email
-      customer_id = paddle_customer_id_for_email(api_key: api_key, email: email_for_lookup)
-    end
+    customer_id = resolve_paddle_customer_id(profile: profile, api_key: api_key)
+    resolved_customer_id = customer_id
 
     if customer_id.blank?
       redirect_to subscription_path, alert: t("subscription_page.billing_portal_customer_missing") and return
     end
 
-    portal_url = paddle_customer_portal_url(api_key: api_key, customer_id: customer_id)
-    if portal_url.blank?
+    portal_result = paddle_customer_portal_url(api_key: api_key, customer_id: resolved_customer_id)
+    if portal_result == :customer_missing
+      if profile.respond_to?(:paddle_customer_id) && profile.paddle_customer_id.present?
+        profile.update_columns(paddle_customer_id: nil)
+      end
+
+      refreshed_customer_id = resolve_paddle_customer_id(profile: profile, api_key: api_key)
+      if refreshed_customer_id.present?
+        resolved_customer_id = refreshed_customer_id
+        portal_result = paddle_customer_portal_url(api_key: api_key, customer_id: resolved_customer_id)
+      end
+    end
+
+    if portal_result == :forbidden
+      redirect_to subscription_path, alert: t("subscription_page.billing_portal_permissions") and return
+    end
+
+    unless portal_result.is_a?(String) && portal_result.present?
       redirect_to subscription_path, alert: t("subscription_page.billing_portal_unavailable") and return
     end
 
-    if profile.respond_to?(:paddle_customer_id) && profile.paddle_customer_id.blank?
-      profile.update_columns(paddle_customer_id: customer_id)
+    if profile.respond_to?(:paddle_customer_id) && profile.paddle_customer_id.blank? && resolved_customer_id.present?
+      profile.update_columns(paddle_customer_id: resolved_customer_id)
     end
 
-    redirect_to portal_url, allow_other_host: true
+    redirect_to portal_result, allow_other_host: true
   rescue => e
     Rails.logger.warn("PADDLE BILLING PORTAL ERROR: #{e.message}")
     redirect_to subscription_path, alert: t("subscription_page.billing_portal_unavailable")
@@ -1486,26 +1496,44 @@ PROMPT
   end
 
   def paddle_customer_portal_url(api_key:, customer_id:)
-    uri = URI("#{paddle_api_base_url}/customers/#{CGI.escape(customer_id.to_s)}/portal-sessions")
-    req = Net::HTTP::Post.new(uri)
-    req["Authorization"] = "Bearer #{api_key}"
-    req["Content-Type"] = "application/json"
-    req.body = { return_url: subscription_url }.to_json
+    return nil if customer_id.blank?
 
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = true
-    http.read_timeout = 8
-    http.open_timeout = 5
+    last_status = nil
 
-    resp = http.request(req)
-    return nil unless resp.is_a?(Net::HTTPSuccess)
+    [ paddle_api_base_url, alternate_paddle_api_base_url ].compact.uniq.each do |base_url|
+      uri = URI("#{base_url}/customers/#{CGI.escape(customer_id.to_s)}/portal-sessions")
+      req = Net::HTTP::Post.new(uri)
+      req["Authorization"] = "Bearer #{api_key}"
+      req["Content-Type"] = "application/json"
+      req.body = { return_url: subscription_url }.to_json
 
-    body = JSON.parse(resp.body) rescue {}
-    data = body["data"] || {}
-    data["url"].presence ||
-      data.dig("urls", "general", "overview").presence ||
-      data.dig("urls", "overview").presence ||
-      data.dig("urls", "general").presence
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = true
+      http.read_timeout = 8
+      http.open_timeout = 5
+
+      resp = http.request(req)
+      if resp.is_a?(Net::HTTPSuccess)
+        body = JSON.parse(resp.body) rescue {}
+        data = body["data"] || {}
+        url = data["url"].presence ||
+          data.dig("urls", "general", "overview").presence ||
+          data.dig("urls", "overview").presence ||
+          data.dig("urls", "general").presence
+        return url if url.present?
+
+        Rails.logger.warn("PADDLE PORTAL SESSION missing URL: host=#{uri.host}")
+      else
+        last_status = resp.code.to_i
+        body_snippet = resp.body.to_s.gsub(/\s+/, " ")[0, 300]
+        Rails.logger.warn("PADDLE PORTAL SESSION non-success: host=#{uri.host} code=#{resp.code} body=#{body_snippet}")
+      end
+    end
+
+    return :forbidden if [ 401, 403 ].include?(last_status)
+    return :customer_missing if last_status == 404
+
+    nil
   rescue => e
     Rails.logger.warn("PADDLE PORTAL SESSION ERROR: #{e.message}")
     nil
@@ -1590,7 +1618,7 @@ PROMPT
     customer = customers.find do |item|
       item_email = item["email"].to_s
       item_email.present? && item_email.casecmp(email.to_s).zero?
-    end || customers.first
+    end
 
     customer&.dig("id").to_s.presence
   rescue => e

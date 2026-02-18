@@ -706,6 +706,7 @@ en:
     manage_billing_soon: "Portal coming soon"
     billing_portal_unavailable: "Billing portal is temporarily unavailable. Please try again shortly."
     billing_portal_customer_missing: "We could not find your billing customer record yet. Please contact support."
+    billing_portal_permissions: "Billing portal access failed (authorization issue). Please check your Paddle API key permissions and try again."
     contact_support: "Contact Support"
     compare_plans: "Compare Plans"
     free_title: "You're on Free plan"
