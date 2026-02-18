@@ -138,6 +138,11 @@ class HomeController < ApplicationController
     end
 
     transaction = paddle_transaction_details(api_key: api_key, transaction_id: transaction_id)
+    if transaction == :forbidden
+      Rails.logger.warn("PADDLE CHECKOUT CONFIRM: Paddle API unauthorized. Check PADDLE_API_KEY permissions/environment.")
+      return render json: { success: false, error: "paddle_api_unauthorized", retryable: false }, status: :unprocessable_entity
+    end
+
     if transaction.blank?
       Rails.logger.info("PADDLE CHECKOUT CONFIRM: transaction not found yet (transaction_id=#{transaction_id})")
       return render json: { success: false, error: "transaction_not_found", retryable: true }, status: :accepted
@@ -1441,6 +1446,7 @@ PROMPT
 
   def paddle_transaction_details(api_key:, transaction_id:)
     urls = [ paddle_api_base_url, alternate_paddle_api_base_url ].compact.uniq
+    saw_forbidden = false
 
     urls.each do |base_url|
       uri = URI("#{base_url}/transactions/#{CGI.escape(transaction_id.to_s)}")
@@ -1458,11 +1464,12 @@ PROMPT
         data = body["data"]
         return data if data.present?
       else
+        saw_forbidden ||= resp.code.to_i == 403
         Rails.logger.info("PADDLE TRANSACTION LOOKUP non-success: host=#{uri.host} code=#{resp.code}")
       end
     end
 
-    nil
+    saw_forbidden ? :forbidden : nil
   rescue => e
     Rails.logger.warn("PADDLE TRANSACTION LOOKUP ERROR: #{e.message}")
     nil
