@@ -696,6 +696,8 @@ en:
     next_billing: "Next Billing"
     no_scheduled_billing: "No scheduled renewal"
     no_scheduled_charge: "No scheduled charge"
+    pending_billing_sync: "Syncing from billing provider..."
+    not_applicable: "Not applicable"
     next_billing_hint: "If this was a one-time purchase, next billing stays empty. In sandbox, subscription fields can also appear with delay."
     customer_email: "Billing Email"
     subscription_id: "Subscription ID"

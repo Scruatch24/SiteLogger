@@ -14,30 +14,24 @@ end %>
 <% plan_price_label = paid_plan ? (ENV['PADDLE_PLAN_PRICE_LABEL'].presence || t('modal.pro_price')) : '$0/month' %>
 <% next_billing_value = if profile&.paddle_next_bill_at.present?
   l(profile.paddle_next_bill_at, format: :long)
+elsif paid_plan && status_active
+  t('subscription_page.pending_billing_sync')
 elsif paid_plan
   t('subscription_page.no_scheduled_billing')
 else
-  t('subscription_page.not_available')
+  t('subscription_page.not_applicable')
 end %>
 <% next_charge_value = if profile&.paddle_next_bill_at.present? && paid_plan
   plan_price_label
+elsif paid_plan && status_active
+  t('subscription_page.pending_billing_sync')
 elsif paid_plan
   t('subscription_page.no_scheduled_charge')
 else
-  t('subscription_page.not_available')
+  t('subscription_page.not_applicable')
 end %>
 <% show_manage_billing = paid_plan || has_subscription_history %>
 <% billing_email = profile&.paddle_customer_email.presence || current_user.email || t('subscription_page.not_available') %>
-<% month_range = Time.current.beginning_of_month..Time.current.end_of_month %>
-<% invoices_generated = current_user.logs.kept.where(created_at: month_range).count %>
-<% invoice_limit = paid_plan ? nil : 150 %>
-<% invoice_progress = invoice_limit.present? ? [ ((invoices_generated.to_f / invoice_limit) * 100).round, 100 ].min : 22 %>
-<% recordings_completed = TrackingEvent.where(user_id: current_user.id, event_name: 'recording_completed').where(created_at: month_range).count %>
-<% estimated_voice_minutes = ((recordings_completed * (profile&.audio_limit || 0)) / 60.0).round(1) %>
-<% voice_limit_minutes = paid_plan ? nil : 300.0 %>
-<% voice_progress = voice_limit_minutes.present? ? [ ((estimated_voice_minutes / voice_limit_minutes) * 100).round, 100 ].min : 18 %>
-<% invoice_meter_text = invoice_limit.present? ? "#{invoices_generated} / #{invoice_limit}" : "#{invoices_generated} / Unlimited" %>
-<% voice_meter_text = voice_limit_minutes.present? ? "#{estimated_voice_minutes} / #{voice_limit_minutes.to_i} min" : "#{estimated_voice_minutes} min / Unlimited" %>
 <% billing_payment_method = @billing_payment_method_label.presence || t('subscription_page.not_available') %>
 <% billing_last_payment = @billing_last_payment_label.presence || t('subscription_page.not_available') %>
 <% billing_history_rows = Array(@billing_history_rows) %>
@@ -167,10 +161,26 @@ end %>
 
   .sub-section-title {
     margin: 0 0 0.9rem;
-    font-size: 11px;
+    font-size: 19px;
+    line-height: 1.2;
+    font-weight: 900;
     text-transform: uppercase;
-    letter-spacing: 0.11em;
-    color: rgba(255,255,255,0.75);
+    letter-spacing: 0.05em;
+    color: #fff7ed;
+    text-shadow: 0 10px 28px rgba(249,115,22,0.28);
+    position: relative;
+    padding-bottom: 0.45rem;
+  }
+
+  .sub-section-title::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 64px;
+    height: 2px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #fb923c, rgba(251,146,60,0.08));
   }
 
   .sub-plan-grid {
@@ -318,29 +328,11 @@ end %>
     background: rgba(248,113,113,0.25);
   }
 
-  .usage-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.7rem;
-  }
-
-  .usage-progress {
-    margin-top: 0.55rem;
-    height: 8px;
-    border-radius: 999px;
-    background: rgba(255,255,255,0.12);
-    overflow: hidden;
-  }
-
-  .usage-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #f97316 0%, #fb923c 100%);
-  }
-
-  .usage-note {
+  .sub-note {
     margin-top: 0.65rem;
     font-size: 11px;
-    color: rgba(255,255,255,0.62);
+    color: rgba(255,255,255,0.7);
+    line-height: 1.45;
   }
 
   .billing-grid {
@@ -425,6 +417,29 @@ end %>
     color: rgba(255,255,255,0.68);
   }
 
+  .history-status {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 900;
+  }
+
+  .history-status.completed {
+    color: #4ade80;
+    border: 1px solid rgba(74,222,128,0.35);
+    background: rgba(74,222,128,0.14);
+  }
+
+  .history-status.failed {
+    color: #f87171;
+    border: 1px solid rgba(248,113,113,0.42);
+    background: rgba(248,113,113,0.14);
+  }
+
   .danger-zone {
     border-color: rgba(248,113,113,0.5);
     background: rgba(248,113,113,0.08);
@@ -438,7 +453,6 @@ end %>
 
   @media (max-width: 880px) {
     .sub-plan-grid,
-    .usage-grid,
     .billing-grid,
     .plan-options {
       grid-template-columns: 1fr;
@@ -554,42 +568,17 @@ end %>
           <div class="sub-key" style="margin-top:0.7rem;">Next Charge Amount</div>
           <div class="sub-value"><%= next_charge_value %></div>
 
+          <% if paid_plan && profile&.paddle_next_bill_at.blank? %>
+            <div class="sub-note"><%= t('subscription_page.next_billing_hint') %></div>
+          <% end %>
+
           <div class="sub-actions">
             <%= link_to pricing_path, class: 'sub-btn' do %>
               Change Plan
             <% end %>
-            <% if show_manage_billing %>
-              <%= button_to 'Cancel Subscription', subscription_billing_portal_path, method: :post, class: 'sub-btn danger', form: { class: 'sub-btn-form' } %>
-            <% else %>
-              <%= link_to contact_path, class: 'sub-btn danger' do %>
-                Cancel Subscription
-              <% end %>
-            <% end %>
           </div>
         </div>
       </div>
-    </section>
-
-    <section class="sub-section">
-      <h2 class="sub-section-title">Usage</h2>
-      <div class="usage-grid">
-        <div class="sub-surface">
-          <div class="sub-key">Invoices Generated This Month</div>
-          <div class="sub-value"><%= invoice_meter_text %></div>
-          <div class="usage-progress">
-            <div class="usage-fill" style="width:<%= invoice_progress %>%;"></div>
-          </div>
-        </div>
-
-        <div class="sub-surface">
-          <div class="sub-key">Voice Minutes Used (Estimated)</div>
-          <div class="sub-value"><%= voice_meter_text %></div>
-          <div class="usage-progress">
-            <div class="usage-fill" style="width:<%= voice_progress %>%;"></div>
-          </div>
-        </div>
-      </div>
-      <p class="usage-note">Usage is shown early to keep limits transparent and avoid surprises.</p>
     </section>
 
     <section class="sub-section">
@@ -710,7 +699,9 @@ end %>
               <tr>
                 <td><%= row[:date] %></td>
                 <td><%= row[:amount] %></td>
-                <td><%= row[:status] %></td>
+                <td>
+                  <span class="history-status <%= row[:status_kind] %>"><%= row[:status] %></span>
+                </td>
                 <td>
                   <% if row[:receipt_url].present? %>
                     <%= link_to row[:receipt_url], class: 'sub-btn', target: '_blank', rel: 'noopener' do %>

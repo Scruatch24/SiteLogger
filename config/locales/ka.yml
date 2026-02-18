@@ -704,6 +704,8 @@ ka:
     next_billing: "შემდეგი გადახდა"
     no_scheduled_billing: "დაგეგმილი განახლება არ არის"
     no_scheduled_charge: "დაგეგმილი ჩამოჭრა არ არის"
+    pending_billing_sync: "ბილინგის მონაცემები ახლდება..."
+    not_applicable: "არ ვრცელდება"
     next_billing_hint: "თუ ეს ერთჯერადი გადახდა იყო, შემდეგი ბილინგი ცარიელი დარჩება. sandbox-ში გამოწერის ველები ზოგჯერ დაგვიანებით ახლდება."
     customer_email: "ბილინგის ელფოსტა"
     subscription_id: "გამოწერის ID"

@@ -1574,7 +1574,7 @@ PROMPT
     if cached_snapshot.present?
       @billing_payment_method_label = cached_snapshot[:payment_method] if cached_snapshot[:payment_method].present?
       @billing_last_payment_label = cached_snapshot[:last_payment] if cached_snapshot[:last_payment].present?
-      @billing_history_rows = Array(cached_snapshot[:history_rows]).first(10)
+      @billing_history_rows = normalize_billing_history_rows(cached_snapshot[:history_rows])
     end
 
     api_key = ENV["PADDLE_API_KEY"].to_s
@@ -1589,7 +1589,12 @@ PROMPT
     rows = paddle_customer_transactions(api_key: api_key, customer_id: customer_id, limit: 10)
     @billing_history_rows = rows if rows.present?
 
-    latest_paid = rows.find { |row| %w[paid completed billed].include?(row[:status_raw]) } || rows.first
+    if @billing_payment_method_label == t("subscription_page.not_available")
+      transaction_method = rows.find { |row| row[:payment_method_label].present? }&.dig(:payment_method_label)
+      @billing_payment_method_label = transaction_method if transaction_method.present?
+    end
+
+    latest_paid = rows.find { |row| row[:status_kind] == "completed" } || rows.first
     if latest_paid.present?
       @billing_last_payment_label = "#{latest_paid[:amount]} · #{latest_paid[:date]}"
     end
@@ -1702,11 +1707,14 @@ PROMPT
       transactions = paddle_collection_data(body)
     end
 
-    transactions.first(limit).map do |tx|
+    rows = transactions.map do |tx|
       billed_at = parse_paddle_time(tx["billed_at"] || tx["created_at"] || tx["updated_at"])
       date_label = billed_at.present? ? l(billed_at, format: :long) : t("subscription_page.not_available")
       status_raw = tx["status"].to_s.downcase
-      status_label = status_raw.present? ? status_raw.humanize : t("subscription_page.not_available")
+      status_kind = billing_history_status_kind(status_raw)
+      next if status_kind.blank?
+
+      status_label = status_kind == "completed" ? "Completed" : "Failed"
       amount_label = format_paddle_transaction_amount(tx)
       receipt_url = tx["invoice_url"].presence || tx["receipt_url"].presence || tx.dig("invoice", "url").presence
 
@@ -1715,13 +1723,49 @@ PROMPT
         date: date_label,
         amount: amount_label,
         status: status_label,
+        status_kind: status_kind,
         status_raw: status_raw,
-        receipt_url: receipt_url
+        receipt_url: receipt_url,
+        payment_method_label: paddle_payment_method_label_from_transaction(tx)
       }
-    end
+    end.compact
+
+    rows.first(limit)
   rescue => e
     Rails.logger.warn("PADDLE TRANSACTIONS LIST ERROR: #{e.message}")
     []
+  end
+
+  def billing_history_status_kind(status_raw)
+    raw = status_raw.to_s.downcase
+    return "completed" if %w[completed paid billed].include?(raw)
+    return "failed" if %w[failed past_due past-due canceled cancelled declined refused].include?(raw)
+
+    nil
+  end
+
+  def paddle_payment_method_label_from_transaction(transaction)
+    return nil unless transaction.is_a?(Hash)
+
+    payments = transaction["payments"]
+    first_payment = payments.is_a?(Array) ? payments.first : nil
+
+    brand = first_payment&.dig("method_details", "card_brand") ||
+      first_payment&.dig("method_details", "brand") ||
+      transaction.dig("billing_details", "payment_method", "card_brand")
+    last4 = first_payment&.dig("method_details", "last4") ||
+      first_payment&.dig("method_details", "card_last4") ||
+      transaction.dig("billing_details", "payment_method", "last4")
+    type = first_payment&.dig("method_details", "type") ||
+      first_payment&.dig("method") ||
+      transaction.dig("billing_details", "payment_method", "type") ||
+      transaction["collection_mode"]
+
+    if brand.present? && last4.present?
+      "#{brand.to_s.titleize} •••• #{last4}"
+    elsif type.present?
+      type.to_s.tr("_", " ").titleize
+    end
   end
 
   def paddle_invoice_receipt_url(api_key:, invoice_id:)
@@ -1832,7 +1876,7 @@ PROMPT
     {
       payment_method: snapshot[:payment_method].presence || snapshot["payment_method"].presence,
       last_payment: snapshot[:last_payment].presence || snapshot["last_payment"].presence,
-      history_rows: Array(snapshot[:history_rows] || snapshot["history_rows"])
+      history_rows: normalize_billing_history_rows(snapshot[:history_rows] || snapshot["history_rows"])
     }
   rescue => e
     Rails.logger.warn("SUBSCRIPTION BILLING CACHE READ ERROR: #{e.message}")
@@ -1845,7 +1889,7 @@ PROMPT
     payload = {
       payment_method: payment_method,
       last_payment: last_payment,
-      history_rows: Array(history_rows).first(10)
+      history_rows: normalize_billing_history_rows(history_rows)
     }
 
     Rails.cache.write(subscription_billing_cache_key(profile), payload, expires_in: 12.hours)
@@ -1856,6 +1900,29 @@ PROMPT
   def subscription_billing_cache_key(profile)
     identifier = profile.user_id.presence || profile.id
     "subscription:billing:snapshot:#{identifier}"
+  end
+
+  def normalize_billing_history_rows(rows)
+    Array(rows).filter_map do |row|
+      hash = row.is_a?(Hash) ? row.with_indifferent_access : nil
+      next if hash.blank?
+
+      status_raw = hash[:status_raw].to_s.downcase
+      status_raw = hash[:status].to_s.downcase if status_raw.blank?
+      status_kind = hash[:status_kind].presence || billing_history_status_kind(status_raw)
+      next if status_kind.blank?
+
+      {
+        id: hash[:id].to_s,
+        date: hash[:date].presence || t("subscription_page.not_available"),
+        amount: hash[:amount].presence || t("subscription_page.not_available"),
+        status: status_kind == "completed" ? "Completed" : "Failed",
+        status_kind: status_kind,
+        status_raw: status_raw,
+        receipt_url: hash[:receipt_url].presence,
+        payment_method_label: hash[:payment_method_label].presence
+      }
+    end.first(10)
   end
 
   def profile_params
