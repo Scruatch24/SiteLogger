@@ -1598,7 +1598,7 @@ PROMPT
 
     subscription_data = paddle_subscription_data(api_key: api_key, subscription_id: profile.paddle_subscription_id)
     if subscription_data.present?
-      next_billed_at = parse_paddle_time(subscription_data["next_billed_at"] || subscription_data["next_billing_at"])
+      next_billed_at = paddle_subscription_next_billing_time(subscription_data)
       @billing_next_billing_label = l(next_billed_at, format: :long) if next_billed_at.present?
 
       next_charge_label = paddle_subscription_next_charge_label(subscription_data)
@@ -1828,22 +1828,23 @@ PROMPT
     unit_price = price["unit_price"]
     next_transaction = subscription_data["next_transaction"] || {}
 
-    amount = if unit_price.is_a?(Hash)
+    amount = next_transaction.dig("details", "totals", "grand_total")
+    amount ||= next_transaction.dig("details", "totals", "total")
+    amount ||= next_transaction["amount"].presence
+    amount ||= if unit_price.is_a?(Hash)
       unit_price["amount"]
     else
       unit_price.presence
     end
-    amount ||= next_transaction.dig("details", "totals", "grand_total")
-    amount ||= next_transaction.dig("details", "totals", "total")
 
     currency = if unit_price.is_a?(Hash)
       unit_price["currency_code"]
     else
       nil
     end
+    currency = next_transaction.dig("details", "totals", "currency_code") if currency.blank?
+    currency = next_transaction["currency_code"] if currency.blank?
     currency ||= price["currency_code"]
-    currency ||= next_transaction.dig("details", "totals", "currency_code")
-    currency ||= next_transaction["currency_code"]
     currency ||= subscription_data["currency_code"]
 
     return nil if amount.blank?
@@ -1855,29 +1856,75 @@ PROMPT
     nil
   end
 
+  def paddle_subscription_next_billing_time(subscription_data)
+    return nil unless subscription_data.is_a?(Hash)
+
+    candidates = [
+      subscription_data["next_billed_at"],
+      subscription_data["next_billing_at"],
+      subscription_data.dig("next_payment", "due_at"),
+      subscription_data.dig("next_transaction", "due_at"),
+      subscription_data.dig("next_transaction", "scheduled_at"),
+      subscription_data.dig("next_transaction", "scheduled_for"),
+      subscription_data.dig("next_transaction", "billing_period", "starts_at"),
+      subscription_data.dig("next_transaction", "billing_period", "ends_at"),
+      subscription_data.dig("current_billing_period", "ends_at"),
+      subscription_data.dig("billing_period", "ends_at")
+    ].compact
+
+    parsed = candidates.filter_map { |value| parse_paddle_time(value) }
+    parsed.find { |time| time >= Time.current.beginning_of_day }
+  end
+
   def paddle_transaction_next_billing_time(transaction)
     line_items = transaction.dig("details", "line_items")
     first_line_item = line_items.is_a?(Array) ? line_items.first : nil
 
     parse_paddle_time(
-      transaction["billed_at"] ||
       transaction["due_at"] ||
       transaction["scheduled_at"] ||
       transaction["scheduled_for"] ||
       transaction.dig("billing_period", "starts_at") ||
+      transaction.dig("billing_period", "ends_at") ||
       transaction.dig("details", "billing_period", "starts_at") ||
+      transaction.dig("details", "billing_period", "ends_at") ||
       first_line_item&.dig("billing_period", "starts_at") ||
-      first_line_item&.dig("period", "starts_at")
+      first_line_item&.dig("billing_period", "ends_at") ||
+      first_line_item&.dig("period", "starts_at") ||
+      first_line_item&.dig("period", "ends_at")
     )
   end
 
   def hydrate_billing_history_receipts(api_key:, rows:)
     Array(rows).map do |row|
       symbolized_row = row.to_h.symbolize_keys
-      next symbolized_row if symbolized_row[:receipt_url].present? || symbolized_row[:invoice_id].blank?
+      next symbolized_row if symbolized_row[:receipt_url].present?
 
-      fallback_url = paddle_invoice_receipt_url(api_key: api_key, invoice_id: symbolized_row[:invoice_id])
-      symbolized_row[:receipt_url] = fallback_url if fallback_url.present?
+      if symbolized_row[:invoice_id].present?
+        fallback_url = paddle_invoice_receipt_url(api_key: api_key, invoice_id: symbolized_row[:invoice_id])
+        symbolized_row[:receipt_url] = fallback_url if fallback_url.present?
+      end
+
+      if symbolized_row[:receipt_url].blank? && symbolized_row[:id].present?
+        tx_details = paddle_transaction_details(api_key: api_key, transaction_id: symbolized_row[:id])
+        if tx_details.is_a?(Hash)
+          detail_invoice_id = tx_details["invoice_id"].presence || tx_details.dig("invoice", "id").presence
+          detail_receipt_url = tx_details["invoice_url"].presence ||
+            tx_details["receipt_url"].presence ||
+            tx_details.dig("invoice", "url").presence ||
+            tx_details.dig("invoice", "hosted_url").presence ||
+            tx_details.dig("invoice", "download_url").presence
+
+          symbolized_row[:invoice_id] = detail_invoice_id if symbolized_row[:invoice_id].blank? && detail_invoice_id.present?
+          symbolized_row[:receipt_url] = detail_receipt_url if detail_receipt_url.present?
+
+          if symbolized_row[:receipt_url].blank? && symbolized_row[:invoice_id].present?
+            fallback_url = paddle_invoice_receipt_url(api_key: api_key, invoice_id: symbolized_row[:invoice_id])
+            symbolized_row[:receipt_url] = fallback_url if fallback_url.present?
+          end
+        end
+      end
+
       symbolized_row
     end
   rescue => e
@@ -1889,7 +1936,7 @@ PROMPT
     candidate = label.to_s.strip
     return nil if candidate.blank?
 
-    generic_labels = %w[automatic manual subscription]
+    generic_labels = %w[automatic manual subscription card]
     return nil if generic_labels.include?(candidate.downcase)
 
     candidate
@@ -1922,7 +1969,7 @@ PROMPT
     if brand.present? && last4.present?
       "#{brand.to_s.titleize} •••• #{last4}"
     elsif type.present?
-      type.to_s.tr("_", " ").titleize
+      normalized_payment_method_label(type.to_s.tr("_", " ").titleize)
     end
   end
 
