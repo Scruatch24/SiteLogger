@@ -47,6 +47,8 @@ class HomeController < ApplicationController
     unless user_signed_in? && current_user.profile&.ever_paid?
       redirect_to pricing_path and return
     end
+
+    load_subscription_billing_data(current_user.profile)
   end
 
   def create_billing_portal
@@ -64,6 +66,10 @@ class HomeController < ApplicationController
     customer_id = profile_paddle_customer_id(profile)
     if customer_id.blank? && profile.paddle_subscription_id.present?
       customer_id = paddle_customer_id_for_subscription(api_key: api_key, subscription_id: profile.paddle_subscription_id)
+    end
+    if customer_id.blank?
+      email_for_lookup = profile.paddle_customer_email.presence || profile.email.presence || current_user&.email
+      customer_id = paddle_customer_id_for_email(api_key: api_key, email: email_for_lookup)
     end
 
     if customer_id.blank?
@@ -1529,6 +1535,238 @@ PROMPT
     return nil unless profile.respond_to?(:paddle_customer_id)
 
     profile.paddle_customer_id.to_s.presence
+  end
+
+  def load_subscription_billing_data(profile)
+    @billing_payment_method_label = t("subscription_page.not_available")
+    @billing_last_payment_label = t("subscription_page.not_available")
+    @billing_history_rows = []
+
+    return if profile.blank?
+
+    api_key = ENV["PADDLE_API_KEY"].to_s
+    return if api_key.blank?
+
+    customer_id = resolve_paddle_customer_id(profile: profile, api_key: api_key)
+    return if customer_id.blank?
+
+    payment_method = paddle_customer_payment_method(api_key: api_key, customer_id: customer_id)
+    @billing_payment_method_label = payment_method if payment_method.present?
+
+    rows = paddle_customer_transactions(api_key: api_key, customer_id: customer_id, limit: 10)
+    @billing_history_rows = rows if rows.present?
+
+    latest_paid = rows.find { |row| %w[paid completed billed].include?(row[:status_raw]) } || rows.first
+    if latest_paid.present?
+      @billing_last_payment_label = "#{latest_paid[:amount]} · #{latest_paid[:date]}"
+    end
+  rescue => e
+    Rails.logger.warn("SUBSCRIPTION BILLING DATA ERROR: #{e.message}")
+  end
+
+  def resolve_paddle_customer_id(profile:, api_key:)
+    customer_id = profile_paddle_customer_id(profile)
+    if customer_id.blank? && profile.paddle_subscription_id.present?
+      customer_id = paddle_customer_id_for_subscription(api_key: api_key, subscription_id: profile.paddle_subscription_id)
+    end
+
+    if customer_id.blank?
+      email = profile.paddle_customer_email.presence || profile.email.presence || profile.user&.email
+      customer_id = paddle_customer_id_for_email(api_key: api_key, email: email)
+    end
+
+    if customer_id.present? && profile.respond_to?(:paddle_customer_id) && profile.paddle_customer_id.blank?
+      profile.update_columns(paddle_customer_id: customer_id)
+    end
+
+    customer_id
+  end
+
+  def paddle_customer_id_for_email(api_key:, email:)
+    return nil if email.blank?
+
+    body = paddle_get_json(api_key: api_key, path: "/customers", params: { email: email })
+    customers = paddle_collection_data(body)
+    customer = customers.find do |item|
+      item_email = item["email"].to_s
+      item_email.present? && item_email.casecmp(email.to_s).zero?
+    end || customers.first
+
+    customer&.dig("id").to_s.presence
+  rescue => e
+    Rails.logger.warn("PADDLE CUSTOMER LOOKUP BY EMAIL ERROR: #{e.message}")
+    nil
+  end
+
+  def paddle_customer_payment_method(api_key:, customer_id:)
+    return nil if customer_id.blank?
+
+    body = paddle_get_json(
+      api_key: api_key,
+      path: "/customers/#{CGI.escape(customer_id.to_s)}/payment-methods",
+      params: { per_page: 1 }
+    )
+    method = paddle_collection_data(body).first
+
+    if method.blank?
+      body = paddle_get_json(
+        api_key: api_key,
+        path: "/payment-methods",
+        params: { customer_id: customer_id, per_page: 1 }
+      )
+      method = paddle_collection_data(body).first
+    end
+
+    return nil if method.blank?
+
+    brand = method["card_brand"].presence ||
+      method.dig("card", "brand").presence ||
+      method.dig("details", "card", "brand").presence ||
+      method.dig("card_details", "brand").presence
+    last4 = method["last4"].presence ||
+      method.dig("card", "last4").presence ||
+      method.dig("details", "card", "last4").presence ||
+      method.dig("card_details", "last4").presence
+    type = method["type"].presence ||
+      method["payment_method_type"].presence ||
+      method.dig("details", "type").presence
+
+    if brand.present? && last4.present?
+      "#{brand.to_s.titleize} •••• #{last4}"
+    elsif type.present?
+      type.to_s.titleize
+    end
+  rescue => e
+    Rails.logger.warn("PADDLE PAYMENT METHOD LOOKUP ERROR: #{e.message}")
+    nil
+  end
+
+  def paddle_customer_transactions(api_key:, customer_id:, limit: 10)
+    return [] if customer_id.blank?
+
+    body = paddle_get_json(
+      api_key: api_key,
+      path: "/transactions",
+      params: { customer_id: customer_id, per_page: limit }
+    )
+    transactions = paddle_collection_data(body)
+
+    if transactions.blank?
+      body = paddle_get_json(
+        api_key: api_key,
+        path: "/transactions",
+        params: { "customer_id[]" => customer_id, per_page: limit }
+      )
+      transactions = paddle_collection_data(body)
+    end
+
+    transactions.first(limit).map do |tx|
+      billed_at = parse_paddle_time(tx["billed_at"] || tx["created_at"] || tx["updated_at"])
+      date_label = billed_at.present? ? l(billed_at, format: :long) : t("subscription_page.not_available")
+      status_raw = tx["status"].to_s.downcase
+      status_label = status_raw.present? ? status_raw.humanize : t("subscription_page.not_available")
+      amount_label = format_paddle_transaction_amount(tx)
+      receipt_url = tx["invoice_url"].presence || tx["receipt_url"].presence
+
+      invoice_id = tx["invoice_id"].presence || tx.dig("invoice", "id").presence
+      receipt_url ||= paddle_invoice_receipt_url(api_key: api_key, invoice_id: invoice_id) if invoice_id.present?
+
+      {
+        id: tx["id"].to_s,
+        date: date_label,
+        amount: amount_label,
+        status: status_label,
+        status_raw: status_raw,
+        receipt_url: receipt_url
+      }
+    end
+  rescue => e
+    Rails.logger.warn("PADDLE TRANSACTIONS LIST ERROR: #{e.message}")
+    []
+  end
+
+  def paddle_invoice_receipt_url(api_key:, invoice_id:)
+    return nil if invoice_id.blank?
+
+    body = paddle_get_json(api_key: api_key, path: "/invoices/#{CGI.escape(invoice_id.to_s)}")
+    data = body.is_a?(Hash) ? (body["data"] || {}) : {}
+
+    data["url"].presence ||
+      data["hosted_url"].presence ||
+      data["download_url"].presence ||
+      data["pdf_download_url"].presence
+  rescue => e
+    Rails.logger.warn("PADDLE INVOICE URL LOOKUP ERROR: #{e.message}")
+    nil
+  end
+
+  def format_paddle_transaction_amount(transaction)
+    totals = transaction.dig("details", "totals") || transaction["totals"] || {}
+    amount = totals["grand_total"].presence || totals["total"].presence || transaction["amount"].presence
+    currency = totals["currency_code"].presence || transaction["currency_code"].presence || "USD"
+
+    format_paddle_money(amount: amount, currency: currency)
+  end
+
+  def format_paddle_money(amount:, currency:)
+    return t("subscription_page.not_available") if amount.blank?
+
+    amount_string = amount.to_s
+    major_amount =
+      if amount_string.include?(".")
+        amount_string.to_f
+      else
+        amount_string.to_f / 100.0
+      end
+
+    "#{currency.to_s.upcase} #{format('%.2f', major_amount)}"
+  rescue
+    t("subscription_page.not_available")
+  end
+
+  def parse_paddle_time(value)
+    return nil if value.blank?
+
+    Time.zone.parse(value.to_s)
+  rescue
+    nil
+  end
+
+  def paddle_collection_data(body)
+    return [] unless body.is_a?(Hash)
+
+    data = body["data"]
+    data.is_a?(Array) ? data : []
+  end
+
+  def paddle_get_json(api_key:, path:, params: {})
+    return nil if api_key.blank?
+
+    [ paddle_api_base_url, alternate_paddle_api_base_url ].compact.uniq.each do |base_url|
+      uri = URI("#{base_url}#{path}")
+      filtered_params = params.to_h.reject { |_, value| value.blank? }
+      uri.query = URI.encode_www_form(filtered_params) if filtered_params.present?
+
+      req = Net::HTTP::Get.new(uri)
+      req["Authorization"] = "Bearer #{api_key}"
+
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = true
+      http.read_timeout = 8
+      http.open_timeout = 5
+
+      resp = http.request(req)
+      if resp.is_a?(Net::HTTPSuccess)
+        return JSON.parse(resp.body) rescue {}
+      end
+
+      Rails.logger.info("PADDLE GET non-success: path=#{path} host=#{uri.host} code=#{resp.code}")
+    end
+
+    nil
+  rescue => e
+    Rails.logger.warn("PADDLE GET ERROR (#{path}): #{e.message}")
+    nil
   end
 
   def profile_params
