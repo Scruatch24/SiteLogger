@@ -1461,7 +1461,7 @@ PROMPT
   end
 
   def paddle_transaction_details(api_key:, transaction_id:)
-    urls = [ paddle_api_base_url, alternate_paddle_api_base_url ].compact.uniq
+    urls = paddle_api_base_urls
     saw_forbidden = false
 
     urls.each do |base_url|
@@ -1500,12 +1500,10 @@ PROMPT
 
     last_status = nil
 
-    [ paddle_api_base_url, alternate_paddle_api_base_url ].compact.uniq.each do |base_url|
+    paddle_api_base_urls.each do |base_url|
       uri = URI("#{base_url}/customers/#{CGI.escape(customer_id.to_s)}/portal-sessions")
       req = Net::HTTP::Post.new(uri)
       req["Authorization"] = "Bearer #{api_key}"
-      req["Content-Type"] = "application/json"
-      req.body = { return_url: subscription_url }.to_json
 
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = true
@@ -1572,6 +1570,13 @@ PROMPT
 
     return if profile.blank?
 
+    cached_snapshot = read_subscription_billing_cache(profile)
+    if cached_snapshot.present?
+      @billing_payment_method_label = cached_snapshot[:payment_method] if cached_snapshot[:payment_method].present?
+      @billing_last_payment_label = cached_snapshot[:last_payment] if cached_snapshot[:last_payment].present?
+      @billing_history_rows = Array(cached_snapshot[:history_rows]).first(10)
+    end
+
     api_key = ENV["PADDLE_API_KEY"].to_s
     return if api_key.blank?
 
@@ -1587,6 +1592,15 @@ PROMPT
     latest_paid = rows.find { |row| %w[paid completed billed].include?(row[:status_raw]) } || rows.first
     if latest_paid.present?
       @billing_last_payment_label = "#{latest_paid[:amount]} · #{latest_paid[:date]}"
+    end
+
+    if payment_method.present? || rows.present?
+      write_subscription_billing_cache(
+        profile: profile,
+        payment_method: @billing_payment_method_label,
+        last_payment: @billing_last_payment_label,
+        history_rows: @billing_history_rows
+      )
     end
   rescue => e
     Rails.logger.warn("SUBSCRIPTION BILLING DATA ERROR: #{e.message}")
@@ -1636,7 +1650,7 @@ PROMPT
     )
     method = paddle_collection_data(body).first
 
-    if method.blank?
+    if method.blank? && body.is_a?(Hash)
       body = paddle_get_json(
         api_key: api_key,
         path: "/payment-methods",
@@ -1679,7 +1693,7 @@ PROMPT
     )
     transactions = paddle_collection_data(body)
 
-    if transactions.blank?
+    if transactions.blank? && body.is_a?(Hash)
       body = paddle_get_json(
         api_key: api_key,
         path: "/transactions",
@@ -1694,10 +1708,7 @@ PROMPT
       status_raw = tx["status"].to_s.downcase
       status_label = status_raw.present? ? status_raw.humanize : t("subscription_page.not_available")
       amount_label = format_paddle_transaction_amount(tx)
-      receipt_url = tx["invoice_url"].presence || tx["receipt_url"].presence
-
-      invoice_id = tx["invoice_id"].presence || tx.dig("invoice", "id").presence
-      receipt_url ||= paddle_invoice_receipt_url(api_key: api_key, invoice_id: invoice_id) if invoice_id.present?
+      receipt_url = tx["invoice_url"].presence || tx["receipt_url"].presence || tx.dig("invoice", "url").presence
 
       {
         id: tx["id"].to_s,
@@ -1767,10 +1778,19 @@ PROMPT
     data.is_a?(Array) ? data : []
   end
 
+  def paddle_api_base_urls
+    paddle_env = ENV["PADDLE_ENVIRONMENT"].to_s.downcase
+    primary = paddle_api_base_url
+
+    return [ primary ] if [ "sandbox", "production", "live" ].include?(paddle_env)
+
+    [ primary, alternate_paddle_api_base_url ].compact.uniq
+  end
+
   def paddle_get_json(api_key:, path:, params: {})
     return nil if api_key.blank?
 
-    [ paddle_api_base_url, alternate_paddle_api_base_url ].compact.uniq.each do |base_url|
+    paddle_api_base_urls.each do |base_url|
       uri = URI("#{base_url}#{path}")
       filtered_params = params.to_h.reject { |_, value| value.blank? }
       uri.query = URI.encode_www_form(filtered_params) if filtered_params.present?
@@ -1788,6 +1808,11 @@ PROMPT
         return JSON.parse(resp.body) rescue {}
       end
 
+      if resp.code.to_i == 429
+        Rails.logger.warn("PADDLE GET rate-limited: path=#{path} host=#{uri.host} code=#{resp.code}")
+        return nil
+      end
+
       Rails.logger.info("PADDLE GET non-success: path=#{path} host=#{uri.host} code=#{resp.code}")
     end
 
@@ -1795,6 +1820,42 @@ PROMPT
   rescue => e
     Rails.logger.warn("PADDLE GET ERROR (#{path}): #{e.message}")
     nil
+  end
+
+  def read_subscription_billing_cache(profile)
+    return nil if profile.blank?
+
+    cache_key = subscription_billing_cache_key(profile)
+    snapshot = Rails.cache.read(cache_key)
+    return nil unless snapshot.is_a?(Hash)
+
+    {
+      payment_method: snapshot[:payment_method].presence || snapshot["payment_method"].presence,
+      last_payment: snapshot[:last_payment].presence || snapshot["last_payment"].presence,
+      history_rows: Array(snapshot[:history_rows] || snapshot["history_rows"])
+    }
+  rescue => e
+    Rails.logger.warn("SUBSCRIPTION BILLING CACHE READ ERROR: #{e.message}")
+    nil
+  end
+
+  def write_subscription_billing_cache(profile:, payment_method:, last_payment:, history_rows:)
+    return if profile.blank?
+
+    payload = {
+      payment_method: payment_method,
+      last_payment: last_payment,
+      history_rows: Array(history_rows).first(10)
+    }
+
+    Rails.cache.write(subscription_billing_cache_key(profile), payload, expires_in: 12.hours)
+  rescue => e
+    Rails.logger.warn("SUBSCRIPTION BILLING CACHE WRITE ERROR: #{e.message}")
+  end
+
+  def subscription_billing_cache_key(profile)
+    identifier = profile.user_id.presence || profile.id
+    "subscription:billing:snapshot:#{identifier}"
   end
 
   def profile_params
