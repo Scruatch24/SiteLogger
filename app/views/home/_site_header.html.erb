@@ -147,6 +147,7 @@
     let initialDone = false;
     const isMobile = () => window.innerWidth < 768;
     const STORAGE_KEY = 'logoTextOpen';
+    const VISITED_KEY = 'logoTextVisited';
 
     function attachDesktopHover() {
       logo.addEventListener('mouseenter', function() {
@@ -157,30 +158,46 @@
       });
     }
 
-    // Mobile: check saved state
-    var savedOpen = localStorage.getItem(STORAGE_KEY) === 'true';
+    var hasVisited = localStorage.getItem(VISITED_KEY) === 'true';
+    var savedOpen = localStorage.getItem(STORAGE_KEY);
 
-    if (isMobile() && savedOpen) {
-      // User left it open — animate open after delay, then stay open
-      setTimeout(function() {
-        logo.classList.add('logo-text-open');
+    if (isMobile()) {
+      if (!hasVisited) {
+        // First visit: animate open after delay, stay open
+        localStorage.setItem(VISITED_KEY, 'true');
+        localStorage.setItem(STORAGE_KEY, 'true');
+        setTimeout(function() {
+          logo.classList.add('logo-text-open');
+          initialDone = true;
+        }, 800);
+      } else if (savedOpen === 'true') {
+        // Returning visit, user left it open — show immediately
+        setTimeout(function() {
+          logo.classList.add('logo-text-open');
+          initialDone = true;
+        }, 800);
+      } else {
+        // Returning visit, user chose to hide it — keep hidden
         initialDone = true;
-      }, 800);
+      }
     } else {
-      // Initial animation: reveal after 0.8s, hide after 3s hold
+      // Desktop: initial animation then hover
+      if (!hasVisited) {
+        localStorage.setItem(VISITED_KEY, 'true');
+      }
       setTimeout(function() {
         logo.classList.add('logo-text-open');
         setTimeout(function() {
           logo.classList.remove('logo-text-open');
           initialDone = true;
-          if (!isMobile()) attachDesktopHover();
+          attachDesktopHover();
         }, 3000);
       }, 800);
     }
 
-    // Desktop: also attach hover if we skipped initial animation
-    if (!isMobile()) {
-      if (savedOpen) attachDesktopHover();
+    // Desktop: also attach hover if returning visitor
+    if (!isMobile() && hasVisited) {
+      attachDesktopHover();
     }
 
     // Mobile: never navigate, tap toggle after initial animation

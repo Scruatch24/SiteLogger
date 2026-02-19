@@ -786,7 +786,7 @@ en:
 
   pwa:
     badge: "Recommended"
-    headline: "Better as an App"
+    headline_html: "Better as an <span style='color:#f97316;'>App</span>"
     description: "Install TalkInvoice on your home screen for instant access, faster performance, and a full-screen experience."
     feat1: "Instant launch"
     feat2: "Works offline"
