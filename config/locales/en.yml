@@ -783,3 +783,11 @@ en:
     s8_headline_html: 'Ready to <span class="onb-accent">voice</span><br>your first invoice?'
     cta_button: "Try it now"
     cta_note: "No account needed to test"
+
+  pwa:
+    title: "Install TalkInvoice"
+    subtitle: "Add to your home screen for a faster, app-like experience."
+    install_btn: "Install"
+    ios_btn: "How to Install"
+    ios_step1: "Tap the Share button below"
+    ios_step2: "Then tap \"Add to Home Screen\""

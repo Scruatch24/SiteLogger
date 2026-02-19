@@ -1,0 +1,29 @@
+{
+  "name": "TalkInvoice",
+  "short_name": "TalkInvoice",
+  "description": "Voice to Invoice in seconds. AI-powered voice invoicing for professionals.",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    },
+    {
+      "src": "/icon.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    },
+    {
+      "src": "/icon.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "scope": "/",
+  "theme_color": "#ea580c",
+  "background_color": "#050505",
+  "orientation": "portrait"
+}
