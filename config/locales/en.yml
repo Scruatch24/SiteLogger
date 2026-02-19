@@ -793,7 +793,7 @@ en:
     feat3: "Home screen icon"
     install_btn: "Add to Home Screen"
     ios_btn: "How to Install"
-    ios_chrome_step1: "Tap the Share button (top right, near the URL)"
+    ios_chrome_step1: "Tap the Share button in the top right"
     ios_chrome_step2: "Tap \"More\""
     ios_chrome_step3: "Tap \"Add to Home Screen\""
     ios_chrome_step4: "Keep \"Open as Web App\" on and tap \"Add\""

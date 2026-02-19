@@ -4,7 +4,7 @@
 const CACHE_NAME = 'talkinvoice-v1';
 const PRECACHE_URLS = [
   '/',
-  '/logo-no-shadow.svg'
+  '/pwa-icon-logo-no-shadow.svg'
 ];
 
 self.addEventListener('install', (event) => {

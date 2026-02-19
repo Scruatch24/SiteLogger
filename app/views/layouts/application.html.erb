@@ -72,7 +72,7 @@
 
     <%= javascript_importmap_tags %>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-    <link rel="apple-touch-icon" href="/logo-no-shadow.svg">
+    <link rel="apple-touch-icon" href="/pwa-icon-logo-no-shadow.svg">
     <link rel="manifest" href="/manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -1131,7 +1131,7 @@
           <div id="pwaIosChromeSteps" style="display:none;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:1rem;text-align:left;">
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:0.75rem;">
               <div style="flex-shrink:0;width:24px;height:24px;border-radius:8px;background:rgba(234,88,12,0.2);display:flex;align-items:center;justify-content:center;"><span style="font-size:11px;font-weight:900;color:#f97316;">1</span></div>
-              <img src="/share.svg" style="width:18px;height:18px;flex-shrink:0;">
+              <img src="<%= asset_path('share.svg') %>" style="width:18px;height:18px;flex-shrink:0;filter:invert(1);">
               <span style="font-size:12px;color:rgba(255,255,255,0.65);line-height:1.5;"><%= t('pwa.ios_chrome_step1') %></span>
             </div>
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:0.75rem;">
@@ -1141,12 +1141,11 @@
             </div>
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:0.75rem;">
               <div style="flex-shrink:0;width:24px;height:24px;border-radius:8px;background:rgba(234,88,12,0.2);display:flex;align-items:center;justify-content:center;"><span style="font-size:11px;font-weight:900;color:#f97316;">3</span></div>
-              <img src="/add-to-home-screen.svg" style="width:18px;height:18px;flex-shrink:0;">
+              <img src="<%= asset_path('add-to-home-screen.svg') %>" style="width:18px;height:18px;flex-shrink:0;filter:invert(1);">
               <span style="font-size:12px;color:rgba(255,255,255,0.65);line-height:1.5;"><%= t('pwa.ios_chrome_step3') %></span>
             </div>
             <div style="display:flex;align-items:center;gap:10px;">
               <div style="flex-shrink:0;width:24px;height:24px;border-radius:8px;background:rgba(234,88,12,0.2);display:flex;align-items:center;justify-content:center;"><span style="font-size:11px;font-weight:900;color:#f97316;">4</span></div>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M5 13l4 4L19 7"/></svg>
               <span style="font-size:12px;color:rgba(255,255,255,0.65);line-height:1.5;"><%= t('pwa.ios_chrome_step4') %></span>
             </div>
           </div>
@@ -1159,7 +1158,7 @@
             </div>
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:0.75rem;">
               <div style="flex-shrink:0;width:24px;height:24px;border-radius:8px;background:rgba(234,88,12,0.2);display:flex;align-items:center;justify-content:center;"><span style="font-size:11px;font-weight:900;color:#f97316;">2</span></div>
-              <img src="/share.svg" style="width:18px;height:18px;flex-shrink:0;">
+              <img src="<%= asset_path('share.svg') %>" style="width:18px;height:18px;flex-shrink:0;filter:invert(1);">
               <span style="font-size:12px;color:rgba(255,255,255,0.65);line-height:1.5;"><%= t('pwa.ios_safari_step2') %></span>
             </div>
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:0.75rem;">
@@ -1169,7 +1168,7 @@
             </div>
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:0.75rem;">
               <div style="flex-shrink:0;width:24px;height:24px;border-radius:8px;background:rgba(234,88,12,0.2);display:flex;align-items:center;justify-content:center;"><span style="font-size:11px;font-weight:900;color:#f97316;">4</span></div>
-              <img src="/add-to-home-screen.svg" style="width:18px;height:18px;flex-shrink:0;">
+              <img src="<%= asset_path('add-to-home-screen.svg') %>" style="width:18px;height:18px;flex-shrink:0;filter:invert(1);">
               <span style="font-size:12px;color:rgba(255,255,255,0.65);line-height:1.5;"><%= t('pwa.ios_safari_step4') %></span>
             </div>
             <div style="display:flex;align-items:center;gap:10px;">
