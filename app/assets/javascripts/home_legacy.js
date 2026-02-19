@@ -2166,12 +2166,10 @@ document.addEventListener("DOMContentLoaded", () => {
     modal.offsetHeight; // force reflow
     overlay.classList.add('opacity-100');
     content.classList.remove('translate-y-full');
-    // PREVENT SCROLLING BACKGROUND + collapse mobile browser toolbar
-    document.body.dataset.pdfScrollY = window.scrollY;
-    document.body.style.position = 'fixed';
-    document.body.style.top = `-${window.scrollY}px`;
-    document.body.style.width = '100%';
+    // PREVENT SCROLLING BACKGROUND without triggering browser toolbar changes
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
     document.body.classList.add('overflow-hidden');
+    document.documentElement.classList.add('overflow-hidden');
 
     iframe.classList.add('hidden');
     iframe.style.opacity = '0';
@@ -2457,12 +2455,8 @@ document.addEventListener("DOMContentLoaded", () => {
     overlay.classList.remove('opacity-100');
     content.classList.add('translate-y-full');
     // RESTORE SCROLLING BACKGROUND
-    const pdfScrollY = parseInt(document.body.dataset.pdfScrollY || '0', 10);
-    document.body.style.position = '';
-    document.body.style.top = '';
-    document.body.style.width = '';
     document.body.classList.remove('overflow-hidden');
-    window.scrollTo(0, pdfScrollY);
+    document.documentElement.classList.remove('overflow-hidden');
 
     // Explicitly reset save state on close so changes can be re-saved
     logAlreadySaved = false;

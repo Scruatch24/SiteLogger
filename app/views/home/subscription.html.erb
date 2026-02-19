@@ -480,9 +480,22 @@ end %>
       padding: 1.45rem 0.85rem 3rem;
     }
 
+    .subscription-header {
+      text-align: center !important;
+    }
+
+    .subscription-subtitle {
+      margin-left: auto;
+      margin-right: auto;
+    }
+
     .history-table {
       display: block;
       overflow-x: auto;
+    }
+
+    .history-table .txn-col {
+      display: none;
     }
   }
 </style>
@@ -572,6 +585,12 @@ end %>
               </li>
             <% end %>
           </ul>
+
+          <% active_txn_id = billing_history_rows.find { |r| r[:status_kind] == 'completed' }&.dig(:id) %>
+          <% if active_txn_id.present? && paid_plan %>
+            <div class="sub-key" style="margin-top:0.7rem;"><%= t('subscription_page.transaction_id') %></div>
+            <div class="sub-value" style="font-family:monospace;font-size:11px;color:rgba(255,255,255,0.6);"><%= active_txn_id %></div>
+          <% end %>
         </div>
 
         <div class="sub-surface">
@@ -706,7 +725,7 @@ end %>
             <th><%= t('subscription_page.date') %></th>
             <th><%= t('subscription_page.amount') %></th>
             <th><%= t('subscription_page.status') %></th>
-            <th><%= t('subscription_page.transaction_id') %></th>
+            <th class="txn-col"><%= t('subscription_page.transaction_id') %></th>
           </tr>
         </thead>
         <tbody>
@@ -723,7 +742,7 @@ end %>
                      end %>
                   <span class="history-status <%= row[:status_kind] %>"><%= localized_status %></span>
                 </td>
-                <td>
+                <td class="txn-col">
                   <% if row[:id].present? %>
                     <span style="font-family:monospace;font-size:11px;color:rgba(255,255,255,0.6);"><%= row[:id] %></span>
                   <% else %>
@@ -734,7 +753,7 @@ end %>
             <% end %>
           <% else %>
             <tr>
-              <td colspan="4" class="history-empty"><%= t('subscription_page.no_billing_transactions') %></td>
+              <td colspan="4" class="history-empty txn-col-span"><%= t('subscription_page.no_billing_transactions') %></td>
             </tr>
           <% end %>
         </tbody>

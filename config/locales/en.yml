@@ -736,7 +736,7 @@ en:
     free_voice: "Up to 60 voice seconds per recording"
     free_exports: "5 exports per day"
     free_upgrade_cta: "Upgrade to unlock Pro features"
-    history_completed: "Completed"
+    history_completed: "Successful"
     history_failed: "Failed"
 
   # Checkout Page

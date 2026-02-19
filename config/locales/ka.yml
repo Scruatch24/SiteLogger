@@ -744,7 +744,7 @@ ka:
     free_voice: "60 წამამდე ხმოვანი ჩაწერა"
     free_exports: "5 ექსპორტი დღეში"
     free_upgrade_cta: "გახდი Pro სრული ფუნქციებისთვის"
-    history_completed: "დასრულებული"
+    history_completed: "წარმატებული"
     history_failed: "წარუმატებელი"
 
   # Checkout Page

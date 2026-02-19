@@ -426,13 +426,11 @@
 
           const modal = document.getElementById('premiumTierModal');
           if (modal) {
+              // Dismiss keyboard on mobile before showing modal
+              if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
               modal.classList.remove('hidden');
               modal.classList.add('flex');
-              // Prevent background scrolling and force browser toolbar collapse on mobile
-              document.body.dataset.scrollY = window.scrollY;
-              document.body.style.position = 'fixed';
-              document.body.style.top = `-${window.scrollY}px`;
-              document.body.style.width = '100%';
+              // Prevent background scrolling without triggering browser toolbar changes
               document.body.classList.add('overflow-hidden', 'touch-none');
               document.documentElement.classList.add('overflow-hidden');
               lastPremiumShowTime = now;
@@ -483,13 +481,8 @@
               modal.classList.add('hidden');
               modal.classList.remove('flex');
               // Restore background scrolling
-              const scrollY = parseInt(document.body.dataset.scrollY || '0', 10);
-              document.body.style.position = '';
-              document.body.style.top = '';
-              document.body.style.width = '';
               document.body.classList.remove('overflow-hidden', 'touch-none');
               document.documentElement.classList.remove('overflow-hidden');
-              window.scrollTo(0, scrollY);
 
               if (window.voiceLimitTriggered) {
                   window.voiceLimitTriggered = false;

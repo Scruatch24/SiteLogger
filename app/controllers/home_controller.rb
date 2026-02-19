@@ -2167,7 +2167,7 @@ PROMPT
         date: hash[:date].presence || t("subscription_page.not_available"),
         next_billing_label: hash[:next_billing_label].presence,
         amount: hash[:amount].presence || t("subscription_page.not_available"),
-        status: status_kind == "completed" ? "Completed" : "Failed",
+        status: status_kind,
         status_kind: status_kind,
         status_raw: status_raw,
         receipt_url: hash[:receipt_url].presence,
