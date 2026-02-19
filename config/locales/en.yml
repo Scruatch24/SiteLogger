@@ -785,9 +785,14 @@ en:
     cta_note: "No account needed to test"
 
   pwa:
-    title: "Install TalkInvoice"
-    subtitle: "Add to your home screen for a faster, app-like experience."
-    install_btn: "Install"
+    badge: "Recommended"
+    headline: "Better as an App"
+    description: "Install TalkInvoice on your home screen for instant access, faster performance, and a full-screen experience."
+    feat1: "Instant launch"
+    feat2: "Works offline"
+    feat3: "Home screen icon"
+    install_btn: "Add to Home Screen"
     ios_btn: "How to Install"
-    ios_step1: "Tap the Share button below"
+    ios_step1: "Tap the Share button in your browser toolbar"
     ios_step2: "Then tap \"Add to Home Screen\""
+    maybe_later: "Maybe later"
