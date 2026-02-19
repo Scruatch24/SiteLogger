@@ -1447,6 +1447,8 @@
     overlay.style.display = '';
     document.body.classList.add('overflow-hidden');
     document.documentElement.classList.add('overflow-hidden');
+    window._onbPreventScroll = function(e) { e.preventDefault(); };
+    document.addEventListener('touchmove', window._onbPreventScroll, { passive: false });
 
     // Touch/swipe
     overlay.addEventListener('touchstart', function(e) {
@@ -1527,6 +1529,10 @@
     overlay.classList.add('onb-exit');
     document.body.classList.remove('overflow-hidden');
     document.documentElement.classList.remove('overflow-hidden');
+    if (window._onbPreventScroll) {
+      document.removeEventListener('touchmove', window._onbPreventScroll);
+      window._onbPreventScroll = null;
+    }
     setTimeout(function() {
       overlay.style.display = 'none';
     }, 800);

@@ -1100,7 +1100,7 @@
           <div class="pwa-pulse-ring" style="position:absolute;inset:-12px;border-radius:28px;border:2px solid rgba(234,88,12,0.4);"></div>
           <div class="pwa-pulse-ring" style="position:absolute;inset:-24px;border-radius:36px;border:1px solid rgba(234,88,12,0.2);animation-delay:0.5s;"></div>
           <div style="position:relative;width:96px;height:96px;border-radius:24px;overflow:hidden;box-shadow:0 8px 32px rgba(234,88,12,0.35),0 0 0 1px rgba(255,255,255,0.08);">
-            <img src="/icon.png" alt="TalkInvoice" style="width:100%;height:100%;object-fit:cover;">
+            <img src="/icon.svg" alt="TalkInvoice" style="width:100%;height:100%;object-fit:cover;">
           </div>
         </div>
         <div class="pwa-text" style="margin-bottom:0.5rem;">
@@ -1179,6 +1179,11 @@
           setTimeout(function() { modal.style.display = 'none'; }, 300);
           try { localStorage.setItem('pwa_dismiss_ts', Date.now().toString()); } catch(e) {}
           document.body.style.overflow = '';
+          document.documentElement.classList.remove('overflow-hidden');
+          if (window._pwaPreventScroll) {
+            document.removeEventListener('touchmove', window._pwaPreventScroll);
+            window._pwaPreventScroll = null;
+          }
         }
 
         function showModal() {
@@ -1187,6 +1192,9 @@
           modal.style.display = 'block';
           modal.style.transition = 'opacity 0.4s ease';
           document.body.style.overflow = 'hidden';
+          document.documentElement.classList.add('overflow-hidden');
+          window._pwaPreventScroll = function(e) { e.preventDefault(); };
+          document.addEventListener('touchmove', window._pwaPreventScroll, { passive: false });
           requestAnimationFrame(function() {
             requestAnimationFrame(function() {
               modal.style.opacity = '1';
@@ -1234,6 +1242,11 @@
         window.addEventListener('appinstalled', function() {
           modal.style.display = 'none';
           document.body.style.overflow = '';
+          document.documentElement.classList.remove('overflow-hidden');
+          if (window._pwaPreventScroll) {
+            document.removeEventListener('touchmove', window._pwaPreventScroll);
+            window._pwaPreventScroll = null;
+          }
           deferredPrompt = null;
         });
       })();
