@@ -428,11 +428,20 @@
           if (modal) {
               // Dismiss keyboard on mobile before showing modal
               if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+              // On mobile, nudge scroll down 1px to collapse browser toolbar if visible
+              if (window.innerWidth < 768 && document.documentElement.scrollHeight > window.innerHeight) {
+                  window.scrollBy(0, 1);
+              }
               modal.classList.remove('hidden');
               modal.classList.add('flex');
               // Prevent background scrolling without triggering browser toolbar changes
               document.body.classList.add('overflow-hidden', 'touch-none');
               document.documentElement.classList.add('overflow-hidden');
+              // Block touchmove on background (most reliable mobile scroll lock)
+              window._premiumPreventScroll = (e) => {
+                  if (!e.target.closest('#premiumScrollContainer')) e.preventDefault();
+              };
+              document.addEventListener('touchmove', window._premiumPreventScroll, { passive: false });
               lastPremiumShowTime = now;
 
               // Mobile Auto-Scroll
@@ -483,6 +492,10 @@
               // Restore background scrolling
               document.body.classList.remove('overflow-hidden', 'touch-none');
               document.documentElement.classList.remove('overflow-hidden');
+              if (window._premiumPreventScroll) {
+                  document.removeEventListener('touchmove', window._premiumPreventScroll);
+                  window._premiumPreventScroll = null;
+              }
 
               if (window.voiceLimitTriggered) {
                   window.voiceLimitTriggered = false;

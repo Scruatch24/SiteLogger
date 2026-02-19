@@ -2168,8 +2168,17 @@ document.addEventListener("DOMContentLoaded", () => {
     content.classList.remove('translate-y-full');
     // PREVENT SCROLLING BACKGROUND without triggering browser toolbar changes
     if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    // On mobile, nudge scroll down 1px to collapse browser toolbar if visible
+    if (window.innerWidth < 768 && document.documentElement.scrollHeight > window.innerHeight) {
+        window.scrollBy(0, 1);
+    }
     document.body.classList.add('overflow-hidden');
     document.documentElement.classList.add('overflow-hidden');
+    // Block touchmove on background (most reliable mobile scroll lock)
+    window._pdfPreventScroll = (e) => {
+        if (!e.target.closest('#pdfModalContent')) e.preventDefault();
+    };
+    document.addEventListener('touchmove', window._pdfPreventScroll, { passive: false });
 
     iframe.classList.add('hidden');
     iframe.style.opacity = '0';
@@ -2457,6 +2466,10 @@ document.addEventListener("DOMContentLoaded", () => {
     // RESTORE SCROLLING BACKGROUND
     document.body.classList.remove('overflow-hidden');
     document.documentElement.classList.remove('overflow-hidden');
+    if (window._pdfPreventScroll) {
+        document.removeEventListener('touchmove', window._pdfPreventScroll);
+        window._pdfPreventScroll = null;
+    }
 
     // Explicitly reset save state on close so changes can be re-saved
     logAlreadySaved = false;
