@@ -489,22 +489,22 @@ end %>
       <%= t('subscription_page.back_home') %>
     <% end %>
 
-    <header class="subscription-header">
-      <h1 class="subscription-title"><%= raw t('subscription_page.title_html') %></h1>
+    <header class="subscription-header" style="text-align:left;">
+      <h1 class="pricing-headline" style="margin-bottom:0.5rem;"><%= raw t('subscription_page.title_html') %></h1>
       <p class="subscription-subtitle"><%= t('subscription_page.subtitle') %></p>
     </header>
 
     <section class="sub-section">
-      <h2 class="sub-section-title">Current Plan</h2>
+      <h2 class="sub-section-title"><%= t('subscription_page.current_plan') %></h2>
       <div class="sub-plan-grid">
         <div class="sub-surface">
-          <div class="sub-key">Plan Name</div>
+          <div class="sub-key"><%= t('subscription_page.plan_name') %></div>
           <div class="sub-value"><%= plan_label %></div>
 
-          <div class="sub-key" style="margin-top:0.7rem;">Price</div>
+          <div class="sub-key" style="margin-top:0.7rem;"><%= t('subscription_page.price') %></div>
           <div class="sub-value"><%= plan_price_label %></div>
 
-          <div class="sub-key" style="margin-top:0.7rem;">Plan Features</div>
+          <div class="sub-key" style="margin-top:0.7rem;"><%= t('subscription_page.plan_features') %></div>
           <ul class="sub-feature-list">
             <% if paid_plan %>
               <li class="sub-feature-item">
@@ -561,29 +561,24 @@ end %>
         </div>
 
         <div class="sub-surface">
-          <div class="sub-key">Status</div>
+          <div class="sub-key"><%= t('subscription_page.status') %></div>
           <div class="sub-status-chip <%= status_active ? 'active' : 'inactive' %>"><%= status_label %></div>
 
           <div class="sub-key" style="margin-top:0.7rem;"><%= t('subscription_page.next_billing') %></div>
           <div class="sub-value"><%= next_billing_value %></div>
 
-          <div class="sub-key" style="margin-top:0.7rem;">Next Charge Amount</div>
+          <div class="sub-key" style="margin-top:0.7rem;"><%= t('subscription_page.next_charge_amount') %></div>
           <div class="sub-value"><%= next_charge_value %></div>
 
-          <div class="sub-actions">
-            <%= link_to pricing_path, class: 'sub-btn' do %>
-              Change Plan
-            <% end %>
-          </div>
         </div>
       </div>
     </section>
 
     <section class="sub-section">
-      <h2 class="sub-section-title">Billing Information</h2>
+      <h2 class="sub-section-title"><%= t('subscription_page.billing_information') %></h2>
       <div class="billing-grid">
         <div class="sub-surface">
-          <div class="sub-key">Payment Method</div>
+          <div class="sub-key"><%= t('subscription_page.payment_method') %></div>
           <div class="sub-value"><%= billing_payment_method %></div>
         </div>
         <div class="sub-surface">
@@ -591,24 +586,24 @@ end %>
           <div class="sub-value"><%= billing_email %></div>
         </div>
         <div class="sub-surface">
-          <div class="sub-key">Last Payment</div>
+          <div class="sub-key"><%= t('subscription_page.last_payment') %></div>
           <div class="sub-value"><%= billing_last_payment %></div>
         </div>
       </div>
       <div class="sub-actions">
         <% if show_manage_billing %>
-          <%= button_to 'Update Payment Method', subscription_billing_portal_path, method: :post, class: 'sub-btn', form: { class: 'sub-btn-form', data: { turbo: false } } %>
-          <%= button_to 'Download Invoices / Receipts', subscription_billing_portal_path, method: :post, class: 'sub-btn', form: { class: 'sub-btn-form', data: { turbo: false } } %>
+          <%= button_to t('subscription_page.update_payment_method'), subscription_billing_portal_path(portal_action: 'update_payment'), method: :post, class: 'sub-btn', form: { class: 'sub-btn-form', target: '_blank', data: { turbo: false } } %>
+          <%= button_to t('subscription_page.download_invoice_receipt'), subscription_billing_portal_path(portal_action: 'download_invoice'), method: :post, class: 'sub-btn', form: { class: 'sub-btn-form', target: '_blank', data: { turbo: false } } %>
         <% else %>
           <%= link_to contact_path, class: 'sub-btn' do %>
-            Contact Support
+            <%= t('subscription_page.contact_support') %>
           <% end %>
         <% end %>
       </div>
     </section>
 
     <section class="sub-section">
-      <h2 class="sub-section-title">Plan Options</h2>
+      <h2 class="sub-section-title"><%= t('subscription_page.plan_options') %></h2>
       <div class="plan-options">
         <article class="plan-option-card <%= paid_plan ? '' : 'current' %>">
           <h3 class="plan-option-title">Free</h3>
@@ -678,17 +673,26 @@ end %>
           <% end %>
         </article>
       </div>
+      <div class="sub-actions" style="justify-content:center; margin-top:1.2rem;">
+        <% if paid_plan %>
+          <span class="sub-btn" style="opacity:0.4; pointer-events:none; cursor:default;"><%= t('subscription_page.change_plan') %></span>
+        <% else %>
+          <%= link_to pricing_path, class: 'sub-btn primary' do %>
+            <%= t('subscription_page.change_plan') %>
+          <% end %>
+        <% end %>
+      </div>
     </section>
 
     <section class="sub-section">
-      <h2 class="sub-section-title">Billing History</h2>
+      <h2 class="sub-section-title"><%= t('subscription_page.billing_history') %></h2>
       <table class="history-table">
         <thead>
           <tr>
-            <th>Date</th>
-            <th>Amount</th>
-            <th>Status</th>
-            <th>Transaction ID</th>
+            <th><%= t('subscription_page.date') %></th>
+            <th><%= t('subscription_page.amount') %></th>
+            <th><%= t('subscription_page.status') %></th>
+            <th><%= t('subscription_page.transaction_id') %></th>
           </tr>
         </thead>
         <tbody>
@@ -711,27 +715,27 @@ end %>
             <% end %>
           <% else %>
             <tr>
-              <td colspan="4" class="history-empty">No billing transactions yet.</td>
+              <td colspan="4" class="history-empty"><%= t('subscription_page.no_billing_transactions') %></td>
             </tr>
           <% end %>
         </tbody>
       </table>
       <% if show_manage_billing %>
         <div class="sub-actions">
-          <%= button_to 'Open Billing Portal', subscription_billing_portal_path, method: :post, class: 'sub-btn', form: { class: 'sub-btn-form', data: { turbo: false } } %>
+          <%= button_to t('subscription_page.open_billing_portal'), subscription_billing_portal_path(portal_action: 'overview'), method: :post, class: 'sub-btn', form: { class: 'sub-btn-form', target: '_blank', data: { turbo: false } } %>
         </div>
       <% end %>
     </section>
 
     <section class="sub-section danger-zone">
-      <h2 class="sub-section-title">Cancel Subscription</h2>
-      <p class="danger-copy">If you cancel, you keep access until the end of your current billing period. No hidden steps. No hidden pricing.</p>
+      <h2 class="sub-section-title"><%= t('subscription_page.cancel_subscription') %></h2>
+      <p class="danger-copy"><%= t('subscription_page.cancel_copy') %></p>
       <div class="sub-actions">
         <% if show_manage_billing %>
-          <%= button_to 'Cancel in Billing Portal', subscription_billing_portal_path, method: :post, class: 'sub-btn danger', form: { class: 'sub-btn-form', data: { turbo: false } } %>
+          <%= button_to t('subscription_page.cancel_in_billing_portal'), subscription_billing_portal_path(portal_action: 'cancel'), method: :post, class: 'sub-btn danger', form: { class: 'sub-btn-form', target: '_blank', data: { turbo: false } } %>
         <% else %>
           <%= link_to contact_path, class: 'sub-btn danger' do %>
-            Contact Support to Cancel
+            <%= t('subscription_page.contact_support_cancel') %>
           <% end %>
         <% end %>
       </div>

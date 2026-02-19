@@ -428,7 +428,11 @@
           if (modal) {
               modal.classList.remove('hidden');
               modal.classList.add('flex');
-              // Prevent background scrolling
+              // Prevent background scrolling and force browser toolbar collapse on mobile
+              document.body.dataset.scrollY = window.scrollY;
+              document.body.style.position = 'fixed';
+              document.body.style.top = `-${window.scrollY}px`;
+              document.body.style.width = '100%';
               document.body.classList.add('overflow-hidden', 'touch-none');
               document.documentElement.classList.add('overflow-hidden');
               lastPremiumShowTime = now;
@@ -479,8 +483,13 @@
               modal.classList.add('hidden');
               modal.classList.remove('flex');
               // Restore background scrolling
+              const scrollY = parseInt(document.body.dataset.scrollY || '0', 10);
+              document.body.style.position = '';
+              document.body.style.top = '';
+              document.body.style.width = '';
               document.body.classList.remove('overflow-hidden', 'touch-none');
               document.documentElement.classList.remove('overflow-hidden');
+              window.scrollTo(0, scrollY);
 
               if (window.voiceLimitTriggered) {
                   window.voiceLimitTriggered = false;
@@ -629,7 +638,7 @@
         <div id="premiumScrollContainer" class="relative overflow-y-auto custom-scrollbar flex-1 p-4 md:p-8 pt-0 overscroll-contain">
           
           <!-- Header: Sleek & Minimal -->
-          <div class="relative pt-2 pb-6 text-center md:text-left flex flex-col md:flex-row md:items-end justify-between items-center gap-4">
+          <div class="relative pt-6 md:pt-2 pb-6 text-center md:text-left flex flex-col md:flex-row md:items-end justify-between items-center gap-4">
             <div class="space-y-2">
               <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-600/10 border border-orange-600/20 text-orange-500 text-[10px] font-black uppercase mb-2 leading-none">
                 <span class="relative flex h-2 w-2">

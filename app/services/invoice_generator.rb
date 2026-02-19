@@ -329,14 +329,17 @@ class InvoiceGenerator
         @pdf.fill_color @mid_gray
         @pdf.text @profile.address.to_s, leading: 2
 
-        # Phone + Orange Dot + Email
+        # Phone + Orange Dot + Email (with accent color + underline for visual link cue)
         contact_text = []
         if @profile.phone.present?
-          contact_text << { text: "#{@profile.phone}  ", color: @mid_gray }
+          contact_text << { text: @profile.phone.to_s, color: @orange_color, link: "tel:#{@profile.phone.to_s.gsub(/\s/, '')}", styles: [:underline] }
+          contact_text << { text: "  ", color: @mid_gray }
           contact_text << { text: "•", color: "000000" }
           contact_text << { text: "  ", color: @mid_gray }
         end
-        contact_text << { text: @profile.email.to_s, color: @mid_gray }
+        if @profile.email.present?
+          contact_text << { text: @profile.email.to_s, color: @orange_color, link: "mailto:#{@profile.email}", styles: [:underline] }
+        end
 
         @pdf.formatted_text contact_text, leading: 2
       end
@@ -1319,7 +1322,15 @@ class InvoiceGenerator
       @pdf.font(@base_font_name, size: 8) do
         @pdf.fill_color @mid_gray
         @pdf.text @profile.address.to_s, align: :right, leading: 1
-        @pdf.text "#{@profile.phone}  |  #{@profile.email}", align: :right, leading: 1
+        contact_parts = []
+        if @profile.phone.present?
+          contact_parts << { text: @profile.phone.to_s, color: @orange_color, link: "tel:#{@profile.phone.to_s.gsub(/\s/, '')}", styles: [:underline] }
+          contact_parts << { text: "  |  ", color: @mid_gray }
+        end
+        if @profile.email.present?
+          contact_parts << { text: @profile.email.to_s, color: @orange_color, link: "mailto:#{@profile.email}", styles: [:underline] }
+        end
+        @pdf.formatted_text contact_parts, align: :right, leading: 1
       end
 
       @pdf.move_down 15
@@ -1393,8 +1404,12 @@ class InvoiceGenerator
       end
       @pdf.font(@base_font_name, size: 8) do
         @pdf.fill_color @mid_gray
-        @pdf.text @profile.email.to_s, align: :right
-        @pdf.text @profile.phone.to_s, align: :right
+        if @profile.email.present?
+          @pdf.formatted_text [{ text: @profile.email.to_s, color: @orange_color, link: "mailto:#{@profile.email}", styles: [:underline] }], align: :right
+        end
+        if @profile.phone.present?
+          @pdf.formatted_text [{ text: @profile.phone.to_s, color: @orange_color, link: "tel:#{@profile.phone.to_s.gsub(/\s/, '')}", styles: [:underline] }], align: :right
+        end
       end
     end
 

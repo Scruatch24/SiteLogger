@@ -10,12 +10,26 @@ class User < ApplicationRecord
   has_one :profile, dependent: :destroy
 
   def self.from_omniauth(auth)
-    where(provider: auth.provider, uid: auth.uid).first_or_create do |user|
+    # First check if a user already exists with this provider+uid
+    user = find_by(provider: auth.provider, uid: auth.uid)
+    return user if user
+
+    # Check if a user exists with the same email (e.g. signed up via email form)
+    email_user = find_by(email: auth.info.email)
+    if email_user
+      # Link Google account to existing email user and confirm them
+      email_user.update(provider: auth.provider, uid: auth.uid)
+      email_user.confirm unless email_user.confirmed?
+      return email_user
+    end
+
+    # Create a new user for first-time Google sign-in
+    create do |user|
       user.email = auth.info.email
+      user.provider = auth.provider
+      user.uid = auth.uid
       user.password = Devise.friendly_token[0, 20]
       user.skip_confirmation! # Google users are already verified
-      # user.full_name = auth.info.name # assuming the user model has a name
-      # user.avatar_url = auth.info.image # assuming the user model has an image
     end
   end
   # If a user resets their password, they have proven they own the email.

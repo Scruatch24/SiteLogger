@@ -2166,7 +2166,12 @@ document.addEventListener("DOMContentLoaded", () => {
     modal.offsetHeight; // force reflow
     overlay.classList.add('opacity-100');
     content.classList.remove('translate-y-full');
-    document.body.classList.add('overflow-hidden'); // PREVENT SCROLLING BACKGROUND
+    // PREVENT SCROLLING BACKGROUND + collapse mobile browser toolbar
+    document.body.dataset.pdfScrollY = window.scrollY;
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${window.scrollY}px`;
+    document.body.style.width = '100%';
+    document.body.classList.add('overflow-hidden');
 
     iframe.classList.add('hidden');
     iframe.style.opacity = '0';
@@ -2451,7 +2456,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const content = document.getElementById('pdfModalContent');
     overlay.classList.remove('opacity-100');
     content.classList.add('translate-y-full');
-    document.body.classList.remove('overflow-hidden'); // RESTORE SCROLLING BACKGROUND
+    // RESTORE SCROLLING BACKGROUND
+    const pdfScrollY = parseInt(document.body.dataset.pdfScrollY || '0', 10);
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.width = '';
+    document.body.classList.remove('overflow-hidden');
+    window.scrollTo(0, pdfScrollY);
 
     // Explicitly reset save state on close so changes can be re-saved
     logAlreadySaved = false;
@@ -3547,7 +3558,7 @@ function addLaborSubCategory(btn) {
   `;
 
   subContainer.appendChild(subItem);
-  subItem.querySelector('input').focus();
+  if (window.innerWidth >= 768) subItem.querySelector('input').focus();
 
   // Adjust spacing when subcategories are added
   const buttonRow = laborItemRow.querySelector('.labor-action-row');
@@ -3642,7 +3653,7 @@ function addItemSubCategory(btn) {
   `;
 
   subContainer.appendChild(subItem);
-  subItem.querySelector('input').focus();
+  if (window.innerWidth >= 768) subItem.querySelector('input').focus();
 
   // Adjust spacing when subcategories are added
   const buttonRow = itemRow.querySelector('.item-action-row');
@@ -3969,7 +3980,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
   }
 
   // Only focus when user explicitly clicks add (no value pre-filled AND not suppressed)
-  if (!value && !price && !mode && !noFocus) {
+  if (!value && !price && !mode && !noFocus && window.innerWidth >= 768) {
     div.querySelector('.labor-item-input').focus();
   }
   updateTotalsSummary();

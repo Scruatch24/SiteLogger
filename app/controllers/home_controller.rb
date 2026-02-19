@@ -96,7 +96,8 @@ class HomeController < ApplicationController
       profile.update_columns(paddle_customer_id: resolved_customer_id)
     end
 
-    redirect_to portal_result, allow_other_host: true
+    final_url = portal_deep_link(overview_url: portal_result, action: params[:portal_action].to_s, profile: profile)
+    redirect_to final_url, allow_other_host: true
   rescue => e
     Rails.logger.warn("PADDLE BILLING PORTAL ERROR: #{e.message}")
     redirect_to subscription_path, alert: t("subscription_page.billing_portal_unavailable")
@@ -1535,6 +1536,52 @@ PROMPT
     nil
   rescue => e
     Rails.logger.warn("PADDLE PORTAL SESSION ERROR: #{e.message}")
+    nil
+  end
+
+  def portal_deep_link(overview_url:, action:, profile:)
+    return overview_url if action.blank? || action == "overview"
+
+    parsed = URI.parse(overview_url) rescue nil
+    return overview_url unless parsed
+
+    base = "#{parsed.scheme}://#{parsed.host}"
+    path_cpl = parsed.path.to_s.sub(%r{^/}, "")
+    query_params = URI.decode_www_form(parsed.query.to_s).to_h rescue {}
+    token = query_params["token"]
+
+    sub_id = profile&.paddle_subscription_id.presence
+    txn_id = billing_latest_completed_txn_id(profile)
+
+    target_path = case action
+    when "update_payment", "cancel"
+      sub_id.present? ? "/subscriptions/#{sub_id}/#{path_cpl}" : "/#{path_cpl}"
+    when "download_invoice"
+      txn_id.present? ? "/payments/#{txn_id}/#{path_cpl}" : "/#{path_cpl}"
+    else
+      "/#{path_cpl}"
+    end
+
+    result = "#{base}#{target_path}"
+    result += "?token=#{token}" if token.present?
+    result
+  rescue => e
+    Rails.logger.warn("PORTAL DEEP LINK ERROR: #{e.message}")
+    overview_url
+  end
+
+  def billing_latest_completed_txn_id(profile)
+    return nil if profile.blank?
+
+    cached = read_subscription_billing_cache(profile)
+    return nil unless cached.is_a?(Hash)
+
+    rows = cached[:history_rows] || cached["history_rows"]
+    return nil unless rows.is_a?(Array)
+
+    completed = rows.find { |r| r.is_a?(Hash) && (r[:status_kind] || r["status_kind"]).to_s == "completed" }
+    (completed[:id] || completed["id"]).to_s.presence if completed
+  rescue
     nil
   end
 
