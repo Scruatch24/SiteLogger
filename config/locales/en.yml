@@ -726,6 +726,18 @@ en:
     cancel_subscription: "Cancel Subscription"
     cancel_copy: "If you cancel, you keep access until the end of your current billing period. No hidden steps. No hidden pricing."
     cancel_in_billing_portal: "Cancel in Billing Portal"
+    free_price: "$0/month"
+    current_plan_badge: "Current Plan"
+    pro_transcript: "10,000 transcript characters"
+    pro_voice: "Up to 300 voice seconds per recording"
+    pro_exports: "Unlimited previews and exports"
+    pro_ai: "Priority AI and support"
+    free_transcript: "300 transcript characters"
+    free_voice: "Up to 60 voice seconds per recording"
+    free_exports: "5 exports per day"
+    free_upgrade_cta: "Upgrade to unlock Pro features"
+    history_completed: "Completed"
+    history_failed: "Failed"
 
   # Checkout Page
   checkout_page:

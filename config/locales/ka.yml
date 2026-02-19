@@ -734,6 +734,18 @@ ka:
     cancel_subscription: "გამოწერის გაუქმება"
     cancel_copy: "გაუქმების შემთხვევაში, წვდომა შენარჩუნდება მიმდინარე ბილინგის პერიოდის ბოლომდე. არანაირი ფარული ნაბიჯები. არანაირი ფარული ფასი."
     cancel_in_billing_portal: "გაუქმება ბილინგის პორტალში"
+    free_price: "$0/თვე"
+    current_plan_badge: "მიმდინარე გეგმა"
+    pro_transcript: "10,000 ტრანსკრიპტის სიმბოლო"
+    pro_voice: "300 წამამდე ხმოვანი ჩაწერა"
+    pro_exports: "შეუზღუდავი გადახედვა და ექსპორტი"
+    pro_ai: "პრიორიტეტული AI და მხარდაჭერა"
+    free_transcript: "300 ტრანსკრიპტის სიმბოლო"
+    free_voice: "60 წამამდე ხმოვანი ჩაწერა"
+    free_exports: "5 ექსპორტი დღეში"
+    free_upgrade_cta: "გახდი Pro სრული ფუნქციებისთვის"
+    history_completed: "დასრულებული"
+    history_failed: "წარუმატებელი"
 
   # Checkout Page
   checkout_page:
