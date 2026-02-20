@@ -694,6 +694,7 @@ en:
     status_inactive: "Inactive"
     status_unknown: "Unknown"
     next_billing: "Next Billing"
+    plan_ends_on: "Plan Ends On"
     no_scheduled_billing: "No scheduled renewal"
     no_scheduled_charge: "No scheduled charge"
     pending_billing_sync: "Syncing from billing provider..."

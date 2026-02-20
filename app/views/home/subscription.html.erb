@@ -15,7 +15,11 @@ else
 end %>
 <% plan_label = paid_plan ? t('subscription_page.plan_pro') : t('subscription_page.plan_free') %>
 <% plan_price_label = paid_plan ? (ENV['PADDLE_PLAN_PRICE_LABEL'].presence || t('modal.pro_price')) : t('subscription_page.free_price') %>
-<% next_billing_value = if sub_canceled
+<% plan_ends_on = sub_canceled && profile&.paddle_cancelled_at.present? ? profile.paddle_cancelled_at : nil %>
+<% next_billing_label = sub_canceled ? t('subscription_page.plan_ends_on') : t('subscription_page.next_billing') %>
+<% next_billing_value = if sub_canceled && plan_ends_on.present?
+  l(plan_ends_on, format: :long)
+elsif sub_canceled
   t('subscription_page.next_billing_canceled')
 elsif @billing_next_billing_label.present?
   @billing_next_billing_label
@@ -29,7 +33,7 @@ else
   t('subscription_page.not_applicable')
 end %>
 <% next_charge_value = if sub_canceled
-  t('subscription_page.next_charge_canceled')
+  nil
 elsif @billing_next_charge_label.present?
   @billing_next_charge_label
 elsif paid_plan && status_active
@@ -622,11 +626,13 @@ end %>
           <div class="sub-key"><%= t('subscription_page.status') %></div>
           <div class="sub-status-chip <%= status_active ? 'active' : (sub_canceled ? 'canceled' : 'inactive') %>"><%= status_label %></div>
 
-          <div class="sub-key" style="margin-top:0.7rem;"><%= t('subscription_page.next_billing') %></div>
+          <div class="sub-key" style="margin-top:0.7rem;"><%= next_billing_label %></div>
           <div class="sub-value"><%= next_billing_value %></div>
 
-          <div class="sub-key" style="margin-top:0.7rem;"><%= t('subscription_page.next_charge_amount') %></div>
-          <div class="sub-value"><%= next_charge_value %></div>
+          <% if next_charge_value.present? %>
+            <div class="sub-key" style="margin-top:0.7rem;"><%= t('subscription_page.next_charge_amount') %></div>
+            <div class="sub-value"><%= next_charge_value %></div>
+          <% end %>
         </div>
       </div>
     </section>

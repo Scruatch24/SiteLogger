@@ -92,6 +92,11 @@ class Webhooks::PaddleController < ActionController::Base
 
     Rails.logger.info "Paddle subscription event: found profile #{profile.id}, updating plan to paid"
 
+    # Detect scheduled cancellation (user canceled via billing portal but period hasn't ended)
+    scheduled_change = data["scheduled_change"]
+    scheduled_cancel = scheduled_change.is_a?(Hash) && scheduled_change["action"] == "cancel"
+    cancel_effective_at = scheduled_cancel ? parse_paddle_time(scheduled_change["effective_at"]) : nil
+
     # For subscription.updated: only downgrade if truly canceled with no future access
     resolved_plan = if %w[canceled paused].include?(status.to_s)
       ends_at = parse_paddle_time(data["ends_at"] || data["current_billing_period"]&.dig("ends_at"))
@@ -99,13 +104,22 @@ class Webhooks::PaddleController < ActionController::Base
     else
       "paid"
     end
+
+    # If there's a scheduled cancellation, mark status as canceled even though Paddle says "active"
+    effective_status = scheduled_cancel ? "canceled" : status
+
     update_attrs = {
       plan: resolved_plan,
       paddle_subscription_id: subscription_id,
-      paddle_subscription_status: status,
+      paddle_subscription_status: effective_status,
       paddle_price_id: price_id,
       paddle_next_bill_at: next_billing_time
     }
+    if cancel_effective_at.present? && profile.has_attribute?(:paddle_cancelled_at)
+      update_attrs[:paddle_cancelled_at] = cancel_effective_at
+    elsif !scheduled_cancel && profile.has_attribute?(:paddle_cancelled_at) && profile.paddle_cancelled_at.present?
+      update_attrs[:paddle_cancelled_at] = nil
+    end
     if profile.has_attribute?(:paddle_customer_id) && customer_id.present?
       update_attrs[:paddle_customer_id] = customer_id
     end
@@ -132,13 +146,10 @@ class Webhooks::PaddleController < ActionController::Base
 
     # Keep plan=paid if the user canceled but still has access until period ends.
     # Only downgrade to free when the billing period has actually ended.
+    ends_at = parse_paddle_time(data["ends_at"] || data["current_billing_period"]&.dig("ends_at"))
+
     new_plan = if status == "canceled"
-      ends_at = parse_paddle_time(data["ends_at"] || data["current_billing_period"]&.dig("ends_at"))
-      if ends_at.present? && ends_at > Time.current
-        profile.plan  # still within paid period
-      else
-        "free"  # period ended, revoke access
-      end
+      (ends_at.present? && ends_at > Time.current) ? profile.plan : "free"
     elsif status == "paused"
       "free"
     else
@@ -150,6 +161,9 @@ class Webhooks::PaddleController < ActionController::Base
       paddle_subscription_status: status,
       plan: new_plan
     }
+    if status == "canceled" && ends_at.present? && profile.has_attribute?(:paddle_cancelled_at)
+      update_attrs[:paddle_cancelled_at] = ends_at
+    end
     if profile.has_attribute?(:paddle_customer_id) && customer_id.present?
       update_attrs[:paddle_customer_id] = customer_id
     end

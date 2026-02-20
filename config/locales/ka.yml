@@ -702,6 +702,7 @@ ka:
     status_inactive: "არააქტიური"
     status_unknown: "უცნობი"
     next_billing: "შემდეგი გადახდა"
+    plan_ends_on: "გეგმა მთავრდება"
     no_scheduled_billing: "დაგეგმილი განახლება არ არის"
     no_scheduled_charge: "დაგეგმილი ჩამოჭრა არ არის"
     pending_billing_sync: "ბილინგის მონაცემები ახლდება..."
