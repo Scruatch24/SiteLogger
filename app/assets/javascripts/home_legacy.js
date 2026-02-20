@@ -1664,7 +1664,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (!sourceText) return;
       if (sourceText.length > limit) {
-        showError("Your transcript would exceed your character limit (" + limit + "). Upgrade to generate longer transcripts.");
+        showError((window.APP_LANGUAGES.limit_reached_upgrade || "Limit Reached (%{limit}). Upgrade to add more.").replace('%{limit}', limit));
         return;
       }
 
@@ -1840,6 +1840,10 @@ document.addEventListener("DOMContentLoaded", () => {
     buttonText.innerText = window.APP_LANGUAGES.tap_to_record || "TAP TO RECORD";
     buttonText.classList.replace("text-xl", "text-[9px]"); // Restore size
 
+    // Restore original orange button style
+    recordBtn.style.background = "linear-gradient(145deg, #f97316, #ea580c)";
+    recordBtn.style.boxShadow = "0 8px 32px rgba(249, 115, 22, 0.4), 0 4px 12px rgba(0,0,0,0.1), inset 0 2px 0 rgba(255,255,255,0.2)";
+
     recordBtn.classList.remove("recording");
     document.getElementById("status").innerText = window.APP_LANGUAGES.ready || "READY";
     document.getElementById("status").classList.replace("text-red-600", "text-orange-600");
@@ -1857,7 +1861,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (window.showPremiumModal) {
           window.showPremiumModal();
         } else {
-          showError("Limit reached (" + limit + "). Upgrade to add more text.");
+          showError((window.APP_LANGUAGES.limit_reached_upgrade || "Limit Reached (%{limit}). Upgrade to add more.").replace('%{limit}', limit));
         }
         stopAnalysisUI();
         return;
@@ -1900,6 +1904,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const micIcon = document.getElementById("micIcon");
     if (micIcon) micIcon.style.display = "none";
 
+    // Yellow cancel button
+    recordBtn.style.background = "linear-gradient(145deg, #eab308, #ca8a04)";
+    recordBtn.style.boxShadow = "0 8px 32px rgba(234, 179, 8, 0.4), 0 4px 12px rgba(0,0,0,0.1), inset 0 2px 0 rgba(255,255,255,0.2)";
+
     analysisAbortController = new AbortController();
 
     document.getElementById("status").innerText = window.APP_LANGUAGES.processing || "PROCESSING...";
@@ -1938,24 +1946,6 @@ document.addEventListener("DOMContentLoaded", () => {
   reParseBtn.onclick = async () => {
     const text = transcriptArea.value;
     const limit = window.profileCharLimit || 2000;
-
-    // Use total user-content limit check only for manual re-parse
-    // Refinements and Clarifications have their own pre-validation
-    if (!window.skipTranscriptUpdate) {
-      if (text.length > limit) {
-        showError("Your transcript would exceed your character limit (" + limit + "). Upgrade to generate longer transcripts.");
-        return;
-      }
-    }
-
-    if (!text) return;
-
-    // NEW: Clear previous answers if this is a fresh manual click (not via clarification)
-    if (!window.skipTranscriptUpdate) {
-      window.previousClarificationAnswers = [];
-      window.clarificationHistory = [];
-      renderPreviousAnswers();
-
       // Reset refinement/clarification inputs
       const refInput = document.getElementById('refinementInput');
       const clarInput = document.getElementById('clarificationAnswerInput');
@@ -2420,7 +2410,7 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         }).catch(err => {
           console.error("PDF.js Error:", err);
-          showError("Display Error (" + (err.message || "Unknown") + "). Use Share button.");
+          showError((window.APP_LANGUAGES.render_failed || "Render failed") + " (" + (err.message || "Unknown") + ")");
           showPdfContent();
         });
 
@@ -2452,7 +2442,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     } catch (err) {
       console.error(err);
-      showError("Failed to generate preview");
+      showError(window.APP_LANGUAGES.render_failed || "Failed to generate preview");
       closePdfModal();
     }
   }
@@ -2757,7 +2747,7 @@ document.addEventListener("DOMContentLoaded", () => {
               shareDiv.style.transform = 'translate(2px, 2px)';
             }
             if (sLabel) {
-              sLabel.innerText = 'LIMIT REACHED';
+              sLabel.innerText = window.APP_LANGUAGES.limit_reached || 'LIMIT REACHED';
               sLabel.classList.remove('text-gray-500');
               sLabel.classList.add('text-red-600');
             }
@@ -5156,10 +5146,28 @@ function updateUI(data) {
 
     let dateVal = data.date;
     if (!dateVal || dateVal === "N/A" || dateVal.toLowerCase().includes("specified")) {
-      dateVal = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      dateVal = null;
     }
-    document.getElementById("dateDisplay").innerText = dateVal;
-    window.selectedMainDate = new Date(dateVal);
+    // Parse the date (AI always returns English format like "Feb 21, 2026")
+    const parsedDate = dateVal ? new Date(dateVal) : new Date();
+    if (isNaN(parsedDate.getTime())) {
+      window.selectedMainDate = new Date();
+    } else {
+      window.selectedMainDate = parsedDate;
+    }
+    // Format date display according to system language
+    const lang = window.currentSystemLanguage || 'en';
+    if (lang === 'ka') {
+      const monthsKa = [
+        window.APP_LANGUAGES.jan, window.APP_LANGUAGES.feb, window.APP_LANGUAGES.mar,
+        window.APP_LANGUAGES.apr, window.APP_LANGUAGES.may, window.APP_LANGUAGES.jun,
+        window.APP_LANGUAGES.jul, window.APP_LANGUAGES.aug, window.APP_LANGUAGES.sep,
+        window.APP_LANGUAGES.oct, window.APP_LANGUAGES.nov, window.APP_LANGUAGES.dec
+      ];
+      document.getElementById("dateDisplay").innerText = `${monthsKa[window.selectedMainDate.getMonth()]} ${window.selectedMainDate.getDate()}, ${window.selectedMainDate.getFullYear()}`;
+    } else {
+      document.getElementById("dateDisplay").innerText = window.selectedMainDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
 
     // Due Date Logic
     updateDueDate(data.due_days, data.due_date);
@@ -5409,7 +5417,7 @@ async function processRefinementAudio() {
     });
     const data = await res.json();
     if (input) {
-      input.placeholder = "Need to fix something? Tell me here...";
+      input.placeholder = window.APP_LANGUAGES.refinement_placeholder || "Need to fix something? Tell me here...";
       if (data.raw_summary) {
         input.value = data.raw_summary.trim();
         setTimeout(() => submitRefinement(), 300);
@@ -5496,12 +5504,12 @@ function renderClarifications(clarifications) {
 
     // Display "Not specified" for empty/zero guesses
     const guessDisplay = (c.guess === 0 || c.guess === "0" || c.guess === "" || c.guess === null)
-      ? "Not specified"
+      ? (window.APP_LANGUAGES.not_specified || "Not specified")
       : c.guess;
 
     div.innerHTML = `
       <p class="text-sm font-medium text-black leading-relaxed"><span class="text-orange-600 font-bold">${index + 1}.</span> ${escapeHtml(c.question)}</p>
-      <p class="text-xs text-gray-500 mt-1 ml-4">Current guess: <span class="font-bold text-orange-600">${guessDisplay}</span></p>
+      <p class="text-xs text-gray-500 mt-1 ml-4">${window.APP_LANGUAGES.current_guess || "Current guess:"} <span class="font-bold text-orange-600">${guessDisplay}</span></p>
     `;
 
     list.appendChild(div);
@@ -5683,7 +5691,7 @@ async function processClarificationAudio() {
     const data = await res.json();
 
     if (input) {
-      input.placeholder = "Type or speak your answer...";
+      input.placeholder = window.APP_LANGUAGES.answer_placeholder || "Type or speak your answer...";
       if (data.raw_summary) {
         input.value = data.raw_summary.trim();
         // Auto-send after voice transcription

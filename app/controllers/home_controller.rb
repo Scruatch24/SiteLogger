@@ -967,6 +967,22 @@ PROMPT
       # Enforce Array Safety
       %w[labor_service_items materials expenses fees credits].each { |k| json[k] = Array(json[k]) }
 
+      # --- EMPTY RESULT DETECTION ---
+      # If AI returned a structurally valid JSON but with no meaningful data
+      # (no sections, no items, no client, empty transcript), treat as empty audio
+      has_any_items = json["labor_service_items"].any? { |i| i.is_a?(Hash) && (i["desc"].to_s.strip.present? || i["price"].to_s.strip.present? || i["hours"].to_s.strip.present?) } ||
+                      json["materials"].any? { |i| i.is_a?(Hash) && (i["name"].to_s.strip.present? || i["unit_price"].to_s.strip.present?) } ||
+                      json["expenses"].any? { |i| i.is_a?(Hash) && (i["name"].to_s.strip.present? || i["price"].to_s.strip.present?) } ||
+                      json["fees"].any? { |i| i.is_a?(Hash) && (i["name"].to_s.strip.present? || i["price"].to_s.strip.present?) } ||
+                      json["credits"].any? { |i| i.is_a?(Hash) && i["amount"].to_s.strip.present? }
+      has_client = json["client"].to_s.strip.present?
+      has_summary = json["raw_summary"].to_s.strip.length > 5
+
+      unless has_any_items || has_client || has_summary
+        Rails.logger.warn "AI RETURNED EMPTY RESULT: no items, no client, no meaningful summary"
+        return render json: { error: t('empty_audio') }, status: 422
+      end
+
       # --- POST-PROCESSING: Detect free items from original input ---
       # The AI sometimes ignores free-intent phrases and assigns a price anyway.
       # Scan the original input for free-intent patterns and zero out matching items.
