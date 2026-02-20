@@ -109,6 +109,9 @@ class HomeController < ApplicationController
       profile.update_columns(paddle_customer_id: resolved_customer_id)
     end
 
+    # Refresh subscription_id from latest transactions so portal links target the correct subscription
+    refresh_latest_subscription_id(profile: profile, api_key: api_key, customer_id: resolved_customer_id)
+
     final_url = portal_deep_link(overview_url: portal_result, action: params[:portal_action].to_s, profile: profile)
     redirect_to final_url, allow_other_host: true
   rescue => e
@@ -1586,6 +1589,38 @@ PROMPT
     overview_url
   end
 
+  def refresh_latest_subscription_id(profile:, api_key:, customer_id:)
+    return if profile.blank? || api_key.blank? || customer_id.blank?
+
+    all_rows = paddle_customer_transactions(api_key: api_key, customer_id: customer_id, limit: 50)
+    rows = all_rows.reject { |row| zero_amount_transaction?(row) }
+
+    latest_sub_row = rows.find { |row| row[:status_kind] == "completed" && row[:subscription_id].present? }
+    latest_sub_row ||= rows.find { |row| row[:subscription_id].present? }
+    latest_sub_id = latest_sub_row&.dig(:subscription_id)
+
+    if latest_sub_id.present? && profile.respond_to?(:paddle_subscription_id) && profile.paddle_subscription_id != latest_sub_id
+      profile.update_columns(paddle_subscription_id: latest_sub_id)
+      Rails.logger.info("BILLING PORTAL: Refreshed subscription_id to #{latest_sub_id}")
+    end
+
+    # Also update the billing cache with the latest transaction ID for invoice links
+    if rows.present?
+      history_rows = normalize_billing_history_rows(rows)
+      cached = read_subscription_billing_cache(profile) || {}
+      write_subscription_billing_cache(
+        profile: profile,
+        payment_method: cached[:payment_method],
+        last_payment: cached[:last_payment],
+        history_rows: history_rows,
+        next_billing: cached[:next_billing],
+        next_charge: cached[:next_charge]
+      )
+    end
+  rescue => e
+    Rails.logger.warn("REFRESH LATEST SUBSCRIPTION ID ERROR: #{e.message}")
+  end
+
   def billing_latest_completed_txn_id(profile)
     return nil if profile.blank?
 
@@ -1659,17 +1694,17 @@ PROMPT
     history_rows = normalize_billing_history_rows(rows)
     @billing_history_rows = history_rows if history_rows.present?
 
-    # --- 2. Discover subscription_id from transactions if missing on profile ---
-    effective_subscription_id = profile.paddle_subscription_id.presence
-    if effective_subscription_id.blank?
-      latest_completed = rows.find { |row| row[:status_kind] == "completed" && row[:subscription_id].present? }
-      latest_completed ||= rows.find { |row| row[:subscription_id].present? }
-      discovered_sub_id = latest_completed&.dig(:subscription_id)
-      if discovered_sub_id.present?
-        effective_subscription_id = discovered_sub_id
-        profile.update_columns(paddle_subscription_id: discovered_sub_id) if profile.respond_to?(:paddle_subscription_id)
-        Rails.logger.info("BILLING: Discovered and stored subscription_id=#{discovered_sub_id}")
-      end
+    # --- 2. Always resolve the latest subscription_id from transactions ---
+    # When a user has multiple subscriptions (e.g. from testing), the stored
+    # paddle_subscription_id may be stale. Always prefer the latest one.
+    latest_sub_row = rows.find { |row| row[:status_kind] == "completed" && row[:subscription_id].present? }
+    latest_sub_row ||= rows.find { |row| row[:subscription_id].present? }
+    latest_sub_id = latest_sub_row&.dig(:subscription_id)
+
+    effective_subscription_id = latest_sub_id.presence || profile.paddle_subscription_id.presence
+    if effective_subscription_id.present? && profile.respond_to?(:paddle_subscription_id) && profile.paddle_subscription_id != effective_subscription_id
+      profile.update_columns(paddle_subscription_id: effective_subscription_id)
+      Rails.logger.info("BILLING: Updated subscription_id to latest: #{effective_subscription_id}")
     end
 
     # --- 3. Fetch subscription data (single API call) → next billing + next charge ---
