@@ -427,9 +427,8 @@ class InvoiceGenerator
     categories = [
         { key: :labor, title: labels[:labor] },
         { key: :material, title: labels[:material] },
-        { key: :fee, title: labels[:fee] },
         { key: :expense, title: labels[:expense] },
-        { key: :other, title: labels[:other] }
+        { key: :fee, title: labels[:fee] }
     ]
 
     categories.each do |cat|
@@ -1093,7 +1092,7 @@ class InvoiceGenerator
   end
 
   def prepare_data
-    @categorized_items = { labor: [], material: [], fee: [], expense: [], other: [] }
+    @categorized_items = { labor: [], material: [], expense: [], fee: [] }
     @item_discount_total = 0.0
     @tax_amount = 0.0
 
@@ -1113,7 +1112,7 @@ class InvoiceGenerator
       when /material|მასალ/i then :material
       when /expense|ხარჯ/i then :expense
       when /fee|მოსაკრებ|საკომისიო|შესაკრებ/i then :fee
-      else :other
+      else :material
       end
 
       if section["items"]
@@ -1127,10 +1126,10 @@ class InvoiceGenerator
               when :material then "მასალა"
               when :expense then "ხარჯი"
               when :fee then "მოსაკრებელი"
-              else "სხვა"
+              else "მასალა"
               end
             else
-              desc = labels[category_key] || labels[:other]
+              desc = labels[category_key] || labels[:material]
             end
           end
           qty = 1.0; price = 0.0; gross_price = 0.0

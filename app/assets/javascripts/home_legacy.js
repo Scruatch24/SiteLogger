@@ -3481,13 +3481,13 @@ document.addEventListener('click', (e) => {
 // Helper to enforce section order
 function insertSectionInOrder(sectionDiv, type) {
   const container = document.getElementById("dynamicSections");
-  const order = { 'materials': 1, 'fees': 2, 'expenses': 3, 'credit': 4, 'other': 5 };
-  const currentPriority = order[type] || 5;
+  const order = { 'materials': 1, 'expenses': 2, 'fees': 3, 'credit': 4 };
+  const currentPriority = order[type] ?? 99;
 
   const children = Array.from(container.children);
   for (let child of children) {
-    const childType = child.dataset.protected || 'other';
-    const childPriority = order[childType] || 5;
+    const childType = child.dataset.protected || '';
+    const childPriority = order[childType] ?? 99;
 
     if (childPriority > currentPriority) {
       container.insertBefore(sectionDiv, child);
