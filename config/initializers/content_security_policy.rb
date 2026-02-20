@@ -17,7 +17,8 @@ Rails.application.configure do
                        "https://sandbox-buy.paddle.com"
     policy.media_src   :self, :blob  # For audio recording
     policy.script_src  :self, :https, :unsafe_inline, :unsafe_eval,
-                       "https://cdn.paddle.com", "https://sandbox-cdn.paddle.com"  # Paddle JS
+                       "https://cdn.paddle.com", "https://sandbox-cdn.paddle.com",  # Paddle JS
+                       "https://eu.i.posthog.com", "https://eu-assets.i.posthog.com"  # PostHog
     policy.style_src   :self, :https, :unsafe_inline  # Needed for inline styles
     policy.connect_src :self, :https,
                        "https://generativelanguage.googleapis.com",
@@ -30,7 +31,8 @@ Rails.application.configure do
                        "https://checkout-service.paddle.com",
                        "https://sandbox-checkout-service.paddle.com",
                        "https://buy.paddle.com",
-                       "https://sandbox-buy.paddle.com"  # Gemini API + Google Analytics + Paddle APIs
+                       "https://sandbox-buy.paddle.com",  # Gemini API + Google Analytics + Paddle APIs
+                       "https://eu.i.posthog.com", "https://eu-assets.i.posthog.com"  # PostHog
 
     # External CDN for flag icons
     policy.style_src   :self, :https, :unsafe_inline, "https://cdn.jsdelivr.net"
