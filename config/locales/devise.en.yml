@@ -70,6 +70,7 @@ en:
       signed_in: "Signed in successfully."
       signed_out: "Signed out successfully."
       already_signed_out: "Signed out successfully."
+      signed_out_other_device: "You were signed out because your account was signed in from another device."
     unlocks:
       send_instructions: "You will receive an email with instructions for how to unlock your account in a few minutes. <br/> <span class='text-red-600 block mt-1'>CHECK SPAM FOLDER IF NOT FOUND</span>"
       send_paranoid_instructions: "If your account exists, you will receive an email with instructions for how to unlock it in a few minutes. <br/> <span class='text-red-600 block mt-1'>CHECK SPAM FOLDER IF NOT FOUND</span>"

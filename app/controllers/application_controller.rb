@@ -1,6 +1,7 @@
 class ApplicationController < ActionController::Base
   # Only allow modern browsers supporting webp images, web push, badges, import maps, CSS nesting, and CSS :has.
   allow_browser versions: :modern
+  before_action :enforce_single_session
   before_action :set_locale
   before_action :set_profile
 
@@ -107,6 +108,32 @@ class ApplicationController < ActionController::Base
       tax_scope: "labor,materials_only",
       system_language: I18n.locale.to_s
     )
+  end
+
+  def enforce_single_session
+    return unless user_signed_in?
+
+    # Backfill: if user has no session_token yet, generate one for this session
+    if current_user.session_token.blank?
+      token = SecureRandom.hex(32)
+      current_user.update_column(:session_token, token)
+      session[:session_token] = token
+      return
+    end
+
+    # If this session has no token (pre-existing session), adopt the current DB token
+    if session[:session_token].blank?
+      session[:session_token] = current_user.session_token
+      return
+    end
+
+    # Mismatch means another device signed in — force sign out
+    if session[:session_token] != current_user.session_token
+      sign_out current_user
+      flash[:alert] = I18n.t("devise.sessions.signed_out_other_device",
+        default: "You were signed out because your account was signed in from another device.")
+      redirect_to new_user_session_path and return
+    end
   end
 
   # Get real client IP (handles Render.com reverse proxy)

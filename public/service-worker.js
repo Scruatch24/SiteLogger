@@ -24,8 +24,13 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  // Only handle same-origin requests; let third-party requests (analytics, CDNs) pass through
+  if (!event.request.url.startsWith(self.location.origin)) return;
+
   // Network-first strategy: try network, fall back to cache
   event.respondWith(
-    fetch(event.request).catch(() => caches.match(event.request))
+    fetch(event.request).catch(() =>
+      caches.match(event.request).then((r) => r || new Response('', { status: 503 }))
+    )
   );
 });

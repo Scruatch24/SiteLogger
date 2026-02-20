@@ -68,6 +68,7 @@ ka:
       signed_in: "წარმატებული ავტორიზაცია."
       signed_out: "გამოსვლა წარმატებულია."
       already_signed_out: "გამოსვლა წარმატებულია."
+      signed_out_other_device: "თქვენ გამოხვედით სისტემიდან, რადგან თქვენი ანგარიში სხვა მოწყობილობიდან შევიდა."
     unlocks:
       send_instructions: "თქვენ მიიღებთ ელფოსტას განბლოკვის ინსტრუქციით. <br/> <span class='text-red-600 block mt-1'>შეამოწმეთ SPAM საქაღალდე</span>"
       send_paranoid_instructions: "თუ ანგარიში არსებობს, თქვენ მიიღებთ ელფოსტას ინსტრუქციით. <br/> <span class='text-red-600 block mt-1'>შეამოწმეთ SPAM საქაღალდე</span>"

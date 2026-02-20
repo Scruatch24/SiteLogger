@@ -4,7 +4,9 @@
 <script>
   (function() {
     const lib = window['pdfjs-dist/build/pdf'] || window.pdfjsLib;
-    if (lib) {
+    if (lib) { lib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; }
+  })();
+</script>
 <script>
   window.APP_LANGUAGES = {
     failed_switch_language: "<%= j t('failed_switch_language') %>",
