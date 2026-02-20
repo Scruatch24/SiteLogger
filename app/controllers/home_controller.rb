@@ -9,6 +9,17 @@ class HomeController < ApplicationController
 
 
 
+  skip_before_action :enforce_single_session, only: :session_check
+
+  def session_check
+    if user_signed_in? && session[:session_token].present? && current_user.session_token.present? && session[:session_token] != current_user.session_token
+      sign_out current_user
+      render json: { valid: false }, status: :ok
+    else
+      render json: { valid: true }, status: :ok
+    end
+  end
+
   def complete_onboarding
     if user_signed_in? && @profile.persisted?
       @profile.update_columns(onboarded: true)
@@ -48,6 +59,8 @@ class HomeController < ApplicationController
       redirect_to pricing_path and return
     end
 
+    # Clear stale cache so payment method updates are reflected immediately
+    Rails.cache.delete(subscription_billing_cache_key(current_user.profile))
     load_subscription_billing_data(current_user.profile)
   end
 
@@ -1637,7 +1650,9 @@ PROMPT
     return if customer_id.blank?
 
     # --- 1. Fetch transactions (single API call) ---
-    rows = paddle_customer_transactions(api_key: api_key, customer_id: customer_id, limit: 50)
+    all_rows = paddle_customer_transactions(api_key: api_key, customer_id: customer_id, limit: 50)
+    # Filter out $0.00 transactions (payment method updates) from display
+    rows = all_rows.reject { |row| zero_amount_transaction?(row) }
     history_rows = normalize_billing_history_rows(rows)
     @billing_history_rows = history_rows if history_rows.present?
 
@@ -1666,14 +1681,19 @@ PROMPT
       end
     end
 
-    # --- 4. Extract payment method from transaction payments array ---
+    # --- 4. Fetch payment method from dedicated API (reflects latest updates) ---
+    fresh_method = paddle_customer_payment_method(api_key: api_key, customer_id: customer_id)
+    fresh_method = normalized_payment_method_label(fresh_method)
+    @billing_payment_method_label = fresh_method if fresh_method.present?
+
+    # Fallback: extract from transaction payments array if API didn't return one
     if @billing_payment_method_label == t("subscription_page.not_available")
-      card_label = rows.filter_map { |row| row[:payment_method_label].presence }.first
+      card_label = all_rows.filter_map { |row| row[:payment_method_label].presence }.first
       card_label = normalized_payment_method_label(card_label)
       @billing_payment_method_label = card_label if card_label.present?
     end
 
-    # --- 5. Last payment from latest completed transaction ---
+    # --- 5. Last payment from latest completed non-zero transaction ---
     latest_paid = rows.find { |row| row[:status_kind] == "completed" }
     if latest_paid.present?
       @billing_last_payment_label = "#{latest_paid[:amount]} · #{latest_paid[:date]}"
@@ -1850,6 +1870,15 @@ PROMPT
     return "failed" if %w[failed failure past_due past-due canceled cancelled declined refused rejected error].include?(raw)
 
     nil
+  end
+
+  def zero_amount_transaction?(row)
+    amount_str = row[:amount].to_s
+    # Extract numeric portion, e.g. "USD 0.00" → "0.00"
+    numeric = amount_str.gsub(/[^0-9.]/, "")
+    numeric.present? && numeric.to_f <= 0
+  rescue
+    false
   end
 
   def billing_upcoming_status?(status_raw)

@@ -48,6 +48,8 @@ Rails.application.routes.draw do
 
   resources :categories, only: [ :create, :destroy ]
 
+  get "session_check", to: "home#session_check"
+
   post "track", to: "tracking#track"
 
   namespace :webhooks do
