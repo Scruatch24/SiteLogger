@@ -547,7 +547,7 @@ class HomeController < ApplicationController
         req.body = {
           contents: [ {
             parts: [
-              { text: "Transcribe this short audio clip. Return ONLY the spoken text, nothing else. If unclear, return your best guess." },
+              { text: "Transcribe this short audio clip. Return ONLY the spoken text, nothing else. If the audio is silent, empty, contains only noise/breathing, or has no intelligible speech, return exactly the word EMPTY and nothing else. Do NOT invent or hallucinate any words." },
               { inline_data: { mime_type: audio.content_type, data: audio_data } }
             ]
           } ]
@@ -559,7 +559,11 @@ class HomeController < ApplicationController
         parts = body.dig("candidates", 0, "content", "parts")
         raw = parts&.map { |p| p["text"] }&.join(" ")&.strip
 
-        return render json: { raw_summary: raw || "" }
+        if raw.blank? || raw.strip.upcase == "EMPTY" || raw.strip.length < 2
+          return render json: { raw_summary: "" }
+        end
+
+        return render json: { raw_summary: raw }
       rescue => e
         Rails.logger.error "TRANCRIPTION ERROR: #{e.message}\n#{e.backtrace.join("\n")}"
         return render json: { error: t("transcription_failed") }, status: 500
@@ -976,7 +980,8 @@ PROMPT
                       json["fees"].any? { |i| i.is_a?(Hash) && (i["name"].to_s.strip.present? || i["price"].to_s.strip.present?) } ||
                       json["credits"].any? { |i| i.is_a?(Hash) && i["amount"].to_s.strip.present? }
       has_client = json["client"].to_s.strip.present?
-      has_summary = json["raw_summary"].to_s.strip.length > 5
+      summary_text = json["raw_summary"].to_s.strip
+      has_summary = summary_text.length > 5 && summary_text.split(/\s+/).size > 2
 
       unless has_any_items || has_client || has_summary
         Rails.logger.warn "AI RETURNED EMPTY RESULT: no items, no client, no meaningful summary"

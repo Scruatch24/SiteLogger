@@ -980,6 +980,62 @@
       color: white !important;
   }
 
+  /* Refinement Section (Green) Analyzing Animation */
+  #refinementSection.analyzing {
+      position: relative;
+      border-radius: 14px;
+      padding: 3px;
+      background: linear-gradient(90deg, #10b981, #34d399, #10b981, #059669, #10b981);
+      background-size: 300% 100%;
+      animation: borderFlow 1.5s linear infinite;
+  }
+
+  #refinementSection.analyzing::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 14px;
+      padding: 3px;
+      background: inherit;
+      background-size: inherit;
+      animation: inherit;
+      filter: blur(8px);
+      opacity: 0.6;
+      z-index: -1;
+  }
+
+  #refinementSection.analyzing .section-toggle-btn {
+      border-color: transparent;
+  }
+
+  /* Clarifications Section (Orange) Analyzing Animation */
+  #clarificationsSection.analyzing {
+      position: relative;
+      border-radius: 14px;
+      padding: 3px;
+      background: linear-gradient(90deg, #f97316, #fbbf24, #f97316, #ea580c, #f97316);
+      background-size: 300% 100%;
+      animation: borderFlow 1.5s linear infinite;
+  }
+
+  #clarificationsSection.analyzing::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 14px;
+      padding: 3px;
+      background: inherit;
+      background-size: inherit;
+      animation: inherit;
+      filter: blur(8px);
+      opacity: 0.6;
+      z-index: -1;
+  }
+
+  #clarificationsSection.analyzing .section-toggle-btn {
+      border-color: transparent;
+  }
+
   @keyframes borderFlow {
       0% {
           background-position: 0% 50%;
@@ -1030,14 +1086,15 @@
 
   .review-container.analyzing .review-content {
       border-color: transparent;
+      overflow: hidden;
   }
 
   /* Smooth Breathing Blur Overlay */
   .analyzing-overlay {
       display: none;
       position: absolute;
-      inset: -1px;
-      border-radius: 18px;
+      inset: -4px;
+      border-radius: 20px;
       background: rgba(255, 255, 255, 0.85);
       background-size: 200% 200%;
       backdrop-filter: blur(6px);

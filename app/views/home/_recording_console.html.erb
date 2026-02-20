@@ -21,7 +21,7 @@
     <div class="w-2 h-2 rounded-full bg-red-600 rec-dot"></div>
     <div class="flex items-baseline gap-1">
       <span id="currentAudioTime" class="text-sm font-black text-black font-mono">0</span>
-      <span class="text-[9px] font-black text-gray-400 uppercase tracking-widest">/ <%= @profile.audio_limit %>s</span>
+      <span class="text-[9px] font-black text-gray-400 uppercase tracking-widest">/ <%= @profile.audio_limit %><%= I18n.locale == :ka ? 'წ' : 's' %></span>
     </div>
     <div class="ml-1 pl-2 border-l border-gray-100 text-[9px] font-black text-red-600 tracking-tighter uppercase"><%= t('rec') %></div>
   </div>

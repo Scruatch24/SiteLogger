@@ -1881,8 +1881,12 @@ document.addEventListener("DOMContentLoaded", () => {
       });
 
       const data = await res.json();
-      if (!res.ok || data.error) showError(data.error || window.APP_LANGUAGES.speech_not_recognized || "Speech not recognized.");
-      else updateUI(data);
+      if (!res.ok || data.error) {
+        showError(data.error || window.APP_LANGUAGES.speech_not_recognized || "Speech not recognized.");
+        hidePostAnalysisSections();
+      } else {
+        updateUI(data);
+      }
       stopAnalysisUI();
     } catch (e) {
       if (e.name === 'AbortError') {
@@ -1904,9 +1908,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const micIcon = document.getElementById("micIcon");
     if (micIcon) micIcon.style.display = "none";
 
-    // Yellow cancel button
-    recordBtn.style.background = "linear-gradient(145deg, #eab308, #ca8a04)";
-    recordBtn.style.boxShadow = "0 8px 32px rgba(234, 179, 8, 0.4), 0 4px 12px rgba(0,0,0,0.1), inset 0 2px 0 rgba(255,255,255,0.2)";
+    // Light warm yellow cancel button
+    recordBtn.style.background = "linear-gradient(145deg, #fbbf24, #f59e0b)";
+    recordBtn.style.boxShadow = "0 8px 32px rgba(251, 191, 36, 0.4), 0 4px 12px rgba(0,0,0,0.1), inset 0 2px 0 rgba(255,255,255,0.3)";
 
     analysisAbortController = new AbortController();
 
@@ -1921,6 +1925,11 @@ document.addEventListener("DOMContentLoaded", () => {
     if (transcriptCont) transcriptCont.classList.add('analyzing');
     if (reviewCont) reviewCont.classList.add('analyzing');
     if (overlay) overlay.classList.add('active');
+
+    const refSection = document.getElementById('refinementSection');
+    const clarSection = document.getElementById('clarificationsSection');
+    if (refSection && !refSection.classList.contains('hidden')) refSection.classList.add('analyzing');
+    if (clarSection && !clarSection.classList.contains('hidden')) clarSection.classList.add('analyzing');
   }
 
   function stopAnalysisUI() {
@@ -1934,7 +1943,20 @@ document.addEventListener("DOMContentLoaded", () => {
     if (reviewCont) reviewCont.classList.remove('analyzing');
     if (overlay) overlay.classList.remove('active');
 
+    const refSection = document.getElementById('refinementSection');
+    const clarSection = document.getElementById('clarificationsSection');
+    if (refSection) refSection.classList.remove('analyzing');
+    if (clarSection) clarSection.classList.remove('analyzing');
+
     resetRecorderUI();
+  }
+
+  function hidePostAnalysisSections() {
+    const ref = document.getElementById('refinementSection');
+    const clar = document.getElementById('clarificationsSection');
+    if (ref) ref.classList.add('hidden');
+    if (clar) clar.classList.add('hidden');
+    window.pendingClarifications = [];
   }
 
   // Expose recorder functions to global scope for Object.assign(window, {...}) export
@@ -1970,8 +1992,12 @@ document.addEventListener("DOMContentLoaded", () => {
       });
       const data = await res.json();
 
-      if (data.error) showError(data.error);
-      else updateUI(data);
+      if (data.error) {
+        showError(data.error);
+        hidePostAnalysisSections();
+      } else {
+        updateUI(data);
+      }
     } catch (e) {
       if (e.name === 'AbortError') {
         console.log("Analysis cancelled by user");
