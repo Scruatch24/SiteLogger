@@ -722,7 +722,7 @@ ka:
     payment_method: "გადახდის მეთოდი"
     last_payment: "ბოლო გადახდა"
     plan_options: "გეგმის არჩევანი"
-    change_plan: "გეგმის შეცვლა"
+    change_plan: "გეგმების შედარება"
     billing_history: "ბილინგის ისტორია"
     date: "თარიღი"
     amount: "თანხა"

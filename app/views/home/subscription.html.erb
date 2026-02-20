@@ -707,12 +707,8 @@ end %>
         </article>
       </div>
       <div class="sub-actions" style="justify-content:center; margin-top:1.2rem;">
-        <% if paid_plan %>
-          <span class="sub-btn" style="opacity:0.4; pointer-events:none; cursor:default;"><%= t('subscription_page.change_plan') %></span>
-        <% else %>
-          <%= link_to pricing_path, class: 'sub-btn primary' do %>
-            <%= t('subscription_page.change_plan') %>
-          <% end %>
+        <%= link_to pricing_path, class: "sub-btn#{paid_plan ? '' : ' primary'}" do %>
+          <%= t('subscription_page.change_plan') %>
         <% end %>
       </div>
     </section>
