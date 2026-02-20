@@ -980,17 +980,21 @@
       color: white !important;
   }
 
-  /* Refinement Section (Green) Analyzing Animation */
-  #refinementSection.analyzing {
+  /* Refinement Input (Green) Analyzing Animation */
+  #refinementInputContainer {
       position: relative;
       border-radius: 14px;
       padding: 3px;
+      background: transparent;
+  }
+
+  #refinementInputContainer.analyzing {
       background: linear-gradient(90deg, #10b981, #34d399, #10b981, #059669, #10b981);
       background-size: 300% 100%;
       animation: borderFlow 1.5s linear infinite;
   }
 
-  #refinementSection.analyzing::before {
+  #refinementInputContainer.analyzing::before {
       content: '';
       position: absolute;
       inset: 0;
@@ -1004,21 +1008,25 @@
       z-index: -1;
   }
 
-  #refinementSection.analyzing .section-toggle-btn {
+  #refinementInputContainer.analyzing .flex-1 {
       border-color: transparent;
   }
 
-  /* Clarifications Section (Orange) Analyzing Animation */
-  #clarificationsSection.analyzing {
+  /* Clarification Input (Orange) Analyzing Animation */
+  #clarificationInputContainer {
       position: relative;
       border-radius: 14px;
       padding: 3px;
+      background: transparent;
+  }
+
+  #clarificationInputContainer.analyzing {
       background: linear-gradient(90deg, #f97316, #fbbf24, #f97316, #ea580c, #f97316);
       background-size: 300% 100%;
       animation: borderFlow 1.5s linear infinite;
   }
 
-  #clarificationsSection.analyzing::before {
+  #clarificationInputContainer.analyzing::before {
       content: '';
       position: absolute;
       inset: 0;
@@ -1032,7 +1040,7 @@
       z-index: -1;
   }
 
-  #clarificationsSection.analyzing .section-toggle-btn {
+  #clarificationInputContainer.analyzing .flex-1 {
       border-color: transparent;
   }
 

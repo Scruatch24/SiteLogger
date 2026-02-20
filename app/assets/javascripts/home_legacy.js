@@ -1726,6 +1726,11 @@ document.addEventListener("DOMContentLoaded", () => {
         if (clarInput) clarInput.value = '';
         if (window.updateDynamicCounters) window.updateDynamicCounters();
         window.totalVoiceUsed = 0; // Reset bank on new main recording
+
+        // Clear previous QUICK QUESTIONS and WANT TO CHANGE DETAILS
+        hidePostAnalysisSections();
+        const clarList = document.getElementById('clarificationsList');
+        if (clarList) clarList.innerHTML = '';
       }
 
       // Enforce Guest/Free Limits BEFORE starting
@@ -1845,9 +1850,10 @@ document.addEventListener("DOMContentLoaded", () => {
     recordBtn.style.boxShadow = "0 8px 32px rgba(249, 115, 22, 0.4), 0 4px 12px rgba(0,0,0,0.1), inset 0 2px 0 rgba(255,255,255,0.2)";
 
     recordBtn.classList.remove("recording");
-    document.getElementById("status").innerText = window.APP_LANGUAGES.ready || "READY";
-    document.getElementById("status").classList.replace("text-red-600", "text-orange-600");
-    document.getElementById("status").classList.replace("bg-red-50", "bg-orange-50");
+    const statusEl = document.getElementById("status");
+    statusEl.innerText = window.APP_LANGUAGES.ready || "READY";
+    statusEl.classList.remove("text-red-600", "bg-red-50", "border-red-100", "text-yellow-600", "bg-yellow-50", "border-yellow-100");
+    statusEl.classList.add("text-orange-600", "bg-orange-50", "border-orange-100");
     document.getElementById("recordingWave").classList.add("hidden");
   }
 
@@ -1914,7 +1920,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     analysisAbortController = new AbortController();
 
-    document.getElementById("status").innerText = window.APP_LANGUAGES.processing || "PROCESSING...";
+    const statusEl = document.getElementById("status");
+    statusEl.innerText = window.APP_LANGUAGES.processing || "PROCESSING...";
+    statusEl.classList.remove("text-red-600", "bg-red-50", "text-orange-600", "bg-orange-50", "border-orange-100", "border-red-100");
+    statusEl.classList.add("text-yellow-600", "bg-yellow-50", "border-yellow-100");
     recordBtn.classList.remove("recording");
     document.getElementById("recordingWave").classList.add("hidden");
 
@@ -1926,10 +1935,10 @@ document.addEventListener("DOMContentLoaded", () => {
     if (reviewCont) reviewCont.classList.add('analyzing');
     if (overlay) overlay.classList.add('active');
 
-    const refSection = document.getElementById('refinementSection');
-    const clarSection = document.getElementById('clarificationsSection');
-    if (refSection && !refSection.classList.contains('hidden')) refSection.classList.add('analyzing');
-    if (clarSection && !clarSection.classList.contains('hidden')) clarSection.classList.add('analyzing');
+    const refInput = document.getElementById('refinementInputContainer');
+    const clarInput = document.getElementById('clarificationInputContainer');
+    if (refInput) refInput.classList.add('analyzing');
+    if (clarInput) clarInput.classList.add('analyzing');
   }
 
   function stopAnalysisUI() {
@@ -1943,10 +1952,10 @@ document.addEventListener("DOMContentLoaded", () => {
     if (reviewCont) reviewCont.classList.remove('analyzing');
     if (overlay) overlay.classList.remove('active');
 
-    const refSection = document.getElementById('refinementSection');
-    const clarSection = document.getElementById('clarificationsSection');
-    if (refSection) refSection.classList.remove('analyzing');
-    if (clarSection) clarSection.classList.remove('analyzing');
+    const refInput = document.getElementById('refinementInputContainer');
+    const clarInput = document.getElementById('clarificationInputContainer');
+    if (refInput) refInput.classList.remove('analyzing');
+    if (clarInput) clarInput.classList.remove('analyzing');
 
     resetRecorderUI();
   }
@@ -1968,12 +1977,6 @@ document.addEventListener("DOMContentLoaded", () => {
   reParseBtn.onclick = async () => {
     const text = transcriptArea.value;
     const limit = window.profileCharLimit || 2000;
-    // Reset refinement/clarification inputs
-    const refInput = document.getElementById('refinementInput');
-    const clarInput = document.getElementById('clarificationAnswerInput');
-    if (refInput) refInput.value = '';
-    if (clarInput) clarInput.value = '';
-    if (window.updateDynamicCounters) window.updateDynamicCounters();
 
     startAnalysisUI();
 
@@ -5275,9 +5278,6 @@ function handleClarifications(clarifications) {
   const refinementSection = document.getElementById('refinementSection');
   const list = document.getElementById('clarificationsList');
 
-  // Show refinement section once we have any analysis result
-  if (refinementSection) refinementSection.classList.remove('hidden');
-
   // Filter out already-answered clarifications (if we have answers for them)
   const unansweredClarifications = clarifications.filter(c => {
     // Keep questions that haven't been answered yet
@@ -5288,6 +5288,8 @@ function handleClarifications(clarifications) {
     if (section) section.classList.add('hidden');
     if (list) list.innerHTML = '';
     window.pendingClarifications = [];
+    // No clarifications → show refinement section
+    if (refinementSection) refinementSection.classList.remove('hidden');
     return;
   }
 
@@ -5297,6 +5299,9 @@ function handleClarifications(clarifications) {
 
   renderClarifications(unansweredClarifications);
   section.classList.remove('hidden');
+
+  // Hide refinement when clarifications are present
+  if (refinementSection) refinementSection.classList.add('hidden');
 
   // No auto-expand, honor user request for collapsed by default
   const content = document.getElementById('clarificationsContent');
