@@ -92,8 +92,9 @@ class Webhooks::PaddleController < ActionController::Base
 
     Rails.logger.info "Paddle subscription event: found profile #{profile.id}, updating plan to paid"
 
+    resolved_plan = %w[canceled paused].include?(status.to_s) ? "free" : "paid"
     update_attrs = {
-      plan: "paid",
+      plan: resolved_plan,
       paddle_subscription_id: subscription_id,
       paddle_subscription_status: status,
       paddle_price_id: price_id,
