@@ -1946,13 +1946,12 @@ document.addEventListener("DOMContentLoaded", () => {
   reParseBtn.onclick = async () => {
     const text = transcriptArea.value;
     const limit = window.profileCharLimit || 2000;
-      // Reset refinement/clarification inputs
-      const refInput = document.getElementById('refinementInput');
-      const clarInput = document.getElementById('clarificationAnswerInput');
-      if (refInput) refInput.value = '';
-      if (clarInput) clarInput.value = '';
-      if (window.updateDynamicCounters) window.updateDynamicCounters();
-    }
+    // Reset refinement/clarification inputs
+    const refInput = document.getElementById('refinementInput');
+    const clarInput = document.getElementById('clarificationAnswerInput');
+    if (refInput) refInput.value = '';
+    if (clarInput) clarInput.value = '';
+    if (window.updateDynamicCounters) window.updateDynamicCounters();
 
     startAnalysisUI();
 
