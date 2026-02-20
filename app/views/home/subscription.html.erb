@@ -544,7 +544,10 @@ end %>
     </header>
 
     <section class="sub-section">
-      <h2 class="sub-section-title"><%= t('subscription_page.current_plan') %></h2>
+      <div class="sub-plan-grid" style="margin-bottom:0;">
+        <h2 class="sub-section-title"><%= t('subscription_page.current_plan') %></h2>
+        <h2 class="sub-section-title"><%= t('subscription_page.subscription_section') %></h2>
+      </div>
       <div class="sub-plan-grid">
         <div class="sub-surface">
           <div class="sub-key"><%= t('subscription_page.plan_name') %></div>
@@ -616,7 +619,6 @@ end %>
         </div>
 
         <div class="sub-surface">
-          <div class="sub-section-card-label"><%= t('subscription_page.subscription_section') %></div>
           <div class="sub-key"><%= t('subscription_page.status') %></div>
           <div class="sub-status-chip <%= status_active ? 'active' : (sub_canceled ? 'canceled' : 'inactive') %>"><%= status_label %></div>
 
