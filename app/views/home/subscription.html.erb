@@ -2,16 +2,16 @@
 <% paid_plan = profile&.paid? %>
 <% has_subscription_history = profile&.ever_paid? %>
 <% raw_status = profile&.paddle_subscription_status.to_s.downcase %>
-<% sub_canceled = raw_status == 'canceled' %>
-<% status_active = paid_plan && %w[active trialing].include?(raw_status) || (paid_plan && raw_status.blank?) %>
+<% sub_canceled = paid_plan && raw_status == 'canceled' %>
+<% status_active = paid_plan && (%w[active trialing].include?(raw_status) || raw_status.blank?) %>
 <% status_label = if sub_canceled
   t('subscription_page.status_canceled')
 elsif status_active
   t('subscription_page.status_active')
-elsif raw_status.present?
+elsif paid_plan || raw_status.present?
   t('subscription_page.status_inactive')
 else
-  t('subscription_page.status_unknown')
+  t('subscription_page.status_inactive')
 end %>
 <% plan_label = paid_plan ? t('subscription_page.plan_pro') : t('subscription_page.plan_free') %>
 <% plan_price_label = paid_plan ? (ENV['PADDLE_PLAN_PRICE_LABEL'].presence || t('modal.pro_price')) : t('subscription_page.free_price') %>
