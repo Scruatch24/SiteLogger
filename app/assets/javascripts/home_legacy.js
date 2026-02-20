@@ -3481,7 +3481,7 @@ document.addEventListener('click', (e) => {
 // Helper to enforce section order
 function insertSectionInOrder(sectionDiv, type) {
   const container = document.getElementById("dynamicSections");
-  const order = { 'materials': 1, 'expenses': 2, 'fees': 3, 'credit': 4, 'other': 5 };
+  const order = { 'materials': 1, 'fees': 2, 'expenses': 3, 'credit': 4, 'other': 5 };
   const currentPriority = order[type] || 5;
 
   const children = Array.from(container.children);
