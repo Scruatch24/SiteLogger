@@ -759,12 +759,22 @@ You MUST ask clarification questions in these cases:
 
 FORMAT: { "field": "[category].[field_name]", "guess": [your_best_guess_or_0], "question": "[short direct question]" }
 
+CLARIFICATION LANGUAGE (NON-NEGOTIABLE):
+#{ui_is_georgian ? '- You MUST write ALL clarification question text in Georgian (ქართული). Every single "question" value in the clarifications array MUST be in Georgian. Example: "რა ღირდა მასალები?" not "What was the cost for materials?"' : '- You MUST write ALL clarification question text in English.'}
+
 RULES:
 - Limit to 5 clarifications maximum per request (prioritize most impactful ones)
 - Do NOT ask if the value is clear and explicit (e.g., "800 dollars" needs no clarification)
 - Do NOT ask about ANY RATES (hourly rate, team rate, special rate, tax rate) - the system has user-configured defaults
 - ONLY ask about missing PRICES or COSTS (e.g., "parts were expensive" but no dollar amount given)
 - CRITICAL: When you add a clarification with a guess value, you MUST populate the corresponding JSON field with that SAME value. The guess and actual field value must match.
+
+CONVERSATION CONTEXT AWARENESS (CRITICAL):
+- The input may contain a "PREVIOUS Q&A CONTEXT" section with numbered rounds of previous questions and answers.
+- You MUST treat this as an ONGOING CONVERSATION. The user has already answered those questions — incorporate ALL their answers into the JSON output.
+- NEVER re-ask a question that was already answered in a previous round. If the user answered "500" for materials cost, USE that value and do NOT ask about it again.
+- Each new round builds on ALL previous rounds. The user expects you to remember everything they said.
+- If a user correction contradicts an earlier answer, use the LATEST answer (highest round number).
 
 ----------------------------
 DISAMBIGUATION RULES

@@ -1719,11 +1719,13 @@ document.addEventListener("DOMContentLoaded", () => {
         transcriptArea.value = "";
         window.previousClarificationAnswers = [];
         window.clarificationHistory = [];
+        window._pendingAnswer = null;
+        window._analysisSucceeded = false;
         renderPreviousAnswers();
         const refInput = document.getElementById('refinementInput');
         const clarInput = document.getElementById('clarificationAnswerInput');
-        if (refInput) refInput.value = '';
-        if (clarInput) clarInput.value = '';
+        if (refInput) { refInput.value = ''; refInput.disabled = false; }
+        if (clarInput) { clarInput.value = ''; clarInput.disabled = false; }
         if (window.updateDynamicCounters) window.updateDynamicCounters();
         window.totalVoiceUsed = 0; // Reset bank on new main recording
 
@@ -1957,6 +1959,16 @@ document.addEventListener("DOMContentLoaded", () => {
     if (refInput) refInput.classList.remove('analyzing');
     if (clarInput) clarInput.classList.remove('analyzing');
 
+    // Finalize or rollback pending Quick Questions / Change Details answer
+    if (window._pendingAnswer) {
+      if (window._analysisSucceeded) {
+        if (window.finalizePendingAnswer) window.finalizePendingAnswer();
+      } else {
+        if (window.rollbackPendingAnswer) window.rollbackPendingAnswer();
+      }
+    }
+    window._analysisSucceeded = false;
+
     resetRecorderUI();
   }
 
@@ -1966,6 +1978,11 @@ document.addEventListener("DOMContentLoaded", () => {
     if (ref) ref.classList.add('hidden');
     if (clar) clar.classList.add('hidden');
     window.pendingClarifications = [];
+    // Re-enable inputs if they were disabled by a pending answer
+    const refIn = document.getElementById('refinementInput');
+    const clarIn = document.getElementById('clarificationAnswerInput');
+    if (refIn) refIn.disabled = false;
+    if (clarIn) clarIn.disabled = false;
   }
 
   // Expose recorder functions to global scope for Object.assign(window, {...}) export
@@ -5036,16 +5053,17 @@ function updateUI(data) {
       const limit = window.profileCharLimit || 2000;
       transcriptArea.value = data.raw_summary.substring(0, limit);
       autoResize(transcriptArea);
-
-      // Since this is a fresh transcript, reset refinements/clarifications
+    }
+    // Reset clarification/refinement state for ANY fresh parse (not a follow-up)
+    if (!window.skipTranscriptUpdate) {
       window.previousClarificationAnswers = [];
       window.clarificationHistory = [];
+      window._pendingAnswer = null;
       renderPreviousAnswers();
       const refInput = document.getElementById('refinementInput');
       const clarInput = document.getElementById('clarificationAnswerInput');
-      if (refInput) refInput.value = '';
-      if (clarInput) clarInput.value = '';
-
+      if (refInput) { refInput.value = ''; refInput.disabled = false; }
+      if (clarInput) { clarInput.value = ''; clarInput.disabled = false; }
       if (window.updateDynamicCounters) window.updateDynamicCounters();
     }
     window.skipTranscriptUpdate = false; // Reset flag after use
@@ -5258,6 +5276,7 @@ function updateUI(data) {
       window.setupSaveButton();
     }
 
+    window._analysisSucceeded = true;
     window.isAutoUpdating = false;
   } catch (e) {
     window.isAutoUpdating = false;
@@ -5272,6 +5291,55 @@ window.pendingClarifications = [];
 window.originalTranscript = "";
 window.previousClarificationAnswers = [];
 window.clarificationHistory = [];
+window._pendingAnswer = null;
+window._analysisSucceeded = false;
+
+window.calculateHistoricalChars = function() {
+  if (!window.clarificationHistory || window.clarificationHistory.length === 0) return 0;
+  return window.clarificationHistory.reduce(function(sum, h) { return sum + (h.answer || '').length; }, 0);
+};
+
+window.finalizePendingAnswer = function() {
+  if (!window._pendingAnswer) return;
+  var pending = window._pendingAnswer;
+
+  // Commit history entry
+  if (pending.historyEntry) {
+    if (!window.clarificationHistory) window.clarificationHistory = [];
+    window.clarificationHistory.push(pending.historyEntry);
+  }
+
+  // Add to UI bubbles
+  if (!window.previousClarificationAnswers) window.previousClarificationAnswers = [];
+  window.previousClarificationAnswers.push({ text: pending.text, type: pending.type });
+
+  // Clear and re-enable the appropriate input
+  if (pending.type === 'clarification') {
+    var clarIn = document.getElementById('clarificationAnswerInput');
+    if (clarIn) { clarIn.value = ''; clarIn.disabled = false; }
+  } else {
+    var refIn = document.getElementById('refinementInput');
+    if (refIn) { refIn.value = ''; refIn.disabled = false; }
+  }
+
+  renderPreviousAnswers();
+  if (window.updateDynamicCounters) window.updateDynamicCounters();
+  window._pendingAnswer = null;
+};
+
+window.rollbackPendingAnswer = function() {
+  if (!window._pendingAnswer) return;
+  var pending = window._pendingAnswer;
+  // Re-enable input without committing — user can retry
+  if (pending.type === 'clarification') {
+    var clarIn = document.getElementById('clarificationAnswerInput');
+    if (clarIn) clarIn.disabled = false;
+  } else {
+    var refIn = document.getElementById('refinementInput');
+    if (refIn) refIn.disabled = false;
+  }
+  window._pendingAnswer = null;
+};
 
 function handleClarifications(clarifications) {
   const section = document.getElementById('clarificationsSection');
@@ -5467,9 +5535,6 @@ async function submitRefinement() {
   const limit = window.profileCharLimit;
   const historyChars = (window.calculateHistoricalChars ? window.calculateHistoricalChars() : 0);
   const transcriptChars = document.getElementById('mainTranscript')?.value.length || 0;
-
-  // Calculate prospective addition
-  // Revised: Ignore overhead to match user expectation of "What I type is what I spend"
   const projectedTotal = transcriptChars + historyChars + instruction.length;
 
   if (projectedTotal > limit) {
@@ -5478,22 +5543,23 @@ async function submitRefinement() {
     return;
   }
 
-  // Save for AI history & UI with TYPE
-  if (!window.clarificationHistory) window.clarificationHistory = [];
-  window.clarificationHistory.push({ questions: "User manually refined details", answer: instruction });
-  if (!window.previousClarificationAnswers) window.previousClarificationAnswers = [];
-  window.previousClarificationAnswers.push({ text: instruction, type: 'refinement' });
+  const historyEntry = { questions: "User requested change", answer: instruction };
 
-  // Clear input and Update counters IMMEDIATELY for real-time visual feedback
-  input.value = '';
-  if (window.updateDynamicCounters) window.updateDynamicCounters();
+  // Queue answer for display AFTER AI finishes (keep text in input, disable it)
+  window._pendingAnswer = { text: instruction, type: 'refinement', historyEntry: historyEntry };
+  input.disabled = true;
 
-  renderPreviousAnswers();
-
-  let historyText = "";
-  window.clarificationHistory.forEach(h => {
-    historyText += `\n\n[User clarification for "${h.questions}": ${h.answer}]`;
+  // Build conversation history including all previous + this new entry
+  const allEntries = [...(window.clarificationHistory || []), historyEntry];
+  let historyText = "\n\n--- PREVIOUS Q&A CONTEXT (you MUST treat this as an ongoing conversation and consider ALL previous answers) ---";
+  allEntries.forEach((h, i) => {
+    if (h.questions === "User requested change") {
+      historyText += `\n[Round ${i + 1} - User correction/addition: "${h.answer}"]`;
+    } else {
+      historyText += `\n[Round ${i + 1} - AI asked: "${h.questions}" → User answered: "${h.answer}"]`;
+    }
   });
+  historyText += "\n--- END CONTEXT ---";
 
   window.skipTranscriptUpdate = true;
   const transcriptArea = document.getElementById('mainTranscript');
@@ -5502,11 +5568,6 @@ async function submitRefinement() {
 
   const applyBtn = document.getElementById('reParseBtn');
   if (applyBtn) {
-    // Temporarily override the click handler validation because we ALREADY validated above
-    // and we crafted the value manually. We just want the fetch to happen.
-    // Actually, reParseBtn.click() triggers the CLICK handler which resets Validation?
-    // The click handler checks transcriptArea.value.length.
-    // If we crafted it correctly, it should pass.
     applyBtn.click();
   }
 
@@ -5743,14 +5804,12 @@ async function submitClarifications() {
     return;
   }
 
-  // Pre-calculate Question text for overhead check
   const currentQuestions = window.pendingClarifications.map(c => c.question).join(' ');
 
   // PRE-VALIDATION
   const limit = window.profileCharLimit;
   const historyChars = (window.calculateHistoricalChars ? window.calculateHistoricalChars() : 0);
   const transcriptChars = document.getElementById('mainTranscript')?.value.length || 0;
-  // Revised: Ignore overhead
   const projectedTotal = transcriptChars + historyChars + userAnswer.length;
 
   if (projectedTotal > limit) {
@@ -5759,49 +5818,39 @@ async function submitClarifications() {
     return;
   }
 
-  // Save for the AI prompt history (accumulate multi-turn answers)
-  if (!window.clarificationHistory) window.clarificationHistory = [];
-  window.clarificationHistory.push({ questions: currentQuestions, answer: userAnswer });
+  const historyEntry = { questions: currentQuestions, answer: userAnswer };
 
-  // Save for UI display with TYPE
-  if (!window.previousClarificationAnswers) window.previousClarificationAnswers = [];
-  window.previousClarificationAnswers.push({ text: userAnswer, type: 'clarification' });
+  // Queue answer for display AFTER AI finishes (keep text in input, disable it)
+  window._pendingAnswer = { text: userAnswer, type: 'clarification', historyEntry: historyEntry };
+  answerInput.disabled = true;
 
-  // Clear Input and update counters IMMEDIATELY
-  answerInput.value = '';
-  if (window.updateDynamicCounters) window.updateDynamicCounters();
-
-  renderPreviousAnswers();
-
-  // Build the enhanced prompt with FULL history
-  let historyText = "";
-  window.clarificationHistory.forEach(h => {
-    historyText += `\n\n[User clarification for "${h.questions}": ${h.answer}]`;
+  // Build conversation history including all previous + this new entry
+  const allEntries = [...(window.clarificationHistory || []), historyEntry];
+  let historyText = "\n\n--- PREVIOUS Q&A CONTEXT (you MUST treat this as an ongoing conversation and consider ALL previous answers) ---";
+  allEntries.forEach((h, i) => {
+    if (h.questions === "User requested change") {
+      historyText += `\n[Round ${i + 1} - User correction/addition: "${h.answer}"]`;
+    } else {
+      historyText += `\n[Round ${i + 1} - AI asked: "${h.questions}" → User answered: "${h.answer}"]`;
+    }
   });
+  historyText += "\n--- END CONTEXT ---";
 
   const clarificationPrompt = `${window.originalTranscript || document.getElementById('mainTranscript')?.value}${historyText}`;
 
-  // Set flag to tell updateUI NOT to touch the transcript
   window.skipTranscriptUpdate = true;
 
-  // Save transcript area reference
   const transcriptArea = document.getElementById('mainTranscript');
   const originalValue = transcriptArea.value;
-
-  // Temporarily set the transcript with the FULL clarification history
   transcriptArea.value = clarificationPrompt;
 
-  // Hide the clarifications section
   document.getElementById('clarificationsSection').classList.add('hidden');
 
-  // Click the existing Apply button to trigger the processing
   const applyBtn = document.getElementById('reParseBtn');
   if (applyBtn) {
     applyBtn.click();
   }
 
-  // Restore the original transcript immediately after click
-  // The skipTranscriptUpdate flag will prevent it from being overwritten by updateUI
   transcriptArea.value = originalValue;
 }
 
@@ -5896,6 +5945,7 @@ function updateUIWithoutTranscript(data) {
       window.setupSaveButton();
     }
 
+    window._analysisSucceeded = true;
     window.isAutoUpdating = false;
   } catch (e) {
     window.isAutoUpdating = false;
