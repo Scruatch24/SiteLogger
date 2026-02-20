@@ -80,7 +80,7 @@
         <button type="button" 
                 onclick="handleTogglePin(this, '<%= log.id %>', <%= pinned_state || false %>); event.stopPropagation();"
                 class="flex items-center gap-3 px-4 py-3 text-left hover:bg-yellow-50 transition-colors border-b border-gray-100 group/item">
-          <div class="w-8 h-8 rounded-lg bg-yellow-400 text-white flex items-center justify-center transition-colors">
+          <div class="w-8 h-8 rounded-lg bg-yellow-100 flex items-center justify-center text-yellow-600 group-hover/item:bg-yellow-500 group-hover/item:text-white transition-colors">
             <svg class="h-4 w-4 icon-pin" fill="<%= pinned_state ? "currentColor" : "none" %>" stroke="currentColor" stroke-width="2.5">
               <use xlink:href="<%= pinned_state ? '#icon-pin-filled' : '#icon-pin' %>"></use>
             </svg>

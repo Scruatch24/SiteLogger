@@ -1716,6 +1716,24 @@ PROMPT
 
         next_charge_label = paddle_subscription_next_charge_label(subscription_data)
         @billing_next_charge_label = next_charge_label if next_charge_label.present?
+
+        # --- 3b. Detect scheduled cancellation and store the correct end date ---
+        scheduled_change = subscription_data["scheduled_change"]
+        sub_status = subscription_data["status"].to_s.downcase
+        if scheduled_change.is_a?(Hash) && scheduled_change["action"] == "cancel"
+          cancel_date = parse_paddle_time(scheduled_change["effective_at"])
+          if cancel_date.present? && profile.has_attribute?(:paddle_cancelled_at)
+            profile.update_columns(paddle_cancelled_at: cancel_date, paddle_subscription_status: "canceled") if profile.paddle_cancelled_at != cancel_date
+          end
+        elsif sub_status == "canceled"
+          ends_at = parse_paddle_time(subscription_data["current_billing_period"]&.dig("ends_at"))
+          if ends_at.present? && profile.has_attribute?(:paddle_cancelled_at) && profile.paddle_cancelled_at != ends_at
+            profile.update_columns(paddle_cancelled_at: ends_at)
+          end
+        elsif profile.has_attribute?(:paddle_cancelled_at) && profile.paddle_cancelled_at.present? && sub_status == "active" && scheduled_change.blank?
+          # Subscription reactivated — clear stale cancellation date
+          profile.update_columns(paddle_cancelled_at: nil, paddle_subscription_status: "active")
+        end
       end
     end
 
