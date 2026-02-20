@@ -655,7 +655,7 @@ NATURAL LANGUAGE / SLANG RULESET (pragmatic)
 CATEGORY RULES (must map correctly)
 ----------------------------
 Categories: LABOR/SERVICE, MATERIALS, EXPENSES, FEES, CREDITS.
-THESE ARE THE ONLY 4 SECTION TYPES. You MUST classify every item into one of these. There is NO "other", "notes", "miscellaneous", or any other category. If an item does not clearly fit, classify it as MATERIALS.
+THESE ARE THE ONLY 5 CATEGORIES. You MUST classify every item into one of these. There is NO "other", "notes", "miscellaneous", or any other category. If an item does not clearly fit LABOR, EXPENSES, or FEES, classify it as MATERIALS.
 
 LABOR:
 - If multiple distinct services are mentioned, create separate labor entries.
