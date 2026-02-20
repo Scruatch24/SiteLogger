@@ -586,9 +586,9 @@ class HomeController < ApplicationController
     # The Transcript Language only affects item names/descriptions, not category titles
     ui_is_georgian = (I18n.locale.to_s == "ka")
     sec_labels = if ui_is_georgian
-      { labor: "პროფესიონალური მომსახურება", materials: "მასალები/პროდუქტები", expenses: "ხარჯები", fees: "მოსაკრებლები", notes: "შენიშვნები" }
+      { labor: "პროფესიონალური მომსახურება", materials: "მასალები/პროდუქტები", expenses: "ხარჯები", fees: "მოსაკრებლები" }
     else
-      { labor: "Labor/Service", materials: "Materials/Products", expenses: "Expenses", fees: "Fees", notes: "Field Notes" }
+      { labor: "Labor/Service", materials: "Materials/Products", expenses: "Expenses", fees: "Fees" }
     end
 
     hours_per_workday = (@profile.hours_per_workday.presence || 8).to_f
@@ -655,6 +655,7 @@ NATURAL LANGUAGE / SLANG RULESET (pragmatic)
 CATEGORY RULES (must map correctly)
 ----------------------------
 Categories: LABOR/SERVICE, MATERIALS, EXPENSES, FEES, CREDITS.
+THESE ARE THE ONLY 4 SECTION TYPES. You MUST classify every item into one of these. There is NO "other", "notes", "miscellaneous", or any other category. If an item does not clearly fit, classify it as MATERIALS.
 
 LABOR:
 - If multiple distinct services are mentioned, create separate labor entries.
