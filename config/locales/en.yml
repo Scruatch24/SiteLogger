@@ -738,6 +738,10 @@ en:
     free_upgrade_cta: "Upgrade to unlock Pro features"
     history_completed: "Successful"
     history_failed: "Failed"
+    subscription_section: "Subscription"
+    status_canceled: "Canceled"
+    next_billing_canceled: "Canceled"
+    next_charge_canceled: "Canceled"
 
   # Checkout Page
   checkout_page:
@@ -748,6 +752,7 @@ en:
     payment_details: "Payment Details"
     secure_checkout: "Secure checkout powered by Paddle"
     loading: "Loading checkout..."
+    already_pro: "You already have an active Pro plan. Manage it here."
 
   # Onboarding
   onboarding:

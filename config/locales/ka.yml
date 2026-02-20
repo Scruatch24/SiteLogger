@@ -746,10 +746,15 @@ ka:
     free_upgrade_cta: "გახდი Pro სრული ფუნქციებისთვის"
     history_completed: "წარმატებული"
     history_failed: "წარუმატებელი"
+    subscription_section: "გამოწერა"
+    status_canceled: "გაუქმებული"
+    next_billing_canceled: "გაუქმებული"
+    next_charge_canceled: "გაუქმებული"
 
   # Checkout Page
   checkout_page:
-    title_html: 'დაასრულე<br><span class="onb-accent">გადახდა</span>'
+    already_pro: "შენ უკვე გაქვს აქტიური Pro გეგმა. მართე აქ."
+    title_html: 'დაასრულე<br><span class="onb-accent">განახლება</span>'
     subtitle: "მხოლოდ ერთი ნაბიჯი გაშორებთ Pro-ს სრული შესაძლებლობების გასახსნელად."
     back_pricing: "ფასებზე დაბრუნება"
     order_summary: "შეკვეთის შეჯამება"

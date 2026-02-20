@@ -151,6 +151,9 @@ class HomeController < ApplicationController
   end
 
   def checkout
+    if user_signed_in? && current_user.profile&.paid?
+      redirect_to subscription_path, notice: t("checkout_page.already_pro") and return
+    end
   end
 
   def confirm_checkout

@@ -92,7 +92,13 @@ class Webhooks::PaddleController < ActionController::Base
 
     Rails.logger.info "Paddle subscription event: found profile #{profile.id}, updating plan to paid"
 
-    resolved_plan = %w[canceled paused].include?(status.to_s) ? "free" : "paid"
+    # For subscription.updated: only downgrade if truly canceled with no future access
+    resolved_plan = if %w[canceled paused].include?(status.to_s)
+      ends_at = parse_paddle_time(data["ends_at"] || data["current_billing_period"]&.dig("ends_at"))
+      (ends_at.present? && ends_at > Time.current) ? "paid" : "free"
+    else
+      "paid"
+    end
     update_attrs = {
       plan: resolved_plan,
       paddle_subscription_id: subscription_id,
@@ -124,16 +130,38 @@ class Webhooks::PaddleController < ActionController::Base
       return
     end
 
+    # Keep plan=paid if the user canceled but still has access until period ends.
+    # Only downgrade to free when the billing period has actually ended.
+    new_plan = if status == "canceled"
+      ends_at = parse_paddle_time(data["ends_at"] || data["current_billing_period"]&.dig("ends_at"))
+      if ends_at.present? && ends_at > Time.current
+        profile.plan  # still within paid period
+      else
+        "free"  # period ended, revoke access
+      end
+    elsif status == "paused"
+      "free"
+    else
+      profile.plan
+    end
+
     update_attrs = {
       paddle_subscription_id: subscription_id,
       paddle_subscription_status: status,
-      plan: status == "canceled" ? "free" : profile.plan
+      plan: new_plan
     }
     if profile.has_attribute?(:paddle_customer_id) && customer_id.present?
       update_attrs[:paddle_customer_id] = customer_id
     end
 
     profile.update_columns(update_attrs)
+  end
+
+  def parse_paddle_time(value)
+    return nil if value.blank?
+    Time.zone.parse(value.to_s)
+  rescue
+    nil
   end
 
   def handle_customer_created(event)

@@ -2,8 +2,11 @@
 <% paid_plan = profile&.paid? %>
 <% has_subscription_history = profile&.ever_paid? %>
 <% raw_status = profile&.paddle_subscription_status.to_s.downcase %>
-<% status_active = raw_status.blank? ? paid_plan : %w[active trialing].include?(raw_status) %>
-<% status_label = if status_active
+<% sub_canceled = raw_status == 'canceled' %>
+<% status_active = paid_plan && %w[active trialing].include?(raw_status) || (paid_plan && raw_status.blank?) %>
+<% status_label = if sub_canceled
+  t('subscription_page.status_canceled')
+elsif status_active
   t('subscription_page.status_active')
 elsif raw_status.present?
   t('subscription_page.status_inactive')
@@ -12,7 +15,9 @@ else
 end %>
 <% plan_label = paid_plan ? t('subscription_page.plan_pro') : t('subscription_page.plan_free') %>
 <% plan_price_label = paid_plan ? (ENV['PADDLE_PLAN_PRICE_LABEL'].presence || t('modal.pro_price')) : t('subscription_page.free_price') %>
-<% next_billing_value = if @billing_next_billing_label.present?
+<% next_billing_value = if sub_canceled
+  t('subscription_page.next_billing_canceled')
+elsif @billing_next_billing_label.present?
   @billing_next_billing_label
 elsif profile&.paddle_next_bill_at.present?
   l(profile.paddle_next_bill_at, format: :long)
@@ -23,7 +28,9 @@ elsif paid_plan
 else
   t('subscription_page.not_applicable')
 end %>
-<% next_charge_value = if @billing_next_charge_label.present?
+<% next_charge_value = if sub_canceled
+  t('subscription_page.next_charge_canceled')
+elsif @billing_next_charge_label.present?
   @billing_next_charge_label
 elsif paid_plan && status_active
   t('subscription_page.pending_billing_sync')
@@ -251,6 +258,12 @@ end %>
     color: #4ade80;
     border: 1px solid rgba(74,222,128,0.34);
     background: rgba(74,222,128,0.14);
+  }
+
+  .sub-status-chip.canceled {
+    color: #fb923c;
+    border: 1px solid rgba(251,146,60,0.4);
+    background: rgba(251,146,60,0.14);
   }
 
   .sub-status-chip.inactive {
@@ -593,16 +606,23 @@ end %>
           <% end %>
         </div>
 
+      </div>
+    </section>
+
+    <section class="sub-section">
+      <h2 class="sub-section-title"><%= t('subscription_page.subscription_section') %></h2>
+      <div class="sub-plan-grid">
         <div class="sub-surface">
           <div class="sub-key"><%= t('subscription_page.status') %></div>
-          <div class="sub-status-chip <%= status_active ? 'active' : 'inactive' %>"><%= status_label %></div>
+          <div class="sub-status-chip <%= status_active ? 'active' : (sub_canceled ? 'canceled' : 'inactive') %>"><%= status_label %></div>
+        </div>
 
-          <div class="sub-key" style="margin-top:0.7rem;"><%= t('subscription_page.next_billing') %></div>
+        <div class="sub-surface">
+          <div class="sub-key"><%= t('subscription_page.next_billing') %></div>
           <div class="sub-value"><%= next_billing_value %></div>
 
           <div class="sub-key" style="margin-top:0.7rem;"><%= t('subscription_page.next_charge_amount') %></div>
           <div class="sub-value"><%= next_charge_value %></div>
-
         </div>
       </div>
     </section>
