@@ -62,11 +62,14 @@ class HomeController < ApplicationController
     user_id = current_user.id
     @overview = AnalyticsEvent.overview_for(user_id)
     @revenue = AnalyticsEvent.revenue_for(user_id, currency: @profile.currency.presence)
-    @voice_perf = AnalyticsEvent.voice_performance_for(user_id)
-    @productivity = AnalyticsEvent.productivity_for(user_id)
 
-    # Compute total invoiced amount from existing logs
-    @total_invoiced = compute_total_invoiced(current_user)
+    # Cached total invoiced (expensive — iterates all logs)
+    @total_invoiced = Rails.cache.fetch("analytics/total_invoiced/#{user_id}/#{current_user.logs.kept.maximum(:updated_at).to_i}", expires_in: 15.minutes) do
+      compute_total_invoiced(current_user)
+    end
+
+    # Top clients from existing logs
+    @top_clients = AnalyticsEvent.top_clients_for(user_id, limit: 5)
 
     # Invoice status breakdown
     logs = current_user.logs.kept
@@ -75,6 +78,12 @@ class HomeController < ApplicationController
       sent: logs.where(status: "sent").count,
       paid: logs.where(status: "paid").count,
       overdue: logs.where(status: "overdue").count
+    }
+
+    # Existing tracking_events counts (PDFs exported, recordings)
+    @tracking_counts = {
+      exports: TrackingEvent.where(event_name: "invoice_exported", user_id: user_id).count,
+      recordings_started: TrackingEvent.where(event_name: "recording_started", user_id: user_id).count
     }
   end
 

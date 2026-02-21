@@ -333,49 +333,63 @@
   .ana-status-pill.overdue { border-color: rgba(248,113,113,0.3); }
   .ana-status-pill.overdue .ana-status-pill-count { color: #f87171; }
 
-  /* Speed comparison bar */
-  .ana-speed-bar {
-    margin-top: 0.7rem;
+  /* Top Clients */
+  .ana-clients-list {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.45rem;
   }
-  .ana-speed-row {
+  .ana-client-row {
     display: flex;
     align-items: center;
-    gap: 0.6rem;
+    gap: 0.75rem;
+    padding: 0.7rem 0.85rem;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.02);
+    transition: border-color 0.2s ease;
   }
-  .ana-speed-label {
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: rgba(255,255,255,0.6);
-    width: 70px;
-    flex-shrink: 0;
-  }
-  .ana-speed-track {
-    flex: 1;
-    height: 8px;
-    border-radius: 999px;
-    background: rgba(255,255,255,0.06);
-    overflow: hidden;
-    position: relative;
-  }
-  .ana-speed-fill {
-    height: 100%;
-    border-radius: 999px;
-    transition: width 0.6s ease;
-  }
-  .ana-speed-fill.voice { background: linear-gradient(90deg, #f97316, #fbbf24); }
-  .ana-speed-fill.manual { background: rgba(255,255,255,0.15); }
-  .ana-speed-time {
+  .ana-client-row:hover { border-color: rgba(249,115,22,0.3); }
+  .ana-client-rank {
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    background: rgba(249,115,22,0.12);
+    color: #f97316;
     font-size: 11px;
-    font-weight: 800;
-    color: rgba(255,255,255,0.7);
-    width: 50px;
-    text-align: right;
+    font-weight: 900;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     flex-shrink: 0;
+  }
+  .ana-client-info { flex: 1; min-width: 0; }
+  .ana-client-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: #f8fafc;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .ana-client-meta {
+    font-size: 10px;
+    color: rgba(255,255,255,0.4);
+    font-weight: 600;
+    margin-top: 2px;
+  }
+  .ana-client-count {
+    font-size: 18px;
+    font-weight: 900;
+    color: #f97316;
+    flex-shrink: 0;
+  }
+  .ana-empty-state {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: rgba(255,255,255,0.3);
+    font-size: 13px;
+    font-weight: 600;
   }
 
   /* Footer */
@@ -432,6 +446,19 @@
     </header>
 
     <!-- ═══════════════ 1. OVERVIEW CARDS ═══════════════ -->
+    <%
+      this_m = @overview[:this_month_invoices]
+      last_m = @overview[:last_month_invoices]
+      if last_m > 0
+        trend_pct = (((this_m - last_m).to_f / last_m) * 100).round(0)
+        trend_class = trend_pct >= 0 ? "up" : "down"
+        trend_label = trend_pct >= 0 ? "+#{trend_pct}%" : "#{trend_pct}%"
+      else
+        trend_pct = nil
+        trend_class = ""
+        trend_label = t('analytics_page.first_month')
+      end
+    %>
     <section class="ana-section">
       <h2 class="ana-section-title"><%= t('analytics_page.overview') %></h2>
       <div class="ana-cards">
@@ -444,8 +471,8 @@
         <!-- This Month -->
         <div class="ana-card">
           <div class="ana-card-label"><%= t('analytics_page.this_month') %></div>
-          <div class="ana-card-value accent"><%= number_with_delimiter(@overview[:this_month_invoices]) %></div>
-          <div class="ana-card-trend"><%= t('analytics_page.invoices_this_month') %></div>
+          <div class="ana-card-value accent"><%= number_with_delimiter(this_m) %></div>
+          <div class="ana-card-trend <%= trend_class %>"><%= trend_label %> <%= t('analytics_page.vs_last_month') %></div>
         </div>
         <!-- Total Invoiced Amount -->
         <div class="ana-card">
@@ -453,23 +480,23 @@
           <div class="ana-card-value"><%= fmt_money.call(@total_invoiced) %></div>
           <div class="ana-card-trend"><%= currency %></div>
         </div>
+        <!-- Active Clients -->
+        <div class="ana-card">
+          <div class="ana-card-label"><%= t('analytics_page.active_clients') %></div>
+          <div class="ana-card-value"><%= number_with_delimiter(@overview[:active_clients]) %></div>
+          <div class="ana-card-trend"><%= t('analytics_page.unique_clients') %></div>
+        </div>
+        <!-- PDFs Exported -->
+        <div class="ana-card">
+          <div class="ana-card-label"><%= t('analytics_page.pdfs_exported') %></div>
+          <div class="ana-card-value"><%= number_with_delimiter(@tracking_counts[:exports]) %></div>
+          <div class="ana-card-trend"><%= t('analytics_page.lifetime') %></div>
+        </div>
         <!-- Voice Recordings -->
         <div class="ana-card">
           <div class="ana-card-label"><%= t('analytics_page.voice_recordings') %></div>
-          <div class="ana-card-value"><%= number_with_delimiter(@overview[:voice_recordings]) %></div>
-          <div class="ana-card-trend"><%= t('analytics_page.processed') %></div>
-        </div>
-        <!-- Success Rate -->
-        <div class="ana-card">
-          <div class="ana-card-label"><%= t('analytics_page.success_rate') %></div>
-          <div class="ana-card-value green"><%= @overview[:success_rate] %>%</div>
-          <div class="ana-card-trend"><%= t('analytics_page.transcription_accuracy') %></div>
-        </div>
-        <!-- Time Saved -->
-        <div class="ana-card">
-          <div class="ana-card-label"><%= t('analytics_page.time_saved') %></div>
-          <div class="ana-card-value accent"><%= fmt_time.call(@overview[:time_saved_seconds]) %></div>
-          <div class="ana-card-trend"><%= t('analytics_page.vs_manual') %></div>
+          <div class="ana-card-value"><%= number_with_delimiter(@tracking_counts[:recordings_started]) %></div>
+          <div class="ana-card-trend"><%= t('analytics_page.recordings_total') %></div>
         </div>
       </div>
     </section>
@@ -542,69 +569,25 @@
       </div>
     </section>
 
-    <!-- ═══════════════ 4. VOICE AI PERFORMANCE ═══════════════ -->
+    <!-- ═══════════════ 4. TOP CLIENTS ═══════════════ -->
     <section class="ana-section">
-      <h2 class="ana-section-title"><%= t('analytics_page.ai_performance') %></h2>
-      <div class="ana-stats-grid">
-        <div class="ana-stat-surface">
-          <div class="ana-stat-key"><%= t('analytics_page.transcription_accuracy') %></div>
-          <div class="ana-stat-val green"><%= @overview[:success_rate] %>%</div>
+      <h2 class="ana-section-title"><%= t('analytics_page.top_clients') %></h2>
+      <% if @top_clients.any? %>
+        <div class="ana-clients-list">
+          <% @top_clients.each_with_index do |client, idx| %>
+            <div class="ana-client-row">
+              <div class="ana-client-rank"><%= idx + 1 %></div>
+              <div class="ana-client-info">
+                <div class="ana-client-name"><%= client[:name] %></div>
+                <div class="ana-client-meta"><%= t('analytics_page.last_invoice') %>: <%= client[:last_invoice_at]&.strftime("%b %d, %Y") || "—" %></div>
+              </div>
+              <div class="ana-client-count"><%= client[:invoice_count] %></div>
+            </div>
+          <% end %>
         </div>
-        <div class="ana-stat-surface">
-          <div class="ana-stat-key"><%= t('analytics_page.edit_rate') %></div>
-          <div class="ana-stat-val"><%= @voice_perf[:edit_rate] %>%</div>
-        </div>
-        <div class="ana-stat-surface">
-          <div class="ana-stat-key"><%= t('analytics_page.avg_processing') %></div>
-          <div class="ana-stat-val orange"><%= fmt_time.call(@voice_perf[:avg_processing_time]) %></div>
-        </div>
-        <div class="ana-stat-surface">
-          <div class="ana-stat-key"><%= t('analytics_page.failed_attempts') %></div>
-          <div class="ana-stat-val red"><%= @voice_perf[:failed_attempts] %></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ═══════════════ 5. PRODUCTIVITY / TIME SAVED ═══════════════ -->
-    <section class="ana-section">
-      <h2 class="ana-section-title"><%= t('analytics_page.productivity') %></h2>
-      <div class="ana-stats-grid">
-        <div class="ana-stat-surface">
-          <div class="ana-stat-key"><%= t('analytics_page.total_time_saved') %></div>
-          <div class="ana-stat-val green"><%= fmt_time.call(@productivity[:time_saved_total_seconds]) %></div>
-        </div>
-        <div class="ana-stat-surface">
-          <div class="ana-stat-key"><%= t('analytics_page.speed_multiplier') %></div>
-          <div class="ana-stat-val orange"><%= @productivity[:speed_multiplier] %>x</div>
-        </div>
-        <div class="ana-stat-surface">
-          <div class="ana-stat-key"><%= t('analytics_page.voice_invoices') %></div>
-          <div class="ana-stat-val"><%= @productivity[:voice_invoices] %></div>
-        </div>
-        <div class="ana-stat-surface">
-          <div class="ana-stat-key"><%= t('analytics_page.avg_creation_time') %></div>
-          <div class="ana-stat-val"><%= fmt_time.call(@productivity[:avg_creation_time_seconds]) %></div>
-        </div>
-      </div>
-
-      <!-- Voice vs Manual Speed Comparison -->
-      <div class="ana-speed-bar">
-        <div class="ana-speed-row">
-          <div class="ana-speed-label"><%= t('analytics_page.voice_label') %></div>
-          <div class="ana-speed-track">
-            <% voice_pct = @productivity[:manual_estimate_seconds] > 0 ? ((@productivity[:avg_creation_time_seconds].to_f / @productivity[:manual_estimate_seconds]) * 100).round : 25 %>
-            <div class="ana-speed-fill voice" style="width: <%= [voice_pct, 100].min %>%;"></div>
-          </div>
-          <div class="ana-speed-time"><%= fmt_time.call(@productivity[:avg_creation_time_seconds]) %></div>
-        </div>
-        <div class="ana-speed-row">
-          <div class="ana-speed-label"><%= t('analytics_page.manual_label') %></div>
-          <div class="ana-speed-track">
-            <div class="ana-speed-fill manual" style="width: 100%;"></div>
-          </div>
-          <div class="ana-speed-time"><%= fmt_time.call(@productivity[:manual_estimate_seconds]) %></div>
-        </div>
-      </div>
+      <% else %>
+        <div class="ana-empty-state"><%= t('analytics_page.no_clients_yet') %></div>
+      <% end %>
     </section>
 
     <div class="ana-footer">

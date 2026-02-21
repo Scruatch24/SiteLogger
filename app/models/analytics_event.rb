@@ -7,15 +7,13 @@ class AnalyticsEvent < ApplicationRecord
   TRANSCRIPTION_SUCCESS = "transcription_success"
   TRANSCRIPTION_FAILURE = "transcription_failure"
   VOICE_PROCESSING = "voice_processing"
-  INVOICE_EDITED = "invoice_edited"
 
   EVENT_TYPES = [
     VOICE_RECORDING,
     INVOICE_CREATED,
     TRANSCRIPTION_SUCCESS,
     TRANSCRIPTION_FAILURE,
-    VOICE_PROCESSING,
-    INVOICE_EDITED
+    VOICE_PROCESSING
   ].freeze
 
   validates :event_type, presence: true, inclusion: { in: EVENT_TYPES }
@@ -33,7 +31,8 @@ class AnalyticsEvent < ApplicationRecord
     events = where(user_id: user_id)
 
     total_invoices = logs.count
-    this_month_invoices = logs.where("created_at >= ?", Time.current.beginning_of_month).count
+    this_month = logs.where("created_at >= ?", Time.current.beginning_of_month).count
+    last_month = logs.where(created_at: Time.current.last_month.beginning_of_month..Time.current.beginning_of_month).count
 
     voice_recordings = events.of_type(VOICE_RECORDING).count
     transcription_successes = events.of_type(TRANSCRIPTION_SUCCESS).count
@@ -41,16 +40,15 @@ class AnalyticsEvent < ApplicationRecord
     total_transcriptions = transcription_successes + transcription_failures
     success_rate = total_transcriptions > 0 ? ((transcription_successes.to_f / total_transcriptions) * 100).round(1) : 100.0
 
-    # Estimated time saved: ~3 min per voice invoice vs ~12 min manual
-    avg_time_saved_per_invoice_seconds = 540 # 9 minutes saved per voice invoice
-    time_saved_seconds = voice_recordings * avg_time_saved_per_invoice_seconds
+    active_clients = logs.where.not(client: [nil, ""]).distinct.count(:client)
 
     {
       total_invoices: total_invoices,
-      this_month_invoices: this_month_invoices,
+      this_month_invoices: this_month,
+      last_month_invoices: last_month,
       voice_recordings: voice_recordings,
       success_rate: success_rate,
-      time_saved_seconds: time_saved_seconds,
+      active_clients: active_clients,
       total_transcriptions: total_transcriptions,
       transcription_failures: transcription_failures
     }
@@ -64,37 +62,29 @@ class AnalyticsEvent < ApplicationRecord
     count = events.count
     avg_amount = count > 0 ? (total_amount / count).round(2) : 0.0
 
-    # Monthly trend (last 12 months)
-    monthly = events
-      .where("created_at >= ?", 12.months.ago.beginning_of_month)
-      .group("DATE_TRUNC('month', created_at)")
-      .sum(:amount)
-      .transform_keys { |k| k.strftime("%Y-%m") }
-
     {
       total_amount: total_amount,
       invoice_count: count,
-      avg_amount: avg_amount,
-      monthly_trend: monthly
+      avg_amount: avg_amount
     }
   end
 
-  def self.voice_performance_for(user_id)
-    events = where(user_id: user_id)
+  def self.top_clients_for(user_id, limit: 5)
+    logs = Log.where(user_id: user_id).kept.where.not(client: [nil, ""])
 
-    processing_events = events.of_type(VOICE_PROCESSING)
-    avg_processing_time = processing_events.average(:duration_seconds).to_f.round(2)
+    client_stats = logs
+      .group(:client)
+      .select("client, COUNT(*) as invoice_count, MAX(created_at) as last_invoice_at")
+      .order("invoice_count DESC")
+      .limit(limit)
 
-    edit_events = events.of_type(INVOICE_EDITED)
-    voice_events = events.of_type(VOICE_RECORDING)
-    edit_rate = voice_events.count > 0 ? ((edit_events.count.to_f / voice_events.count) * 100).round(1) : 0.0
-
-    {
-      avg_processing_time: avg_processing_time,
-      edit_rate: edit_rate,
-      total_edits: edit_events.count,
-      failed_attempts: events.of_type(TRANSCRIPTION_FAILURE).count
-    }
+    client_stats.map do |row|
+      {
+        name: row.client,
+        invoice_count: row.invoice_count,
+        last_invoice_at: row.last_invoice_at
+      }
+    end
   end
 
   def self.time_series_for(user_id, period: "30d", metric: "invoices")
@@ -130,26 +120,6 @@ class AnalyticsEvent < ApplicationRecord
     else
       {}
     end
-  end
-
-  def self.productivity_for(user_id)
-    events = where(user_id: user_id)
-    voice_count = events.of_type(VOICE_RECORDING).count
-    processing = events.of_type(VOICE_PROCESSING)
-
-    avg_creation_time = processing.average(:duration_seconds).to_f.round(1)
-    manual_estimate_seconds = 720 # 12 min manual
-    voice_estimate_seconds = avg_creation_time > 0 ? avg_creation_time : 180 # 3 min voice
-
-    time_saved_total = voice_count * (manual_estimate_seconds - voice_estimate_seconds)
-
-    {
-      voice_invoices: voice_count,
-      avg_creation_time_seconds: voice_estimate_seconds,
-      manual_estimate_seconds: manual_estimate_seconds,
-      time_saved_total_seconds: [time_saved_total, 0].max,
-      speed_multiplier: voice_estimate_seconds > 0 ? (manual_estimate_seconds.to_f / voice_estimate_seconds).round(1) : 4.0
-    }
   end
 
   # ── Tracking helper (call from controllers) ──

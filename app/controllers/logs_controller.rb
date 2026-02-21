@@ -154,15 +154,6 @@ class LogsController < ApplicationController
       end
 
       if @log.save
-        # Track invoice edit for analytics
-        if user_signed_in?
-          AnalyticsEvent.track!(
-            user_id: current_user.id,
-            event_type: AnalyticsEvent::INVOICE_EDITED,
-            metadata: { log_id: @log.id, field: field }
-          )
-        end
-
         render json: { success: true }
       else
         render json: { success: false, errors: @log.errors.full_messages }, status: :unprocessable_entity
