@@ -791,6 +791,16 @@ OUTPUT & TONE
 - Put all specific actions/details into the 'sub_categories' array.
 
 ----------------------------
+DISCOUNT RULES (CRITICAL)
+----------------------------
+- Discounts are MUTUALLY EXCLUSIVE: each item can have EITHER discount_flat OR discount_percent, NEVER BOTH.
+- If the user mentions a percentage discount (e.g., "10% off"), use discount_percent and leave discount_flat empty.
+- If the user mentions a flat/fixed discount (e.g., "$50 off"), use discount_flat and leave discount_percent empty.
+- discount_percent MUST NOT exceed 100.
+- discount_flat MUST NOT exceed the item's total price (unit_price * qty, or hours * rate for labor).
+- Same rules apply to global_discount_flat/global_discount_percent and labor_discount_flat/labor_discount_percent.
+
+----------------------------
 OUTPUT JSON SCHEMA (must match exactly)
 ----------------------------
 Return EXACTLY the JSON structure below (use null for unknown numeric, empty arrays for absent categories):

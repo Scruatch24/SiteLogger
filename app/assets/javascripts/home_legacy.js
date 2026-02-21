@@ -1009,17 +1009,29 @@ function updateTotalsSummary() {
           rowGross = priceVal * rateVal;
         }
 
-        let discFlat = parseFloat(item.querySelector('.discount-flat-input')?.value) || 0;
-        let discPercent = parseFloat(item.querySelector('.discount-percent-input')?.value) || 0;
+        const laborPctWrapper = item.querySelector('.labor-discount-percent-wrapper');
+        const laborFlatWrapper = item.querySelector('.labor-discount-flat-wrapper');
+        const laborPctVisible = laborPctWrapper && !laborPctWrapper.classList.contains('hidden');
+        const laborFlatVisible = laborFlatWrapper && !laborFlatWrapper.classList.contains('hidden');
+        // MUTUALLY EXCLUSIVE: only use the visible discount type
+        let discPercent = laborPctVisible ? (parseFloat(item.querySelector('.discount-percent-input')?.value) || 0) : 0;
+        let discFlat = laborFlatVisible ? (parseFloat(item.querySelector('.discount-flat-input')?.value) || 0) : 0;
+        // Cap values + visual clamp (only during manual edits, not auto-update)
+        if (discPercent > 100) {
+          discPercent = 100;
+          if (!window.isAutoUpdating) { const pctIn = item.querySelector('.discount-percent-input'); if (pctIn) pctIn.value = '100'; }
+        }
+        if (rowGross > 0 && discFlat > rowGross) {
+          discFlat = rowGross;
+          if (!window.isAutoUpdating) { const flatIn = item.querySelector('.discount-flat-input'); if (flatIn) flatIn.value = cleanNum(rowGross); }
+        }
         const laborDiscBtn = item.querySelector('.labor-add-discount-btn');
         if (laborDiscBtn) {
           const isLaborDiscountActive = discFlat > 0 || discPercent > 0;
-          const pctVisible = item.querySelector('.labor-discount-percent-wrapper') && !item.querySelector('.labor-discount-percent-wrapper').classList.contains('hidden');
-          const flatVisible = item.querySelector('.labor-discount-flat-wrapper') && !item.querySelector('.labor-discount-flat-wrapper').classList.contains('hidden');
-          setLaborDiscountButtonState(laborDiscBtn, isLaborDiscountActive || pctVisible || flatVisible);
+          setLaborDiscountButtonState(laborDiscBtn, isLaborDiscountActive || laborPctVisible || laborFlatVisible);
         }
 
-        // Discount logic (Math.min below handles capping without destroying user input)
+        // Discount logic — only one type active at a time
         const rowDisc = Math.min(rowGross, discFlat + (rowGross * (discPercent / 100)));
         const rowNet = Math.max(0, rowGross - rowDisc);
 
@@ -1056,8 +1068,22 @@ function updateTotalsSummary() {
       const qtyVal = parseFloat(item.querySelector('.qty-input')?.value) || parseFloat(item.dataset.qty) || 1;
       const rowGross = priceVal * qtyVal;
 
-      let discFlat = parseFloat(item.querySelector('.discount-flat-input')?.value) || 0;
-      let discPercent = parseFloat(item.querySelector('.discount-percent-input')?.value) || 0;
+      const itemPctWrapper = item.querySelector('.item-discount-percent-wrapper');
+      const itemFlatWrapper = item.querySelector('.item-discount-flat-wrapper');
+      const itemPctVisible = itemPctWrapper && !itemPctWrapper.classList.contains('hidden');
+      const itemFlatVisible = itemFlatWrapper && !itemFlatWrapper.classList.contains('hidden');
+      // MUTUALLY EXCLUSIVE: only use the visible discount type
+      let discPercent = itemPctVisible ? (parseFloat(item.querySelector('.discount-percent-input')?.value) || 0) : 0;
+      let discFlat = itemFlatVisible ? (parseFloat(item.querySelector('.discount-flat-input')?.value) || 0) : 0;
+      // Cap values + visual clamp (only during manual edits, not auto-update)
+      if (discPercent > 100) {
+        discPercent = 100;
+        if (!window.isAutoUpdating) { const pctIn = item.querySelector('.discount-percent-input'); if (pctIn) pctIn.value = '100'; }
+      }
+      if (rowGross > 0 && discFlat > rowGross) {
+        discFlat = rowGross;
+        if (!window.isAutoUpdating) { const flatIn = item.querySelector('.discount-flat-input'); if (flatIn) flatIn.value = cleanNum(rowGross); }
+      }
       const taxRateInput = item.querySelector('.tax-menu-input');
       const taxRateVal = taxRateInput ? (parseFloat(taxRateInput.value) || 0) : 0;
       const isTaxable = taxRateVal > 0;
@@ -1066,12 +1092,10 @@ function updateTotalsSummary() {
       if (itemDiscBtn) {
         const isItemDiscountActive = discFlat > 0 || discPercent > 0;
         const isPriceEnabled = item.dataset.priceActive !== 'false';
-        const pctVisible = item.querySelector('.item-discount-percent-wrapper') && !item.querySelector('.item-discount-percent-wrapper').classList.contains('hidden');
-        const flatVisible = item.querySelector('.item-discount-flat-wrapper') && !item.querySelector('.item-discount-flat-wrapper').classList.contains('hidden');
-        setItemDiscountButtonState(itemDiscBtn, isPriceEnabled && (isItemDiscountActive || pctVisible || flatVisible));
+        setItemDiscountButtonState(itemDiscBtn, isPriceEnabled && (isItemDiscountActive || itemPctVisible || itemFlatVisible));
       }
 
-      // Discount logic (Math.min below handles capping without destroying user input)
+      // Discount logic — only one type active at a time
       const rowDisc = Math.min(rowGross, discFlat + (rowGross * (discPercent / 100)));
       const rowNet = Math.max(0, rowGross - rowDisc);
 
@@ -3800,8 +3824,22 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
   const taxLabel = window.APP_LANGUAGES.tax || 'TAX';
   const taxVal = (taxRate !== null && taxRate !== undefined && taxRate !== '') ? taxRate : '';
 
-  const hasDiscPercent = discPercent !== '' && discPercent !== '0' && discPercent !== 0 && discPercent !== null && discPercent !== undefined;
-  const hasDiscFlat = discFlat !== '' && discFlat !== '0' && discFlat !== 0 && discFlat !== null && discFlat !== undefined;
+  // MUTUALLY EXCLUSIVE: percentage wins if both present; cap values
+  let discPercentCleaned = (discPercent !== '' && discPercent !== '0' && discPercent !== 0 && discPercent !== null && discPercent !== undefined) ? discPercent : '';
+  let discFlatCleaned = (discFlat !== '' && discFlat !== '0' && discFlat !== 0 && discFlat !== null && discFlat !== undefined) ? discFlat : '';
+  if (discPercentCleaned !== '' && parseFloat(discPercentCleaned) > 100) discPercentCleaned = '100';
+  const laborBaseForCap = parseFloat(laborPriceVal) || 0;
+  const laborRateForCap = parseFloat(defaultRate) || 0;
+  const laborGrossForCap = (billingMode === 'hourly') ? laborBaseForCap * laborRateForCap : laborBaseForCap;
+  if (discFlatCleaned !== '' && laborGrossForCap > 0 && parseFloat(discFlatCleaned) > laborGrossForCap) discFlatCleaned = cleanNum(laborGrossForCap);
+  let hasDiscPercent = discPercentCleaned !== '' && parseFloat(discPercentCleaned) > 0;
+  let hasDiscFlat = discFlatCleaned !== '' && parseFloat(discFlatCleaned) > 0;
+  if (hasDiscPercent && hasDiscFlat) {
+    discFlatCleaned = '';
+    hasDiscFlat = false;
+  }
+  discPercent = discPercentCleaned || discPercent;
+  discFlat = discFlatCleaned || discFlat;
 
   let priceGroupHtml = '';
   if (billingMode === 'hourly') {
@@ -4198,40 +4236,36 @@ function updateBadge(row) {
   // Sync dataset.qty for other functions that might rely on it
   row.dataset.qty = qtyVal;
 
-  // Discount Calculation & Validation
+  // Discount Calculation & Validation — MUTUALLY EXCLUSIVE: only use the visible type
   const discFlatInput = row.querySelector('.discount-flat-input');
   const discPercentInput = row.querySelector('.discount-percent-input');
+  const pctWrapper = row.querySelector('.item-discount-percent-wrapper') || row.querySelector('.labor-discount-percent-wrapper');
+  const flatWrapper = row.querySelector('.item-discount-flat-wrapper') || row.querySelector('.labor-discount-flat-wrapper');
+  const pctVisible = pctWrapper && !pctWrapper.classList.contains('hidden');
+  const flatVisible = flatWrapper && !flatWrapper.classList.contains('hidden');
 
-  let discFlat = parseFloat(discFlatInput ? discFlatInput.value : 0) || 0;
-  let discPercent = parseFloat(discPercentInput ? discPercentInput.value : 0) || 0;
+  let discPercent = pctVisible ? (parseFloat(discPercentInput ? discPercentInput.value : 0) || 0) : 0;
+  let discFlat = flatVisible ? (parseFloat(discFlatInput ? discFlatInput.value : 0) || 0) : 0;
 
   const baseTotal = priceVal * qtyVal;
 
   // Validation: Cap Percentage at 100
   if (discPercent > 100) {
     discPercent = 100;
-    discPercentInput.value = "100"; // Visual Clamp
+    if (discPercentInput) discPercentInput.value = "100";
   }
 
-  // Validation: Cap Flat at BaseTotal
-  if (discFlat > baseTotal) {
+  // Validation: Cap Flat at BaseTotal (can't reduce below 0)
+  if (baseTotal > 0 && discFlat > baseTotal) {
     discFlat = baseTotal;
-    discFlatInput.value = cleanNum(baseTotal); // Visual Clamp
+    if (discFlatInput) discFlatInput.value = cleanNum(baseTotal);
   }
-
-  // Priority: If Percent is present, it might override or add? 
-  // User said "one will say $ for flat, the other % for percentage". Usually mutually exclusive or additive.
-  // Implementation plan: Additive (Flat + Percent of Base).
-  // But Validation says "Discount cannot be... more than the actual price".
 
   let discountAmount = discFlat + (baseTotal * (discPercent / 100));
 
-  // Final Cap on Total Discount
+  // Final safety cap
   if (discountAmount > baseTotal) {
     discountAmount = baseTotal;
-    // If we hit this, it means the combination exceeded total. 
-    // We could clamp the flat amount down? Or just clamp the result.
-    // Clamping result covers it.
   }
 
   const subtotal = Math.max(0, baseTotal - discountAmount); // Pre-tax subtotal after discount
@@ -4853,11 +4887,21 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
   const hasPrice = price && price !== "" && price !== "0" && price !== "0.00";
   const priceVal = hasPrice ? cleanNum(price) : "";
 
-  // Discount Logic for Initial Load
-  const discFlatVal = discFlat ? cleanNum(discFlat) : "";
-  const discPercentVal = discPercent ? cleanNum(discPercent) : "";
-  const hasDiscPercent = discPercentVal !== '' && discPercentVal !== '0' && parseFloat(discPercentVal) > 0;
-  const hasDiscFlat = discFlatVal !== '' && discFlatVal !== '0' && parseFloat(discFlatVal) > 0;
+  // Discount Logic for Initial Load — MUTUALLY EXCLUSIVE: percentage wins if both present
+  let discFlatVal = discFlat ? cleanNum(discFlat) : "";
+  let discPercentVal = discPercent ? cleanNum(discPercent) : "";
+  // Cap percentage at 100
+  if (discPercentVal !== '' && parseFloat(discPercentVal) > 100) discPercentVal = '100';
+  // Cap flat at base price (price * qty)
+  const baseForCap = (parseFloat(priceVal) || 0) * (finalQty || 1);
+  if (discFlatVal !== '' && baseForCap > 0 && parseFloat(discFlatVal) > baseForCap) discFlatVal = cleanNum(baseForCap);
+  let hasDiscPercent = discPercentVal !== '' && discPercentVal !== '0' && parseFloat(discPercentVal) > 0;
+  let hasDiscFlat = discFlatVal !== '' && discFlatVal !== '0' && parseFloat(discFlatVal) > 0;
+  // Mutual exclusivity: if both present, keep percentage, clear flat
+  if (hasDiscPercent && hasDiscFlat) {
+    discFlatVal = '';
+    hasDiscFlat = false;
+  }
   const hasTaxPreset = taxRate !== null && taxRate !== undefined && taxRate !== '' && parseFloat(taxRate) > 0;
   const usesPriceToggle = isMaterialSection || isExpenseSection || isFeeSection;
   const isPriceActiveDefault = usesPriceToggle ? (hasPrice || hasTaxPreset || hasDiscPercent || hasDiscFlat) : true;
@@ -5379,9 +5423,11 @@ function handleClarifications(clarifications) {
     if (btn) btn.classList.add('rounded-b-none');
   }
 
-  // Clear the input field for fresh answer
-  const answerInput = document.getElementById('clarificationAnswerInput');
-  if (answerInput) answerInput.value = '';
+  // Clear the input field for fresh answer (only if no pending answer — finalizePendingAnswer handles it)
+  if (!window._pendingAnswer) {
+    const answerInput = document.getElementById('clarificationAnswerInput');
+    if (answerInput) answerInput.value = '';
+  }
 }
 
 function toggleSection(contentId, arrowId, btn) {
@@ -5844,7 +5890,8 @@ async function submitClarifications() {
   const originalValue = transcriptArea.value;
   transcriptArea.value = clarificationPrompt;
 
-  document.getElementById('clarificationsSection').classList.add('hidden');
+  // Don't hide clarificationsSection here — let the analyzing animation show over it.
+  // handleClarifications (called from updateUI) will update it when AI finishes.
 
   const applyBtn = document.getElementById('reParseBtn');
   if (applyBtn) {
