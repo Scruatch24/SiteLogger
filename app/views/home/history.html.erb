@@ -220,6 +220,114 @@
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: #d1d5db;
   }
+
+  /* ── Small-screen (≤430px) responsive tightening ────────────── */
+  @media (max-width: 430px) {
+    /* Modals: prevent clipping viewport */
+    .modal-content {
+      max-width: calc(100vw - 24px);
+      padding: 18px;
+      border-width: 2px;
+      border-radius: 20px;
+      box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);
+    }
+
+    /* Bulk action bar: reduce shadow */
+    .bulk-action-bar-inner {
+      border-width: 2px;
+      box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);
+    }
+
+    /* Log cards: lighter borders and shadow */
+    .log-card .card-inner {
+      box-shadow: 3px 3px 0px 0px rgba(0,0,0,1);
+    }
+    .log-card .card-inner .bg-gray-50.border-b-2 {
+      padding: 12px 12px 10px;
+    }
+    .log-card .card-inner .bg-gray-50.border-t-2 {
+      padding: 12px;
+    }
+
+    /* Log card header: tighten */
+    .log-card .header-main .min-w-0 .flex-wrap {
+      gap: 3px;
+    }
+    .log-card .header-main h3 {
+      font-size: 1.1rem;
+    }
+
+    /* Log card menu dropdown */
+    .log-menu-dropdown {
+      min-width: 160px;
+    }
+    .log-menu-dropdown .px-4 {
+      padding-left: 12px;
+      padding-right: 12px;
+    }
+
+    /* Log card hamburger button: slightly smaller */
+    .log-menu-btn {
+      width: 36px;
+      height: 36px;
+    }
+
+    /* Tile grids (Categories + Clients): tighter for narrow screens */
+    #categories-index .grid,
+    #clients-index .grid {
+      gap: 10px;
+    }
+    #categories-index .grid > *,
+    #clients-index .grid > * {
+      border-width: 3px;
+      border-radius: 20px;
+      box-shadow: 5px 5px 0px 0px rgba(0,0,0,1);
+    }
+    #categories-index .grid > *:first-child,
+    #clients-index .grid > *:first-child {
+      box-shadow: none;
+    }
+
+    /* Tile inner avatars: smaller */
+    #categories-index .w-14,
+    #clients-index .w-14 {
+      width: 44px;
+      height: 44px;
+    }
+    #categories-index .w-14 svg,
+    #clients-index .w-14 svg {
+      width: 22px;
+      height: 22px;
+    }
+
+    /* Client detail header: stack on narrow screens */
+    .client-detail-view > .flex.items-center.justify-between {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    .client-detail-view > .flex.items-center.justify-between > .flex.gap-2 {
+      align-self: flex-end;
+    }
+
+    /* Outer padding: reduce from p-4 to p-3 */
+    .min-h-screen.text-black.font-sans {
+      padding: 10px;
+      padding-bottom: 8rem;
+    }
+
+    /* Log card list gap: reduce from gap-20 to gap-16 */
+    .flex.flex-col.gap-20 {
+      gap: 3.5rem;
+    }
+
+    /* Search bar: slightly smaller */
+    #historySearch {
+      padding-top: 10px;
+      padding-bottom: 10px;
+      font-size: 13px;
+    }
+  }
 </style>
 
 <div class="min-h-screen text-black font-sans p-4 pb-32">
@@ -237,7 +345,7 @@
 
 
 
-  <main class="max-w-[820px] mx-auto py-8">
+  <main class="max-w-2xl mx-auto py-8">
     <!-- Tabs / Selectors -->
     <div class="mb-4 px-4 <%= 'opacity-30 grayscale pointer-events-none select-none' if @profile.guest? %>">
        <!-- Brutalist Premium View Selector -->

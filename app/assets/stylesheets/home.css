@@ -169,6 +169,9 @@
     }
   }
   .site-nav-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     padding: 0.375rem 0.75rem;
     font-size: 11px;
     font-weight: 800;
@@ -1805,4 +1808,53 @@
       user-select: none !important;
       -webkit-user-select: none !important;
       -webkit-touch-callout: none !important;
+  }
+
+  /* ════════════════════════════════════════════════ */
+  /* SMALL-SCREEN (≤430px) GLOBAL RESPONSIVE FIXES   */
+  /* ════════════════════════════════════════════════ */
+  @media (max-width: 430px) {
+    /* Main container: reduce outer padding */
+    .app-main {
+      padding-left: 0 !important;
+      padding-right: 0 !important;
+    }
+
+    /* Index page: tighter padding */
+    .text-black.font-sans.p-2 {
+      padding: 6px;
+      padding-bottom: 8rem;
+    }
+
+    /* Invoice controls card: reduce shadow & border */
+    .text-black.font-sans .shadow-\[4px_4px_0px_0px_rgba\(0\,0\,0\,1\)\] {
+      box-shadow: 3px 3px 0px 0px rgba(0,0,0,1);
+    }
+
+    /* Review container: tighter padding */
+    .review-content {
+      padding: 10px !important;
+    }
+
+    /* Industrial shadow: lighter on small screens */
+    .industrial-shadow {
+      box-shadow: 3px 3px 0px 0px #F97316;
+    }
+
+    /* Recording button: slightly smaller */
+    #recordButton {
+      width: 136px;
+      height: 136px;
+    }
+
+    /* Contact card: reduce shadow */
+    .contact-card {
+      box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);
+      padding: 1.25rem;
+    }
+
+    /* Footer: tighter */
+    .site-footer-inner {
+      padding: 2rem 1rem;
+    }
   }
