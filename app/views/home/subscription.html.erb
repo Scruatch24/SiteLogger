@@ -515,9 +515,14 @@ end %>
       margin-right: auto;
     }
 
-    .history-table {
-      display: block;
+    .history-table-wrap {
       overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      border-radius: 14px;
+    }
+
+    .history-table {
+      min-width: 420px;
     }
 
     .history-table .txn-col {
@@ -543,17 +548,14 @@ end %>
     <% end %>
 
     <header class="subscription-header" style="text-align:left;">
-      <h1 class="pricing-headline" style="margin-bottom:0.5rem;"><%= raw t('subscription_page.title_html') %></h1>
-      <p class="subscription-subtitle"><%= t('subscription_page.subtitle') %></p>
+      <h1 class="pricing-headline" style="margin-bottom:0;"><%= raw t('subscription_page.title_html') %></h1>
     </header>
 
     <section class="sub-section">
-      <div class="sub-plan-grid" style="margin-bottom:0;">
-        <h2 class="sub-section-title"><%= t('subscription_page.current_plan') %></h2>
-        <h2 class="sub-section-title"><%= t('subscription_page.subscription_section') %></h2>
-      </div>
       <div class="sub-plan-grid">
-        <div class="sub-surface">
+        <div>
+          <h2 class="sub-section-title"><%= t('subscription_page.current_plan') %></h2>
+          <div class="sub-surface">
           <div class="sub-key"><%= t('subscription_page.plan_name') %></div>
           <div class="sub-value"><%= plan_label %></div>
 
@@ -621,8 +623,11 @@ end %>
             <div class="sub-value" style="font-family:monospace;font-size:11px;color:rgba(255,255,255,0.6);"><%= active_txn_id %></div>
           <% end %>
         </div>
+        </div>
 
-        <div class="sub-surface">
+        <div>
+          <h2 class="sub-section-title"><%= t('subscription_page.subscription_section') %></h2>
+          <div class="sub-surface">
           <div class="sub-key"><%= t('subscription_page.status') %></div>
           <div class="sub-status-chip <%= status_active ? 'active' : (sub_canceled ? 'canceled' : 'inactive') %>"><%= status_label %></div>
 
@@ -633,6 +638,7 @@ end %>
             <div class="sub-key" style="margin-top:0.7rem;"><%= t('subscription_page.next_charge_amount') %></div>
             <div class="sub-value"><%= next_charge_value %></div>
           <% end %>
+        </div>
         </div>
       </div>
     </section>
@@ -745,6 +751,7 @@ end %>
 
     <section class="sub-section">
       <h2 class="sub-section-title"><%= t('subscription_page.billing_history') %></h2>
+      <div class="history-table-wrap">
       <table class="history-table">
         <thead>
           <tr>
@@ -784,6 +791,7 @@ end %>
           <% end %>
         </tbody>
       </table>
+      </div>
       <% if show_manage_billing %>
         <div class="sub-actions">
           <%= button_to t('subscription_page.open_billing_portal'), subscription_billing_portal_path(portal_action: 'overview'), method: :post, class: 'sub-btn', form: { class: 'sub-btn-form', target: '_blank', data: { turbo: false } } %>

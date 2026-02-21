@@ -140,6 +140,7 @@ en:
   upload_custom_icon: "Upload Custom Icon (Max 2MB)"
   create_category: "Create Category"
   search_categories: "Search categories..."
+  search_clients: "Search clients..."
   no_categories_yet: "No categories created yet"
   create_first_category: "Create First Category"
   delete_permanently: "Delete Forever"

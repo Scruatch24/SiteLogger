@@ -140,6 +140,7 @@ ka:
   upload_custom_icon: "ატვირთეთ საკუთარი სურათი (მაქს 2MB)"
   create_category: "კატეგორიის შექმნა"
   search_categories: "მოძებნეთ კატეგორიები..."
+  search_clients: "მოძებნეთ კლიენტები..."
   no_categories_yet: "კატეგორიები ჯერ არ არის შექმნილი"
   create_first_category: "შექმენით პირველი კატეგორია"
   delete_permanently: "სამუდამოდ წაშლა"
