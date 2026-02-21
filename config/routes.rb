@@ -50,6 +50,12 @@ Rails.application.routes.draw do
 
   resources :categories, only: [ :create, :destroy ]
 
+  resources :clients, only: [ :create, :update, :destroy ] do
+    collection do
+      get :search
+    end
+  end
+
   get "session_check", to: "home#session_check"
 
   post "track", to: "tracking#track"

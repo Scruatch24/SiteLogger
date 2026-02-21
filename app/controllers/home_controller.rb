@@ -312,6 +312,12 @@ class HomeController < ApplicationController
     else
       []
     end
+
+    @clients = if user_signed_in?
+      current_user.clients.ordered.includes(:logs)
+    else
+      []
+    end
   end
 
   def settings

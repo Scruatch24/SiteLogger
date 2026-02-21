@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_02_21_150732) do
+ActiveRecord::Schema[8.0].define(version: 2026_02_21_174459) do
   create_schema "auth"
   create_schema "neon_auth"
   create_schema "pgrst"
@@ -75,6 +75,21 @@ ActiveRecord::Schema[8.0].define(version: 2026_02_21_150732) do
     t.index ["user_id"], name: "index_categories_on_user_id"
   end
 
+  create_table "clients", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "name", null: false
+    t.string "email"
+    t.string "phone"
+    t.text "address"
+    t.string "tax_id"
+    t.text "notes"
+    t.integer "invoices_count", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "name"], name: "index_clients_on_user_id_and_name", unique: true
+    t.index ["user_id"], name: "index_clients_on_user_id"
+  end
+
   create_table "log_category_assignments", force: :cascade do |t|
     t.bigint "log_id", null: false
     t.bigint "category_id", null: false
@@ -120,6 +135,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_02_21_150732) do
     t.string "ip_address"
     t.string "session_id"
     t.datetime "deleted_at"
+    t.bigint "client_id"
+    t.index ["client_id"], name: "index_logs_on_client_id"
     t.index ["deleted_at"], name: "index_logs_on_deleted_at"
     t.index ["status"], name: "index_logs_on_status"
     t.index ["user_id", "invoice_number"], name: "index_logs_on_user_id_and_invoice_number", unique: true
@@ -218,8 +235,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_02_21_150732) do
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "analytics_events", "users", on_delete: :cascade
   add_foreign_key "categories", "users"
+  add_foreign_key "clients", "users"
   add_foreign_key "log_category_assignments", "categories"
   add_foreign_key "log_category_assignments", "logs"
+  add_foreign_key "logs", "clients"
   add_foreign_key "logs", "users", on_delete: :nullify, validate: false
   add_foreign_key "profiles", "users", on_delete: :cascade, validate: false
   add_foreign_key "usage_events", "users"
