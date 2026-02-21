@@ -1328,21 +1328,30 @@
         var duration = opts.duration || (type === 'error' ? 8000 : 4000);
 
         var styles = {
-          success: { bg: '#f0fdf4', color: '#15803d', border: '#86efac', iconPath: 'M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z' },
-          error:   { bg: '#fef2f2', color: '#b91c1c', border: '#fca5a5', iconPath: 'M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z' },
-          warning: { bg: '#fefce8', color: '#a16207', border: '#fde047', iconPath: 'M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z' },
-          info:    { bg: '#111827', color: '#f9fafb', border: '#374151', iconPath: 'M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zm-1 4a1 1 0 10 2h.01a1 1 0 100-2H10z' }
+          success: { accent: '#16a34a', iconColor: '#16a34a', iconPath: 'M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z' },
+          error:   { accent: '#ef4444', iconColor: '#ef4444', iconPath: 'M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z' },
+          warning: { accent: '#f97316', iconColor: '#f97316', iconPath: 'M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z' },
+          info:    { accent: '#f97316', iconColor: '#f97316', iconPath: 'M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zm-1 4a1 1 0 10 2h.01a1 1 0 100-2H10z' }
         };
         var s = styles[type] || styles.info;
 
         var el = document.createElement('div');
-        el.style.cssText = 'position:fixed;top:-100px;left:50%;transform:translateX(-50%);z-index:60000;display:inline-flex;align-items:center;gap:10px;padding:12px 16px;border-radius:16px;border:2px solid ' + s.border + ';background:' + s.bg + ';color:' + s.color + ';font-weight:900;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;box-shadow:0 4px 24px rgba(0,0,0,0.12);max-width:90vw;width:max-content;opacity:0;transition:opacity 0.3s ease,top 0.4s ease;';
+        el.style.cssText = 'position:fixed;top:-100px;left:50%;transform:translateX(-50%);z-index:60000;display:inline-flex;align-items:stretch;gap:0;border-radius:14px;border:2px solid #000;background:#fff;color:#000;font-weight:900;font-size:11px;text-transform:uppercase;letter-spacing:0.1em;box-shadow:4px 4px 0px 0px #000;max-width:90vw;width:max-content;opacity:0;transition:opacity 0.25s ease,top 0.35s cubic-bezier(0.34,1.56,0.64,1);overflow:hidden;';
+
+        // Colored left accent bar
+        var bar = document.createElement('div');
+        bar.style.cssText = 'width:5px;background:' + s.accent + ';flex-shrink:0;';
+        el.appendChild(bar);
+
+        // Inner content wrapper
+        var inner = document.createElement('div');
+        inner.style.cssText = 'display:inline-flex;align-items:center;gap:10px;padding:11px 12px 11px 12px;';
 
         var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        svg.setAttribute('width', '16');
-        svg.setAttribute('height', '16');
+        svg.setAttribute('width', '15');
+        svg.setAttribute('height', '15');
         svg.setAttribute('viewBox', '0 0 20 20');
-        svg.setAttribute('fill', 'currentColor');
+        svg.setAttribute('fill', s.accent);
         svg.style.cssText = 'flex-shrink:0;';
         var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         path.setAttribute('fill-rule', 'evenodd');
@@ -1351,20 +1360,20 @@
         svg.appendChild(path);
 
         var span = document.createElement('span');
-        span.style.cssText = 'white-space:normal;word-break:break-word;';
+        span.style.cssText = 'white-space:normal;word-break:break-word;line-height:1.3;';
         span.textContent = msg;
 
         var btn = document.createElement('button');
-        btn.style.cssText = 'flex-shrink:0;padding:2px;border:none;background:none;color:inherit;cursor:pointer;opacity:0.5;border-radius:6px;display:flex;align-items:center;justify-content:center;';
-        btn.onmouseenter = function() { btn.style.opacity = '1'; };
-        btn.onmouseleave = function() { btn.style.opacity = '0.5'; };
+        btn.style.cssText = 'flex-shrink:0;width:18px;height:18px;padding:0;border:none;background:rgba(0,0,0,0.08);color:#000;cursor:pointer;border-radius:5px;display:flex;align-items:center;justify-content:center;transition:background 0.15s;';
+        btn.onmouseenter = function() { btn.style.background = 'rgba(0,0,0,0.18)'; };
+        btn.onmouseleave = function() { btn.style.background = 'rgba(0,0,0,0.08)'; };
         var xSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        xSvg.setAttribute('width', '14');
-        xSvg.setAttribute('height', '14');
+        xSvg.setAttribute('width', '10');
+        xSvg.setAttribute('height', '10');
         xSvg.setAttribute('viewBox', '0 0 24 24');
         xSvg.setAttribute('fill', 'none');
         xSvg.setAttribute('stroke', 'currentColor');
-        xSvg.setAttribute('stroke-width', '3');
+        xSvg.setAttribute('stroke-width', '3.5');
         xSvg.setAttribute('stroke-linecap', 'round');
         var xPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         xPath.setAttribute('d', 'M18 6L6 18M6 6l12 12');
@@ -1372,9 +1381,10 @@
         btn.appendChild(xSvg);
         btn.onclick = function() { dismissToast(el); };
 
-        el.appendChild(svg);
-        el.appendChild(span);
-        el.appendChild(btn);
+        inner.appendChild(svg);
+        inner.appendChild(span);
+        inner.appendChild(btn);
+        el.appendChild(inner);
         document.body.appendChild(el);
 
         activeToasts.push(el);
