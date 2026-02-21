@@ -125,14 +125,35 @@
     }
   }
 
-  /* Mobile: just show logo icon, hide text */
+  /* Mobile: logo shifts left + text overlays instead of pushing layout */
   @media (max-width: 767px) {
     .site-logo {
-      margin-left: 4px;
-      flex-shrink: 0;
+      margin-left: 8px;
+      max-width: 42px;
+      overflow: visible;
+    }
+    .site-logo.logo-text-open {
+      margin-left: 0;
     }
     .site-logo-text-wrap {
-      display: none !important;
+      position: absolute;
+      left: 42px;
+      top: 0;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      background: white;
+      z-index: 10;
+      border-radius: 0 10px 10px 0;
+      pointer-events: none;
+    }
+    .site-logo.logo-text-open .site-logo-text-wrap {
+      width: 7rem;
+      pointer-events: auto;
+    }
+    .site-logo-text {
+      font-size: 0.9rem;
+      margin-left: -4px;
     }
   }
 
@@ -281,6 +302,143 @@
   }
   html[lang="ka"] .site-mobile-quick-link {
     letter-spacing: -0.02em;
+  }
+
+  /* Hamburger */
+  .site-hamburger {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+    width: 36px;
+    height: 36px;
+    background: white;
+    border: 2px solid black;
+    border-radius: 10px;
+    cursor: pointer;
+    box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+  }
+  @media (min-width: 768px) {
+    .site-hamburger {
+      display: none;
+    }
+  }
+  .hamburger-line {
+    display: block;
+    width: 16px;
+    height: 2px;
+    background: black;
+    border-radius: 2px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-origin: center;
+  }
+  .site-hamburger.open .hamburger-line-1 {
+    transform: translateY(7px) rotate(45deg);
+  }
+  .site-hamburger.open .hamburger-line-2 {
+    opacity: 0;
+    transform: scaleX(0);
+  }
+  .site-hamburger.open .hamburger-line-3 {
+    transform: translateY(-7px) rotate(-45deg);
+  }
+
+  /* Mobile Menu */
+  .site-mobile-menu {
+    display: none;
+    flex-direction: column;
+    border-top: 2px solid black;
+    background: white;
+    padding: 1rem;
+    gap: 0.75rem;
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.25s ease,
+                padding 0.3s ease;
+  }
+  .site-mobile-menu.open {
+    display: flex;
+    max-height: 500px;
+    opacity: 1;
+    padding: 1rem;
+  }
+  @media (min-width: 768px) {
+    .site-mobile-menu, .site-mobile-menu.open {
+      display: none !important;
+    }
+  }
+  .site-mobile-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  .site-mobile-link {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #374151;
+    text-decoration: none;
+    border-radius: 14px;
+    transition: all 0.2s ease;
+  }
+  .site-mobile-link:hover, .site-mobile-link:active {
+    background: #f9fafb;
+    color: black;
+  }
+  .site-mobile-link.site-nav-active {
+    background: #fff7ed;
+    color: #ea580c;
+    border: 1px solid #fed7aa;
+  }
+  .site-mobile-pricing {
+    color: #ea580c;
+  }
+  .site-mobile-auth {
+    display: flex;
+    gap: 0.5rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #e5e7eb;
+  }
+  .site-mobile-auth-btn {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem 1rem;
+    font-size: 10px;
+    font-weight: 900;
+    line-height: 1;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    border-radius: 12px;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+    border: 2px solid black;
+    box-shadow: 3px 3px 0px 0px rgba(0,0,0,1);
+    transition: all 0.2s ease;
+  }
+  .site-mobile-auth-btn.site-auth-signin {
+    background: white;
+    color: black;
+  }
+  .site-mobile-auth-btn.site-auth-signup {
+    background: #ea580c;
+    color: white;
+  }
+  .site-mobile-auth-btn.site-auth-logout {
+    background: white;
+    color: black;
   }
 
   /* ============================================ */

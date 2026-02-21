@@ -77,7 +77,7 @@
       <% end %>
     </div>
 
-    <!-- Mobile Nav (Home + History + Preferences) -->
+    <!-- Mobile Quick Nav (Home + History always visible) -->
     <div class="site-mobile-quick-nav">
       <%= link_to root_path, class: "site-mobile-quick-link #{is_active.call('/')}" do %>
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
@@ -87,21 +87,83 @@
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
         <%= t('nav.history') %>
       <% end %>
-      <%= link_to settings_path, class: "site-mobile-quick-link #{is_active.call('/settings')}" do %>
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-        <%= t('nav.settings') %>
-      <% end %>
     </div>
+
+    <!-- Mobile Hamburger -->
+    <button type="button" class="site-hamburger" onclick="toggleSiteMenu()" aria-label="<%= t('nav.menu') %>">
+      <span class="hamburger-line hamburger-line-1"></span>
+      <span class="hamburger-line hamburger-line-2"></span>
+      <span class="hamburger-line hamburger-line-3"></span>
+    </button>
   </div>
 
 </nav>
 
+<!-- Mobile Menu (hamburger dropdown — Profile, Settings, Pricing, Auth) -->
+<div class="site-mobile-menu" id="siteMenuMobile">
+  <div class="site-mobile-nav">
+    <%= link_to profile_path, class: "site-mobile-link #{is_active.call('/profile')}" do %>
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+      <%= t('nav.profile') %>
+    <% end %>
+    <%= link_to settings_path, class: "site-mobile-link #{is_active.call('/settings')}" do %>
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      <%= t('nav.settings') %>
+    <% end %>
+    <% if user_signed_in? %>
+      <%= link_to analytics_path, class: "site-mobile-link #{is_active.call('/analytics')}" do %>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/></svg>
+        <%= t('nav.analytics') %>
+      <% end %>
+    <% end %>
+    <% if user_signed_in? && current_user.profile&.ever_paid? %>
+      <%= link_to subscription_path, class: "site-mobile-link site-mobile-pricing #{is_active.call('/subscription')}" do %>
+        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" stroke="none"><path d="M12 2.4c.33 0 .63.2.76.5l1.87 4.34 4.64.36c.63.05.88.84.38 1.23l-3.55 3.05 1.06 4.44c.13.55-.44.98-.94.7L12 14.72l-4.22 2.3c-.5.28-1.07-.15-.94-.7l1.06-4.44-3.55-3.05c-.5-.39-.25-1.18.38-1.23l4.64-.36 1.87-4.34c.13-.3.43-.5.76-.5z"/></svg>
+        <%= t('nav.subscription') %>
+      <% else %>
+        <%= link_to pricing_path, class: "site-mobile-link site-mobile-pricing #{is_active.call('/pricing')}" do %>
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" stroke="none"><path d="M12 2.4c.33 0 .63.2.76.5l1.87 4.34 4.64.36c.63.05.88.84.38 1.23l-3.55 3.05 1.06 4.44c.13.55-.44.98-.94.7L12 14.72l-4.22 2.3c-.5.28-1.07-.15-.94-.7l1.06-4.44-3.55-3.05c-.5-.39-.25-1.18.38-1.23l4.64-.36 1.87-4.34c.13-.3.43-.5.76-.5z"/></svg>
+          <%= t('nav.pricing') %>
+        <% end %>
+      <% end %>
+    <% end %>
+  </div>
+  <div class="site-mobile-auth">
+    <% if user_signed_in? %>
+      <button type="button" onclick="window.showLogoutModal()" class="site-mobile-auth-btn site-auth-logout">
+        <span class="inline-flex items-center gap-1.5">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+          </svg>
+          <%= t('nav.log_out') %>
+        </span>
+      </button>
+    <% else %>
+      <%= link_to new_user_session_path, class: "site-mobile-auth-btn site-auth-signin" do %>
+        <%= t('nav.sign_in') %>
+      <% end %>
+      <%= link_to new_user_registration_path, class: "site-mobile-auth-btn site-auth-signup" do %>
+        <%= t('nav.sign_up') %>
+      <% end %>
+    <% end %>
+  </div>
+</div>
+
 <script>
+  function toggleSiteMenu() {
+    const menu = document.getElementById('siteMenuMobile');
+    const btn = document.querySelector('.site-hamburger');
+    menu.classList.toggle('open');
+    btn.classList.toggle('open');
+  }
+
   (function() {
     const logo = document.querySelector('.site-logo');
     if (!logo) return;
 
+    let initialDone = false;
     const isMobile = () => window.innerWidth < 768;
+    const STORAGE_KEY = 'logoTextOpen';
     const VISITED_KEY = 'logoTextVisited';
 
     function attachDesktopHover() {
@@ -114,8 +176,28 @@
     }
 
     var hasVisited = localStorage.getItem(VISITED_KEY) === 'true';
+    var savedOpen = localStorage.getItem(STORAGE_KEY);
 
-    if (!isMobile()) {
+    if (isMobile()) {
+      if (!hasVisited) {
+        // First visit: animate open after delay, stay open
+        localStorage.setItem(VISITED_KEY, 'true');
+        localStorage.setItem(STORAGE_KEY, 'true');
+        setTimeout(function() {
+          logo.classList.add('logo-text-open');
+          initialDone = true;
+        }, 800);
+      } else if (savedOpen === 'true') {
+        // Returning visit, user left it open — show immediately
+        setTimeout(function() {
+          logo.classList.add('logo-text-open');
+          initialDone = true;
+        }, 800);
+      } else {
+        // Returning visit, user chose to hide it — keep hidden
+        initialDone = true;
+      }
+    } else {
       // Desktop: initial animation then hover
       if (!hasVisited) {
         localStorage.setItem(VISITED_KEY, 'true');
@@ -124,6 +206,7 @@
         logo.classList.add('logo-text-open');
         setTimeout(function() {
           logo.classList.remove('logo-text-open');
+          initialDone = true;
           attachDesktopHover();
         }, 3000);
       }, 800);
@@ -132,5 +215,21 @@
         attachDesktopHover();
       }
     }
+
+    // Desktop: also attach hover if returning visitor
+    if (!isMobile() && hasVisited) {
+      attachDesktopHover();
+    }
+
+    // Mobile: never navigate, tap toggle after initial animation
+    logo.addEventListener('click', function(e) {
+      if (isMobile()) {
+        e.preventDefault();
+        if (initialDone) {
+          logo.classList.toggle('logo-text-open');
+          localStorage.setItem(STORAGE_KEY, logo.classList.contains('logo-text-open'));
+        }
+      }
+    });
   })();
 </script>
