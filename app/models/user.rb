@@ -7,6 +7,7 @@ class User < ApplicationRecord
 
   has_many :logs, dependent: :destroy
   has_many :categories, dependent: :destroy
+  has_many :analytics_events, dependent: :destroy
   has_one :profile, dependent: :destroy
 
   def self.from_omniauth(auth)

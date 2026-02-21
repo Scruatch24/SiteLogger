@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_02_20_175815) do
+ActiveRecord::Schema[8.0].define(version: 2026_02_21_150732) do
   create_schema "auth"
   create_schema "neon_auth"
   create_schema "pgrst"
@@ -45,6 +45,23 @@ ActiveRecord::Schema[8.0].define(version: 2026_02_20_175815) do
     t.bigint "blob_id", null: false
     t.string "variation_digest", null: false
     t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
+  end
+
+  create_table "analytics_events", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "event_type", null: false
+    t.jsonb "metadata", default: {}
+    t.decimal "duration_seconds", precision: 10, scale: 2
+    t.decimal "amount", precision: 12, scale: 2
+    t.string "currency"
+    t.string "status"
+    t.string "source"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["event_type"], name: "index_analytics_events_on_event_type"
+    t.index ["user_id", "created_at"], name: "idx_analytics_user_time"
+    t.index ["user_id", "event_type", "created_at"], name: "idx_analytics_user_event_time"
+    t.index ["user_id"], name: "index_analytics_events_on_user_id"
   end
 
   create_table "categories", force: :cascade do |t|
@@ -199,6 +216,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_02_20_175815) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "analytics_events", "users", on_delete: :cascade
   add_foreign_key "categories", "users"
   add_foreign_key "log_category_assignments", "categories"
   add_foreign_key "log_category_assignments", "logs"

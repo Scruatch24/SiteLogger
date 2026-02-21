@@ -1,0 +1,614 @@
+<% content_for :head do %>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<% end %>
+
+<%
+  currency = @profile.currency.presence || "USD"
+  currency_symbol = case currency
+                    when "GEL" then "₾"
+                    when "EUR" then "€"
+                    when "GBP" then "£"
+                    else "$"
+                    end
+
+  fmt_money = ->(val) { "#{currency_symbol}#{number_with_delimiter(val.round(2))}" }
+  fmt_time = ->(seconds) {
+    seconds = seconds.to_i
+    if seconds >= 3600
+      h = seconds / 3600
+      m = (seconds % 3600) / 60
+      "#{h}#{t('analytics_page.hour_short')} #{m}#{t('analytics_page.min_short')}"
+    elsif seconds >= 60
+      "#{seconds / 60}#{t('analytics_page.min_short')}"
+    else
+      "#{seconds}#{t('analytics_page.sec_short')}"
+    end
+  }
+%>
+
+<style>
+  .analytics-page {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: #0a0a0a;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .pricing-bg {
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse at 30% 20%, rgba(249,115,22,0.08) 0%, transparent 60%),
+                radial-gradient(ellipse at 70% 80%, rgba(99,102,241,0.06) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .pricing-grid {
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .pricing-particle {
+    position: fixed;
+    background: rgba(249,115,22,0.4);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 0;
+    animation: pricingFloat linear infinite;
+  }
+
+  @keyframes pricingFloat {
+    0%   { transform: translateY(0) scale(1); opacity: 0; }
+    10%  { opacity: 1; }
+    90%  { opacity: 1; }
+    100% { transform: translateY(-100vh) scale(0.5); opacity: 0; }
+  }
+
+  .analytics-content {
+    position: relative;
+    z-index: 1;
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 2rem 1.2rem 4rem;
+    color: #f8fafc;
+    font-family: "Sora", "Inter", "Noto Sans Georgian", "Segoe UI", sans-serif;
+  }
+
+  .ana-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: rgba(255,255,255,0.72);
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    text-decoration: none;
+    border-radius: 999px;
+    padding: 11px 15px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.14);
+    transition: all 0.2s ease;
+  }
+  .ana-back svg { width: 13px; height: 13px; }
+  .ana-back:hover {
+    color: #ffffff;
+    border-color: rgba(249,115,22,0.45);
+    background: rgba(249,115,22,0.15);
+  }
+
+  .analytics-header { margin: 1.2rem 0 1.4rem; }
+  .analytics-title {
+    margin: 0;
+    font-size: clamp(2rem, 5.7vw, 3.4rem);
+    line-height: 1;
+    text-transform: uppercase;
+    letter-spacing: -0.01em;
+    font-weight: 900;
+    color: white;
+  }
+  .analytics-title .accent { color: #f97316; }
+  .analytics-subtitle {
+    margin: 0.8rem 0 0;
+    max-width: 700px;
+    font-size: 14px;
+    color: rgba(255,255,255,0.66);
+    line-height: 1.6;
+  }
+
+  /* Section Cards */
+  .ana-section {
+    border-radius: 24px;
+    border: 1px solid rgba(255,255,255,0.14);
+    background: rgba(4,6,12,0.72);
+    backdrop-filter: blur(8px);
+    box-shadow: 0 16px 40px rgba(0,0,0,0.35);
+    padding: 1.15rem;
+  }
+  .ana-section + .ana-section { margin-top: 0.95rem; }
+
+  .ana-section-title {
+    margin: 0 0 0.9rem;
+    font-size: 17px;
+    line-height: 1.2;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #fff7ed;
+    text-shadow: 0 10px 28px rgba(249,115,22,0.28);
+    position: relative;
+    padding-bottom: 0.45rem;
+  }
+  .ana-section-title::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 64px;
+    height: 2px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #fb923c, rgba(251,146,60,0.08));
+  }
+
+  /* Overview Cards Grid */
+  .ana-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.7rem;
+  }
+
+  .ana-card {
+    border-radius: 18px;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.03);
+    padding: 0.95rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    transition: border-color 0.2s ease;
+  }
+  .ana-card:hover { border-color: rgba(249,115,22,0.35); }
+
+  .ana-card-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(255,255,255,0.54);
+    font-weight: 700;
+  }
+  .ana-card-value {
+    font-size: 26px;
+    font-weight: 900;
+    color: #f8fafc;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+  }
+  .ana-card-value.accent { color: #f97316; }
+  .ana-card-value.green { color: #4ade80; }
+  .ana-card-trend {
+    font-size: 10px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.4);
+  }
+  .ana-card-trend.up { color: #4ade80; }
+  .ana-card-trend.down { color: #f87171; }
+
+  /* Chart Area */
+  .ana-chart-wrap {
+    position: relative;
+    width: 100%;
+    height: 280px;
+    margin-top: 0.5rem;
+  }
+  .ana-chart-wrap canvas { width: 100% !important; height: 100% !important; }
+
+  .ana-chart-filters {
+    display: flex;
+    gap: 0.4rem;
+    margin-bottom: 0.6rem;
+    flex-wrap: wrap;
+  }
+  .ana-filter-btn {
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    border: 1px solid rgba(255,255,255,0.14);
+    background: rgba(255,255,255,0.04);
+    color: rgba(255,255,255,0.6);
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .ana-filter-btn:hover {
+    border-color: rgba(249,115,22,0.45);
+    color: #fff;
+  }
+  .ana-filter-btn.active {
+    background: rgba(249,115,22,0.18);
+    border-color: rgba(249,115,22,0.55);
+    color: #f97316;
+  }
+
+  .ana-metric-tabs {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+  }
+  .ana-metric-tab {
+    padding: 7px 14px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.03);
+    color: rgba(255,255,255,0.5);
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .ana-metric-tab:hover { color: #fff; border-color: rgba(255,255,255,0.25); }
+  .ana-metric-tab.active {
+    background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+    border-color: transparent;
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(249,115,22,0.3);
+  }
+
+  /* Stats Grid inside sections */
+  .ana-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.7rem;
+  }
+
+  .ana-stat-surface {
+    border-radius: 16px;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.03);
+    padding: 0.9rem;
+  }
+  .ana-stat-key {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(255,255,255,0.54);
+    margin-bottom: 0.3rem;
+    font-weight: 700;
+  }
+  .ana-stat-val {
+    font-size: 18px;
+    font-weight: 900;
+    color: #f8fafc;
+  }
+  .ana-stat-val.orange { color: #f97316; }
+  .ana-stat-val.green { color: #4ade80; }
+  .ana-stat-val.red { color: #f87171; }
+
+  /* Status Pills */
+  .ana-status-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.5rem;
+    margin-top: 0.7rem;
+  }
+  .ana-status-pill {
+    text-align: center;
+    border-radius: 14px;
+    padding: 0.6rem 0.4rem;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.02);
+  }
+  .ana-status-pill-count {
+    font-size: 20px;
+    font-weight: 900;
+    color: #f8fafc;
+    line-height: 1;
+  }
+  .ana-status-pill-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(255,255,255,0.45);
+    margin-top: 0.25rem;
+    font-weight: 700;
+  }
+  .ana-status-pill.draft { border-color: rgba(148,163,184,0.3); }
+  .ana-status-pill.draft .ana-status-pill-count { color: #94a3b8; }
+  .ana-status-pill.sent { border-color: rgba(96,165,250,0.3); }
+  .ana-status-pill.sent .ana-status-pill-count { color: #60a5fa; }
+  .ana-status-pill.paid { border-color: rgba(74,222,128,0.3); }
+  .ana-status-pill.paid .ana-status-pill-count { color: #4ade80; }
+  .ana-status-pill.overdue { border-color: rgba(248,113,113,0.3); }
+  .ana-status-pill.overdue .ana-status-pill-count { color: #f87171; }
+
+  /* Speed comparison bar */
+  .ana-speed-bar {
+    margin-top: 0.7rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .ana-speed-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .ana-speed-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: rgba(255,255,255,0.6);
+    width: 70px;
+    flex-shrink: 0;
+  }
+  .ana-speed-track {
+    flex: 1;
+    height: 8px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.06);
+    overflow: hidden;
+    position: relative;
+  }
+  .ana-speed-fill {
+    height: 100%;
+    border-radius: 999px;
+    transition: width 0.6s ease;
+  }
+  .ana-speed-fill.voice { background: linear-gradient(90deg, #f97316, #fbbf24); }
+  .ana-speed-fill.manual { background: rgba(255,255,255,0.15); }
+  .ana-speed-time {
+    font-size: 11px;
+    font-weight: 800;
+    color: rgba(255,255,255,0.7);
+    width: 50px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  /* Footer */
+  .ana-footer {
+    text-align: center;
+    padding: 2rem 0 0;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    margin-top: 1.5rem;
+  }
+  .ana-footer-text {
+    font-size: 11px;
+    color: rgba(255,255,255,0.2);
+    font-weight: 500;
+  }
+
+  @media (max-width: 880px) {
+    .ana-cards { grid-template-columns: repeat(2, 1fr); }
+    .ana-stats-grid { grid-template-columns: 1fr; }
+    .ana-status-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 640px) {
+    .analytics-content { padding: 1.45rem 0.85rem 3rem; }
+    .analytics-header { text-align: center !important; }
+    .analytics-subtitle { margin-left: auto; margin-right: auto; }
+    .ana-cards { grid-template-columns: 1fr 1fr; }
+    .ana-card-value { font-size: 22px; }
+    .ana-chart-wrap { height: 220px; }
+  }
+  @media (max-width: 400px) {
+    .ana-cards { grid-template-columns: 1fr; }
+    .ana-status-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+
+<div class="analytics-page" data-controller="analytics-dashboard" data-analytics-dashboard-data-url-value="<%= analytics_data_path %>">
+  <div class="pricing-bg"></div>
+  <div class="pricing-grid"></div>
+
+  <% 12.times do %>
+    <div class="pricing-particle" style="left:<%= rand(5..95) %>%; bottom:-2%; animation-duration:<%= rand(8..16) %>s; animation-delay:<%= (rand(0..60) / 10.0) %>s; width:<%= rand(1..3) %>px; height:<%= rand(1..3) %>px; opacity:<%= rand(2..5) / 10.0 %>;"></div>
+  <% end %>
+
+  <div class="analytics-content">
+    <%= link_to root_path, class: 'ana-back' do %>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M19 12H5"/><path d="m12 19-7-7 7-7"/>
+      </svg>
+      <%= t('analytics_page.back_home') %>
+    <% end %>
+
+    <header class="analytics-header" style="text-align:left;">
+      <h1 class="analytics-title"><%= t('analytics_page.title_prefix') %> <span class="accent"><%= t('analytics_page.title_accent') %></span></h1>
+      <p class="analytics-subtitle"><%= t('analytics_page.subtitle') %></p>
+    </header>
+
+    <!-- ═══════════════ 1. OVERVIEW CARDS ═══════════════ -->
+    <section class="ana-section">
+      <h2 class="ana-section-title"><%= t('analytics_page.overview') %></h2>
+      <div class="ana-cards">
+        <!-- Total Invoices -->
+        <div class="ana-card">
+          <div class="ana-card-label"><%= t('analytics_page.total_invoices') %></div>
+          <div class="ana-card-value"><%= number_with_delimiter(@overview[:total_invoices]) %></div>
+          <div class="ana-card-trend"><%= t('analytics_page.lifetime') %></div>
+        </div>
+        <!-- This Month -->
+        <div class="ana-card">
+          <div class="ana-card-label"><%= t('analytics_page.this_month') %></div>
+          <div class="ana-card-value accent"><%= number_with_delimiter(@overview[:this_month_invoices]) %></div>
+          <div class="ana-card-trend"><%= t('analytics_page.invoices_this_month') %></div>
+        </div>
+        <!-- Total Invoiced Amount -->
+        <div class="ana-card">
+          <div class="ana-card-label"><%= t('analytics_page.total_invoiced') %></div>
+          <div class="ana-card-value"><%= fmt_money.call(@total_invoiced) %></div>
+          <div class="ana-card-trend"><%= currency %></div>
+        </div>
+        <!-- Voice Recordings -->
+        <div class="ana-card">
+          <div class="ana-card-label"><%= t('analytics_page.voice_recordings') %></div>
+          <div class="ana-card-value"><%= number_with_delimiter(@overview[:voice_recordings]) %></div>
+          <div class="ana-card-trend"><%= t('analytics_page.processed') %></div>
+        </div>
+        <!-- Success Rate -->
+        <div class="ana-card">
+          <div class="ana-card-label"><%= t('analytics_page.success_rate') %></div>
+          <div class="ana-card-value green"><%= @overview[:success_rate] %>%</div>
+          <div class="ana-card-trend"><%= t('analytics_page.transcription_accuracy') %></div>
+        </div>
+        <!-- Time Saved -->
+        <div class="ana-card">
+          <div class="ana-card-label"><%= t('analytics_page.time_saved') %></div>
+          <div class="ana-card-value accent"><%= fmt_time.call(@overview[:time_saved_seconds]) %></div>
+          <div class="ana-card-trend"><%= t('analytics_page.vs_manual') %></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════ 2. USAGE TRENDS (CHARTS) ═══════════════ -->
+    <section class="ana-section">
+      <h2 class="ana-section-title"><%= t('analytics_page.usage_trends') %></h2>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.6rem;">
+        <div class="ana-metric-tabs">
+          <button class="ana-metric-tab active" data-analytics-dashboard-target="metricTab" data-action="click->analytics-dashboard#switchMetric" data-metric="invoices"><%= t('analytics_page.metric_invoices') %></button>
+          <button class="ana-metric-tab" data-analytics-dashboard-target="metricTab" data-action="click->analytics-dashboard#switchMetric" data-metric="voice"><%= t('analytics_page.metric_voice') %></button>
+          <button class="ana-metric-tab" data-analytics-dashboard-target="metricTab" data-action="click->analytics-dashboard#switchMetric" data-metric="revenue"><%= t('analytics_page.metric_revenue') %></button>
+        </div>
+        <div class="ana-chart-filters">
+          <button class="ana-filter-btn" data-analytics-dashboard-target="periodBtn" data-action="click->analytics-dashboard#switchPeriod" data-period="7d">7D</button>
+          <button class="ana-filter-btn active" data-analytics-dashboard-target="periodBtn" data-action="click->analytics-dashboard#switchPeriod" data-period="30d">30D</button>
+          <button class="ana-filter-btn" data-analytics-dashboard-target="periodBtn" data-action="click->analytics-dashboard#switchPeriod" data-period="12m">12M</button>
+        </div>
+      </div>
+
+      <div class="ana-chart-wrap">
+        <canvas data-analytics-dashboard-target="chart"></canvas>
+      </div>
+    </section>
+
+    <!-- ═══════════════ 3. REVENUE / BUSINESS INSIGHTS ═══════════════ -->
+    <section class="ana-section">
+      <h2 class="ana-section-title"><%= t('analytics_page.business_insights') %></h2>
+      <div class="ana-stats-grid">
+        <div class="ana-stat-surface">
+          <div class="ana-stat-key"><%= t('analytics_page.total_revenue') %></div>
+          <div class="ana-stat-val orange"><%= fmt_money.call(@total_invoiced) %></div>
+        </div>
+        <div class="ana-stat-surface">
+          <div class="ana-stat-key"><%= t('analytics_page.avg_invoice') %></div>
+          <div class="ana-stat-val">
+            <% avg = @overview[:total_invoices] > 0 ? @total_invoiced / @overview[:total_invoices] : 0 %>
+            <%= fmt_money.call(avg) %>
+          </div>
+        </div>
+        <div class="ana-stat-surface">
+          <div class="ana-stat-key"><%= t('analytics_page.invoices_count') %></div>
+          <div class="ana-stat-val"><%= @overview[:total_invoices] %></div>
+        </div>
+        <div class="ana-stat-surface">
+          <div class="ana-stat-key"><%= t('analytics_page.currency_label') %></div>
+          <div class="ana-stat-val"><%= currency %></div>
+        </div>
+      </div>
+
+      <!-- Invoice Status Breakdown -->
+      <div class="ana-status-grid">
+        <div class="ana-status-pill draft">
+          <div class="ana-status-pill-count"><%= @status_counts[:draft] %></div>
+          <div class="ana-status-pill-label"><%= t('analytics_page.status_draft') %></div>
+        </div>
+        <div class="ana-status-pill sent">
+          <div class="ana-status-pill-count"><%= @status_counts[:sent] %></div>
+          <div class="ana-status-pill-label"><%= t('analytics_page.status_sent') %></div>
+        </div>
+        <div class="ana-status-pill paid">
+          <div class="ana-status-pill-count"><%= @status_counts[:paid] %></div>
+          <div class="ana-status-pill-label"><%= t('analytics_page.status_paid') %></div>
+        </div>
+        <div class="ana-status-pill overdue">
+          <div class="ana-status-pill-count"><%= @status_counts[:overdue] %></div>
+          <div class="ana-status-pill-label"><%= t('analytics_page.status_overdue') %></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════ 4. VOICE AI PERFORMANCE ═══════════════ -->
+    <section class="ana-section">
+      <h2 class="ana-section-title"><%= t('analytics_page.ai_performance') %></h2>
+      <div class="ana-stats-grid">
+        <div class="ana-stat-surface">
+          <div class="ana-stat-key"><%= t('analytics_page.transcription_accuracy') %></div>
+          <div class="ana-stat-val green"><%= @overview[:success_rate] %>%</div>
+        </div>
+        <div class="ana-stat-surface">
+          <div class="ana-stat-key"><%= t('analytics_page.edit_rate') %></div>
+          <div class="ana-stat-val"><%= @voice_perf[:edit_rate] %>%</div>
+        </div>
+        <div class="ana-stat-surface">
+          <div class="ana-stat-key"><%= t('analytics_page.avg_processing') %></div>
+          <div class="ana-stat-val orange"><%= fmt_time.call(@voice_perf[:avg_processing_time]) %></div>
+        </div>
+        <div class="ana-stat-surface">
+          <div class="ana-stat-key"><%= t('analytics_page.failed_attempts') %></div>
+          <div class="ana-stat-val red"><%= @voice_perf[:failed_attempts] %></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════ 5. PRODUCTIVITY / TIME SAVED ═══════════════ -->
+    <section class="ana-section">
+      <h2 class="ana-section-title"><%= t('analytics_page.productivity') %></h2>
+      <div class="ana-stats-grid">
+        <div class="ana-stat-surface">
+          <div class="ana-stat-key"><%= t('analytics_page.total_time_saved') %></div>
+          <div class="ana-stat-val green"><%= fmt_time.call(@productivity[:time_saved_total_seconds]) %></div>
+        </div>
+        <div class="ana-stat-surface">
+          <div class="ana-stat-key"><%= t('analytics_page.speed_multiplier') %></div>
+          <div class="ana-stat-val orange"><%= @productivity[:speed_multiplier] %>x</div>
+        </div>
+        <div class="ana-stat-surface">
+          <div class="ana-stat-key"><%= t('analytics_page.voice_invoices') %></div>
+          <div class="ana-stat-val"><%= @productivity[:voice_invoices] %></div>
+        </div>
+        <div class="ana-stat-surface">
+          <div class="ana-stat-key"><%= t('analytics_page.avg_creation_time') %></div>
+          <div class="ana-stat-val"><%= fmt_time.call(@productivity[:avg_creation_time_seconds]) %></div>
+        </div>
+      </div>
+
+      <!-- Voice vs Manual Speed Comparison -->
+      <div class="ana-speed-bar">
+        <div class="ana-speed-row">
+          <div class="ana-speed-label"><%= t('analytics_page.voice_label') %></div>
+          <div class="ana-speed-track">
+            <% voice_pct = @productivity[:manual_estimate_seconds] > 0 ? ((@productivity[:avg_creation_time_seconds].to_f / @productivity[:manual_estimate_seconds]) * 100).round : 25 %>
+            <div class="ana-speed-fill voice" style="width: <%= [voice_pct, 100].min %>%;"></div>
+          </div>
+          <div class="ana-speed-time"><%= fmt_time.call(@productivity[:avg_creation_time_seconds]) %></div>
+        </div>
+        <div class="ana-speed-row">
+          <div class="ana-speed-label"><%= t('analytics_page.manual_label') %></div>
+          <div class="ana-speed-track">
+            <div class="ana-speed-fill manual" style="width: 100%;"></div>
+          </div>
+          <div class="ana-speed-time"><%= fmt_time.call(@productivity[:manual_estimate_seconds]) %></div>
+        </div>
+      </div>
+    </section>
+
+    <div class="ana-footer">
+      <p class="ana-footer-text"><%= t('analytics_page.footer') %></p>
+    </div>
+  </div>
+</div>

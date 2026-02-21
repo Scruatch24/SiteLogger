@@ -51,6 +51,24 @@ class LogsController < ApplicationController
       end
 
       if @log.save
+        # Track invoice creation for analytics
+        if user_signed_in?
+          invoice_amount = begin
+            totals = helpers.calculate_log_totals(@log, profile)
+            totals[:total_due].to_f
+          rescue => _e
+            nil
+          end
+
+          AnalyticsEvent.track!(
+            user_id: current_user.id,
+            event_type: AnalyticsEvent::INVOICE_CREATED,
+            amount: invoice_amount,
+            currency: @log.currency.presence || profile.currency.presence,
+            metadata: { log_id: @log.id, client: @log.client.to_s.truncate(100) }
+          )
+        end
+
         respond_to do |format|
           format.json { render json: { success: true, id: @log.id, display_number: @log.display_number, client: @log.client } }
           format.html { redirect_to history_path }
@@ -136,6 +154,15 @@ class LogsController < ApplicationController
       end
 
       if @log.save
+        # Track invoice edit for analytics
+        if user_signed_in?
+          AnalyticsEvent.track!(
+            user_id: current_user.id,
+            event_type: AnalyticsEvent::INVOICE_EDITED,
+            metadata: { log_id: @log.id, field: field }
+          )
+        end
+
         render json: { success: true }
       else
         render json: { success: false, errors: @log.errors.full_messages }, status: :unprocessable_entity

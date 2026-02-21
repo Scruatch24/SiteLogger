@@ -54,6 +54,46 @@ class HomeController < ApplicationController
   def pricing
   end
 
+  def analytics
+    unless user_signed_in?
+      redirect_to root_path and return
+    end
+
+    user_id = current_user.id
+    @overview = AnalyticsEvent.overview_for(user_id)
+    @revenue = AnalyticsEvent.revenue_for(user_id, currency: @profile.currency.presence)
+    @voice_perf = AnalyticsEvent.voice_performance_for(user_id)
+    @productivity = AnalyticsEvent.productivity_for(user_id)
+
+    # Compute total invoiced amount from existing logs
+    @total_invoiced = compute_total_invoiced(current_user)
+
+    # Invoice status breakdown
+    logs = current_user.logs.kept
+    @status_counts = {
+      draft: logs.where(status: "draft").count,
+      sent: logs.where(status: "sent").count,
+      paid: logs.where(status: "paid").count,
+      overdue: logs.where(status: "overdue").count
+    }
+  end
+
+  def analytics_data
+    unless user_signed_in?
+      return render json: { error: "unauthorized" }, status: :unauthorized
+    end
+
+    period = params[:period].presence || "30d"
+    metric = params[:metric].presence || "invoices"
+
+    data = AnalyticsEvent.time_series_for(current_user.id, period: period, metric: metric)
+
+    # Fill in missing dates with 0
+    filled = fill_time_series(data, period)
+
+    render json: { labels: filled.keys, values: filled.values, period: period, metric: metric }
+  end
+
   def subscription
     unless user_signed_in? && current_user.profile&.ever_paid?
       redirect_to pricing_path and return
@@ -509,6 +549,7 @@ class HomeController < ApplicationController
   end
 
   def process_audio
+    @_analytics_start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     api_key = ENV["GEMINI_API_KEY"]
     has_audio = params[:audio].present?
     is_manual_text = !has_audio && params[:manual_text].present?
@@ -1384,10 +1425,50 @@ PROMPT
 
       Rails.logger.info "FINAL NORMALIZED JSON: #{final_response.to_json}"
 
+      # ── Analytics Event Tracking ──
+      if user_signed_in?
+        processing_time = (Process.clock_gettime(Process::CLOCK_MONOTONIC) - @_analytics_start_time rescue nil)
+        source = is_manual_text ? "manual" : "voice"
+
+        AnalyticsEvent.track!(
+          user_id: current_user.id,
+          event_type: AnalyticsEvent::VOICE_PROCESSING,
+          duration_seconds: processing_time,
+          source: source,
+          metadata: { model: used_model }
+        )
+
+        unless is_manual_text
+          AnalyticsEvent.track!(
+            user_id: current_user.id,
+            event_type: AnalyticsEvent::VOICE_RECORDING,
+            duration_seconds: params[:audio_duration].to_f,
+            source: "audio"
+          )
+        end
+
+        AnalyticsEvent.track!(
+          user_id: current_user.id,
+          event_type: AnalyticsEvent::TRANSCRIPTION_SUCCESS,
+          source: source,
+          metadata: { model: used_model, has_clarifications: final_response["clarifications"].present? }
+        )
+      end
+
       render json: final_response
 
     rescue => e
       Rails.logger.error "AUDIO PROCESSING ERROR: #{e.message}\n#{e.backtrace.join("\n")}"
+
+      # Track transcription failure
+      if user_signed_in?
+        AnalyticsEvent.track!(
+          user_id: current_user.id,
+          event_type: AnalyticsEvent::TRANSCRIPTION_FAILURE,
+          metadata: { error: e.message.truncate(200) }
+        )
+      end
+
       render json: { error: t("processing_error") }, status: 500
     end
   end
@@ -2302,6 +2383,41 @@ PROMPT
         payment_method_label: hash[:payment_method_label].presence
       }
     end.first(10)
+  end
+
+  def compute_total_invoiced(user)
+    total = 0.0
+    user.logs.kept.find_each do |log|
+      totals = helpers.calculate_log_totals(log, user.profile || Profile.new)
+      total += totals[:total_due].to_f
+    rescue => e
+      Rails.logger.warn("Analytics compute_total_invoiced error for log #{log.id}: #{e.message}")
+    end
+    total.round(2)
+  end
+
+  def fill_time_series(data, period)
+    filled = {}
+    case period
+    when "7d"
+      (0..6).each do |i|
+        key = (Time.current - (6 - i).days).strftime("%Y-%m-%d")
+        filled[key] = data[key] || 0
+      end
+    when "30d"
+      (0..29).each do |i|
+        key = (Time.current - (29 - i).days).strftime("%Y-%m-%d")
+        filled[key] = data[key] || 0
+      end
+    when "12m"
+      (0..11).each do |i|
+        key = (Time.current - (11 - i).months).beginning_of_month.strftime("%Y-%m")
+        filled[key] = data[key] || 0
+      end
+    else
+      filled = data
+    end
+    filled
   end
 
   def profile_params
