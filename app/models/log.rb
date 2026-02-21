@@ -2,7 +2,7 @@ class Log < ApplicationRecord
   serialize :tasks, coder: JSON
   serialize :credits, coder: JSON
   belongs_to :user, optional: true
-  belongs_to :client, optional: true, counter_cache: :invoices_count
+  belongs_to :client_record, class_name: "Client", foreign_key: "client_id", optional: true, counter_cache: :invoices_count
 
   has_many :log_category_assignments, dependent: :destroy
   has_many :categories, through: :log_category_assignments

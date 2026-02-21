@@ -21,7 +21,7 @@ class ClientsController < ApplicationController
   end
 
   def destroy
-    @client.logs.update_all(client_id: nil)
+    Log.where(client_id: @client.id).update_all(client_id: nil)
     @client.destroy
     render json: { success: true }
   end

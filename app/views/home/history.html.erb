@@ -300,15 +300,7 @@
       height: 22px;
     }
 
-    /* Client detail header: stack on narrow screens */
-    .client-detail-view > .flex.items-center.justify-between {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 12px;
-    }
-    .client-detail-view > .flex.items-center.justify-between > .flex.gap-2 {
-      align-self: flex-end;
-    }
+    /* Client/Category detail header: keep back + action buttons on same row */
 
     /* Outer padding: reduce from p-4 to p-3 */
     .min-h-screen.text-black.font-sans {
@@ -357,15 +349,15 @@
          </div>
 
          <button onclick="switchView('all')" id="tab-all" 
-                 class="relative z-10 flex-1 flex items-center justify-center text-xs font-black uppercase tracking-widest text-white transition-colors duration-300">
+                 class="relative z-10 flex-1 flex items-center justify-center text-xs font-black uppercase tracking-widest text-white">
            <%= t('all') %>
          </button>
          <button onclick="switchView('categories')" id="tab-categories" 
-                 class="relative z-10 flex-1 flex items-center justify-center text-xs font-bold uppercase tracking-widest text-black/40 transition-colors duration-300">
+                 class="relative z-10 flex-1 flex items-center justify-center text-xs font-bold uppercase tracking-widest text-black/40">
            <%= t('categories') %>
          </button>
          <button onclick="switchView('clients')" id="tab-clients" 
-                 class="relative z-10 flex-1 flex items-center justify-center text-xs font-bold uppercase tracking-widest text-black/40 transition-colors duration-300">
+                 class="relative z-10 flex-1 flex items-center justify-center text-xs font-bold uppercase tracking-widest text-black/40">
            <%= t('clients') %>
          </button>
        </div>
@@ -551,18 +543,20 @@
 
         <!-- DETAILS: INDIVIDUAL VIEWS (HIDDEN) -->
         <div id="categories-details" class="px-4 hidden">
-          <!-- Back button -->
-          <button onclick="exitCategory()" class="mb-6 flex items-center gap-2 text-black hover:text-orange-600 transition-colors group">
-            <div class="w-8 h-8 rounded-full border-2 border-black flex items-center justify-center group-hover:bg-orange-600 group-hover:text-white transition-all">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
-              </svg>
-            </div>
-            <span class="text-xs font-black uppercase tracking-widest"><%= t('back_to_categories') %></span>
-          </button>
 
           <!-- Detail Containers -->
           <div id="category-detail-favorites" class="category-detail-view hidden">
+            <!-- Back button row -->
+            <div class="flex items-center justify-between mb-6">
+              <button onclick="exitCategory()" class="flex items-center gap-2 text-black hover:text-orange-600 transition-colors group">
+                <div class="w-8 h-8 rounded-full border-2 border-black flex items-center justify-center group-hover:bg-orange-600 group-hover:text-white transition-all">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+                  </svg>
+                </div>
+                <span class="text-xs font-black uppercase tracking-widest"><%= t('back_to_categories') %></span>
+              </button>
+            </div>
             <div class="flex items-center gap-4 mb-10">
               <div class="w-16 h-16 bg-amber-50 rounded-3xl flex items-center justify-center text-amber-500 border-2 border-black">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" viewBox="0 0 20 20" fill="currentColor">
@@ -592,37 +586,47 @@
           <% @categories.each do |category| %>
             <% next if category.name == 'Favorites' %>
             <div id="category-detail-cat-<%= category.id %>" class="category-detail-view hidden">
-              <div class="flex items-center justify-between mb-10">
-                <div class="flex items-center gap-4">
-                  <div class="w-16 h-16 rounded-3xl flex items-center justify-center overflow-hidden relative border-2 border-black"
-                       style="<%= category.color.present? ? "background-color: #{category.color}20; color: #{category.color};" : "background-color: #f3f4f6; color: black;" %>">
-                     <% if category.icon_type == 'custom' && category.custom_icon.attached? %>
-                       <%= image_tag category.custom_icon, class: "w-full h-full object-cover", loading: "lazy" %>
-                     <% else %>
-                       <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" viewBox="0 0 20 20" fill="currentColor">
-                         <%= category_icon_map[category.icon].to_s.html_safe %>
-                       </svg>
-                     <% end %>
+              <!-- Back + Delete row -->
+              <div class="flex items-center justify-between mb-6">
+                <button onclick="exitCategory()" class="flex items-center gap-2 text-black hover:text-orange-600 transition-colors group">
+                  <div class="w-8 h-8 rounded-full border-2 border-black flex items-center justify-center group-hover:bg-orange-600 group-hover:text-white transition-all">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+                    </svg>
                   </div>
-                  <div>
-                    <h2 class="text-2xl font-black uppercase tracking-tighter"><%= category.name %></h2>
-                    <p id="cat-detail-count-<%= category.id %>" class="text-xs font-bold text-gray-400 uppercase tracking-widest" data-category-count="cat-<%= category.id %>"><%= category.logs.size %> <%= t('items_found') %></p>
-                  </div>
+                  <span class="text-xs font-black uppercase tracking-widest"><%= t('back_to_categories') %></span>
+                </button>
+                <div class="flex gap-2">
+                  <%= button_tag type: 'button', 
+                                class: "p-3 bg-red-50 text-red-500 rounded-2xl hover:bg-red-500 hover:text-white transition-all active:scale-90",
+                                data: { category_id: category.id, category_name: category.name },
+                                onclick: "handleDeleteClick(this)" do %>
+                    <svg class="h-5 w-5">
+                      <use xlink:href="#icon-delete"></use>
+                    </svg>
+                  <% end %>
                 </div>
-                
-                <%= button_tag type: 'button', 
-                              class: "p-3 bg-red-50 text-red-500 rounded-2xl hover:bg-red-500 hover:text-white transition-all active:scale-90",
-                              data: { category_id: category.id, category_name: category.name },
-                              onclick: "handleDeleteClick(this)" do %>
-                  <svg class="h-5 w-5">
-                    <use xlink:href="#icon-delete"></use>
-                  </svg>
-                <% end %>
-
                 <form id="delete-form-<%= category.id %>" action="<%= category_path(category) %>" method="post" class="hidden">
                   <input type="hidden" name="_method" value="delete">
                   <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
                 </form>
+              </div>
+              <!-- Category header info -->
+              <div class="flex items-center gap-4 mb-10">
+                <div class="w-16 h-16 rounded-3xl flex items-center justify-center overflow-hidden relative border-2 border-black"
+                     style="<%= category.color.present? ? "background-color: #{category.color}20; color: #{category.color};" : "background-color: #f3f4f6; color: black;" %>">
+                   <% if category.icon_type == 'custom' && category.custom_icon.attached? %>
+                     <%= image_tag category.custom_icon, class: "w-full h-full object-cover", loading: "lazy" %>
+                   <% else %>
+                     <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" viewBox="0 0 20 20" fill="currentColor">
+                       <%= category_icon_map[category.icon].to_s.html_safe %>
+                     </svg>
+                   <% end %>
+                </div>
+                <div>
+                  <h2 class="text-2xl font-black uppercase tracking-tighter"><%= category.name %></h2>
+                  <p id="cat-detail-count-<%= category.id %>" class="text-xs font-bold text-gray-400 uppercase tracking-widest" data-category-count="cat-<%= category.id %>"><%= category.logs.size %> <%= t('items_found') %></p>
+                </div>
               </div>
 
               <% if category.logs.any? %>
@@ -686,29 +690,20 @@
 
         <!-- CLIENTS DETAILS: INDIVIDUAL VIEWS -->
         <div id="clients-details" class="px-4 hidden">
-          <!-- Back button -->
-          <button onclick="exitClient()" class="mb-6 flex items-center gap-2 text-black hover:text-orange-600 transition-colors group">
-            <div class="w-8 h-8 rounded-full border-2 border-black flex items-center justify-center group-hover:bg-orange-600 group-hover:text-white transition-all">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
-              </svg>
-            </div>
-            <span class="text-xs font-black uppercase tracking-widest"><%= t('back_to_clients') %></span>
-          </button>
 
           <% @clients.each do |client| %>
             <% client_logs = client.logs.kept.order(created_at: :desc) %>
             <div id="client-detail-<%= client.id %>" class="client-detail-view hidden">
+              <!-- Back + Edit/Delete row -->
               <div class="flex items-center justify-between mb-6">
-                <div class="flex items-center gap-4">
-                  <div class="w-16 h-16 bg-orange-50 rounded-3xl flex items-center justify-center text-orange-600 border-2 border-black font-black text-xl">
-                    <%= client.display_initials %>
+                <button onclick="exitClient()" class="flex items-center gap-2 text-black hover:text-orange-600 transition-colors group">
+                  <div class="w-8 h-8 rounded-full border-2 border-black flex items-center justify-center group-hover:bg-orange-600 group-hover:text-white transition-all">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+                    </svg>
                   </div>
-                  <div>
-                    <h2 class="text-2xl font-black uppercase tracking-tighter"><%= client.name %></h2>
-                    <p class="text-xs font-bold text-gray-400 uppercase tracking-widest"><%= client_logs.size %> <%= t('items_found') %></p>
-                  </div>
-                </div>
+                  <span class="text-xs font-black uppercase tracking-widest"><%= t('back_to_clients') %></span>
+                </button>
                 <div class="flex gap-2">
                   <button onclick="openEditClientModal(<%= client.id %>)" class="p-3 bg-blue-50 text-blue-500 rounded-2xl hover:bg-blue-500 hover:text-white transition-all active:scale-90">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -720,6 +715,16 @@
                       <use xlink:href="#icon-delete"></use>
                     </svg>
                   </button>
+                </div>
+              </div>
+              <!-- Client header info -->
+              <div class="flex items-center gap-4 mb-6">
+                <div class="w-16 h-16 bg-orange-50 rounded-3xl flex items-center justify-center text-orange-600 border-2 border-black font-black text-xl">
+                  <%= client.display_initials %>
+                </div>
+                <div>
+                  <h2 class="text-2xl font-black uppercase tracking-tighter"><%= client.name %></h2>
+                  <p class="text-xs font-bold text-gray-400 uppercase tracking-widest"><%= client_logs.size %> <%= t('items_found') %></p>
                 </div>
               </div>
 
@@ -756,7 +761,7 @@
 
               <!-- Client's Invoices -->
               <% if client_logs.any? %>
-                <div class="flex flex-col gap-20 pt-6">
+                <div class="flex flex-col gap-20 pt-12">
                   <% client_logs.each do |log| %>
                     <%= render partial: "home/log_card", locals: { log: log, suffix: "-cli#{client.id}" } %>
                   <% end %>
@@ -916,11 +921,11 @@
 </div>
 
 
-<!-- MANAGE LOG CATEGORIES MODAL -->
+<!-- MANAGE LOG MODAL (Categories + Clients collapsibles) -->
 <div id="manageCategoriesModal" class="modal-backdrop" style="z-index: 300;" onclick="closeManageCategoriesModal(event)">
   <div class="modal-content" onclick="event.stopPropagation()">
     <div class="flex justify-between items-center mb-6">
-      <h2 class="text-xl font-black uppercase tracking-tighter"><%= t('manage') %> <span class="text-orange-600"><%= t('categories') %></span></h2>
+      <h2 class="text-xl font-black uppercase tracking-tighter"><%= t('manage') %></h2>
       <button onclick="closeManageCategoriesModal()" class="text-gray-400 hover:text-black transition-colors">
         <svg class="h-6 w-6">
           <use xlink:href="#icon-close"></use>
@@ -928,60 +933,128 @@
       </button>
     </div>
 
-    <!-- Search/Filter Categories -->
-    <div class="mb-4 relative">
-      <input type="text" 
-             placeholder="<%= t('search_categories') %>" 
-             oninput="filterManageCategories(this.value)"
-             class="w-full pl-10 pr-4 py-2 bg-gray-50 border-2 border-black rounded-xl text-sm font-bold focus:outline-none focus:bg-white transition-all">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 absolute left-3 top-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-      </svg>
+    <input type="hidden" id="manageLogId">
+
+    <!-- ═══ CATEGORIES Collapsible ═══ -->
+    <div class="mb-3 border-2 border-black rounded-2xl overflow-hidden">
+      <button type="button" onclick="toggleManageSection('categories')" class="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 transition-colors">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-lg bg-orange-100 flex items-center justify-center text-orange-600">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M17.707 9.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-7-7A.997.997 0 012 10V5a3 3 0 013-3h5c.256 0 .512.098.707.293l7 7zM5 6a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+            </svg>
+          </div>
+          <span class="text-xs font-black uppercase tracking-widest"><%= t('categories') %></span>
+        </div>
+        <svg id="manage-chevron-categories" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      <div id="manage-body-categories" class="hidden">
+        <div class="p-3 pt-2">
+          <!-- Search/Filter Categories -->
+          <div class="mb-3 relative">
+            <input type="text" 
+                   placeholder="<%= t('search_categories') %>" 
+                   oninput="filterManageCategories(this.value)"
+                   class="w-full pl-9 pr-3 py-2 bg-gray-50 border-2 border-black rounded-xl text-sm font-bold focus:outline-none focus:bg-white transition-all">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 absolute left-3 top-2.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+          <div id="manageCategoriesList" class="flex flex-col gap-2 max-h-[200px] overflow-y-auto pr-1 custom-scrollbar">
+            <% @categories.each do |category| %>
+              <label class="manage-category-item group flex items-center justify-between p-3 rounded-xl border-2 border-transparent bg-gray-50 cursor-pointer hover:bg-gray-100 transition-all"
+                     data-id="<%= category.id %>" data-name="<%= category.name %>">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-lg flex items-center justify-center text-xs"
+                       style="background-color: <%= category.color %>20; color: <%= category.color %>;">
+                    <% if category.icon_type == 'custom' && category.custom_icon.attached? %>
+                      <img src="<%= url_for(category.custom_icon) %>" class="w-5 h-5 object-cover rounded-sm" loading="lazy">
+                    <% else %>
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <%= category_icon_map[category.icon].to_s.html_safe %>
+                      </svg>
+                    <% end %>
+                  </div>
+                  <span class="font-bold text-sm"><%= category.name == 'Favorites' ? t('favorites') : category.name %></span>
+                </div>
+                <input type="checkbox" value="<%= category.id %>" class="hidden" 
+                       onchange="toggleCategorySelection(this)" data-state="unchecked">
+                <div class="check-indicator w-6 h-6 rounded-lg border-2 border-black/10 transition-all bg-white relative">
+                  <div class="absolute inset-0 flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white hidden check-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3.5">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <div class="absolute inset-0 flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white hidden remover-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3.5">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                    </svg>
+                  </div>
+                </div>
+              </label>
+            <% end %>
+            <% if @categories.empty? %>
+              <div class="text-center py-4">
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3"><%= t('no_categories_yet') %></p>
+                <button onclick="closeManageCategoriesModal(); openAddCategoryModal(document.getElementById('manageLogId').value);" class="text-[10px] font-black uppercase tracking-widest text-orange-600 hover:text-black transition-colors underline underline-offset-4">
+                  <%= t('create_first_category') %>
+                </button>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <input type="hidden" id="manageLogId">
-    
-    <div id="manageCategoriesList" class="flex flex-col gap-2 max-h-[300px] overflow-y-auto mb-6 pr-1 custom-scrollbar">
-      <% @categories.each do |category| %>
-        <label class="manage-category-item group flex items-center justify-between p-3 rounded-xl border-2 border-transparent bg-gray-50 cursor-pointer hover:bg-gray-100 transition-all"
-               data-id="<%= category.id %>" data-name="<%= category.name %>">
-          <div class="flex items-center gap-3">
-            <div class="w-8 h-8 rounded-lg flex items-center justify-center text-xs"
-                 style="background-color: <%= category.color %>20; color: <%= category.color %>;">
-              <% if category.icon_type == 'custom' && category.custom_icon.attached? %>
-                <img src="<%= url_for(category.custom_icon) %>" class="w-5 h-5 object-cover rounded-sm" loading="lazy">
-              <% else %>
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <%= category_icon_map[category.icon].to_s.html_safe %>
-                </svg>
-              <% end %>
-            </div>
-            <span class="font-bold text-sm"><%= category.name == 'Favorites' ? t('favorites') : category.name %></span>
+    <!-- ═══ CLIENTS Collapsible ═══ -->
+    <div class="mb-4 border-2 border-black rounded-2xl overflow-hidden">
+      <button type="button" onclick="toggleManageSection('clients')" class="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 transition-colors">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
+            </svg>
           </div>
-          <input type="checkbox" value="<%= category.id %>" class="hidden" 
-                 onchange="toggleCategorySelection(this)" data-state="unchecked">
-          <div class="check-indicator w-6 h-6 rounded-lg border-2 border-black/10 transition-all bg-white relative">
-            <div class="absolute inset-0 flex items-center justify-center">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white hidden check-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <div class="absolute inset-0 flex items-center justify-center">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white hidden remover-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
-              </svg>
-            </div>
-          </div>
-        </label>
-      <% end %>
-      <% if @categories.empty? %>
-        <div class="text-center py-6">
-          <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4"><%= t('no_categories_yet') %></p>
-          <button onclick="closeManageCategoriesModal(); openAddCategoryModal(document.getElementById('manageLogId').value);" class="text-[10px] font-black uppercase tracking-widest text-orange-600 hover:text-black transition-colors underline underline-offset-4">
-            <%= t('create_first_category') %>
-          </button>
+          <span class="text-xs font-black uppercase tracking-widest"><%= t('clients') %></span>
         </div>
-      <% end %>
+        <svg id="manage-chevron-clients" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      <div id="manage-body-clients" class="hidden">
+        <div class="p-3 pt-2">
+          <div id="manageClientsList" class="flex flex-col gap-2 max-h-[200px] overflow-y-auto pr-1 custom-scrollbar">
+            <% @clients.each do |cl| %>
+              <label class="manage-client-item group flex items-center justify-between p-3 rounded-xl border-2 border-transparent bg-gray-50 cursor-pointer hover:bg-gray-100 transition-all"
+                     data-client-id="<%= cl.id %>" data-client-name="<%= cl.name %>">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 bg-orange-50 rounded-lg flex items-center justify-center text-orange-600 font-black text-xs border border-orange-200">
+                    <%= cl.display_initials %>
+                  </div>
+                  <span class="font-bold text-sm"><%= cl.name %></span>
+                </div>
+                <input type="radio" name="manage_client_radio" value="<%= cl.id %>" class="hidden"
+                       onchange="selectManageClient(this)">
+                <div class="client-radio-indicator w-6 h-6 rounded-full border-2 border-black/10 transition-all bg-white relative">
+                  <div class="absolute inset-0 flex items-center justify-center">
+                    <div class="w-3 h-3 rounded-full bg-orange-500 hidden client-radio-dot"></div>
+                  </div>
+                </div>
+              </label>
+            <% end %>
+            <% if @clients.empty? %>
+              <div class="text-center py-4">
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3"><%= t('no_clients_yet') %></p>
+                <button onclick="closeManageCategoriesModal(); openAddClientModal();" class="text-[10px] font-black uppercase tracking-widest text-orange-600 hover:text-black transition-colors underline underline-offset-4">
+                  <%= t('new_client') %>
+                </button>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      </div>
     </div>
 
     <button id="saveCategoriesBtn" onclick="saveLogCategories()" class="w-full py-4 bg-orange-600 text-white rounded-xl font-black uppercase tracking-widest hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-700 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
@@ -1791,7 +1864,32 @@
     const modalTitle = modal.querySelector('h2');
     
     logIdInput.value = JSON.stringify(ids);
-    modalTitle.innerHTML = ids.length > 1 ? `<%= t('bulk_manage').split(' ').first %> <span class="text-orange-600"><%= t('bulk_manage').split(' ').last %></span>` : `<%= t('manage_categories').split(' ').first %> <span class="text-orange-600"><%= t('manage_categories').split(' ').last %></span>`;
+    modalTitle.innerHTML = ids.length > 1 ? `<%= j t('bulk_manage') %>` : `<%= j t('manage') %>`;
+
+    // Reset client selection
+    selectedManageClientId = null;
+    document.querySelectorAll('.client-radio-dot').forEach(d => d.classList.add('hidden'));
+    document.querySelectorAll('input[name="manage_client_radio"]').forEach(r => r.checked = false);
+
+    // Pre-select current client if single log has a client_id
+    if (ids.length === 1) {
+      const card = document.querySelector(`.log-card[data-log-id="${ids[0]}"]`);
+      if (card && card.dataset.clientId) {
+        const radio = document.querySelector(`input[name="manage_client_radio"][value="${card.dataset.clientId}"]`);
+        if (radio) {
+          radio.checked = true;
+          selectedManageClientId = card.dataset.clientId;
+          const dot = radio.closest('label').querySelector('.client-radio-dot');
+          if (dot) dot.classList.remove('hidden');
+        }
+      }
+    }
+
+    // Collapse both sections by default
+    document.getElementById('manage-body-categories').classList.add('hidden');
+    document.getElementById('manage-chevron-categories').style.transform = 'rotate(0deg)';
+    document.getElementById('manage-body-clients').classList.add('hidden');
+    document.getElementById('manage-chevron-clients').style.transform = 'rotate(0deg)';
 
     // Process initial states
     // If multiple logs, only check categories that are present in ALL logs
@@ -1864,6 +1962,32 @@
     });
   }
 
+  // ── Manage Modal: Collapsible Sections ──
+  function toggleManageSection(section) {
+    const body = document.getElementById(`manage-body-${section}`);
+    const chevron = document.getElementById(`manage-chevron-${section}`);
+    const isHidden = body.classList.contains('hidden');
+    if (isHidden) {
+      body.classList.remove('hidden');
+      chevron.style.transform = 'rotate(180deg)';
+    } else {
+      body.classList.add('hidden');
+      chevron.style.transform = 'rotate(0deg)';
+    }
+  }
+
+  // ── Manage Modal: Client selection ──
+  let selectedManageClientId = null;
+
+  function selectManageClient(radio) {
+    // Clear all radio dots
+    document.querySelectorAll('.client-radio-dot').forEach(d => d.classList.add('hidden'));
+    // Show selected
+    const dot = radio.closest('label').querySelector('.client-radio-dot');
+    if (dot) dot.classList.remove('hidden');
+    selectedManageClientId = radio.value;
+  }
+
   function saveLogCategories() {
     let logIds;
     try {
@@ -1901,7 +2025,8 @@
       body: JSON.stringify({ 
         log_ids: logIds, 
         added_category_ids: addedIds, 
-        removed_category_ids: removedIds
+        removed_category_ids: removedIds,
+        client_id: selectedManageClientId
       })
     })
     .then(response => response.json())

@@ -1,6 +1,6 @@
 class Client < ApplicationRecord
   belongs_to :user
-  has_many :logs, dependent: :nullify
+  has_many :logs, foreign_key: "client_id", dependent: :nullify
 
   validates :name, presence: true
   validates :name, uniqueness: { scope: :user_id, case_sensitive: false }

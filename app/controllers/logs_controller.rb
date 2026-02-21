@@ -210,6 +210,9 @@ class LogsController < ApplicationController
         Log.kept.where(user_id: nil, ip_address: client_ip, id: log_ids)
       end
 
+      # Optional client assignment from the manage modal
+      new_client_id = params[:client_id].present? ? params[:client_id].to_i : nil
+
       errors = []
       logs.each do |log|
         # Add categories if not already present
@@ -217,6 +220,16 @@ class LogsController < ApplicationController
         # Remove categories if present
         new_ids = new_ids - removed_ids
         log.category_ids = new_ids.uniq
+
+        # Assign client if selected
+        if new_client_id
+          log.client_id = new_client_id
+          # Also update the client name text field to match
+          if user_signed_in?
+            client_obj = current_user.clients.find_by(id: new_client_id)
+            log.client = client_obj.name if client_obj
+          end
+        end
 
         unless log.save
           errors << { id: log.id, errors: log.errors.full_messages }

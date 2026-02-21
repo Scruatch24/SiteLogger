@@ -9,7 +9,8 @@
      style="z-index: auto;" 
      data-categories="<%= log.category_ids.to_json %>"
      data-pinned="<%= pinned_state ? 'true' : 'false' %>"
-     data-log-id="<%= log.id %>">
+     data-log-id="<%= log.id %>"
+     data-client-id="<%= log.client_id %>">
   <!-- Hamburger Menu Button (Top Right Corner) -->
   <div class="absolute -top-3 -right-3 z-[60]">
     <button type="button" 
