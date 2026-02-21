@@ -615,29 +615,7 @@
     <%= render 'home/site_header' %>
 
     <main class="app-main flex-1 container mx-auto px-0 md:px-4 py-0 md:py-4 max-w-md md:max-w-6xl">
-      <%# Flash Messages (matching industrial aesthetic) %>
-      <% flash.each do |type, message| %>
-        <div class="fixed top-4 left-1/2 -translate-x-1/2 z-[50000] w-fit max-w-[90vw]">
-          <div class="p-4 rounded-2xl border-2 border-black font-black uppercase text-[10px] tracking-widest shadow-[4px_4px_0px_0px_#000000] flex items-center gap-3 <%= type == 'alert' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600' %>">
-            <% if type == 'alert' %>
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-              </svg>
-            <% else %>
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-              </svg>
-            <% end %>
-            <span><%= message.html_safe %></span>
-            <button onclick="this.parentElement.parentElement.remove()" class="p-1 hover:bg-black/5 rounded-lg transition-colors">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        </div>
-      <% end %>
-
+      <%# Flash messages are now rendered via the unified showToast() system below %>
       <%= yield %>
     </main>
     </div>
@@ -1325,6 +1303,99 @@
             .catch(function() {});
         }, 10000);
       })();
+    </script>
+    <% end %>
+
+    <div id="toastContainer" class="fixed top-4 left-1/2 -translate-x-1/2 z-[60000] flex flex-col items-center gap-2 pointer-events-none"></div>
+    <script>
+    (function() {
+      var toastQueue = [];
+      var toastCount = 0;
+
+      window.showToast = function(msg, type, opts) {
+        if (!msg) return;
+        type = type || 'info';
+        opts = opts || {};
+        var duration = opts.duration || (type === 'error' ? 8000 : 4000);
+
+        var config = {
+          success: { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-300', icon: '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />' },
+          error:   { bg: 'bg-red-50',   text: 'text-red-700',   border: 'border-red-300',   icon: '<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />' },
+          warning: { bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-300', icon: '<path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />' },
+          info:    { bg: 'bg-gray-900',  text: 'text-white',     border: 'border-gray-700',  icon: '<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2h.01a1 1 0 100-2H9zm.293 6.95a1 1 0 001.414 0L12 14.66l1.293 1.29a1 1 0 001.414-1.414l-2-2a1 1 0 00-1.414 0l-2 2a1 1 0 000 1.414z" clip-rule="evenodd" />' }
+        };
+        var c = config[type] || config.info;
+
+        var container = document.getElementById('toastContainer');
+        if (!container) return;
+
+        var id = 'toast-' + (++toastCount);
+        var el = document.createElement('div');
+        el.id = id;
+        el.className = 'pointer-events-auto w-fit max-w-[90vw] ' + c.bg + ' ' + c.text + ' px-4 py-3 rounded-2xl border-2 ' + c.border + ' font-black uppercase text-[10px] tracking-widest shadow-[4px_4px_0px_0px_rgba(0,0,0,0.15)] flex items-center gap-3 transition-all duration-300';
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(-12px) scale(0.95)';
+
+        var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('class', 'h-4 w-4 shrink-0');
+        svg.setAttribute('viewBox', '0 0 20 20');
+        svg.setAttribute('fill', 'currentColor');
+        svg.innerHTML = c.icon;
+
+        var span = document.createElement('span');
+        span.textContent = msg;
+
+        var btn = document.createElement('button');
+        btn.className = 'p-1 hover:opacity-60 rounded-lg transition-opacity shrink-0 cursor-pointer';
+        btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12" /></svg>';
+        btn.onclick = function() { dismissToast(el); };
+
+        el.appendChild(svg);
+        el.appendChild(span);
+        el.appendChild(btn);
+        container.appendChild(el);
+
+        requestAnimationFrame(function() {
+          requestAnimationFrame(function() {
+            el.style.opacity = '1';
+            el.style.transform = 'translateY(0) scale(1)';
+          });
+        });
+
+        var timer = setTimeout(function() { dismissToast(el); }, duration);
+        el._timer = timer;
+      };
+
+      function dismissToast(el) {
+        if (!el || !el.parentNode) return;
+        if (el._timer) clearTimeout(el._timer);
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(-12px) scale(0.95)';
+        setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 300);
+      }
+
+      window.showError = function(msg) {
+        if (msg && (msg.toLowerCase().includes("limit reached") || msg.toLowerCase().includes("rate limit"))) {
+          if (window.showPremiumModal) { window.showPremiumModal(); return; }
+        }
+        window.showToast(msg, 'error');
+      };
+
+      window.showSoftMessage = function(msg) {
+        window.showToast(msg, 'info');
+      };
+
+      window.showSuccess = function(msg) {
+        window.showToast(msg, 'success');
+      };
+    })();
+    </script>
+
+    <% flash.each do |type, message| %>
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        window.showToast(<%= message.to_json.html_safe %>, '<%= type == "alert" ? "error" : "success" %>');
+      });
     </script>
     <% end %>
   </body>

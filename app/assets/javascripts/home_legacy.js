@@ -6001,24 +6001,7 @@ function updateUIWithoutTranscript(data) {
   }
 }
 
-let errorToastTimeout;
-function showError(msg) {
-  if (msg && (msg.toLowerCase().includes("limit reached") || msg.toLowerCase().includes("rate limit"))) {
-    if (window.showPremiumModal) {
-      window.showPremiumModal();
-      return;
-    }
-  }
-  const toast = document.getElementById("errorToast");
-  const msgSpan = document.getElementById("errorMessage");
-  if (!toast || !msgSpan) return;
-
-  if (errorToastTimeout) clearTimeout(errorToastTimeout);
-
-  msgSpan.innerText = msg;
-  toast.classList.remove("hidden");
-  errorToastTimeout = setTimeout(() => { toast.classList.add("hidden"); }, 8000);
-}
+// showError is now defined globally via window.showError in the layout's unified toast system
 
 function toggleLaborGroup() {
   const content = document.getElementById('laborContent');
