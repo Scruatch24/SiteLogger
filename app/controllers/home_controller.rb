@@ -70,20 +70,29 @@ class HomeController < ApplicationController
       compute_invoice_analytics(current_user, profile, today)
     end
 
-    @total_invoiced     = analytics_data[:total_invoiced]
-    @total_outstanding  = analytics_data[:total_outstanding]
-    @total_overdue_amt  = analytics_data[:total_overdue_amount]
-    @total_paid_amt     = analytics_data[:total_paid_amount]
+    @total_invoiced       = analytics_data[:total_invoiced]
+    @total_outstanding    = analytics_data[:total_outstanding]
+    @total_overdue_amt    = analytics_data[:total_overdue_amount]
+    @total_paid_amt       = analytics_data[:total_paid_amount]
     @collected_this_month = analytics_data[:collected_this_month]
-    @status_counts      = analytics_data[:status_counts]
-    @aging              = analytics_data[:aging]
-    @due_today_count    = analytics_data[:due_today_count]
-    @due_soon_count     = analytics_data[:due_soon_count]
-    @overdue_count      = analytics_data[:overdue_count]
-    @client_insights    = analytics_data[:client_insights]
-    @repeat_clients     = analytics_data[:repeat_clients]
-    @new_clients_month  = analytics_data[:new_clients_month]
-    @avg_invoice        = analytics_data[:avg_invoice]
+    @status_counts        = analytics_data[:status_counts]
+    @aging                = analytics_data[:aging]
+    @due_today_count      = analytics_data[:due_today_count]
+    @due_soon_count       = analytics_data[:due_soon_count]
+    @due_soon_amount      = analytics_data[:due_soon_amount]
+    @overdue_count        = analytics_data[:overdue_count]
+    @client_insights      = analytics_data[:client_insights]
+    @repeat_clients       = analytics_data[:repeat_clients]
+    @new_clients_month    = analytics_data[:new_clients_month]
+    @avg_invoice          = analytics_data[:avg_invoice]
+    @health_score         = analytics_data[:health_score]
+    @health_level         = analytics_data[:health_level]
+    @collection_rate      = analytics_data[:collection_rate]
+    @outstanding_ratio    = analytics_data[:outstanding_ratio]
+    @projected_revenue    = analytics_data[:projected_revenue]
+    @revenue_trend        = analytics_data[:revenue_trend]
+    @invoices_trend       = analytics_data[:invoices_trend]
+    @new_clients_trend    = analytics_data[:new_clients_trend]
 
     # ── Alerts ──
     @alerts = build_alerts(analytics_data, profile)
@@ -2427,18 +2436,31 @@ PROMPT
     total_outstanding = 0.0
     total_overdue_amount = 0.0
     total_paid_amount = 0.0
+    total_sent_amount = 0.0
     collected_this_month = 0.0
     due_today_count = 0
     due_soon_count = 0
+    due_soon_amount = 0.0
     overdue_count = 0
     month_start = today.beginning_of_month
+    last_month_start = (today - 1.month).beginning_of_month
+    last_month_end = month_start - 1.day
+
+    # Trend tracking (last month vs this month)
+    this_month_revenue = 0.0
+    last_month_revenue = 0.0
+    this_month_outstanding = 0.0
+    last_month_outstanding_snapshot = 0.0
+    this_month_invoices = 0
+    last_month_invoices = 0
+    this_month_new_clients = Set.new
+    last_month_new_clients = Set.new
 
     status_counts = { draft: 0, sent: 0, paid: 0, overdue: 0 }
     aging = { due_today: 0, overdue_1_7: 0, overdue_7_30: 0, overdue_30_plus: 0 }
 
     # Client tracking
-    client_data = Hash.new { |h, k| h[k] = { total: 0.0, outstanding: 0.0, count: 0, last_at: nil } }
-    new_client_names_month = Set.new
+    client_data = Hash.new { |h, k| h[k] = { total: 0.0, outstanding: 0.0, count: 0, overdue_count: 0, last_at: nil } }
     all_client_first_seen = {}
 
     user.logs.kept.find_each do |log|
@@ -2450,18 +2472,33 @@ PROMPT
       status_counts[effective_status.to_sym] = (status_counts[effective_status.to_sym] || 0) + 1
 
       parsed_due = log.parsed_due_date
+      created = log.created_at
+
+      # Trend: count invoices per month
+      if created >= month_start.to_time
+        this_month_invoices += 1
+      elsif created >= last_month_start.to_time && created < month_start.to_time
+        last_month_invoices += 1
+      end
 
       case effective_status
       when "paid"
         total_paid_amount += amount
+        total_sent_amount += amount
         if log.paid_at && log.paid_at >= month_start.to_time
           collected_this_month += amount
+          this_month_revenue += amount
         elsif log.paid_at.nil? && log.updated_at >= month_start.to_time
           collected_this_month += amount
+          this_month_revenue += amount
+        end
+        if log.paid_at && log.paid_at >= last_month_start.to_time && log.paid_at < month_start.to_time
+          last_month_revenue += amount
         end
       when "overdue"
         total_outstanding += amount
         total_overdue_amount += amount
+        total_sent_amount += amount
         overdue_count += 1
         if parsed_due
           days_overdue = (today - parsed_due).to_i
@@ -2477,12 +2514,12 @@ PROMPT
         else
           aging[:overdue_30_plus] += 1
         end
-      when "draft", "sent"
+      when "sent"
         total_outstanding += amount
+        total_sent_amount += amount
         if parsed_due
           days_until = (parsed_due - today).to_i
           if days_until < 0
-            # Actually overdue but status not updated
             total_overdue_amount += amount
             overdue_count += 1
             days_overdue = -days_until
@@ -2498,6 +2535,30 @@ PROMPT
             aging[:due_today] += 1
           elsif days_until <= 7
             due_soon_count += 1
+            due_soon_amount += amount
+          end
+        end
+      when "draft"
+        total_outstanding += amount
+        if parsed_due
+          days_until = (parsed_due - today).to_i
+          if days_until < 0
+            total_overdue_amount += amount
+            overdue_count += 1
+            days_overdue = -days_until
+            if days_overdue <= 7
+              aging[:overdue_1_7] += 1
+            elsif days_overdue <= 30
+              aging[:overdue_7_30] += 1
+            else
+              aging[:overdue_30_plus] += 1
+            end
+          elsif days_until == 0
+            due_today_count += 1
+            aging[:due_today] += 1
+          elsif days_until <= 7
+            due_soon_count += 1
+            due_soon_amount += amount
           end
         end
       end
@@ -2508,7 +2569,8 @@ PROMPT
         client_data[cname][:total] += amount
         client_data[cname][:count] += 1
         client_data[cname][:outstanding] += amount unless effective_status == "paid"
-        log_date = log.created_at
+        client_data[cname][:overdue_count] += 1 if effective_status == "overdue" || (parsed_due && (parsed_due - today).to_i < 0 && effective_status != "paid")
+        log_date = created
         if client_data[cname][:last_at].nil? || log_date > client_data[cname][:last_at]
           client_data[cname][:last_at] = log_date
         end
@@ -2516,19 +2578,54 @@ PROMPT
         if first_seen.nil? || log_date < first_seen
           all_client_first_seen[cname] = log_date
         end
+        # Track new clients per month for trends
+        if created >= month_start.to_time && all_client_first_seen[cname] && all_client_first_seen[cname] >= month_start.to_time
+          this_month_new_clients << cname
+        end
       end
     rescue => e
       Rails.logger.warn("Analytics compute error for log #{log.id}: #{e.message}")
     end
 
-    # Build top clients sorted by total amount
+    # Recount new clients (first_seen accuracy after full loop)
+    new_clients_month_count = all_client_first_seen.count { |_, first| first >= month_start.to_time }
+    last_month_new_clients_count = all_client_first_seen.count { |_, first| first >= last_month_start.to_time && first < month_start.to_time }
+
+    # ── Financial Health Score ──
+    health_score = total_invoiced > 0 ? ((total_paid_amount / total_invoiced) * 100).round(0) : 100
+    health_level = if health_score >= 90 then "healthy"
+                   elsif health_score >= 60 then "risk"
+                   else "critical"
+                   end
+
+    # ── Collection Rate ──
+    collection_rate = total_sent_amount > 0 ? ((total_paid_amount / total_sent_amount) * 100).round(0) : 100
+
+    # ── Outstanding Ratio ──
+    outstanding_ratio = total_invoiced > 0 ? ((total_outstanding / total_invoiced) * 100).round(0) : 0
+
+    # ── Revenue Projection ──
+    days_elapsed = [today.day, 1].max
+    days_in_month = today.end_of_month.day
+    projected_revenue = ((collected_this_month / days_elapsed) * days_in_month).round(2)
+
+    # ── Trend Indicators (% change vs last month) ──
+    revenue_trend = last_month_revenue > 0 ? (((this_month_revenue - last_month_revenue) / last_month_revenue) * 100).round(0) : nil
+    invoices_trend = last_month_invoices > 0 ? (((this_month_invoices - last_month_invoices).to_f / last_month_invoices) * 100).round(0) : nil
+    new_clients_trend = last_month_new_clients_count > 0 ? (((new_clients_month_count - last_month_new_clients_count).to_f / last_month_new_clients_count) * 100).round(0) : nil
+
+    # ── Client Risk Badges ──
+    top_revenue_threshold = client_data.any? ? client_data.values.map { |d| d[:total] }.sort.last(3).first : 0
     client_insights = client_data.map do |name, data|
+      badges = []
+      badges << "top_client" if data[:total] >= top_revenue_threshold && top_revenue_threshold > 0
+      badges << "high_outstanding" if data[:outstanding] > 0 && data[:outstanding] > (data[:total] * 0.5)
+      badges << "frequently_overdue" if data[:overdue_count] >= 2
       { name: name, total: data[:total].round(2), outstanding: data[:outstanding].round(2),
-        count: data[:count], last_at: data[:last_at] }
+        count: data[:count], overdue_count: data[:overdue_count], last_at: data[:last_at], badges: badges }
     end.sort_by { |c| -c[:total] }.first(10)
 
     repeat_clients = client_data.count { |_, d| d[:count] > 1 }
-    new_clients_month = all_client_first_seen.count { |_, first| first >= month_start.to_time }
 
     total_count = status_counts.values.sum
     avg_invoice = total_count > 0 ? (total_invoiced / total_count).round(2) : 0.0
@@ -2538,16 +2635,28 @@ PROMPT
       total_outstanding: total_outstanding.round(2),
       total_overdue_amount: total_overdue_amount.round(2),
       total_paid_amount: total_paid_amount.round(2),
+      total_sent_amount: total_sent_amount.round(2),
       collected_this_month: collected_this_month.round(2),
       status_counts: status_counts,
       aging: aging,
       due_today_count: due_today_count,
       due_soon_count: due_soon_count,
+      due_soon_amount: due_soon_amount.round(2),
       overdue_count: overdue_count,
       client_insights: client_insights,
       repeat_clients: repeat_clients,
-      new_clients_month: new_clients_month,
-      avg_invoice: avg_invoice
+      new_clients_month: new_clients_month_count,
+      avg_invoice: avg_invoice,
+      health_score: health_score,
+      health_level: health_level,
+      collection_rate: collection_rate,
+      outstanding_ratio: outstanding_ratio,
+      projected_revenue: projected_revenue,
+      revenue_trend: revenue_trend,
+      invoices_trend: invoices_trend,
+      new_clients_trend: new_clients_trend,
+      this_month_invoices: this_month_invoices,
+      last_month_invoices: last_month_invoices
     }
   end
 
@@ -2560,29 +2669,41 @@ PROMPT
                       when "GBP" then "£"
                       else "$"
                       end
+    fmt = ->(v) { "#{currency_symbol}#{number_with_delimiter(v.round(2))}" }
 
     if data[:overdue_count] > 0
       alerts << { type: "danger", icon: "alert-triangle",
                   title: t("analytics_page.alert_overdue_title", count: data[:overdue_count]),
-                  desc: t("analytics_page.alert_overdue_desc", amount: "#{currency_symbol}#{number_with_delimiter(data[:total_overdue_amount])}") }
+                  desc: t("analytics_page.alert_overdue_desc", amount: fmt.call(data[:total_overdue_amount])),
+                  action: "overdue" }
     end
 
     if data[:due_today_count] > 0
       alerts << { type: "warning", icon: "clock",
                   title: t("analytics_page.alert_due_today_title", count: data[:due_today_count]),
-                  desc: t("analytics_page.alert_due_today_desc") }
+                  desc: t("analytics_page.alert_due_today_desc"),
+                  action: "due_today" }
     end
 
     if data[:due_soon_count] > 0
       alerts << { type: "info", icon: "calendar",
                   title: t("analytics_page.alert_due_soon_title", count: data[:due_soon_count]),
-                  desc: t("analytics_page.alert_due_soon_desc") }
+                  desc: t("analytics_page.alert_due_soon_desc", amount: fmt.call(data[:due_soon_amount])),
+                  action: "due_soon" }
     end
 
     if data[:total_outstanding] > 5000
       alerts << { type: "warning", icon: "dollar-sign",
                   title: t("analytics_page.alert_high_outstanding_title"),
-                  desc: t("analytics_page.alert_high_outstanding_desc", amount: "#{currency_symbol}#{number_with_delimiter(data[:total_outstanding])}") }
+                  desc: t("analytics_page.alert_high_outstanding_desc", amount: fmt.call(data[:total_outstanding])),
+                  action: "unpaid" }
+    end
+
+    # Health warning
+    if data[:health_level] == "critical"
+      alerts << { type: "danger", icon: "alert-triangle",
+                  title: t("analytics_page.alert_health_critical_title"),
+                  desc: t("analytics_page.alert_health_critical_desc", score: data[:health_score]) }
     end
 
     alerts

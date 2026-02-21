@@ -16,6 +16,29 @@
   total_invoices_count = @status_counts.values.sum
   paid_ratio = total_invoices_count > 0 ? ((@status_counts[:paid].to_f / total_invoices_count) * 100).round(0) : 0
   unpaid_ratio = 100 - paid_ratio
+
+  trend_badge = ->(val) {
+    return "" if val.nil?
+    cls = val >= 0 ? "up" : "down"
+    arrow = val >= 0 ? "↑" : "↓"
+    raw("<span class=\"ana-trend-badge #{cls}\">#{arrow} #{val.abs}%</span>")
+  }
+
+  health_color = case @health_level
+                 when "healthy" then "#4ade80"
+                 when "risk" then "#fbbf24"
+                 else "#f87171"
+                 end
+  health_bg = case @health_level
+              when "healthy" then "rgba(74,222,128,0.08)"
+              when "risk" then "rgba(251,191,36,0.08)"
+              else "rgba(248,113,113,0.08)"
+              end
+  health_border = case @health_level
+                  when "healthy" then "rgba(74,222,128,0.3)"
+                  when "risk" then "rgba(251,191,36,0.3)"
+                  else "rgba(248,113,113,0.3)"
+                  end
 %>
 
 <style>
@@ -190,6 +213,119 @@
   }
   .ana-card-trend.up { color: #4ade80; }
   .ana-card-trend.down { color: #f87171; }
+
+  /* ── Trend Badges ── */
+  .ana-trend-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 2px 7px;
+    border-radius: 6px;
+    margin-left: 4px;
+    vertical-align: middle;
+  }
+  .ana-trend-badge.up { color: #4ade80; background: rgba(74,222,128,0.12); }
+  .ana-trend-badge.down { color: #f87171; background: rgba(248,113,113,0.12); }
+
+  /* ── Health Score Banner ── */
+  .ana-health-banner {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.2rem;
+    border-radius: 18px;
+    margin-bottom: 0.95rem;
+  }
+  .ana-health-score-ring {
+    width: 64px;
+    height: 64px;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .ana-health-score-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .ana-health-score-ring .ring-bg { fill: none; stroke: rgba(255,255,255,0.06); stroke-width: 5; }
+  .ana-health-score-ring .ring-fill { fill: none; stroke-width: 5; stroke-linecap: round; transition: stroke-dashoffset 0.8s ease; }
+  .ana-health-score-val {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 900;
+    transform: none;
+  }
+  .ana-health-info { flex: 1; min-width: 0; }
+  .ana-health-title {
+    font-size: 14px;
+    font-weight: 800;
+    color: #f8fafc;
+  }
+  .ana-health-desc {
+    font-size: 11px;
+    color: rgba(255,255,255,0.5);
+    margin-top: 2px;
+    font-weight: 600;
+  }
+  .ana-health-metrics {
+    display: flex;
+    gap: 1.2rem;
+    flex-shrink: 0;
+  }
+  .ana-health-metric { text-align: center; }
+  .ana-health-metric-val {
+    font-size: 16px;
+    font-weight: 900;
+  }
+  .ana-health-metric-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: rgba(255,255,255,0.4);
+    font-weight: 700;
+  }
+
+  /* ── Quick Action Links ── */
+  .ana-action-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    text-decoration: none;
+    padding: 5px 10px;
+    border-radius: 8px;
+    margin-top: 6px;
+    transition: all 0.2s ease;
+  }
+  .ana-action-link svg { width: 12px; height: 12px; }
+  .ana-alert.danger .ana-action-link { color: #f87171; background: rgba(248,113,113,0.1); }
+  .ana-alert.danger .ana-action-link:hover { background: rgba(248,113,113,0.2); }
+  .ana-alert.warning .ana-action-link { color: #fbbf24; background: rgba(251,191,36,0.1); }
+  .ana-alert.warning .ana-action-link:hover { background: rgba(251,191,36,0.2); }
+  .ana-alert.info .ana-action-link { color: #60a5fa; background: rgba(96,165,250,0.1); }
+  .ana-alert.info .ana-action-link:hover { background: rgba(96,165,250,0.2); }
+
+  /* ── Client Badges ── */
+  .ana-client-badges {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-top: 3px;
+  }
+  .ana-badge {
+    font-size: 8px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 2px 6px;
+    border-radius: 5px;
+  }
+  .ana-badge.top-client { color: #f97316; background: rgba(249,115,22,0.15); }
+  .ana-badge.high-outstanding { color: #fbbf24; background: rgba(251,191,36,0.15); }
+  .ana-badge.frequently-overdue { color: #f87171; background: rgba(248,113,113,0.15); }
 
   /* ── Alerts Panel ── */
   .ana-alerts {
@@ -555,6 +691,7 @@
     .ana-status-grid { grid-template-columns: repeat(2, 1fr); }
     .ana-aging-grid { grid-template-columns: repeat(2, 1fr); }
     .ana-client-summary { grid-template-columns: repeat(3, 1fr); }
+    .ana-health-metrics { gap: 0.8rem; }
   }
   @media (max-width: 640px) {
     .analytics-content { padding: 1.45rem 0.85rem 3rem; }
@@ -562,6 +699,8 @@
     .ana-cards { grid-template-columns: 1fr 1fr; }
     .ana-card-value { font-size: 22px; }
     .ana-chart-wrap { height: 220px; }
+    .ana-health-banner { flex-wrap: wrap; }
+    .ana-health-metrics { width: 100%; justify-content: space-around; margin-top: 0.5rem; }
   }
   @media (max-width: 400px) {
     .ana-cards { grid-template-columns: 1fr; }
@@ -591,20 +730,33 @@
       <h1 class="analytics-title"><%= t('analytics_page.title_prefix') %> <span class="accent"><%= t('analytics_page.title_accent') %></span></h1>
     </header>
 
+    <!-- ═══════════════ 0. FINANCIAL HEALTH SCORE ═══════════════ -->
+    <% circumference = 2 * Math::PI * 27; dash_offset = circumference * (1 - @health_score / 100.0) %>
+    <div class="ana-health-banner" style="background: <%= health_bg %>; border: 1px solid <%= health_border %>;">
+      <div class="ana-health-score-ring">
+        <svg viewBox="0 0 64 64">
+          <circle class="ring-bg" cx="32" cy="32" r="27"/>
+          <circle class="ring-fill" cx="32" cy="32" r="27" stroke="<%= health_color %>" stroke-dasharray="<%= circumference.round(1) %>" stroke-dashoffset="<%= dash_offset.round(1) %>"/>
+        </svg>
+        <div class="ana-health-score-val" style="color: <%= health_color %>;"><%= @health_score %>%</div>
+      </div>
+      <div class="ana-health-info">
+        <div class="ana-health-title"><%= t("analytics_page.health_#{@health_level}") %></div>
+        <div class="ana-health-desc"><%= t("analytics_page.health_#{@health_level}_desc") %></div>
+      </div>
+      <div class="ana-health-metrics">
+        <div class="ana-health-metric">
+          <div class="ana-health-metric-val" style="color: <%= @collection_rate >= 80 ? '#4ade80' : (@collection_rate >= 50 ? '#fbbf24' : '#f87171') %>;"><%= @collection_rate %>%</div>
+          <div class="ana-health-metric-label"><%= t('analytics_page.collection_rate') %></div>
+        </div>
+        <div class="ana-health-metric">
+          <div class="ana-health-metric-val" style="color: <%= @outstanding_ratio <= 20 ? '#4ade80' : (@outstanding_ratio <= 50 ? '#fbbf24' : '#f87171') %>;"><%= @outstanding_ratio %>%</div>
+          <div class="ana-health-metric-label"><%= t('analytics_page.outstanding_ratio') %></div>
+        </div>
+      </div>
+    </div>
+
     <!-- ═══════════════ 1. OVERVIEW ═══════════════ -->
-    <%
-      this_m = @overview[:this_month_invoices]
-      last_m = @overview[:last_month_invoices]
-      if last_m > 0
-        trend_pct = (((this_m - last_m).to_f / last_m) * 100).round(0)
-        trend_class = trend_pct >= 0 ? "up" : "down"
-        trend_label = trend_pct >= 0 ? "+#{trend_pct}%" : "#{trend_pct}%"
-      else
-        trend_pct = nil
-        trend_class = ""
-        trend_label = t('analytics_page.first_month')
-      end
-    %>
     <section class="ana-section">
       <h2 class="ana-section-title"><%= t('analytics_page.overview') %></h2>
       <div class="ana-cards">
@@ -616,7 +768,7 @@
         <div class="ana-card <%= @total_outstanding > 0 ? 'highlight-warning' : '' %>">
           <div class="ana-card-label"><%= t('analytics_page.outstanding') %></div>
           <div class="ana-card-value yellow"><%= fmt_money.call(@total_outstanding) %></div>
-          <div class="ana-card-trend"><%= t('analytics_page.unpaid_invoices') %></div>
+          <div class="ana-card-trend"><%= t('analytics_page.outstanding_equals', pct: @outstanding_ratio) %></div>
         </div>
         <div class="ana-card <%= @overdue_count > 0 ? 'highlight-danger' : '' %>">
           <div class="ana-card-label"><%= t('analytics_page.overdue_amount') %></div>
@@ -626,12 +778,12 @@
         <div class="ana-card">
           <div class="ana-card-label"><%= t('analytics_page.collected_this_month') %></div>
           <div class="ana-card-value green"><%= fmt_money.call(@collected_this_month) %></div>
-          <div class="ana-card-trend"><%= Date.today.strftime("%B %Y") %></div>
+          <div class="ana-card-trend"><%= Date.today.strftime("%B %Y") %> <%= trend_badge.call(@revenue_trend) %></div>
         </div>
         <div class="ana-card">
-          <div class="ana-card-label"><%= t('analytics_page.this_month') %></div>
-          <div class="ana-card-value accent"><%= number_with_delimiter(this_m) %></div>
-          <div class="ana-card-trend <%= trend_class %>"><%= trend_label %> <%= t('analytics_page.vs_last_month') %></div>
+          <div class="ana-card-label"><%= t('analytics_page.projected_revenue') %></div>
+          <div class="ana-card-value accent"><%= fmt_money.call(@projected_revenue) %></div>
+          <div class="ana-card-trend"><%= t('analytics_page.estimate_this_month') %></div>
         </div>
         <div class="ana-card">
           <div class="ana-card-label"><%= t('analytics_page.avg_invoice') %></div>
@@ -663,6 +815,12 @@
             <div class="ana-alert-body">
               <div class="ana-alert-title"><%= alert[:title] %></div>
               <div class="ana-alert-desc"><%= alert[:desc] %></div>
+              <% if alert[:action] %>
+                <a href="<%= history_path %>" class="ana-action-link">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                  <%= t("analytics_page.view_#{alert[:action]}") %>
+                </a>
+              <% end %>
             </div>
           </div>
         <% end %>
@@ -713,6 +871,17 @@
         </div>
       </div>
 
+      <!-- Due Soon highlight -->
+      <% if @due_soon_count > 0 %>
+        <div style="margin-top: 0.7rem; padding: 0.6rem 0.85rem; border-radius: 12px; border: 1px solid rgba(96,165,250,0.25); background: rgba(96,165,250,0.05); display: flex; align-items: center; justify-content: space-between;">
+          <div>
+            <span style="font-size: 12px; font-weight: 800; color: #60a5fa;"><%= pluralize(@due_soon_count, t('analytics_page.invoice_singular')) %></span>
+            <span style="font-size: 11px; color: rgba(255,255,255,0.5); font-weight: 600;"> <%= t('analytics_page.due_next_7_days') %> · <%= fmt_money.call(@due_soon_amount) %></span>
+          </div>
+          <a href="<%= history_path %>" style="font-size: 10px; font-weight: 800; color: #60a5fa; text-decoration: none; text-transform: uppercase; letter-spacing: 0.06em;"><%= t('analytics_page.view_due_soon') %> →</a>
+        </div>
+      <% end %>
+
       <!-- Paid vs Unpaid Ratio -->
       <div class="ana-ratio-bar-wrap">
         <div class="ana-ratio-labels">
@@ -730,7 +899,7 @@
       <h2 class="ana-section-title"><%= t('analytics_page.business_insights') %></h2>
       <div class="ana-stats-grid">
         <div class="ana-stat-surface">
-          <div class="ana-stat-key"><%= t('analytics_page.total_revenue') %></div>
+          <div class="ana-stat-key"><%= t('analytics_page.total_revenue') %> <%= trend_badge.call(@revenue_trend) %></div>
           <div class="ana-stat-val orange"><%= fmt_money.call(@total_invoiced) %></div>
         </div>
         <div class="ana-stat-surface">
@@ -739,19 +908,19 @@
         </div>
         <div class="ana-stat-surface">
           <div class="ana-stat-key"><%= t('analytics_page.outstanding') %></div>
-          <div class="ana-stat-val red"><%= fmt_money.call(@total_outstanding) %></div>
+          <div class="ana-stat-val <%= @outstanding_ratio > 50 ? 'red' : '' %>"><%= fmt_money.call(@total_outstanding) %></div>
         </div>
         <div class="ana-stat-surface">
           <div class="ana-stat-key"><%= t('analytics_page.collected_this_month') %></div>
           <div class="ana-stat-val green"><%= fmt_money.call(@collected_this_month) %></div>
         </div>
         <div class="ana-stat-surface">
-          <div class="ana-stat-key"><%= t('analytics_page.total_invoices') %></div>
-          <div class="ana-stat-val"><%= total_invoices_count %></div>
+          <div class="ana-stat-key"><%= t('analytics_page.projected_revenue') %></div>
+          <div class="ana-stat-val accent"><%= fmt_money.call(@projected_revenue) %></div>
         </div>
         <div class="ana-stat-surface">
-          <div class="ana-stat-key"><%= t('analytics_page.active_clients') %></div>
-          <div class="ana-stat-val"><%= number_with_delimiter(@overview[:active_clients]) %></div>
+          <div class="ana-stat-key"><%= t('analytics_page.collection_rate') %></div>
+          <div class="ana-stat-val <%= @collection_rate >= 80 ? 'green' : (@collection_rate >= 50 ? 'orange' : 'red') %>"><%= @collection_rate %>%</div>
         </div>
       </div>
     </section>
@@ -770,7 +939,7 @@
           <div class="ana-client-summary-label"><%= t('analytics_page.repeat_clients') %></div>
         </div>
         <div class="ana-client-summary-item">
-          <div class="ana-client-summary-val"><%= @new_clients_month %></div>
+          <div class="ana-client-summary-val"><%= @new_clients_month %> <%= trend_badge.call(@new_clients_trend) %></div>
           <div class="ana-client-summary-label"><%= t('analytics_page.new_this_month') %></div>
         </div>
       </div>
@@ -783,6 +952,13 @@
               <div class="ana-client-info">
                 <div class="ana-client-name"><%= client[:name] %></div>
                 <div class="ana-client-meta"><%= pluralize(client[:count], t('analytics_page.invoice_singular')) %> · <%= t('analytics_page.last_invoice') %>: <%= client[:last_at]&.strftime("%b %d, %Y") || "—" %></div>
+                <% if client[:badges].any? %>
+                  <div class="ana-client-badges">
+                    <% client[:badges].each do |badge| %>
+                      <span class="ana-badge <%= badge.dasherize %>"><%= t("analytics_page.badge_#{badge}") %></span>
+                    <% end %>
+                  </div>
+                <% end %>
               </div>
               <div class="ana-client-amounts">
                 <div class="ana-client-total"><%= fmt_money.call(client[:total]) %></div>
