@@ -43,6 +43,7 @@ class Log < ApplicationRecord
     overdue? ? "overdue" : status
   end
 
+  before_save :set_paid_at_on_status_change
   before_create :assign_invoice_number
 
   def display_number
@@ -88,7 +89,18 @@ class Log < ApplicationRecord
     (max_num || 1000) + 1
   end
 
+  def parsed_due_date
+    return nil if due_date.blank?
+    Date.parse(due_date) rescue nil
+  end
+
   private
+
+  def set_paid_at_on_status_change
+    if status_changed? && status == "paid" && paid_at.nil?
+      self.paid_at = Time.current
+    end
+  end
 
   def assign_invoice_number
     # Assign the next number only if not already set

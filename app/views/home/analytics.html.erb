@@ -11,19 +11,11 @@
                     else "$"
                     end
 
-  fmt_money = ->(val) { "#{currency_symbol}#{number_with_delimiter(val.round(2))}" }
-  fmt_time = ->(seconds) {
-    seconds = seconds.to_i
-    if seconds >= 3600
-      h = seconds / 3600
-      m = (seconds % 3600) / 60
-      "#{h}#{t('analytics_page.hour_short')} #{m}#{t('analytics_page.min_short')}"
-    elsif seconds >= 60
-      "#{seconds / 60}#{t('analytics_page.min_short')}"
-    else
-      "#{seconds}#{t('analytics_page.sec_short')}"
-    end
-  }
+  fmt_money = ->(val) { "#{currency_symbol}#{number_with_delimiter(val.to_f.round(2))}" }
+
+  total_invoices_count = @status_counts.values.sum
+  paid_ratio = total_invoices_count > 0 ? ((@status_counts[:paid].to_f / total_invoices_count) * 100).round(0) : 0
+  unpaid_ratio = 100 - paid_ratio
 %>
 
 <style>
@@ -117,13 +109,6 @@
     color: white;
   }
   .analytics-title .accent { color: #f97316; }
-  .analytics-subtitle {
-    margin: 0.8rem 0 0;
-    max-width: 700px;
-    font-size: 14px;
-    color: rgba(255,255,255,0.66);
-    line-height: 1.6;
-  }
 
   /* Section Cards */
   .ana-section {
@@ -177,6 +162,8 @@
     transition: border-color 0.2s ease;
   }
   .ana-card:hover { border-color: rgba(249,115,22,0.35); }
+  .ana-card.highlight-danger { border-color: rgba(248,113,113,0.4); background: rgba(248,113,113,0.04); }
+  .ana-card.highlight-warning { border-color: rgba(251,191,36,0.4); background: rgba(251,191,36,0.04); }
 
   .ana-card-label {
     font-size: 10px;
@@ -194,6 +181,8 @@
   }
   .ana-card-value.accent { color: #f97316; }
   .ana-card-value.green { color: #4ade80; }
+  .ana-card-value.red { color: #f87171; }
+  .ana-card-value.yellow { color: #fbbf24; }
   .ana-card-trend {
     font-size: 10px;
     font-weight: 700;
@@ -201,6 +190,122 @@
   }
   .ana-card-trend.up { color: #4ade80; }
   .ana-card-trend.down { color: #f87171; }
+
+  /* ── Alerts Panel ── */
+  .ana-alerts {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .ana-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+    border-radius: 16px;
+    border: 1px solid;
+  }
+  .ana-alert.danger {
+    border-color: rgba(248,113,113,0.35);
+    background: rgba(248,113,113,0.06);
+  }
+  .ana-alert.warning {
+    border-color: rgba(251,191,36,0.35);
+    background: rgba(251,191,36,0.06);
+  }
+  .ana-alert.info {
+    border-color: rgba(96,165,250,0.35);
+    background: rgba(96,165,250,0.06);
+  }
+  .ana-alert-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .ana-alert.danger .ana-alert-icon { background: rgba(248,113,113,0.15); color: #f87171; }
+  .ana-alert.warning .ana-alert-icon { background: rgba(251,191,36,0.15); color: #fbbf24; }
+  .ana-alert.info .ana-alert-icon { background: rgba(96,165,250,0.15); color: #60a5fa; }
+  .ana-alert-icon svg { width: 16px; height: 16px; }
+  .ana-alert-body { flex: 1; min-width: 0; }
+  .ana-alert-title {
+    font-size: 13px;
+    font-weight: 800;
+    color: #f8fafc;
+    margin: 0;
+  }
+  .ana-alert-desc {
+    font-size: 11px;
+    color: rgba(255,255,255,0.5);
+    margin-top: 2px;
+    font-weight: 600;
+  }
+
+  /* ── Invoice Status Control Center ── */
+  .ana-aging-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.5rem;
+    margin-top: 0.7rem;
+  }
+  .ana-aging-item {
+    text-align: center;
+    border-radius: 14px;
+    padding: 0.7rem 0.4rem;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.02);
+  }
+  .ana-aging-count {
+    font-size: 22px;
+    font-weight: 900;
+    line-height: 1;
+  }
+  .ana-aging-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: rgba(255,255,255,0.4);
+    margin-top: 0.3rem;
+    font-weight: 700;
+  }
+  .ana-aging-item.green .ana-aging-count { color: #4ade80; }
+  .ana-aging-item.yellow .ana-aging-count { color: #fbbf24; }
+  .ana-aging-item.orange .ana-aging-count { color: #f97316; }
+  .ana-aging-item.red .ana-aging-count { color: #f87171; }
+  .ana-aging-item.green { border-color: rgba(74,222,128,0.2); }
+  .ana-aging-item.yellow { border-color: rgba(251,191,36,0.2); }
+  .ana-aging-item.orange { border-color: rgba(249,115,22,0.2); }
+  .ana-aging-item.red { border-color: rgba(248,113,113,0.2); }
+
+  /* ── Paid/Unpaid Ratio Bar ── */
+  .ana-ratio-bar-wrap { margin-top: 0.8rem; }
+  .ana-ratio-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 0.35rem;
+  }
+  .ana-ratio-labels .paid-label { color: #4ade80; }
+  .ana-ratio-labels .unpaid-label { color: #f87171; }
+  .ana-ratio-bar {
+    height: 8px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: rgba(248,113,113,0.2);
+    display: flex;
+  }
+  .ana-ratio-bar-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #4ade80, #22c55e);
+    transition: width 0.6s ease;
+  }
 
   /* Chart Area */
   .ana-chart-wrap {
@@ -333,7 +438,35 @@
   .ana-status-pill.overdue { border-color: rgba(248,113,113,0.3); }
   .ana-status-pill.overdue .ana-status-pill-count { color: #f87171; }
 
-  /* Top Clients */
+  /* ── Client Insights ── */
+  .ana-client-summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+    margin-bottom: 0.8rem;
+  }
+  .ana-client-summary-item {
+    text-align: center;
+    padding: 0.6rem;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.02);
+  }
+  .ana-client-summary-val {
+    font-size: 20px;
+    font-weight: 900;
+    color: #f97316;
+    line-height: 1;
+  }
+  .ana-client-summary-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: rgba(255,255,255,0.4);
+    margin-top: 0.25rem;
+    font-weight: 700;
+  }
+
   .ana-clients-list {
     display: flex;
     flex-direction: column;
@@ -378,12 +511,23 @@
     font-weight: 600;
     margin-top: 2px;
   }
-  .ana-client-count {
-    font-size: 18px;
-    font-weight: 900;
-    color: #f97316;
+  .ana-client-amounts {
+    text-align: right;
     flex-shrink: 0;
   }
+  .ana-client-total {
+    font-size: 14px;
+    font-weight: 900;
+    color: #f97316;
+  }
+  .ana-client-outstanding {
+    font-size: 10px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.35);
+    margin-top: 1px;
+  }
+  .ana-client-outstanding.has-outstanding { color: #fbbf24; }
+
   .ana-empty-state {
     text-align: center;
     padding: 2rem 1rem;
@@ -409,11 +553,12 @@
     .ana-cards { grid-template-columns: repeat(2, 1fr); }
     .ana-stats-grid { grid-template-columns: 1fr; }
     .ana-status-grid { grid-template-columns: repeat(2, 1fr); }
+    .ana-aging-grid { grid-template-columns: repeat(2, 1fr); }
+    .ana-client-summary { grid-template-columns: repeat(3, 1fr); }
   }
   @media (max-width: 640px) {
     .analytics-content { padding: 1.45rem 0.85rem 3rem; }
     .analytics-header { text-align: center !important; }
-    .analytics-subtitle { margin-left: auto; margin-right: auto; }
     .ana-cards { grid-template-columns: 1fr 1fr; }
     .ana-card-value { font-size: 22px; }
     .ana-chart-wrap { height: 220px; }
@@ -421,6 +566,8 @@
   @media (max-width: 400px) {
     .ana-cards { grid-template-columns: 1fr; }
     .ana-status-grid { grid-template-columns: repeat(2, 1fr); }
+    .ana-aging-grid { grid-template-columns: repeat(2, 1fr); }
+    .ana-client-summary { grid-template-columns: 1fr; }
   }
 </style>
 
@@ -444,7 +591,7 @@
       <h1 class="analytics-title"><%= t('analytics_page.title_prefix') %> <span class="accent"><%= t('analytics_page.title_accent') %></span></h1>
     </header>
 
-    <!-- ═══════════════ 1. OVERVIEW CARDS ═══════════════ -->
+    <!-- ═══════════════ 1. OVERVIEW ═══════════════ -->
     <%
       this_m = @overview[:this_month_invoices]
       last_m = @overview[:last_month_invoices]
@@ -461,93 +608,72 @@
     <section class="ana-section">
       <h2 class="ana-section-title"><%= t('analytics_page.overview') %></h2>
       <div class="ana-cards">
-        <!-- Total Invoices -->
         <div class="ana-card">
-          <div class="ana-card-label"><%= t('analytics_page.total_invoices') %></div>
-          <div class="ana-card-value"><%= number_with_delimiter(@overview[:total_invoices]) %></div>
+          <div class="ana-card-label"><%= t('analytics_page.total_invoiced') %></div>
+          <div class="ana-card-value"><%= fmt_money.call(@total_invoiced) %></div>
           <div class="ana-card-trend"><%= t('analytics_page.lifetime') %></div>
         </div>
-        <!-- This Month -->
+        <div class="ana-card <%= @total_outstanding > 0 ? 'highlight-warning' : '' %>">
+          <div class="ana-card-label"><%= t('analytics_page.outstanding') %></div>
+          <div class="ana-card-value yellow"><%= fmt_money.call(@total_outstanding) %></div>
+          <div class="ana-card-trend"><%= t('analytics_page.unpaid_invoices') %></div>
+        </div>
+        <div class="ana-card <%= @overdue_count > 0 ? 'highlight-danger' : '' %>">
+          <div class="ana-card-label"><%= t('analytics_page.overdue_amount') %></div>
+          <div class="ana-card-value red"><%= fmt_money.call(@total_overdue_amt) %></div>
+          <div class="ana-card-trend"><%= pluralize(@overdue_count, t('analytics_page.invoice_singular')) %> <%= t('analytics_page.overdue_label') %></div>
+        </div>
+        <div class="ana-card">
+          <div class="ana-card-label"><%= t('analytics_page.collected_this_month') %></div>
+          <div class="ana-card-value green"><%= fmt_money.call(@collected_this_month) %></div>
+          <div class="ana-card-trend"><%= Date.today.strftime("%B %Y") %></div>
+        </div>
         <div class="ana-card">
           <div class="ana-card-label"><%= t('analytics_page.this_month') %></div>
           <div class="ana-card-value accent"><%= number_with_delimiter(this_m) %></div>
           <div class="ana-card-trend <%= trend_class %>"><%= trend_label %> <%= t('analytics_page.vs_last_month') %></div>
         </div>
-        <!-- Total Invoiced Amount -->
         <div class="ana-card">
-          <div class="ana-card-label"><%= t('analytics_page.total_invoiced') %></div>
-          <div class="ana-card-value"><%= fmt_money.call(@total_invoiced) %></div>
-          <div class="ana-card-trend"><%= currency %></div>
-        </div>
-        <!-- Active Clients -->
-        <div class="ana-card">
-          <div class="ana-card-label"><%= t('analytics_page.active_clients') %></div>
-          <div class="ana-card-value"><%= number_with_delimiter(@overview[:active_clients]) %></div>
-          <div class="ana-card-trend"><%= t('analytics_page.unique_clients') %></div>
-        </div>
-        <!-- PDFs Exported -->
-        <div class="ana-card">
-          <div class="ana-card-label"><%= t('analytics_page.pdfs_exported') %></div>
-          <div class="ana-card-value"><%= number_with_delimiter(@tracking_counts[:exports]) %></div>
-          <div class="ana-card-trend"><%= t('analytics_page.lifetime') %></div>
-        </div>
-        <!-- Voice Recordings -->
-        <div class="ana-card">
-          <div class="ana-card-label"><%= t('analytics_page.voice_recordings') %></div>
-          <div class="ana-card-value"><%= number_with_delimiter(@tracking_counts[:recordings_started]) %></div>
-          <div class="ana-card-trend"><%= t('analytics_page.recordings_total') %></div>
+          <div class="ana-card-label"><%= t('analytics_page.avg_invoice') %></div>
+          <div class="ana-card-value"><%= fmt_money.call(@avg_invoice) %></div>
+          <div class="ana-card-trend"><%= t('analytics_page.per_invoice') %></div>
         </div>
       </div>
     </section>
 
-    <!-- ═══════════════ 2. USAGE TRENDS (CHARTS) ═══════════════ -->
+    <!-- ═══════════════ 2. ALERTS ═══════════════ -->
+    <% if @alerts.any? %>
     <section class="ana-section">
-      <h2 class="ana-section-title"><%= t('analytics_page.usage_trends') %></h2>
-
-      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.6rem;">
-        <div class="ana-metric-tabs">
-          <button class="ana-metric-tab active" data-analytics-dashboard-target="metricTab" data-action="click->analytics-dashboard#switchMetric" data-metric="invoices"><%= t('analytics_page.metric_invoices') %></button>
-          <button class="ana-metric-tab" data-analytics-dashboard-target="metricTab" data-action="click->analytics-dashboard#switchMetric" data-metric="voice"><%= t('analytics_page.metric_voice') %></button>
-          <button class="ana-metric-tab" data-analytics-dashboard-target="metricTab" data-action="click->analytics-dashboard#switchMetric" data-metric="revenue"><%= t('analytics_page.metric_revenue') %></button>
-        </div>
-        <div class="ana-chart-filters">
-          <button class="ana-filter-btn" data-analytics-dashboard-target="periodBtn" data-action="click->analytics-dashboard#switchPeriod" data-period="7d">7D</button>
-          <button class="ana-filter-btn active" data-analytics-dashboard-target="periodBtn" data-action="click->analytics-dashboard#switchPeriod" data-period="30d">30D</button>
-          <button class="ana-filter-btn" data-analytics-dashboard-target="periodBtn" data-action="click->analytics-dashboard#switchPeriod" data-period="12m">12M</button>
-        </div>
-      </div>
-
-      <div class="ana-chart-wrap">
-        <canvas data-analytics-dashboard-target="chart"></canvas>
-      </div>
-    </section>
-
-    <!-- ═══════════════ 3. REVENUE / BUSINESS INSIGHTS ═══════════════ -->
-    <section class="ana-section">
-      <h2 class="ana-section-title"><%= t('analytics_page.business_insights') %></h2>
-      <div class="ana-stats-grid">
-        <div class="ana-stat-surface">
-          <div class="ana-stat-key"><%= t('analytics_page.total_revenue') %></div>
-          <div class="ana-stat-val orange"><%= fmt_money.call(@total_invoiced) %></div>
-        </div>
-        <div class="ana-stat-surface">
-          <div class="ana-stat-key"><%= t('analytics_page.avg_invoice') %></div>
-          <div class="ana-stat-val">
-            <% avg = @overview[:total_invoices] > 0 ? @total_invoiced / @overview[:total_invoices] : 0 %>
-            <%= fmt_money.call(avg) %>
+      <h2 class="ana-section-title"><%= t('analytics_page.action_required') %></h2>
+      <div class="ana-alerts">
+        <% @alerts.each do |alert| %>
+          <div class="ana-alert <%= alert[:type] %>">
+            <div class="ana-alert-icon">
+              <% case alert[:icon] %>
+              <% when "alert-triangle" %>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+              <% when "clock" %>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <% when "calendar" %>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>
+              <% when "dollar-sign" %>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+              <% end %>
+            </div>
+            <div class="ana-alert-body">
+              <div class="ana-alert-title"><%= alert[:title] %></div>
+              <div class="ana-alert-desc"><%= alert[:desc] %></div>
+            </div>
           </div>
-        </div>
-        <div class="ana-stat-surface">
-          <div class="ana-stat-key"><%= t('analytics_page.invoices_count') %></div>
-          <div class="ana-stat-val"><%= @overview[:total_invoices] %></div>
-        </div>
-        <div class="ana-stat-surface">
-          <div class="ana-stat-key"><%= t('analytics_page.currency_label') %></div>
-          <div class="ana-stat-val"><%= currency %></div>
-        </div>
+        <% end %>
       </div>
+    </section>
+    <% end %>
 
-      <!-- Invoice Status Breakdown -->
+    <!-- ═══════════════ 3. INVOICE STATUS CONTROL CENTER ═══════════════ -->
+    <section class="ana-section">
+      <h2 class="ana-section-title"><%= t('analytics_page.invoice_status_center') %></h2>
+
       <div class="ana-status-grid">
         <div class="ana-status-pill draft">
           <div class="ana-status-pill-count"><%= @status_counts[:draft] %></div>
@@ -566,27 +692,136 @@
           <div class="ana-status-pill-label"><%= t('analytics_page.status_overdue') %></div>
         </div>
       </div>
+
+      <!-- Aging Breakdown -->
+      <div class="ana-aging-grid">
+        <div class="ana-aging-item green">
+          <div class="ana-aging-count"><%= @aging[:due_today] %></div>
+          <div class="ana-aging-label"><%= t('analytics_page.aging_due_today') %></div>
+        </div>
+        <div class="ana-aging-item yellow">
+          <div class="ana-aging-count"><%= @aging[:overdue_1_7] %></div>
+          <div class="ana-aging-label"><%= t('analytics_page.aging_1_7') %></div>
+        </div>
+        <div class="ana-aging-item orange">
+          <div class="ana-aging-count"><%= @aging[:overdue_7_30] %></div>
+          <div class="ana-aging-label"><%= t('analytics_page.aging_7_30') %></div>
+        </div>
+        <div class="ana-aging-item red">
+          <div class="ana-aging-count"><%= @aging[:overdue_30_plus] %></div>
+          <div class="ana-aging-label"><%= t('analytics_page.aging_30_plus') %></div>
+        </div>
+      </div>
+
+      <!-- Paid vs Unpaid Ratio -->
+      <div class="ana-ratio-bar-wrap">
+        <div class="ana-ratio-labels">
+          <span class="paid-label"><%= t('analytics_page.paid_ratio') %> <%= paid_ratio %>%</span>
+          <span class="unpaid-label"><%= t('analytics_page.unpaid_ratio') %> <%= unpaid_ratio %>%</span>
+        </div>
+        <div class="ana-ratio-bar">
+          <div class="ana-ratio-bar-fill" style="width: <%= paid_ratio %>%;"></div>
+        </div>
+      </div>
     </section>
 
-    <!-- ═══════════════ 4. TOP CLIENTS ═══════════════ -->
+    <!-- ═══════════════ 4. BUSINESS INSIGHTS ═══════════════ -->
     <section class="ana-section">
-      <h2 class="ana-section-title"><%= t('analytics_page.top_clients') %></h2>
-      <% if @top_clients.any? %>
+      <h2 class="ana-section-title"><%= t('analytics_page.business_insights') %></h2>
+      <div class="ana-stats-grid">
+        <div class="ana-stat-surface">
+          <div class="ana-stat-key"><%= t('analytics_page.total_revenue') %></div>
+          <div class="ana-stat-val orange"><%= fmt_money.call(@total_invoiced) %></div>
+        </div>
+        <div class="ana-stat-surface">
+          <div class="ana-stat-key"><%= t('analytics_page.total_paid') %></div>
+          <div class="ana-stat-val green"><%= fmt_money.call(@total_paid_amt) %></div>
+        </div>
+        <div class="ana-stat-surface">
+          <div class="ana-stat-key"><%= t('analytics_page.outstanding') %></div>
+          <div class="ana-stat-val red"><%= fmt_money.call(@total_outstanding) %></div>
+        </div>
+        <div class="ana-stat-surface">
+          <div class="ana-stat-key"><%= t('analytics_page.collected_this_month') %></div>
+          <div class="ana-stat-val green"><%= fmt_money.call(@collected_this_month) %></div>
+        </div>
+        <div class="ana-stat-surface">
+          <div class="ana-stat-key"><%= t('analytics_page.total_invoices') %></div>
+          <div class="ana-stat-val"><%= total_invoices_count %></div>
+        </div>
+        <div class="ana-stat-surface">
+          <div class="ana-stat-key"><%= t('analytics_page.active_clients') %></div>
+          <div class="ana-stat-val"><%= number_with_delimiter(@overview[:active_clients]) %></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════ 5. CLIENT INSIGHTS ═══════════════ -->
+    <section class="ana-section">
+      <h2 class="ana-section-title"><%= t('analytics_page.client_insights') %></h2>
+
+      <div class="ana-client-summary">
+        <div class="ana-client-summary-item">
+          <div class="ana-client-summary-val"><%= @overview[:active_clients] %></div>
+          <div class="ana-client-summary-label"><%= t('analytics_page.total_clients') %></div>
+        </div>
+        <div class="ana-client-summary-item">
+          <div class="ana-client-summary-val"><%= @repeat_clients %></div>
+          <div class="ana-client-summary-label"><%= t('analytics_page.repeat_clients') %></div>
+        </div>
+        <div class="ana-client-summary-item">
+          <div class="ana-client-summary-val"><%= @new_clients_month %></div>
+          <div class="ana-client-summary-label"><%= t('analytics_page.new_this_month') %></div>
+        </div>
+      </div>
+
+      <% if @client_insights.any? %>
         <div class="ana-clients-list">
-          <% @top_clients.each_with_index do |client, idx| %>
+          <% @client_insights.each_with_index do |client, idx| %>
             <div class="ana-client-row">
               <div class="ana-client-rank"><%= idx + 1 %></div>
               <div class="ana-client-info">
                 <div class="ana-client-name"><%= client[:name] %></div>
-                <div class="ana-client-meta"><%= t('analytics_page.last_invoice') %>: <%= client[:last_invoice_at]&.strftime("%b %d, %Y") || "—" %></div>
+                <div class="ana-client-meta"><%= pluralize(client[:count], t('analytics_page.invoice_singular')) %> · <%= t('analytics_page.last_invoice') %>: <%= client[:last_at]&.strftime("%b %d, %Y") || "—" %></div>
               </div>
-              <div class="ana-client-count"><%= client[:invoice_count] %></div>
+              <div class="ana-client-amounts">
+                <div class="ana-client-total"><%= fmt_money.call(client[:total]) %></div>
+                <% if client[:outstanding] > 0 %>
+                  <div class="ana-client-outstanding has-outstanding"><%= fmt_money.call(client[:outstanding]) %> <%= t('analytics_page.owed') %></div>
+                <% else %>
+                  <div class="ana-client-outstanding"><%= t('analytics_page.all_paid') %></div>
+                <% end %>
+              </div>
             </div>
           <% end %>
         </div>
       <% else %>
         <div class="ana-empty-state"><%= t('analytics_page.no_clients_yet') %></div>
       <% end %>
+    </section>
+
+    <!-- ═══════════════ 6. USAGE TRENDS (CHARTS) ═══════════════ -->
+    <section class="ana-section">
+      <h2 class="ana-section-title"><%= t('analytics_page.usage_trends') %></h2>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.6rem;">
+        <div class="ana-metric-tabs">
+          <button class="ana-metric-tab active" data-analytics-dashboard-target="metricTab" data-action="click->analytics-dashboard#switchMetric" data-metric="invoices"><%= t('analytics_page.metric_invoices') %></button>
+          <button class="ana-metric-tab" data-analytics-dashboard-target="metricTab" data-action="click->analytics-dashboard#switchMetric" data-metric="revenue"><%= t('analytics_page.metric_revenue') %></button>
+          <button class="ana-metric-tab" data-analytics-dashboard-target="metricTab" data-action="click->analytics-dashboard#switchMetric" data-metric="outstanding"><%= t('analytics_page.metric_outstanding') %></button>
+          <button class="ana-metric-tab" data-analytics-dashboard-target="metricTab" data-action="click->analytics-dashboard#switchMetric" data-metric="collected"><%= t('analytics_page.metric_collected') %></button>
+          <button class="ana-metric-tab" data-analytics-dashboard-target="metricTab" data-action="click->analytics-dashboard#switchMetric" data-metric="voice"><%= t('analytics_page.metric_voice') %></button>
+        </div>
+        <div class="ana-chart-filters">
+          <button class="ana-filter-btn" data-analytics-dashboard-target="periodBtn" data-action="click->analytics-dashboard#switchPeriod" data-period="7d">7D</button>
+          <button class="ana-filter-btn active" data-analytics-dashboard-target="periodBtn" data-action="click->analytics-dashboard#switchPeriod" data-period="30d">30D</button>
+          <button class="ana-filter-btn" data-analytics-dashboard-target="periodBtn" data-action="click->analytics-dashboard#switchPeriod" data-period="12m">12M</button>
+        </div>
+      </div>
+
+      <div class="ana-chart-wrap">
+        <canvas data-analytics-dashboard-target="chart"></canvas>
+      </div>
     </section>
 
     <div class="ana-footer">

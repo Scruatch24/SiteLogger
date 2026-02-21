@@ -60,27 +60,37 @@ class HomeController < ApplicationController
     end
 
     user_id = current_user.id
-    @overview = AnalyticsEvent.overview_for(user_id)
-    @revenue = AnalyticsEvent.revenue_for(user_id, currency: @profile.currency.presence)
+    profile = @profile || current_user.profile || Profile.new
+    logs = current_user.logs.kept
+    today = Date.today
 
-    # Cached total invoiced (expensive — iterates all logs)
-    @total_invoiced = Rails.cache.fetch("analytics/total_invoiced/#{user_id}/#{current_user.logs.kept.maximum(:updated_at).to_i}", expires_in: 15.minutes) do
-      compute_total_invoiced(current_user)
+    # ── Single-pass invoice analytics (cached) ──
+    cache_key = "analytics/v2/#{user_id}/#{logs.maximum(:updated_at).to_i}"
+    analytics_data = Rails.cache.fetch(cache_key, expires_in: 10.minutes) do
+      compute_invoice_analytics(current_user, profile, today)
     end
 
-    # Top clients from existing logs
-    @top_clients = AnalyticsEvent.top_clients_for(user_id, limit: 5)
+    @total_invoiced     = analytics_data[:total_invoiced]
+    @total_outstanding  = analytics_data[:total_outstanding]
+    @total_overdue_amt  = analytics_data[:total_overdue_amount]
+    @total_paid_amt     = analytics_data[:total_paid_amount]
+    @collected_this_month = analytics_data[:collected_this_month]
+    @status_counts      = analytics_data[:status_counts]
+    @aging              = analytics_data[:aging]
+    @due_today_count    = analytics_data[:due_today_count]
+    @due_soon_count     = analytics_data[:due_soon_count]
+    @overdue_count      = analytics_data[:overdue_count]
+    @client_insights    = analytics_data[:client_insights]
+    @repeat_clients     = analytics_data[:repeat_clients]
+    @new_clients_month  = analytics_data[:new_clients_month]
+    @avg_invoice        = analytics_data[:avg_invoice]
 
-    # Invoice status breakdown
-    logs = current_user.logs.kept
-    @status_counts = {
-      draft: logs.where(status: "draft").count,
-      sent: logs.where(status: "sent").count,
-      paid: logs.where(status: "paid").count,
-      overdue: logs.where(status: "overdue").count
-    }
+    # ── Alerts ──
+    @alerts = build_alerts(analytics_data, profile)
 
-    # Existing tracking_events counts (PDFs exported, recordings)
+    # ── Lightweight counts from overview/tracking ──
+    @overview = AnalyticsEvent.overview_for(user_id)
+
     @tracking_counts = {
       exports: TrackingEvent.where(event_name: "invoice_exported", user_id: user_id).count,
       recordings_started: TrackingEvent.where(event_name: "recording_started", user_id: user_id).count
@@ -95,12 +105,23 @@ class HomeController < ApplicationController
     period = params[:period].presence || "30d"
     metric = params[:metric].presence || "invoices"
 
-    data = AnalyticsEvent.time_series_for(current_user.id, period: period, metric: metric)
-
-    # Fill in missing dates with 0
-    filled = fill_time_series(data, period)
-
-    render json: { labels: filled.keys, values: filled.values, period: period, metric: metric }
+    case metric
+    when "outstanding"
+      # Outstanding amount time-series from logs
+      data = outstanding_time_series(current_user.id, period)
+      filled = fill_time_series(data, period)
+      render json: { labels: filled.keys, values: filled.values, period: period, metric: metric }
+    when "collected"
+      # Collected (paid) invoices time-series
+      data = collected_time_series(current_user.id, period)
+      filled = fill_time_series(data, period)
+      render json: { labels: filled.keys, values: filled.values, period: period, metric: metric }
+    else
+      # Original metrics: invoices, voice, revenue
+      data = AnalyticsEvent.time_series_for(current_user.id, period: period, metric: metric)
+      filled = fill_time_series(data, period)
+      render json: { labels: filled.keys, values: filled.values, period: period, metric: metric }
+    end
   end
 
   def subscription
@@ -2400,15 +2421,206 @@ PROMPT
     end.first(10)
   end
 
-  def compute_total_invoiced(user)
-    total = 0.0
+  # ── Single-pass invoice analytics (all aggregates in one loop) ──
+  def compute_invoice_analytics(user, profile, today)
+    total_invoiced = 0.0
+    total_outstanding = 0.0
+    total_overdue_amount = 0.0
+    total_paid_amount = 0.0
+    collected_this_month = 0.0
+    due_today_count = 0
+    due_soon_count = 0
+    overdue_count = 0
+    month_start = today.beginning_of_month
+
+    status_counts = { draft: 0, sent: 0, paid: 0, overdue: 0 }
+    aging = { due_today: 0, overdue_1_7: 0, overdue_7_30: 0, overdue_30_plus: 0 }
+
+    # Client tracking
+    client_data = Hash.new { |h, k| h[k] = { total: 0.0, outstanding: 0.0, count: 0, last_at: nil } }
+    new_client_names_month = Set.new
+    all_client_first_seen = {}
+
     user.logs.kept.find_each do |log|
-      totals = helpers.calculate_log_totals(log, user.profile || Profile.new)
-      total += totals[:total_due].to_f
+      totals = helpers.calculate_log_totals(log, profile)
+      amount = totals[:total_due].to_f
+      total_invoiced += amount
+
+      effective_status = log.current_status
+      status_counts[effective_status.to_sym] = (status_counts[effective_status.to_sym] || 0) + 1
+
+      parsed_due = log.parsed_due_date
+
+      case effective_status
+      when "paid"
+        total_paid_amount += amount
+        if log.paid_at && log.paid_at >= month_start.to_time
+          collected_this_month += amount
+        elsif log.paid_at.nil? && log.updated_at >= month_start.to_time
+          collected_this_month += amount
+        end
+      when "overdue"
+        total_outstanding += amount
+        total_overdue_amount += amount
+        overdue_count += 1
+        if parsed_due
+          days_overdue = (today - parsed_due).to_i
+          if days_overdue == 0
+            aging[:due_today] += 1
+          elsif days_overdue <= 7
+            aging[:overdue_1_7] += 1
+          elsif days_overdue <= 30
+            aging[:overdue_7_30] += 1
+          else
+            aging[:overdue_30_plus] += 1
+          end
+        else
+          aging[:overdue_30_plus] += 1
+        end
+      when "draft", "sent"
+        total_outstanding += amount
+        if parsed_due
+          days_until = (parsed_due - today).to_i
+          if days_until < 0
+            # Actually overdue but status not updated
+            total_overdue_amount += amount
+            overdue_count += 1
+            days_overdue = -days_until
+            if days_overdue <= 7
+              aging[:overdue_1_7] += 1
+            elsif days_overdue <= 30
+              aging[:overdue_7_30] += 1
+            else
+              aging[:overdue_30_plus] += 1
+            end
+          elsif days_until == 0
+            due_today_count += 1
+            aging[:due_today] += 1
+          elsif days_until <= 7
+            due_soon_count += 1
+          end
+        end
+      end
+
+      # Client tracking
+      cname = log.client.to_s.strip
+      if cname.present?
+        client_data[cname][:total] += amount
+        client_data[cname][:count] += 1
+        client_data[cname][:outstanding] += amount unless effective_status == "paid"
+        log_date = log.created_at
+        if client_data[cname][:last_at].nil? || log_date > client_data[cname][:last_at]
+          client_data[cname][:last_at] = log_date
+        end
+        first_seen = all_client_first_seen[cname]
+        if first_seen.nil? || log_date < first_seen
+          all_client_first_seen[cname] = log_date
+        end
+      end
     rescue => e
-      Rails.logger.warn("Analytics compute_total_invoiced error for log #{log.id}: #{e.message}")
+      Rails.logger.warn("Analytics compute error for log #{log.id}: #{e.message}")
     end
-    total.round(2)
+
+    # Build top clients sorted by total amount
+    client_insights = client_data.map do |name, data|
+      { name: name, total: data[:total].round(2), outstanding: data[:outstanding].round(2),
+        count: data[:count], last_at: data[:last_at] }
+    end.sort_by { |c| -c[:total] }.first(10)
+
+    repeat_clients = client_data.count { |_, d| d[:count] > 1 }
+    new_clients_month = all_client_first_seen.count { |_, first| first >= month_start.to_time }
+
+    total_count = status_counts.values.sum
+    avg_invoice = total_count > 0 ? (total_invoiced / total_count).round(2) : 0.0
+
+    {
+      total_invoiced: total_invoiced.round(2),
+      total_outstanding: total_outstanding.round(2),
+      total_overdue_amount: total_overdue_amount.round(2),
+      total_paid_amount: total_paid_amount.round(2),
+      collected_this_month: collected_this_month.round(2),
+      status_counts: status_counts,
+      aging: aging,
+      due_today_count: due_today_count,
+      due_soon_count: due_soon_count,
+      overdue_count: overdue_count,
+      client_insights: client_insights,
+      repeat_clients: repeat_clients,
+      new_clients_month: new_clients_month,
+      avg_invoice: avg_invoice
+    }
+  end
+
+  # ── Alerts builder ──
+  def build_alerts(data, profile)
+    alerts = []
+    currency_symbol = case (profile.currency.presence || "USD")
+                      when "GEL" then "₾"
+                      when "EUR" then "€"
+                      when "GBP" then "£"
+                      else "$"
+                      end
+
+    if data[:overdue_count] > 0
+      alerts << { type: "danger", icon: "alert-triangle",
+                  title: t("analytics_page.alert_overdue_title", count: data[:overdue_count]),
+                  desc: t("analytics_page.alert_overdue_desc", amount: "#{currency_symbol}#{number_with_delimiter(data[:total_overdue_amount])}") }
+    end
+
+    if data[:due_today_count] > 0
+      alerts << { type: "warning", icon: "clock",
+                  title: t("analytics_page.alert_due_today_title", count: data[:due_today_count]),
+                  desc: t("analytics_page.alert_due_today_desc") }
+    end
+
+    if data[:due_soon_count] > 0
+      alerts << { type: "info", icon: "calendar",
+                  title: t("analytics_page.alert_due_soon_title", count: data[:due_soon_count]),
+                  desc: t("analytics_page.alert_due_soon_desc") }
+    end
+
+    if data[:total_outstanding] > 5000
+      alerts << { type: "warning", icon: "dollar-sign",
+                  title: t("analytics_page.alert_high_outstanding_title"),
+                  desc: t("analytics_page.alert_high_outstanding_desc", amount: "#{currency_symbol}#{number_with_delimiter(data[:total_outstanding])}") }
+    end
+
+    alerts
+  end
+
+  # ── Time-series helpers for new metrics ──
+  def outstanding_time_series(user_id, period)
+    range = case period
+            when "7d" then 7.days.ago..Time.current
+            when "30d" then 30.days.ago..Time.current
+            when "12m" then 12.months.ago..Time.current
+            else 30.days.ago..Time.current
+            end
+    trunc = period == "12m" ? "month" : "day"
+
+    Log.where(user_id: user_id).kept
+      .where(status: %w[draft sent overdue])
+      .where(created_at: range)
+      .group("DATE_TRUNC('#{trunc}', created_at)")
+      .count
+      .transform_keys { |k| k.strftime(trunc == "month" ? "%Y-%m" : "%Y-%m-%d") }
+  end
+
+  def collected_time_series(user_id, period)
+    range = case period
+            when "7d" then 7.days.ago..Time.current
+            when "30d" then 30.days.ago..Time.current
+            when "12m" then 12.months.ago..Time.current
+            else 30.days.ago..Time.current
+            end
+    trunc = period == "12m" ? "month" : "day"
+
+    Log.where(user_id: user_id).kept
+      .where(status: "paid")
+      .where(paid_at: range)
+      .group("DATE_TRUNC('#{trunc}', COALESCE(paid_at, updated_at))")
+      .count
+      .transform_keys { |k| k.strftime(trunc == "month" ? "%Y-%m" : "%Y-%m-%d") }
   end
 
   def fill_time_series(data, period)
