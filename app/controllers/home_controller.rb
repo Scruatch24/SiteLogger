@@ -2669,7 +2669,7 @@ PROMPT
                       when "GBP" then "£"
                       else "$"
                       end
-    fmt = ->(v) { "#{currency_symbol}#{number_with_delimiter(v.round(2))}" }
+    fmt = ->(v) { "#{currency_symbol}#{ActionController::Base.helpers.number_with_delimiter(v.round(2))}" }
 
     if data[:overdue_count] > 0
       alerts << { type: "danger", icon: "alert-triangle",
