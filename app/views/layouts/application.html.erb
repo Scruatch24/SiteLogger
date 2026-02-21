@@ -617,8 +617,8 @@
     <main class="app-main flex-1 container mx-auto px-0 md:px-4 py-0 md:py-4 max-w-md md:max-w-6xl">
       <%# Flash Messages (matching industrial aesthetic) %>
       <% flash.each do |type, message| %>
-        <div class="fixed top-4 left-1/2 -translate-x-1/2 z-[50000] w-fit max-w-[80vw] md:max-w-[25vw]">
-          <div class="p-4 rounded-2xl border-2 border-black font-black uppercase text-[10px] tracking-widest shadow-[4px_4px_0px_0px_#000000] flex items-center gap-3 <%= type == 'alert' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600' %>">
+        <div class="fixed top-4 left-1/2 -translate-x-1/2 z-[50000] max-w-[80vw] md:max-w-[25vw]">
+          <div class="p-4 rounded-2xl border-2 border-black font-black uppercase text-[10px] tracking-widest shadow-[4px_4px_0px_0px_#000000] inline-flex items-center gap-3 <%= type == 'alert' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600' %>">
             <% if type == 'alert' %>
               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
