@@ -1336,7 +1336,16 @@
         var s = styles[type] || styles.info;
 
         var el = document.createElement('div');
-        el.style.cssText = 'position:fixed;top:-100px;left:50%;transform:translateX(-50%);z-index:60000;display:inline-flex;align-items:center;gap:10px;padding:11px 14px;border-radius:14px;border:2px solid #000;background:#fff;color:#000;font-weight:900;font-size:11px;text-transform:uppercase;letter-spacing:0.1em;box-shadow:4px 4px 0px 0px #000;max-width:90vw;width:max-content;opacity:0;transition:opacity 0.25s ease,top 0.35s cubic-bezier(0.34,1.56,0.64,1);overflow:hidden;';
+        el.style.cssText = 'position:fixed;top:-100px;left:50%;transform:translateX(-50%);z-index:60000;display:inline-flex;align-items:stretch;gap:0;border-radius:14px;border:2px solid #000;background:#fff;color:#000;font-weight:900;font-size:11px;text-transform:uppercase;letter-spacing:0.1em;box-shadow:4px 4px 0px 0px #000;max-width:90vw;width:max-content;opacity:0;transition:opacity 0.25s ease,top 0.35s cubic-bezier(0.34,1.56,0.64,1);overflow:hidden;';
+
+        // Colored left accent bar
+        var bar = document.createElement('div');
+        bar.style.cssText = 'width:8px;background:' + s.accent + ';flex-shrink:0;';
+        el.appendChild(bar);
+
+        // Inner content wrapper
+        var inner = document.createElement('div');
+        inner.style.cssText = 'display:inline-flex;align-items:center;gap:10px;padding:11px 12px 11px 12px;';
 
         var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
         svg.setAttribute('width', '15');
@@ -1372,9 +1381,10 @@
         btn.appendChild(xSvg);
         btn.onclick = function() { dismissToast(el); };
 
-        el.appendChild(svg);
-        el.appendChild(span);
-        el.appendChild(btn);
+        inner.appendChild(svg);
+        inner.appendChild(span);
+        inner.appendChild(btn);
+        el.appendChild(inner);
         document.body.appendChild(el);
 
         activeToasts.push(el);
