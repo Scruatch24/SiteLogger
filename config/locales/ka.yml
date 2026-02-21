@@ -579,7 +579,7 @@ ka:
   # Navigation
   nav:
     home: "მთავარი"
-    history: "ისტორია"
+    history: "ჩანაწერები"
     profile: "პროფილი"
     settings: "პრეფერენციები"
     pricing: "ფასები"
