@@ -146,49 +146,48 @@ class AnalyticsPdfGenerator
             end
 
     banner_h = 50
+    top = pdf.cursor
+
     pdf.fill_color CARD_BG
-    pdf.fill_rounded_rectangle [0, pdf.cursor], pdf.bounds.width, banner_h, 6
-    pdf.fill_color TEXT_WHITE
+    pdf.fill_rounded_rectangle [0, top], pdf.bounds.width, banner_h, 6
 
-    y = pdf.cursor
-    # Score circle area
-    pdf.bounding_box([16, y - 6], width: 60, height: 38) do
-      pdf.fill_color color
-      pdf.text "#{score}%", size: 18, style: :bold, valign: :center, align: :center
-      pdf.fill_color TEXT_WHITE
-    end
+    # Score
+    pdf.fill_color color
+    pdf.text_box "#{score}%", at: [16, top - 6], width: 60, height: 38,
+                 size: 18, style: :bold, valign: :center, align: :center
 
-    # Health label
-    pdf.bounding_box([86, y - 8], width: 250, height: 36) do
-      pdf.fill_color color
-      pdf.text t("analytics_page.health_#{level}"), size: 11, style: :bold
-      pdf.fill_color TEXT_MUTED
-      pdf.text t("analytics_page.health_#{level}_desc"), size: 7
-      pdf.fill_color TEXT_WHITE
-    end
+    # Health label + description
+    pdf.fill_color color
+    pdf.text_box t("analytics_page.health_#{level}"), at: [86, top - 10], width: 250, height: 16,
+                 size: 11, style: :bold, overflow: :shrink_to_fit
+    pdf.fill_color TEXT_MUTED
+    pdf.text_box t("analytics_page.health_#{level}_desc"), at: [86, top - 26], width: 300, height: 14,
+                 size: 7, overflow: :shrink_to_fit
 
-    # Metrics on right
+    # Collection Rate metric
     col_rate = @data[:collection_rate]
+    x_cr = pdf.bounds.width - 240
+    cr_color = col_rate >= 80 ? COLOR_GREEN : (col_rate >= 50 ? COLOR_YELLOW : COLOR_RED)
+    pdf.fill_color cr_color
+    pdf.text_box "#{col_rate}%", at: [x_cr, top - 8], width: 100, height: 20,
+                 size: 14, style: :bold, align: :center
+    pdf.fill_color TEXT_MUTED
+    pdf.text_box t("analytics_page.collection_rate"), at: [x_cr, top - 28], width: 100, height: 14,
+                 size: 7, align: :center
+
+    # Outstanding Ratio metric
     out_ratio = @data[:outstanding_ratio]
-    pdf.bounding_box([pdf.bounds.width - 260, y - 8], width: 120, height: 36) do
-      cr_color = col_rate >= 80 ? COLOR_GREEN : (col_rate >= 50 ? COLOR_YELLOW : COLOR_RED)
-      pdf.fill_color cr_color
-      pdf.text "#{col_rate}%", size: 14, style: :bold, align: :center
-      pdf.fill_color TEXT_MUTED
-      pdf.text t("analytics_page.collection_rate"), size: 7, align: :center
-      pdf.fill_color TEXT_WHITE
-    end
+    x_or = pdf.bounds.width - 120
+    or_color = out_ratio <= 20 ? COLOR_GREEN : (out_ratio <= 50 ? COLOR_YELLOW : COLOR_RED)
+    pdf.fill_color or_color
+    pdf.text_box "#{out_ratio}%", at: [x_or, top - 8], width: 100, height: 20,
+                 size: 14, style: :bold, align: :center
+    pdf.fill_color TEXT_MUTED
+    pdf.text_box t("analytics_page.outstanding_ratio"), at: [x_or, top - 28], width: 100, height: 14,
+                 size: 7, align: :center
 
-    pdf.bounding_box([pdf.bounds.width - 120, y - 8], width: 120, height: 36) do
-      or_color = out_ratio <= 20 ? COLOR_GREEN : (out_ratio <= 50 ? COLOR_YELLOW : COLOR_RED)
-      pdf.fill_color or_color
-      pdf.text "#{out_ratio}%", size: 14, style: :bold, align: :center
-      pdf.fill_color TEXT_MUTED
-      pdf.text t("analytics_page.outstanding_ratio"), size: 7, align: :center
-      pdf.fill_color TEXT_WHITE
-    end
-
-    pdf.move_down banner_h + 10
+    pdf.fill_color TEXT_WHITE
+    pdf.move_cursor_to top - banner_h - 10
   end
 
   def draw_overview_cards(pdf)
@@ -206,23 +205,29 @@ class AnalyticsPdfGenerator
       { label: t("analytics_page.avg_invoice"),          value: fmt(@data[:avg_invoice]),          color: TEXT_WHITE }
     ]
 
-    card_w = (pdf.bounds.width - 30) / 3.0
+    card_w = (pdf.bounds.width - 20) / 3.0
     card_h = 40
-    cards.each_slice(3).with_index do |row, row_idx|
+    gap = 10
+
+    cards.each_slice(3) do |row|
+      row_top = pdf.cursor
+
       row.each_with_index do |card, col_idx|
-        x = col_idx * (card_w + 10)
-        y = pdf.cursor
+        x = col_idx * (card_w + gap)
         pdf.fill_color CARD_BG
-        pdf.fill_rounded_rectangle [x, y], card_w, card_h, 4
-        pdf.bounding_box([x + 8, y - 6], width: card_w - 16, height: card_h - 12) do
-          pdf.fill_color TEXT_MUTED
-          pdf.text card[:label], size: 7
-          pdf.fill_color card[:color]
-          pdf.text card[:value], size: 13, style: :bold
-        end
+        pdf.fill_rounded_rectangle [x, row_top], card_w, card_h, 4
+
+        pdf.fill_color TEXT_MUTED
+        pdf.text_box card[:label], at: [x + 8, row_top - 6], width: card_w - 16, height: 12,
+                     size: 7, overflow: :shrink_to_fit
+        pdf.fill_color card[:color]
+        pdf.text_box card[:value], at: [x + 8, row_top - 18], width: card_w - 16, height: 18,
+                     size: 13, style: :bold, overflow: :shrink_to_fit
       end
-      pdf.move_down card_h + 6
+
+      pdf.move_cursor_to row_top - card_h - 6
     end
+
     pdf.fill_color TEXT_WHITE
     pdf.move_down 4
   end
@@ -248,22 +253,26 @@ class AnalyticsPdfGenerator
                      end
 
       alert_h = 30
+      top = pdf.cursor
+
       pdf.fill_color bg
-      pdf.fill_rounded_rectangle [0, pdf.cursor], pdf.bounds.width, alert_h, 4
+      pdf.fill_rounded_rectangle [0, top], pdf.bounds.width, alert_h, 4
 
       # Left accent bar
       pdf.fill_color border_color
-      pdf.fill_rounded_rectangle [0, pdf.cursor], 3, alert_h, 2
+      pdf.fill_rounded_rectangle [0, top], 3, alert_h, 2
 
-      y = pdf.cursor
-      pdf.bounding_box([12, y - 5], width: pdf.bounds.width - 24, height: alert_h - 10) do
-        pdf.fill_color border_color
-        pdf.text alert[:title], size: 9, style: :bold, inline_format: true
-        pdf.fill_color TEXT_MUTED
-        pdf.text alert[:desc], size: 7, inline_format: true
-      end
-      pdf.move_down alert_h + 4
+      # Title + Description
+      pdf.fill_color border_color
+      pdf.text_box alert[:title].to_s, at: [12, top - 5], width: pdf.bounds.width - 24, height: 13,
+                   size: 9, style: :bold, overflow: :shrink_to_fit
+      pdf.fill_color TEXT_MUTED
+      pdf.text_box alert[:desc].to_s, at: [12, top - 17], width: pdf.bounds.width - 24, height: 10,
+                   size: 7, overflow: :shrink_to_fit
+
+      pdf.move_cursor_to top - alert_h - 4
     end
+
     pdf.fill_color TEXT_WHITE
     pdf.move_down 6
   end
@@ -434,10 +443,7 @@ class AnalyticsPdfGenerator
   end
 
   def check_page_space(pdf, needed)
-    if pdf.cursor < needed
-      pdf.start_new_page
-      draw_page_background(pdf)
-    end
+    pdf.start_new_page if pdf.cursor < needed
   end
 
   def compute_col_widths(pdf, count)

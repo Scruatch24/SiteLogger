@@ -186,7 +186,7 @@ en:
   client_placeholder: "Enter client name..."
   labor: "Labor"
   material: "Products"
-  expense: "Reimbursements"
+  expense: "Reimb."
   fee: "Fees"
   description: "Description"
   hours: "Hours"
@@ -556,6 +556,11 @@ en:
     alert_threshold_title: "Outstanding Alert Threshold"
     alert_threshold_desc: "When your total outstanding balance exceeds this amount, an alert will appear on your Analytics dashboard. Set to 0 to disable. Default is 5000."
     alert_threshold_hint: "Analytics dashboard alert trigger"
+  settings_section:
+    languages: "Languages"
+    invoice_design: "Invoice Design"
+    default_instructions: "Default Instructions for AI"
+    analytics: "Analytics"
   modal:
     preview: "Preview"
     transcript: "Transcript"

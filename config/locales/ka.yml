@@ -603,6 +603,11 @@ ka:
     alert_threshold_title: "გადაუხდელის გაფრთხილების ზღვარი"
     alert_threshold_desc: "როდესაც თქვენი სულ გადაუხდელი ბალანსი ამ თანხას გადააჭარბებს, ანალიტიკის დაფაზე გამოჩნდება გაფრთხილება. 0-ის დაყენებით გამორთავთ. ნაგულისხმები: 5000."
     alert_threshold_hint: "ანალიტიკის გაფრთხილების ზღვარი"
+  settings_section:
+    languages: "ენები"
+    invoice_design: "ინვოისის დიზაინი"
+    default_instructions: "AI-ის ნაგულისხმები ინსტრუქციები"
+    analytics: "ანალიტიკა"
   modal:
     preview: "გადახედვა"
     transcript: "ტექსტი"
