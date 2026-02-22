@@ -3916,7 +3916,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
 
   div.innerHTML = `
     <div class="flex items-center gap-2 w-full">
-      <div class="flex flex-1 items-center border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] min-w-0 main-item-box transition-colors relative">
+      <div class="flex flex-1 items-center border-2 border-black rounded-xl bg-white min-w-0 main-item-box transition-colors relative">
         <!-- Add Sub-category Button -->
         <button type="button" onclick="addLaborSubCategory(this)" class="h-8 w-9 border-r-2 border-black flex-shrink-0 flex items-center justify-center bg-white transition-colors rounded-l-[10px] labor-add-sub-btn" title="${window.APP_LANGUAGES.add_subcategory || 'Add Description'}">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-black transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
@@ -3948,7 +3948,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
           <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
           ${window.APP_LANGUAGES.labor_add_discount || window.APP_LANGUAGES.add_discount || 'ADD DISCOUNT'}
         </button>
-        <div class="labor-discount-dropdown hidden absolute left-0 top-full mt-1 z-50 bg-white border-2 border-black rounded-lg overflow-hidden min-w-[160px]">
+        <div class="labor-discount-dropdown hidden absolute left-1/2 -translate-x-1/2 top-full mt-1 z-50 bg-white border-2 border-black rounded-lg overflow-hidden min-w-[160px]">
           <button type="button" onclick="showLaborDiscount(this, 'percent')" class="flex items-center gap-2 w-full px-3 py-2 text-[11px] font-bold text-black hover:bg-green-50 transition-colors">
             <span class="flex items-center justify-center bg-green-600 text-white font-black border-2 border-black rounded-md h-5 w-5 shrink-0 text-[9px]">%</span>
             ${window.APP_LANGUAGES.discount_percentage_type || 'Percentage'}
@@ -4113,7 +4113,7 @@ function addCreditItem(containerId, reason = (window.APP_LANGUAGES?.courtesy_cre
 
   div.innerHTML = `
     <div class="flex items-center gap-2 w-full">
-      <div class="flex flex-1 items-center border-2 border-black rounded-xl bg-white min-w-0 main-item-box transition-colors relative">
+      <div class="flex flex-1 items-center border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] min-w-0 main-item-box transition-colors relative">
         <input type="text" value="${reason || (window.APP_LANGUAGES?.courtesy_credit || 'Courtesy Credit')}" class="flex-1 bg-transparent border-none text-sm font-bold text-black focus:ring-0 py-2 px-3 credit-reason-input placeholder:text-gray-300 min-w-0 rounded-xl"
                placeholder="${window.APP_LANGUAGES.reason_for_credit || (window.APP_LANGUAGES?.courtesy_credit || 'Courtesy Credit')}" oninput="updateTotalsSummary()">
       </div>
@@ -4924,7 +4924,7 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
 
   div.innerHTML = `
       <div class="flex items-center gap-2 w-full">
-        <div class="flex flex-1 items-center border-2 border-black rounded-xl bg-white min-w-0 main-item-box transition-colors relative">
+        <div class="flex flex-1 items-center border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] min-w-0 main-item-box transition-colors relative">
           <!-- Add Sub-category Button -->
           <button type="button" onclick="addItemSubCategory(this)" class="h-8 w-8 border-r-2 border-black flex-shrink-0 flex items-center justify-center bg-white transition-colors rounded-l-[10px] item-add-sub-btn" title="${window.APP_LANGUAGES.add_subcategory || 'Add Description'}">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-black transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
@@ -4950,7 +4950,7 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
             <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
             ${window.APP_LANGUAGES.add_discount || 'ADD DISCOUNT'}
           </button>
-          <div class="item-discount-dropdown hidden absolute left-0 top-full mt-1 z-50 bg-white border-2 border-black rounded-lg overflow-hidden min-w-[160px]">
+          <div class="item-discount-dropdown hidden absolute left-1/2 -translate-x-1/2 top-full mt-1 z-50 bg-white border-2 border-black rounded-lg overflow-hidden min-w-[160px]">
             <button type="button" onclick="showItemDiscount(this, 'percent')" class="flex items-center gap-2 w-full px-3 py-2 text-[11px] font-bold text-black hover:bg-green-50 transition-colors">
               <span class="flex items-center justify-center bg-green-600 text-white font-black border-2 border-black rounded-md h-5 w-5 shrink-0 text-[9px]">%</span>
               ${window.APP_LANGUAGES.discount_percentage_type || 'Percentage'}

@@ -1,18 +1,10 @@
 <%= render "home/svg_symbols" %>
 <style>
   .log-menu-dropdown {
-    transition: all 0.3s cubic-bezier(0.19, 1, 0.22, 1);
-    transform: scale(0.95) translateY(-20px);
-    opacity: 0;
-    pointer-events: none;
-    filter: blur(10px);
-    transform-origin: top right;
+    display: none;
   }
   .log-menu-dropdown.active {
-    transform: scale(1) translateY(0);
-    opacity: 1;
-    pointer-events: auto;
-    filter: blur(0);
+    display: block;
   }
 
   /* Selection Mode Styles */
@@ -460,7 +452,7 @@
       <style>
         .hf-bar { padding: 0 1rem; margin-bottom: 1rem; }
         .hf-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
-        .hf-label { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; white-space: nowrap; margin-right: 2px; min-width: 52px; }
+        .hf-label { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; white-space: nowrap; margin-right: 2px; min-width: 56px; text-align: right; }
         .hf-pill {
           display: inline-flex; align-items: center; gap: 4px;
           padding: 5px 12px; border-radius: 999px; font-size: 10px; font-weight: 800;
@@ -471,7 +463,7 @@
         .hf-pill:hover { border-color: #d1d5db; color: #374151; }
         .hf-pill.active { background: #fff7ed; border-color: #fb923c; color: #ea580c; }
         .hf-pill .hf-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
-        .hf-sort-row { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
+        .hf-sort-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
         .hf-sort-btn {
           padding: 4px 10px; border-radius: 8px; font-size: 9px; font-weight: 800;
           text-transform: uppercase; letter-spacing: 0.06em; cursor: pointer;
