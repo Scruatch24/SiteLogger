@@ -8,21 +8,7 @@ export default class extends Controller {
     this.currentPeriod = "30d"
     this.currentMetric = "invoices"
     this.chartInstance = null
-    this.waitForChartJs().then(() => this.loadChart())
-  }
-
-  waitForChartJs() {
-    return new Promise((resolve) => {
-      if (typeof Chart !== "undefined") return resolve()
-      let attempts = 0
-      const check = setInterval(() => {
-        attempts++
-        if (typeof Chart !== "undefined" || attempts > 50) {
-          clearInterval(check)
-          resolve()
-        }
-      }, 100)
-    })
+    this.loadChart()
   }
 
   disconnect() {

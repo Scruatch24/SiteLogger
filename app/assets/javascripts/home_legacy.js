@@ -395,7 +395,7 @@ window.setGlobalBillingMode = function (mode) {
   const fixedBtn = document.getElementById('billingModelFixed');
   const mixedBtn = document.getElementById('billingModelMixed');
 
-  const inactiveClasses = ['bg-white', 'text-black', 'shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]', 'hover:bg-orange-50'];
+  const inactiveClasses = ['bg-white', 'text-black', 'hover:bg-orange-50'];
   const activeClasses = ['bg-orange-600', 'text-white', 'shadow-none', 'translate-x-[2px]', 'translate-y-[2px]'];
   const translateInactive = ['translate-x-0', 'translate-y-0'];
 
@@ -511,7 +511,7 @@ function updateLaborRowModelUI(row, mode) {
         <div class="flex items-start gap-2">
           <div class="flex flex-col">
             <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5 labor-label-price">${labelText}</span>
-            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-white rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] labor-price-container">
+            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-white rounded-xl labor-price-container">
               <div class="flex items-center justify-center bg-orange-600 text-white border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -529,7 +529,7 @@ function updateLaborRowModelUI(row, mode) {
           </div>
           <div class="flex flex-col">
             <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${rateLabel}</span>
-            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-white rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] labor-rate-container">
+            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-white rounded-xl labor-rate-container">
               <div class="flex items-center justify-center bg-orange-600 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px] labor-currency-symbol">
                 ${currencySymbol}
               </div>
@@ -539,7 +539,7 @@ function updateLaborRowModelUI(row, mode) {
           </div>
           <div class="flex flex-col labor-tax-wrapper">
             <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${taxLabel}</span>
-            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] tax-wrapper" style="background-color: white;">
+            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black rounded-xl tax-wrapper" style="background-color: white;">
               <div class="flex items-center justify-center bg-gray-700 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px]">
                 <span>%</span>
               </div>
@@ -554,7 +554,7 @@ function updateLaborRowModelUI(row, mode) {
         <div class="flex items-start gap-2">
           <div class="flex flex-col">
             <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5 labor-label-price">${labelText}</span>
-            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-white rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] labor-price-container">
+            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-white rounded-xl labor-price-container">
               <div class="flex items-center justify-center bg-orange-600 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px] labor-currency-symbol">
                 ${currencySymbol}
               </div>
@@ -564,7 +564,7 @@ function updateLaborRowModelUI(row, mode) {
           </div>
           <div class="flex flex-col labor-tax-wrapper">
             <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${taxLabel}</span>
-            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] tax-wrapper" style="background-color: white;">
+            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black rounded-xl tax-wrapper" style="background-color: white;">
               <div class="flex items-center justify-center bg-gray-700 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px]">
                 <span>%</span>
               </div>
@@ -3848,7 +3848,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
         <div class="flex items-start gap-2">
           <div class="flex flex-col">
             <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5 labor-label-price">${labelText}</span>
-            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-white rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] labor-price-container">
+            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-white rounded-xl labor-price-container">
               <div class="flex items-center justify-center bg-orange-600 text-white border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -3866,7 +3866,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
           </div>
           <div class="flex flex-col">
             <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${rateLabel}</span>
-            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-white rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] labor-rate-container">
+            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-white rounded-xl labor-rate-container">
               <div class="flex items-center justify-center bg-orange-600 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px] labor-currency-symbol">
                 ${currencySymbol}
               </div>
@@ -3876,7 +3876,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
           </div>
           <div class="flex flex-col labor-tax-wrapper">
             <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${taxLabel}</span>
-            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] tax-wrapper" style="background-color: white;">
+            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black rounded-xl tax-wrapper" style="background-color: white;">
               <div class="flex items-center justify-center bg-gray-700 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px]">
                 <span>%</span>
               </div>
@@ -3892,7 +3892,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
         <div class="flex items-start gap-2">
           <div class="flex flex-col">
             <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5 labor-label-price">${labelText}</span>
-            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-white rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] labor-price-container">
+            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-white rounded-xl labor-price-container">
               <div class="flex items-center justify-center bg-orange-600 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px] labor-currency-symbol">
                 ${currencySymbol}
               </div>
@@ -3902,7 +3902,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
           </div>
           <div class="flex flex-col labor-tax-wrapper">
             <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${taxLabel}</span>
-            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] tax-wrapper" style="background-color: white;">
+            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black rounded-xl tax-wrapper" style="background-color: white;">
               <div class="flex items-center justify-center bg-gray-700 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px]">
                 <span>%</span>
               </div>
@@ -3932,7 +3932,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
     
     <!-- Top row: Billing toggle + ADD DISCOUNT button -->
     <div class="flex items-center gap-2 mb-0 md:mb-0 labor-action-row">
-      <div class="billing-pill-container" style="margin:0; border: 2px solid black; border-radius: 10px; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1); overflow: hidden; height: 28px; width: fit-content;">
+      <div class="billing-pill-container" style="margin:0; border: 2px solid black; border-radius: 10px; overflow: hidden; height: 28px; width: fit-content;">
         <button type="button" class="billing-pill-btn ${billingMode === 'hourly' ? 'active' : ''}" data-mode="hourly" onclick="setLaborRowBillingMode(this, 'hourly')" style="border-radius: 8px; padding: 0 8px;">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
           ${window.APP_LANGUAGES.hourly || 'Hourly'}
@@ -3944,11 +3944,11 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
       </div>
       <!-- ADD DISCOUNT button -->
       <div class="relative">
-        <button type="button" onclick="toggleLaborDiscountDropdown(this)" class="flex items-center gap-1 px-2.5 h-7 border-2 rounded-lg shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-[10px] font-black uppercase tracking-wider transition-colors labor-add-discount-btn" style="background-color: white; border-color: #00A63E; color: #00A63E;">
+        <button type="button" onclick="toggleLaborDiscountDropdown(this)" class="flex items-center gap-1 px-2.5 h-7 border-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors labor-add-discount-btn" style="background-color: white; border-color: #00A63E; color: #00A63E;">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
           ${window.APP_LANGUAGES.labor_add_discount || window.APP_LANGUAGES.add_discount || 'ADD DISCOUNT'}
         </button>
-        <div class="labor-discount-dropdown hidden absolute left-0 top-full mt-1 z-50 bg-white border-2 border-black rounded-lg shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden min-w-[160px]">
+        <div class="labor-discount-dropdown hidden absolute left-0 top-full mt-1 z-50 bg-white border-2 border-black rounded-lg overflow-hidden min-w-[160px]">
           <button type="button" onclick="showLaborDiscount(this, 'percent')" class="flex items-center gap-2 w-full px-3 py-2 text-[11px] font-bold text-black hover:bg-green-50 transition-colors">
             <span class="flex items-center justify-center bg-green-600 text-white font-black border-2 border-black rounded-md h-5 w-5 shrink-0 text-[9px]">%</span>
             ${window.APP_LANGUAGES.discount_percentage_type || 'Percentage'}
@@ -3973,7 +3973,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
         <div class="flex items-end gap-1 labor-discount-percent-wrapper ${hasDiscPercent ? '' : 'hidden'}">
           <div class="flex flex-col">
             <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${window.APP_LANGUAGES.discount || 'DISCOUNT'}</span>
-            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-white rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-white rounded-xl">
               <div class="flex items-center justify-center bg-green-600 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px]">
                 <span>%</span>
               </div>
@@ -3989,7 +3989,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
         <div class="flex items-end gap-1 labor-discount-flat-wrapper ${hasDiscFlat ? '' : 'hidden'}">
           <div class="flex flex-col">
             <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${window.APP_LANGUAGES.discount || 'DISCOUNT'}</span>
-            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-white rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+            <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-white rounded-xl">
               <div class="flex items-center justify-center bg-green-600 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px] discount-flat-symbol">
                 ${currencySymbol}
               </div>
@@ -4017,7 +4017,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
       subItem.className = "flex items-center gap-2 animate-in fade-in slide-in-from-left-2 duration-300 labor-sub-item";
       subItem.innerHTML = `
         <div class="w-2 h-2 rounded-full bg-black flex-shrink-0"></div>
-        <div class="flex-1 flex items-center border-2 border-black rounded-lg bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-colors relative h-8">
+        <div class="flex-1 flex items-center border-2 border-black rounded-lg bg-white transition-colors relative h-8">
           <input type="text" class="flex-1 bg-transparent border-none text-[11px] font-bold text-black focus:ring-0 py-1 px-3 labor-sub-input placeholder:text-gray-300 min-w-0 outline-none" value="${String(sub).replace(/"/g, '&quot;')}" placeholder="${window.APP_LANGUAGES.subcategory_placeholder || "Description..."}">
         </div>
         <button type="button" onclick="removeLaborSubCategory(this)" class="w-5 h-8 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors font-bold text-sm flex-shrink-0">×</button>
@@ -4113,7 +4113,7 @@ function addCreditItem(containerId, reason = (window.APP_LANGUAGES?.courtesy_cre
 
   div.innerHTML = `
     <div class="flex items-center gap-2 w-full">
-      <div class="flex flex-1 items-center border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] min-w-0 main-item-box transition-colors relative">
+      <div class="flex flex-1 items-center border-2 border-black rounded-xl bg-white min-w-0 main-item-box transition-colors relative">
         <input type="text" value="${reason || (window.APP_LANGUAGES?.courtesy_credit || 'Courtesy Credit')}" class="flex-1 bg-transparent border-none text-sm font-bold text-black focus:ring-0 py-2 px-3 credit-reason-input placeholder:text-gray-300 min-w-0 rounded-xl"
                placeholder="${window.APP_LANGUAGES.reason_for_credit || (window.APP_LANGUAGES?.courtesy_credit || 'Courtesy Credit')}" oninput="updateTotalsSummary()">
       </div>
@@ -4128,7 +4128,7 @@ function addCreditItem(containerId, reason = (window.APP_LANGUAGES?.courtesy_cre
     <div class="flex flex-wrap items-start gap-2">
       <div class="flex flex-col">
         <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${window.APP_LANGUAGES.credit_quantity || window.APP_LANGUAGES.amount || 'AMOUNT'}</span>
-        <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]" style="background-color: white;">
+        <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black rounded-xl" style="background-color: white;">
           <div class="flex items-center justify-center text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px] credit-unit-indicator" style="background-color: #E7000B;">
             ${currencySymbol}
           </div>
@@ -4916,7 +4916,7 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
   if (dividerInlineStyle) div.style.cssText = dividerInlineStyle;
 
   const addPriceButtonHtml = usesPriceToggle
-    ? `<button type="button" onclick="toggleItemPrice(this)" class="flex items-center gap-1 px-2.5 h-7 border-2 rounded-lg shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-[10px] font-black uppercase tracking-wider transition-colors item-add-price-btn" style="background-color: white; border-color: #EA580C; color: #EA580C;">
+    ? `<button type="button" onclick="toggleItemPrice(this)" class="flex items-center gap-1 px-2.5 h-7 border-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors item-add-price-btn" style="background-color: white; border-color: #EA580C; color: #EA580C;">
          <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
          ${window.APP_LANGUAGES.add_price || 'ADD PRICE'}
        </button>`
@@ -4924,7 +4924,7 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
 
   div.innerHTML = `
       <div class="flex items-center gap-2 w-full">
-        <div class="flex flex-1 items-center border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] min-w-0 main-item-box transition-colors relative">
+        <div class="flex flex-1 items-center border-2 border-black rounded-xl bg-white min-w-0 main-item-box transition-colors relative">
           <!-- Add Sub-category Button -->
           <button type="button" onclick="addItemSubCategory(this)" class="h-8 w-8 border-r-2 border-black flex-shrink-0 flex items-center justify-center bg-white transition-colors rounded-l-[10px] item-add-sub-btn" title="${window.APP_LANGUAGES.add_subcategory || 'Add Description'}">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-black transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
@@ -4946,11 +4946,11 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
         ${addPriceButtonHtml}
         <!-- ADD DISCOUNT button -->
         <div class="relative item-add-discount-wrap ${usesPriceToggle && !isPriceActiveDefault ? 'hidden' : ''}">
-          <button type="button" onclick="toggleItemDiscountDropdown(this)" class="flex items-center gap-1 px-2.5 h-7 border-2 rounded-lg shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-[10px] font-black uppercase tracking-wider transition-colors item-add-discount-btn" style="background-color: white; border-color: #00A63E; color: #00A63E;">
+          <button type="button" onclick="toggleItemDiscountDropdown(this)" class="flex items-center gap-1 px-2.5 h-7 border-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors item-add-discount-btn" style="background-color: white; border-color: #00A63E; color: #00A63E;">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
             ${window.APP_LANGUAGES.add_discount || 'ADD DISCOUNT'}
           </button>
-          <div class="item-discount-dropdown hidden absolute left-0 top-full mt-1 z-50 bg-white border-2 border-black rounded-lg shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden min-w-[160px]">
+          <div class="item-discount-dropdown hidden absolute left-0 top-full mt-1 z-50 bg-white border-2 border-black rounded-lg overflow-hidden min-w-[160px]">
             <button type="button" onclick="showItemDiscount(this, 'percent')" class="flex items-center gap-2 w-full px-3 py-2 text-[11px] font-bold text-black hover:bg-green-50 transition-colors">
               <span class="flex items-center justify-center bg-green-600 text-white font-black border-2 border-black rounded-md h-5 w-5 shrink-0 text-[9px]">%</span>
               ${window.APP_LANGUAGES.discount_percentage_type || 'Percentage'}
@@ -4967,7 +4967,7 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
         <!-- PRICE -->
         <div class="flex flex-col item-price-wrapper ${usesPriceToggle && !isPriceActiveDefault ? 'hidden' : ''}">
           <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${window.APP_LANGUAGES.price || 'PRICE'}</span>
-          <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-white rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+          <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-white rounded-xl">
             <div class="flex items-center justify-center bg-orange-600 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px] price-input-symbol">
               ${currencySymbol}
             </div>
@@ -4978,7 +4978,7 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
         <!-- TAX -->
         <div class="flex flex-col item-tax-wrapper ${usesPriceToggle && !isPriceActiveDefault ? 'hidden' : ''}">
           <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${window.APP_LANGUAGES.tax || 'TAX'}</span>
-          <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] tax-wrapper" style="background-color: white;">
+          <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black rounded-xl tax-wrapper" style="background-color: white;">
             <div class="flex items-center justify-center bg-gray-700 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px]">
               <span>%</span>
             </div>
@@ -4990,7 +4990,7 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
         <!-- QUANTITY -->
         <div class="flex flex-col item-qty-wrapper ${!isPriceActiveDefault ? 'hidden' : ''}">
           <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${window.APP_LANGUAGES.quantity || 'QTY'}</span>
-          <div class="flex items-center px-2.5 h-10 border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]" style="background-color: white;">
+          <div class="flex items-center px-2.5 h-10 border-2 border-black rounded-xl" style="background-color: white;">
             <input type="number" step="1" min="0" class="qty-input bg-transparent border-none p-0 font-black text-black focus:ring-0 outline-none text-left min-w-0 text-sm placeholder:text-gray-300 w-8"
                    value="${finalQty}" placeholder="1" oninput="updateTotalsSummary()">
           </div>
@@ -5001,7 +5001,7 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
           <div class="flex items-end gap-1 item-discount-percent-wrapper ${hasDiscPercent ? '' : 'hidden'}">
             <div class="flex flex-col">
               <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${window.APP_LANGUAGES.discount || 'Discount'}</span>
-              <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-white rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+              <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-white rounded-xl">
                 <div class="flex items-center justify-center bg-green-600 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px]">
                   <span>%</span>
                 </div>
@@ -5015,7 +5015,7 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
           <div class="flex items-end gap-1 item-discount-flat-wrapper ${hasDiscFlat ? '' : 'hidden'}">
             <div class="flex flex-col">
               <span class="text-[8px] font-black text-black uppercase tracking-wider ml-2 mb-0.5">${window.APP_LANGUAGES.discount || 'DISCOUNT'}</span>
-              <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-white rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+              <div class="flex items-center gap-1.5 px-2.5 h-10 border-2 border-black bg-white rounded-xl">
                 <div class="flex items-center justify-center bg-green-600 text-white font-black border-2 border-black rounded-lg h-6 w-6 shrink-0 select-none text-[10px] discount-flat-symbol">
                   ${currencySymbol}
                 </div>

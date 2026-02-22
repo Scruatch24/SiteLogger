@@ -460,7 +460,7 @@
       <style>
         .hf-bar { padding: 0 1rem; margin-bottom: 1rem; }
         .hf-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
-        .hf-label { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; white-space: nowrap; margin-right: 2px; }
+        .hf-label { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; white-space: nowrap; margin-right: 2px; min-width: 52px; }
         .hf-pill {
           display: inline-flex; align-items: center; gap: 4px;
           padding: 5px 12px; border-radius: 999px; font-size: 10px; font-weight: 800;
@@ -558,7 +558,7 @@
                favorites = fav_cat ? fav_cat.logs : []
             %>
             <div onclick="enterCategory('favorites')" 
-                 class="aspect-[4/3] border-4 border-black rounded-3xl bg-white shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col items-center justify-center gap-3 cursor-pointer hover:-translate-y-1 hover:shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] transition-all active:scale-95 group">
+                 class="aspect-[4/3] border-4 border-black rounded-3xl bg-white shadow-[5px_5px_0px_0px_rgba(0,0,0,1)] flex flex-col items-center justify-center gap-3 cursor-pointer hover:-translate-y-1 hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transition-all active:scale-95 group">
               <div class="w-14 h-14 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-500 border-2 border-black group-hover:scale-110 transition-transform">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 20 20" fill="currentColor">
                   <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
@@ -574,7 +574,7 @@
             <% @categories.each do |category| %>
               <% next if category.name == 'Favorites' %>
               <div onclick="enterCategory('cat-<%= category.id %>')" 
-                   class="aspect-[4/3] border-4 border-black rounded-3xl bg-white shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col items-center justify-center gap-3 cursor-pointer hover:-translate-y-1 hover:shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] transition-all active:scale-95 group">
+                   class="aspect-[4/3] border-4 border-black rounded-3xl bg-white shadow-[5px_5px_0px_0px_rgba(0,0,0,1)] flex flex-col items-center justify-center gap-3 cursor-pointer hover:-translate-y-1 hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transition-all active:scale-95 group">
                 <div class="w-14 h-14 rounded-2xl flex items-center justify-center overflow-hidden relative border-2 border-black group-hover:scale-110 transition-transform"
                      style="<%= category.color.present? ? "background-color: #{category.color}20; color: #{category.color};" : "background-color: #f3f4f6; color: black;" %>">
                    <% if category.icon_type == 'custom' && category.custom_icon.attached? %>
@@ -718,7 +718,7 @@
 
             <% @clients.each do |client| %>
               <div onclick="enterClient(<%= client.id %>)"
-                   class="aspect-[4/3] border-4 border-black rounded-3xl bg-white shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col items-center justify-center gap-3 cursor-pointer hover:-translate-y-1 hover:shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] transition-all active:scale-95 group relative">
+                   class="aspect-[4/3] border-4 border-black rounded-3xl bg-white shadow-[5px_5px_0px_0px_rgba(0,0,0,1)] flex flex-col items-center justify-center gap-3 cursor-pointer hover:-translate-y-1 hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transition-all active:scale-95 group relative">
                 <div class="w-14 h-14 bg-orange-50 rounded-2xl flex items-center justify-center text-orange-600 border-2 border-black group-hover:scale-110 transition-transform font-black text-lg">
                   <%= client.display_initials %>
                 </div>
@@ -2246,6 +2246,13 @@
         const text = document.getElementById(`status-text-${logId}`);
         const oldStatus = badge.dataset.currentStatus;
 
+        // Update data-status on all card instances so filters work dynamically
+        document.querySelectorAll(`.log-card[data-log-id="${logId}"]`).forEach(card => {
+          card.dataset.status = newStatus;
+        });
+        // Re-apply current filters so the card shows/hides correctly
+        applyAllFilters();
+
         // Configuration map
         const configs = {
           'draft': { bg: 'bg-gray-50', border: 'border-gray-300', text: 'text-gray-500', dot: 'bg-gray-500' },
@@ -2280,6 +2287,19 @@
             renameBtn.classList.add('hidden');
           } else {
             renameBtn.classList.remove('hidden');
+          }
+        }
+
+        // Hide due badge when paid (paid invoices are no longer "due")
+        const statusBadgeContainer = badge.closest('.flex.items-end');
+        if (statusBadgeContainer) {
+          const dueBadge = statusBadgeContainer.querySelector('.pointer-events-none');
+          if (dueBadge) {
+            if (newStatus === 'paid') {
+              dueBadge.classList.add('hidden');
+            } else {
+              dueBadge.classList.remove('hidden');
+            }
           }
         }
 
