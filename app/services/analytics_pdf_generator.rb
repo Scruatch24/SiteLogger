@@ -88,12 +88,15 @@ class AnalyticsPdfGenerator
   end
 
   def setup_fonts(pdf)
-    noto_regular = Rails.root.join("app", "assets", "fonts", "NotoSans-Regular.ttf")
-    noto_bold = Rails.root.join("app", "assets", "fonts", "NotoSans-Bold.ttf")
+    # NotoSansGeorgian covers both Latin and Georgian glyphs, so we use it
+    # as the primary font for ALL locales. This ensures Georgian client names,
+    # the ₾ symbol, and Georgian UI labels render correctly even in EN PDFs.
     geo_regular = Rails.root.join("app", "assets", "fonts", "NotoSansGeorgian-Regular.ttf")
-    geo_bold = Rails.root.join("app", "assets", "fonts", "NotoSansGeorgian-Bold.ttf")
+    geo_bold    = Rails.root.join("app", "assets", "fonts", "NotoSansGeorgian-Bold.ttf")
+    noto_regular = Rails.root.join("app", "assets", "fonts", "NotoSans-Regular.ttf")
+    noto_bold    = Rails.root.join("app", "assets", "fonts", "NotoSans-Bold.ttf")
 
-    if @locale.to_s.start_with?("ka") && File.exist?(geo_regular)
+    if File.exist?(geo_regular)
       pdf.font_families.update(
         "NotoSans" => {
           normal: geo_regular.to_s,
