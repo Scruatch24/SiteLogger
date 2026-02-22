@@ -99,6 +99,9 @@ export default class extends Controller {
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        layout: {
+          padding: { top: 12 }
+        },
         interaction: {
           mode: "index",
           intersect: false

@@ -78,6 +78,8 @@ class HomeController < ApplicationController
     @collected_this_month = analytics_data[:collected_this_month]
     @status_counts        = analytics_data[:status_counts]
     @aging                = analytics_data[:aging]
+    @aging_invoices       = analytics_data[:aging_invoices] || {}
+    @aging_amounts        = analytics_data[:aging_amounts] || {}
     @due_today_count      = analytics_data[:due_today_count]
     @due_soon_count       = analytics_data[:due_soon_count]
     @due_soon_amount      = analytics_data[:due_soon_amount]
@@ -2535,6 +2537,8 @@ PROMPT
 
     status_counts = { draft: 0, sent: 0, paid: 0, overdue: 0 }
     aging = { due_today: 0, overdue_1_7: 0, overdue_7_30: 0, overdue_30_plus: 0 }
+    aging_invoices = { due_today: [], overdue_1_7: [], overdue_7_30: [], overdue_30_plus: [] }
+    aging_amounts = { due_today: 0.0, overdue_1_7: 0.0, overdue_7_30: 0.0, overdue_30_plus: 0.0 }
 
     # Client tracking
     client_data = Hash.new { |h, k| h[k] = { total: 0.0, outstanding: 0.0, count: 0, overdue_count: 0, last_at: nil } }
@@ -2582,19 +2586,32 @@ PROMPT
         total_overdue_amount += amount
         total_sent_amount += amount
         overdue_count += 1
+        _inv_detail = { id: log.id, client: log.client.to_s.strip.presence || "—", amount: amount.round(2), days: 0, due_date: parsed_due&.strftime("%b %d, %Y") || "—", display_number: log.display_number }
         if parsed_due
           days_overdue = (today - parsed_due).to_i
+          _inv_detail[:days] = days_overdue
           if days_overdue == 0
             aging[:due_today] += 1
+            aging_invoices[:due_today] << _inv_detail
+            aging_amounts[:due_today] += amount
           elsif days_overdue <= 7
             aging[:overdue_1_7] += 1
+            aging_invoices[:overdue_1_7] << _inv_detail
+            aging_amounts[:overdue_1_7] += amount
           elsif days_overdue <= 30
             aging[:overdue_7_30] += 1
+            aging_invoices[:overdue_7_30] << _inv_detail
+            aging_amounts[:overdue_7_30] += amount
           else
             aging[:overdue_30_plus] += 1
+            aging_invoices[:overdue_30_plus] << _inv_detail
+            aging_amounts[:overdue_30_plus] += amount
           end
         else
           aging[:overdue_30_plus] += 1
+          _inv_detail[:days] = 999
+          aging_invoices[:overdue_30_plus] << _inv_detail
+          aging_amounts[:overdue_30_plus] += amount
         end
       when "sent"
         total_outstanding += amount
@@ -2607,20 +2624,29 @@ PROMPT
         end
         if parsed_due
           days_until = (parsed_due - today).to_i
+          _inv_detail = { id: log.id, client: log.client.to_s.strip.presence || "—", amount: amount.round(2), days: days_until.abs, due_date: parsed_due.strftime("%b %d, %Y"), display_number: log.display_number }
           if days_until < 0
             total_overdue_amount += amount
             overdue_count += 1
             days_overdue = -days_until
             if days_overdue <= 7
               aging[:overdue_1_7] += 1
+              aging_invoices[:overdue_1_7] << _inv_detail
+              aging_amounts[:overdue_1_7] += amount
             elsif days_overdue <= 30
               aging[:overdue_7_30] += 1
+              aging_invoices[:overdue_7_30] << _inv_detail
+              aging_amounts[:overdue_7_30] += amount
             else
               aging[:overdue_30_plus] += 1
+              aging_invoices[:overdue_30_plus] << _inv_detail
+              aging_amounts[:overdue_30_plus] += amount
             end
           elsif days_until == 0
             due_today_count += 1
             aging[:due_today] += 1
+            aging_invoices[:due_today] << _inv_detail
+            aging_amounts[:due_today] += amount
           elsif days_until <= 7
             due_soon_count += 1
             due_soon_amount += amount
@@ -2637,20 +2663,29 @@ PROMPT
         end
         if parsed_due
           days_until = (parsed_due - today).to_i
+          _inv_detail = { id: log.id, client: log.client.to_s.strip.presence || "—", amount: amount.round(2), days: days_until.abs, due_date: parsed_due.strftime("%b %d, %Y"), display_number: log.display_number }
           if days_until < 0
             total_overdue_amount += amount
             overdue_count += 1
             days_overdue = -days_until
             if days_overdue <= 7
               aging[:overdue_1_7] += 1
+              aging_invoices[:overdue_1_7] << _inv_detail
+              aging_amounts[:overdue_1_7] += amount
             elsif days_overdue <= 30
               aging[:overdue_7_30] += 1
+              aging_invoices[:overdue_7_30] << _inv_detail
+              aging_amounts[:overdue_7_30] += amount
             else
               aging[:overdue_30_plus] += 1
+              aging_invoices[:overdue_30_plus] << _inv_detail
+              aging_amounts[:overdue_30_plus] += amount
             end
           elsif days_until == 0
             due_today_count += 1
             aging[:due_today] += 1
+            aging_invoices[:due_today] << _inv_detail
+            aging_amounts[:due_today] += amount
           elsif days_until <= 7
             due_soon_count += 1
             due_soon_amount += amount
@@ -2755,6 +2790,8 @@ PROMPT
       collected_this_month: collected_this_month.round(2),
       status_counts: status_counts,
       aging: aging,
+      aging_invoices: aging_invoices,
+      aging_amounts: aging_amounts,
       due_today_count: due_today_count,
       due_soon_count: due_soon_count,
       due_soon_amount: due_soon_amount.round(2),

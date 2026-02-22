@@ -381,11 +381,25 @@
   }
 
   /* ── Invoice Status Control Center ── */
+  .ana-section-divider {
+    display: flex; align-items: center; gap: 0.6rem;
+    margin: 1rem 0 0.6rem;
+  }
+  .ana-section-divider-line {
+    flex: 1; height: 1px;
+    background: rgba(255,255,255,0.08);
+  }
+  .ana-section-divider-text {
+    font-size: 9px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 0.08em; color: rgba(255,255,255,0.3);
+    white-space: nowrap;
+  }
+
   .ana-aging-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 0.5rem;
-    margin-top: 0.7rem;
+    margin-top: 0.5rem;
   }
   .ana-aging-item {
     text-align: center;
@@ -393,7 +407,11 @@
     padding: 0.7rem 0.4rem;
     border: 1px solid rgba(255,255,255,0.08);
     background: rgba(255,255,255,0.02);
+    cursor: pointer;
+    transition: all 0.2s ease;
   }
+  .ana-aging-item:hover { background: rgba(255,255,255,0.05); }
+  .ana-aging-item.expanded { border-width: 1.5px; background: rgba(255,255,255,0.04); }
   .ana-aging-count {
     font-size: 22px;
     font-weight: 900;
@@ -415,6 +433,33 @@
   .ana-aging-item.yellow { border-color: rgba(251,191,36,0.2); }
   .ana-aging-item.orange { border-color: rgba(249,115,22,0.2); }
   .ana-aging-item.red { border-color: rgba(248,113,113,0.2); }
+  .ana-aging-item.green.expanded { border-color: rgba(74,222,128,0.45); }
+  .ana-aging-item.yellow.expanded { border-color: rgba(251,191,36,0.45); }
+  .ana-aging-item.orange.expanded { border-color: rgba(249,115,22,0.45); }
+  .ana-aging-item.red.expanded { border-color: rgba(248,113,113,0.45); }
+
+  .ana-aging-expand {
+    display: none;
+    margin-top: 0.5rem;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.02);
+    overflow: hidden;
+  }
+  .ana-aging-expand.visible { display: block; }
+  .ana-aging-expand-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.6rem 0.85rem; flex-wrap: wrap; gap: 0.4rem;
+  }
+  .ana-aging-expand-header-left {
+    display: flex; align-items: baseline; gap: 0.4rem; flex-wrap: wrap;
+  }
+  .ana-aging-expand-link {
+    font-size: 10px; font-weight: 800; text-decoration: none;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    white-space: nowrap; transition: opacity 0.2s;
+  }
+  .ana-aging-expand-link:hover { opacity: 0.7; }
 
   /* ── Paid/Unpaid Ratio Bar ── */
   .ana-ratio-bar-wrap { margin-top: 0.8rem; }
@@ -483,21 +528,28 @@
 
   .ana-metric-tabs {
     display: flex;
-    gap: 0.4rem;
-    flex-wrap: wrap;
+    gap: 0.35rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding-bottom: 2px;
   }
+  .ana-metric-tabs::-webkit-scrollbar { display: none; }
   .ana-metric-tab {
-    padding: 7px 14px;
-    border-radius: 12px;
+    padding: 7px 13px;
+    border-radius: 10px;
     font-size: 10px;
     font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.06em;
     border: 1px solid rgba(255,255,255,0.12);
     background: rgba(255,255,255,0.03);
     color: rgba(255,255,255,0.5);
     cursor: pointer;
     transition: all 0.2s ease;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
   .ana-metric-tab:hover { color: #fff; border-color: rgba(255,255,255,0.25); }
   .ana-metric-tab.active {
@@ -796,6 +848,34 @@
     font-weight: 500;
   }
 
+  /* Export Bottom Button */
+  .ana-export-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 1.2rem;
+    padding: 14px 28px;
+    border-radius: 16px;
+    border: 1px solid rgba(249,115,22,0.35);
+    background: rgba(249,115,22,0.08);
+    color: #f97316;
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    max-width: 360px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .ana-export-bottom:hover {
+    background: rgba(249,115,22,0.15);
+    border-color: rgba(249,115,22,0.55);
+    box-shadow: 0 4px 16px rgba(249,115,22,0.15);
+  }
+
   /* Footer */
   .ana-footer {
     text-align: center;
@@ -825,6 +905,8 @@
     .ana-chart-wrap { height: 220px; }
     .ana-health-banner { flex-wrap: wrap; }
     .ana-health-metrics { width: 100%; justify-content: space-around; margin-top: 0.5rem; }
+    .ana-export-bottom { max-width: 100%; }
+    .ana-aging-expand-header { flex-direction: column; align-items: flex-start; }
   }
   @media (max-width: 400px) {
     .ana-cards { grid-template-columns: 1fr; }
@@ -850,18 +932,14 @@
       <%= t('analytics_page.back_home') %>
     <% end %>
 
-    <header class="analytics-header" style="text-align:left;">
+    <header class="analytics-header" style="text-align:center;">
       <h1 class="analytics-title"><%= t('analytics_page.title_prefix') %> <span class="accent"><%= t('analytics_page.title_accent') %></span></h1>
-      <div style="display:flex; align-items:center; gap:0.75rem; margin-top:1rem; flex-wrap:wrap;">
-        <% if @analytics_cached_at %>
-          <span class="ana-last-updated"><%= t('analytics_page.last_updated', time: time_ago_in_words(@analytics_cached_at)) %></span>
-        <% end %>
-        <a href="<%= analytics_export_path %>" class="ana-export-btn">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          <%= t('analytics_page.export_csv') %>
-        </a>
-      </div>
     </header>
+    <% if @analytics_cached_at %>
+      <div style="text-align:center; margin-bottom: 1rem;">
+        <span class="ana-last-updated"><%= t('analytics_page.last_updated', time: time_ago_in_words(@analytics_cached_at)) %></span>
+      </div>
+    <% end %>
 
     <!-- ═══════════════ 0. FINANCIAL HEALTH SCORE ═══════════════ -->
     <% circumference = 2 * Math::PI * 27; dash_offset = circumference * (1 - @health_score / 100.0) %>
@@ -991,34 +1069,71 @@
         </div>
       </div>
 
-      <!-- Aging Breakdown -->
-      <div class="ana-aging-grid">
-        <a href="<%= history_path %>?due=today" class="ana-aging-item green" style="text-decoration:none; cursor:pointer;">
-          <div class="ana-aging-count"><%= @aging[:due_today] %></div>
-          <div class="ana-aging-label"><%= t('analytics_page.aging_due_today') %></div>
-        </a>
-        <a href="<%= history_path %>?due=1-7" class="ana-aging-item yellow" style="text-decoration:none; cursor:pointer;">
-          <div class="ana-aging-count"><%= @aging[:overdue_1_7] %></div>
-          <div class="ana-aging-label"><%= t('analytics_page.aging_1_7') %></div>
-        </a>
-        <a href="<%= history_path %>?due=7-30" class="ana-aging-item orange" style="text-decoration:none; cursor:pointer;">
-          <div class="ana-aging-count"><%= @aging[:overdue_7_30] %></div>
-          <div class="ana-aging-label"><%= t('analytics_page.aging_7_30') %></div>
-        </a>
-        <a href="<%= history_path %>?due=30plus" class="ana-aging-item red" style="text-decoration:none; cursor:pointer;">
-          <div class="ana-aging-count"><%= @aging[:overdue_30_plus] %></div>
-          <div class="ana-aging-label"><%= t('analytics_page.aging_30_plus') %></div>
-        </a>
+      <!-- ── Divider: Aging Breakdown ── -->
+      <div class="ana-section-divider">
+        <div class="ana-section-divider-line"></div>
+        <span class="ana-section-divider-text"><%= t('analytics_page.aging_breakdown') %></span>
+        <div class="ana-section-divider-line"></div>
       </div>
 
-      <!-- Due Soon highlight -->
-      <% if @due_soon_count > 0 %>
-        <div style="margin-top: 0.7rem; padding: 0.6rem 0.85rem; border-radius: 12px; border: 1px solid rgba(96,165,250,0.25); background: rgba(96,165,250,0.05); display: flex; align-items: center; justify-content: space-between;">
-          <div>
-            <span style="font-size: 12px; font-weight: 800; color: #60a5fa;"><%= pluralize(@due_soon_count, t('analytics_page.invoice_singular')) %></span>
-            <span style="font-size: 11px; color: rgba(255,255,255,0.5); font-weight: 600;"> <%= t('analytics_page.due_next_7_days') %> · <%= fmt_money.call(@due_soon_amount) %></span>
+      <!-- Aging Breakdown (clickable) -->
+      <%
+        aging_buckets = [
+          { key: :due_today,      count: @aging[:due_today],       color: "green",  label: t('analytics_page.aging_due_today'), invoices: @aging_invoices[:due_today]  || [], total: @aging_amounts[:due_today]  || 0, due_param: "today",  link_color: "#4ade80" },
+          { key: :overdue_1_7,    count: @aging[:overdue_1_7],     color: "yellow", label: t('analytics_page.aging_1_7'),       invoices: @aging_invoices[:overdue_1_7] || [], total: @aging_amounts[:overdue_1_7] || 0, due_param: "1-7",    link_color: "#fbbf24" },
+          { key: :overdue_7_30,   count: @aging[:overdue_7_30],    color: "orange", label: t('analytics_page.aging_7_30'),      invoices: @aging_invoices[:overdue_7_30]|| [], total: @aging_amounts[:overdue_7_30]|| 0, due_param: "7-30",   link_color: "#f97316" },
+          { key: :overdue_30_plus,count: @aging[:overdue_30_plus], color: "red",    label: t('analytics_page.aging_30_plus'),   invoices: @aging_invoices[:overdue_30_plus]||[], total: @aging_amounts[:overdue_30_plus]||0, due_param: "30plus", link_color: "#f87171" }
+        ]
+      %>
+      <div class="ana-aging-grid">
+        <% aging_buckets.each do |bucket| %>
+          <div class="ana-aging-item <%= bucket[:color] %>" onclick="toggleAgingExpand('<%= bucket[:key] %>')" data-aging-key="<%= bucket[:key] %>">
+            <div class="ana-aging-count"><%= bucket[:count] %></div>
+            <div class="ana-aging-label"><%= bucket[:label] %></div>
           </div>
-          <a href="<%= history_path %>?due=soon" style="font-size: 10px; font-weight: 800; color: #60a5fa; text-decoration: none; text-transform: uppercase; letter-spacing: 0.06em;"><%= t('analytics_page.view_due_soon') %> →</a>
+        <% end %>
+      </div>
+
+      <!-- Expandable invoice lists for each aging bucket -->
+      <% aging_buckets.each do |bucket| %>
+        <div class="ana-aging-expand" id="aging-expand-<%= bucket[:key] %>">
+          <div class="ana-aging-expand-header">
+            <div class="ana-aging-expand-header-left">
+              <span style="font-size: 12px; font-weight: 800; color: <%= bucket[:link_color] %>;"><%= pluralize(bucket[:count], t('analytics_page.invoice_singular')) %></span>
+              <span style="font-size: 11px; color: rgba(255,255,255,0.5); font-weight: 600;"><%= bucket[:label].downcase %> · <%= fmt_money.call(bucket[:total]) %></span>
+            </div>
+            <a href="<%= history_path %>?due=<%= bucket[:due_param] %>" class="ana-aging-expand-link" style="color: <%= bucket[:link_color] %>;"><%= t('analytics_page.view_in_history') %> →</a>
+          </div>
+          <% if bucket[:invoices].any? %>
+            <div class="ana-due-soon-list">
+              <% bucket[:invoices].first(5).each do |inv| %>
+                <div class="ana-due-soon-row <%= inv[:days] <= 2 ? 'urgent' : '' %>">
+                  <div class="ana-due-soon-days">
+                    <div class="ana-due-soon-days-num"><%= inv[:days] %></div>
+                    <div class="ana-due-soon-days-label"><%= t('analytics_page.days_short') %></div>
+                  </div>
+                  <div class="ana-due-soon-info">
+                    <div class="ana-due-soon-client"><%= inv[:client] %></div>
+                    <div class="ana-due-soon-meta">INV-<%= inv[:display_number] %> · <%= inv[:due_date] %></div>
+                  </div>
+                  <div class="ana-due-soon-amount"><%= fmt_money.call(inv[:amount]) %></div>
+                </div>
+              <% end %>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+
+      <!-- Due Soon highlight (1-7 days upcoming) -->
+      <% if @due_soon_count > 0 %>
+        <div style="margin-top: 0.7rem; padding: 0.6rem 0.85rem; border-radius: 12px; border: 1px solid rgba(96,165,250,0.25); background: rgba(96,165,250,0.05);">
+          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.4rem;">
+            <div style="display: flex; align-items: baseline; gap: 0.3rem; flex-wrap: wrap;">
+              <span style="font-size: 12px; font-weight: 800; color: #60a5fa;"><%= pluralize(@due_soon_count, t('analytics_page.invoice_singular')) %></span>
+              <span style="font-size: 11px; color: rgba(255,255,255,0.5); font-weight: 600;"><%= t('analytics_page.due_next_7_days') %> · <%= fmt_money.call(@due_soon_amount) %></span>
+            </div>
+            <a href="<%= history_path %>?due=soon" class="ana-aging-expand-link" style="color: #60a5fa;"><%= t('analytics_page.view_due_soon') %> →</a>
+          </div>
         </div>
         <% if @due_soon_invoices.any? %>
           <div class="ana-due-soon-list">
@@ -1174,8 +1289,33 @@
       </div>
     </section>
 
+    <!-- ═══════════════ EXPORT BUTTON ═══════════════ -->
+    <a href="<%= analytics_export_path %>" class="ana-export-bottom">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      <%= t('analytics_page.export_csv') %>
+    </a>
+
     <div class="ana-footer">
       <p class="ana-footer-text"><%= t('analytics_page.footer') %></p>
     </div>
   </div>
 </div>
+
+<script>
+  function toggleAgingExpand(key) {
+    const panel = document.getElementById('aging-expand-' + key);
+    const item = document.querySelector('[data-aging-key="' + key + '"]');
+    if (!panel) return;
+    const isVisible = panel.classList.contains('visible');
+
+    // Close all
+    document.querySelectorAll('.ana-aging-expand').forEach(p => p.classList.remove('visible'));
+    document.querySelectorAll('.ana-aging-item').forEach(i => i.classList.remove('expanded'));
+
+    // Toggle the clicked one
+    if (!isVisible) {
+      panel.classList.add('visible');
+      if (item) item.classList.add('expanded');
+    }
+  }
+</script>

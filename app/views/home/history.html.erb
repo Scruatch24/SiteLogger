@@ -457,56 +457,55 @@
     <% end %>
 
       <!-- FILTER & SORT BAR -->
-      <div id="history-filters" class="mb-4 px-4 <%= 'opacity-30 grayscale pointer-events-none select-none' if @profile.guest? %>">
-        <!-- Status Filters -->
-        <div class="flex flex-wrap gap-1.5 mb-2">
-          <button onclick="filterByStatus('all')" data-filter-status="all" class="history-filter-btn active px-3 py-1.5 border-2 border-black rounded-xl text-[9px] font-black uppercase tracking-widest bg-black text-white transition-all">
-            <%= t('all') %>
-          </button>
-          <button onclick="filterByStatus('draft')" data-filter-status="draft" class="history-filter-btn px-3 py-1.5 border-2 border-gray-200 rounded-xl text-[9px] font-black uppercase tracking-widest bg-white text-gray-500 transition-all hover:border-gray-400">
-            <%= t('draft') %>
-          </button>
-          <button onclick="filterByStatus('sent')" data-filter-status="sent" class="history-filter-btn px-3 py-1.5 border-2 border-gray-200 rounded-xl text-[9px] font-black uppercase tracking-widest bg-white text-blue-600 transition-all hover:border-blue-400">
-            <%= t('sent') %>
-          </button>
-          <button onclick="filterByStatus('paid')" data-filter-status="paid" class="history-filter-btn px-3 py-1.5 border-2 border-gray-200 rounded-xl text-[9px] font-black uppercase tracking-widest bg-white text-green-600 transition-all hover:border-green-400">
-            <%= t('paid') %>
-          </button>
-          <button onclick="filterByStatus('overdue')" data-filter-status="overdue" class="history-filter-btn px-3 py-1.5 border-2 border-gray-200 rounded-xl text-[9px] font-black uppercase tracking-widest bg-white text-red-600 transition-all hover:border-red-400">
-            <%= t('overdue') %>
-          </button>
+      <style>
+        .hf-bar { padding: 0 1rem; margin-bottom: 1rem; }
+        .hf-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+        .hf-label { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; white-space: nowrap; margin-right: 2px; }
+        .hf-pill {
+          display: inline-flex; align-items: center; gap: 4px;
+          padding: 5px 12px; border-radius: 999px; font-size: 10px; font-weight: 800;
+          text-transform: uppercase; letter-spacing: 0.06em; cursor: pointer;
+          border: 1.5px solid #e5e7eb; background: #fff; color: #6b7280;
+          transition: all 0.18s ease; white-space: nowrap;
+        }
+        .hf-pill:hover { border-color: #d1d5db; color: #374151; }
+        .hf-pill.active { background: #fff7ed; border-color: #fb923c; color: #ea580c; }
+        .hf-pill .hf-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+        .hf-sort-row { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
+        .hf-sort-btn {
+          padding: 4px 10px; border-radius: 8px; font-size: 9px; font-weight: 800;
+          text-transform: uppercase; letter-spacing: 0.06em; cursor: pointer;
+          border: 1.5px solid #e5e7eb; background: #fff; color: #9ca3af;
+          transition: all 0.18s ease; white-space: nowrap;
+        }
+        .hf-sort-btn:hover { border-color: #d1d5db; color: #6b7280; }
+        .hf-sort-btn.active { background: #f3f4f6; border-color: #9ca3af; color: #374151; }
+      </style>
+      <div id="history-filters" class="hf-bar <%= 'opacity-30 grayscale pointer-events-none select-none' if @profile.guest? %>">
+        <div class="hf-row">
+          <span class="hf-label"><%= t('status') %>:</span>
+          <button onclick="filterByStatus('all')" data-filter-status="all" class="hf-pill active"><%= t('all') %></button>
+          <button onclick="filterByStatus('draft')" data-filter-status="draft" class="hf-pill"><span class="hf-dot" style="background:#9ca3af;"></span><%= t('draft') %></button>
+          <button onclick="filterByStatus('sent')" data-filter-status="sent" class="hf-pill"><span class="hf-dot" style="background:#3b82f6;"></span><%= t('sent') %></button>
+          <button onclick="filterByStatus('paid')" data-filter-status="paid" class="hf-pill"><span class="hf-dot" style="background:#22c55e;"></span><%= t('paid') %></button>
+          <button onclick="filterByStatus('overdue')" data-filter-status="overdue" class="hf-pill"><span class="hf-dot" style="background:#ef4444;"></span><%= t('overdue') %></button>
         </div>
-
-        <!-- Due Date Range Filters -->
-        <div class="flex flex-wrap gap-1.5 mb-2">
-          <button onclick="filterByDue('all')" data-filter-due="all" class="history-due-btn active px-2.5 py-1 border-2 border-black rounded-lg text-[8px] font-black uppercase tracking-widest bg-black text-white transition-all">
-            <%= t('all') %>
-          </button>
-          <button onclick="filterByDue('today')" data-filter-due="today" class="history-due-btn px-2.5 py-1 border-2 border-gray-200 rounded-lg text-[8px] font-black uppercase tracking-widest bg-white text-amber-600 transition-all hover:border-amber-300">
-            <%= t('due_today') %>
-          </button>
-          <button onclick="filterByDue('1-7')" data-filter-due="1-7" class="history-due-btn px-2.5 py-1 border-2 border-gray-200 rounded-lg text-[8px] font-black uppercase tracking-widest bg-white text-blue-600 transition-all hover:border-blue-300">
-            1–7 <%= t('analytics_page.days_unit') %>
-          </button>
-          <button onclick="filterByDue('7-30')" data-filter-due="7-30" class="history-due-btn px-2.5 py-1 border-2 border-gray-200 rounded-lg text-[8px] font-black uppercase tracking-widest bg-white text-orange-600 transition-all hover:border-orange-300">
-            7–30 <%= t('analytics_page.days_unit') %>
-          </button>
-          <button onclick="filterByDue('30plus')" data-filter-due="30plus" class="history-due-btn px-2.5 py-1 border-2 border-gray-200 rounded-lg text-[8px] font-black uppercase tracking-widest bg-white text-red-600 transition-all hover:border-red-300">
-            30+ <%= t('analytics_page.days_unit') %>
-          </button>
+        <div class="hf-row">
+          <span class="hf-label"><%= t('due_date_label') %>:</span>
+          <button onclick="filterByDue('all')" data-filter-due="all" class="hf-pill active"><%= t('all') %></button>
+          <button onclick="filterByDue('today')" data-filter-due="today" class="hf-pill"><%= t('due_today') %></button>
+          <button onclick="filterByDue('1-7')" data-filter-due="1-7" class="hf-pill">1–7d</button>
+          <button onclick="filterByDue('7-30')" data-filter-due="7-30" class="hf-pill">7–30d</button>
+          <button onclick="filterByDue('30plus')" data-filter-due="30plus" class="hf-pill">30+d</button>
         </div>
-
-        <!-- Sort -->
-        <div class="flex items-center gap-2">
-          <span class="text-[8px] font-black uppercase tracking-widest text-gray-400"><%= t('sort_by') %>:</span>
-          <select id="historySortSelect" onchange="sortInvoices(this.value)" class="text-[9px] font-black uppercase tracking-widest bg-white border-2 border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:border-black cursor-pointer">
-            <option value="default"><%= t('sort_default') %></option>
-            <option value="newest"><%= t('sort_newest') %></option>
-            <option value="oldest"><%= t('sort_oldest') %></option>
-            <option value="amount-high"><%= t('sort_amount_high') %></option>
-            <option value="amount-low"><%= t('sort_amount_low') %></option>
-            <option value="client-az"><%= t('sort_client_az') %></option>
-          </select>
+        <div class="hf-sort-row">
+          <span class="hf-label"><%= t('sort_by') %>:</span>
+          <button onclick="sortInvoices('default', this)" data-sort="default" class="hf-sort-btn active"><%= t('sort_default') %></button>
+          <button onclick="sortInvoices('newest', this)" data-sort="newest" class="hf-sort-btn"><%= t('sort_newest') %></button>
+          <button onclick="sortInvoices('oldest', this)" data-sort="oldest" class="hf-sort-btn"><%= t('sort_oldest') %></button>
+          <button onclick="sortInvoices('amount-high', this)" data-sort="amount-high" class="hf-sort-btn">$ ↓</button>
+          <button onclick="sortInvoices('amount-low', this)" data-sort="amount-low" class="hf-sort-btn">$ ↑</button>
+          <button onclick="sortInvoices('client-az', this)" data-sort="client-az" class="hf-sort-btn">A→Z</button>
         </div>
       </div>
 
@@ -1375,37 +1374,25 @@
 
   function filterByStatus(status) {
     activeStatusFilter = status;
-    document.querySelectorAll('.history-filter-btn').forEach(btn => {
-      const isActive = btn.dataset.filterStatus === status;
-      btn.classList.toggle('active', isActive);
-      if (isActive) {
-        btn.classList.add('bg-black', 'text-white', 'border-black');
-        btn.classList.remove('bg-white', 'border-gray-200');
-      } else {
-        btn.classList.remove('bg-black', 'text-white', 'border-black');
-        btn.classList.add('bg-white', 'border-gray-200');
-      }
+    document.querySelectorAll('[data-filter-status]').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.filterStatus === status);
     });
     applyAllFilters();
   }
 
   function filterByDue(due) {
     activeDueFilter = due;
-    document.querySelectorAll('.history-due-btn').forEach(btn => {
-      const isActive = btn.dataset.filterDue === due;
-      btn.classList.toggle('active', isActive);
-      if (isActive) {
-        btn.classList.add('bg-black', 'text-white', 'border-black');
-        btn.classList.remove('bg-white', 'border-gray-200');
-      } else {
-        btn.classList.remove('bg-black', 'text-white', 'border-black');
-        btn.classList.add('bg-white', 'border-gray-200');
-      }
+    document.querySelectorAll('[data-filter-due]').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.filterDue === due);
     });
     applyAllFilters();
   }
 
-  function sortInvoices(sortBy) {
+  function sortInvoices(sortBy, clickedBtn) {
+    if (clickedBtn) {
+      document.querySelectorAll('.hf-sort-btn').forEach(b => b.classList.remove('active'));
+      clickedBtn.classList.add('active');
+    }
     const container = document.querySelector('#view-all .flex.flex-col');
     if (!container) return;
     const cards = Array.from(container.querySelectorAll(':scope > .log-card'));
