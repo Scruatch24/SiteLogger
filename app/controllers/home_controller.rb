@@ -60,6 +60,11 @@ class HomeController < ApplicationController
       redirect_to root_path and return
     end
 
+    @is_pro = current_user.profile&.paid?
+    unless @is_pro
+      return
+    end
+
     user_id = current_user.id
     profile = @profile || current_user.profile || Profile.new
     logs = current_user.logs.kept

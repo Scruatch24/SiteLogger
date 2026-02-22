@@ -753,8 +753,8 @@ ka:
     feature_colors: "ბრენდის ფერები"
     feature_logo: "ბიზნეს ლოგო"
     feature_categories: "საკუთარი კატეგორიები"
-    feature_analytics: "პროფესიონალური ანალიტიკა"
     feature_ai: "პრიორიტეტული AI და საპორტი"
+    feature_analytics: "პროფესიონალური ანალიტიკა"
     feature_text_enhancement: "ტექსტის გაუმჯობესება"
     unlimited_bilingual: "შეუზღუდავი"
     classic_only: "შეზღუდული"
@@ -866,11 +866,12 @@ ka:
     badge_paid: "გადახდილი"
     badge_pending: "მოლოდინში"
     badge_draft: "დრაფტი"
-    s7_headline_html: 'თვალყური ადევნე<br><span class="onb-accent">ბიზნესის ჯანმრთელობას</span>'
-    s7_sub: "პროფესიონალური ანალიტიკა შემოსავლების, კლიენტების და ექსპორტირებადი PDF ანგარიშებით."
+    s7_headline_html: 'პროფესიონალური<br><span class="onb-accent">ანალიტიკა</span>'
+    s7_sub: "თვალყური ადევნე შემოსავლებს, გადაუხდელ ბალანსებს და მიიღე რეალურ დროში ინფორმაცია შენი ბიზნესის შესახებ."
     s8_headline_html: 'ყველაფერი შენს<br><span class="onb-accent">ხელშია</span>'
     s8_sub: "შეცვალე ყველაფერი ექსპორტამდე. არაფერი იგზავნება ან ინახება შენს გარეშე."
     s9_headline_html: 'მზად ხარ შენი პირველი<br>ინვოისის <span class="onb-accent">შესაქმნელად?</span>'
+    badge_pro: "PRO"
     cta_button: "სცადე ახლავე"
     cta_note: "გასატესტად ანგარიშიც კი არ გჭირდება"
 
@@ -939,6 +940,9 @@ ka:
         other: "არასწორი სიგრძეა (უნდა იყოს %{count} სიმბოლო)"
 
   analytics_page:
+    pro_gate_title: "პროფესიონალური ანალიტიკა"
+    pro_gate_desc: "მიიღე დეტალური ბიზნეს ანალიტიკა, შემოსავლების თრექინგი, კლიენტების ანალიზი და მეტი TalkInvoice Pro-ით."
+    upgrade_to_pro: "გახდი Pro"
     back_home: "უკან"
     title_prefix: "თქვენი"
     title_accent: "ანალიტიკა"

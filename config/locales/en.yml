@@ -708,8 +708,8 @@ en:
     feature_colors: "Brand Colors"
     feature_logo: "Business Logo"
     feature_categories: "Custom Categories"
-    feature_analytics: "Professional Analytics"
     feature_ai: "Priority AI & Support"
+    feature_analytics: "Professional Analytics"
     feature_text_enhancement: "TEXT ENHANCEMENT"
     unlimited_bilingual: "UNLIMITED"
     classic_only: "Limited"
@@ -821,15 +821,19 @@ en:
     badge_paid: "Paid"
     badge_pending: "Pending"
     badge_draft: "Draft"
-    s7_headline_html: 'Track your<br><span class="onb-accent">business health</span>'
-    s7_sub: "Professional analytics with revenue insights, client breakdown, and exportable PDF reports."
+    s7_headline_html: 'PROFESSIONAL<br><span class="onb-accent">ANALYTICS</span>'
+    s7_sub: "Track revenue, monitor outstanding balances, and get real-time insights into your business performance."
     s8_headline_html: "You're always<br><span class=\"onb-accent\">in control</span>"
     s8_sub: "Edit everything before exporting. Nothing is sent without your approval."
     s9_headline_html: 'Ready to <span class="onb-accent">voice</span><br>your first invoice?'
+    badge_pro: "PRO"
     cta_button: "Try it now"
     cta_note: "No account needed to test"
 
   analytics_page:
+    pro_gate_title: "Professional Analytics"
+    pro_gate_desc: "Unlock detailed business insights, revenue tracking, client analytics, and more with TalkInvoice Pro."
+    upgrade_to_pro: "Upgrade to Pro"
     back_home: "Back"
     title_prefix: "YOUR"
     title_accent: "ANALYTICS"
