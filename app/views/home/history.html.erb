@@ -29,14 +29,6 @@
   .log-card.selected .selection-checkbox svg { scale: 1; }
   .log-card.selection-mode .selection-checkbox { scale: 1; opacity: 1; }
 
-  /* Chevron */
-  .log-card .chevron-icon {
-    position: absolute; top: 2px; left: 50%; margin-left: -10px;
-    transition: top 0.4s cubic-bezier(0.19, 1, 0.22, 1);
-  }
-  .log-card .chevron-icon.rotate-180 { rotate: 180deg; }
-  .log-card.selection-mode .chevron-icon { top: 32px; }
-
   /* Status Badge Chevron */
   .status-chevron { transition: transform 0.3s cubic-bezier(0.19, 1, 0.22, 1); }
   .status-chevron.rotate-180 { transform: rotate(180deg); }
@@ -146,16 +138,12 @@
     .modal-content {
       max-width: calc(100vw - 24px); padding: 18px; border-radius: 20px;
     }
-    .log-card .card-inner .bg-gray-50.border-b-2,
-    .log-card .card-inner .bg-gray-50.border-t-2 { padding: 12px; }
-    .log-card .header-main .min-w-0 .flex-wrap { gap: 3px; }
-    .log-card .header-main h3 { font-size: 1.1rem; }
+    .log-card h3 { font-size: 1.05rem; }
     .log-menu-dropdown { min-width: 160px; }
     .log-menu-dropdown .px-4 { padding-left: 12px; padding-right: 12px; }
-    .log-menu-btn { width: 36px; height: 36px; }
+    .log-menu-btn { width: 34px; height: 34px; }
     #categories-index .grid, #clients-index .grid { gap: 10px; }
     .min-h-screen.text-black.font-sans { padding: 10px; padding-bottom: 8rem; }
-    .flex.flex-col.gap-20 { gap: 3.5rem; }
     #historySearch { padding-top: 10px; padding-bottom: 10px; font-size: 13px; }
   }
 </style>
@@ -1492,45 +1480,11 @@
   let lastHoldTimestamp = 0;
 
   function handleHeaderClick(header, e) {
-    if (isSelectionMode) {
-      // Prevent immediate deselect if we just finished a hold-to-enter
-      if (Date.now() - lastHoldTimestamp < 300) return;
-
-      // In selection mode, ONLY the chevron allows toggling content
-      if (e.target.closest('[data-toggle-trigger]')) {
-        toggleLogContent(header, e);
-      } else {
-        // Otherwise, tap toggles selection
-        const cardId = header.closest('.log-card').querySelector('[id^="status-badge-"]').id.split('-').pop();
-        toggleSelection(cardId);
-      }
-      return;
-    }
-    // Normal mode: whole header toggles
-    toggleLogContent(header, e);
-  }
-
-  function toggleLogContent(header, e) {
-    // Prevent toggle if renaming or interacting with buttons
-    if (e.target.closest('[contenteditable="true"]') || e.target.closest('button')) return;
-
-    // Also prevent toggle if we are currently in "Renaming Mode" on this card
-    const card = header.closest('.group\\/card');
-    const renameBtn = card.querySelector('.rename-btn');
-    if (renameBtn && renameBtn.dataset.editing === "true") return;
-
-    const content = card.querySelector('.collapsible-content');
-    const chevron = header.querySelector('.chevron-icon');
-    
-    const isExpanded = content.classList.contains('grid-rows-[1fr]');
-    
-    if (isExpanded) {
-      content.classList.replace('grid-rows-[1fr]', 'grid-rows-[0fr]');
-      chevron.classList.remove('rotate-180');
-    } else {
-      content.classList.replace('grid-rows-[0fr]', 'grid-rows-[1fr]');
-      chevron.classList.add('rotate-180');
-    }
+    if (!isSelectionMode) return;
+    if (Date.now() - lastHoldTimestamp < 300) return;
+    if (e.target.closest('button') || e.target.closest('[contenteditable="true"]')) return;
+    const cardId = header.closest('.log-card').dataset.logId;
+    if (cardId) toggleSelection(cardId);
   }
 
   function handleRecreate(btn) {

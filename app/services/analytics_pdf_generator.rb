@@ -88,23 +88,12 @@ class AnalyticsPdfGenerator
   end
 
   def setup_fonts(pdf)
-    # NotoSansGeorgian covers both Latin and Georgian glyphs, so we use it
-    # as the primary font for ALL locales. This ensures Georgian client names,
-    # the ₾ symbol, and Georgian UI labels render correctly even in EN PDFs.
-    geo_regular = Rails.root.join("app", "assets", "fonts", "NotoSansGeorgian-Regular.ttf")
-    geo_bold    = Rails.root.join("app", "assets", "fonts", "NotoSansGeorgian-Bold.ttf")
     noto_regular = Rails.root.join("app", "assets", "fonts", "NotoSans-Regular.ttf")
     noto_bold    = Rails.root.join("app", "assets", "fonts", "NotoSans-Bold.ttf")
+    geo_regular  = Rails.root.join("app", "assets", "fonts", "NotoSansGeorgian-Regular.ttf")
+    geo_bold     = Rails.root.join("app", "assets", "fonts", "NotoSansGeorgian-Bold.ttf")
 
-    if File.exist?(geo_regular)
-      pdf.font_families.update(
-        "NotoSans" => {
-          normal: geo_regular.to_s,
-          bold: File.exist?(geo_bold) ? geo_bold.to_s : geo_regular.to_s
-        }
-      )
-      pdf.font "NotoSans"
-    elsif File.exist?(noto_regular)
+    if File.exist?(noto_regular)
       pdf.font_families.update(
         "NotoSans" => {
           normal: noto_regular.to_s,
@@ -112,6 +101,26 @@ class AnalyticsPdfGenerator
         }
       )
       pdf.font "NotoSans"
+
+      # Register Georgian as a fallback so Georgian glyphs render when
+      # NotoSans doesn't have them (Prawn 2.x fallback_fonts feature).
+      if File.exist?(geo_regular)
+        pdf.font_families.update(
+          "NotoSansGeorgian" => {
+            normal: geo_regular.to_s,
+            bold: File.exist?(geo_bold) ? geo_bold.to_s : geo_regular.to_s
+          }
+        )
+        pdf.fallback_fonts(["NotoSansGeorgian"])
+      end
+    elsif File.exist?(geo_regular)
+      pdf.font_families.update(
+        "NotoSansGeorgian" => {
+          normal: geo_regular.to_s,
+          bold: File.exist?(geo_bold) ? geo_bold.to_s : geo_regular.to_s
+        }
+      )
+      pdf.font "NotoSansGeorgian"
     else
       pdf.font "Helvetica"
     end

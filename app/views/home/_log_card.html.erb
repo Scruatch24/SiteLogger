@@ -237,78 +237,53 @@
   </div>
 
   <div class="card-inner bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden transition-all duration-200 relative hover:shadow-md hover:border-gray-300">
-    
-    <!-- Header Area -->
-    <div class="bg-white border-b border-gray-100 p-4 pb-3 flex justify-between items-start cursor-pointer hover:bg-gray-50 transition-colors header-main select-none"
-         onclick="handleHeaderClick(this, event)">
-      
-      <div class="flex items-start gap-4 min-w-0 flex-1">
-        <!-- Interactive Controls (Checkbox & Chevron) -->
-        <div class="relative w-6 h-12 shrink-0 mt-0.5">
-          <!-- Selection Checkbox -->
-          <div class="selection-checkbox absolute top-0 left-0 w-6 h-6 rounded-lg border-2 border-gray-300 flex items-center justify-center bg-white transition-all opacity-0 z-10">
-            <svg class="h-4 w-4 text-white transition-transform">
-              <use xlink:href="#icon-check"></use>
-            </svg>
-          </div>
 
-          <!-- Chevron Indicator (Positioned via CSS in history.html.erb) -->
-          <div class="chevron-icon shrink-0" data-toggle-trigger="true">
-            <svg class="h-5 w-5 text-gray-400 pointer-events-none">
-              <use xlink:href="#icon-chevron-down"></use>
-            </svg>
-          </div>
+    <!-- Header -->
+    <div class="p-4 pb-3 flex justify-between items-start" onclick="handleHeaderClick(this, event)">
+      <div class="flex items-start gap-3 min-w-0 flex-1">
+        <!-- Selection Checkbox -->
+        <div class="selection-checkbox shrink-0 mt-1 w-5 h-5 rounded-md border-2 border-gray-300 flex items-center justify-center bg-white transition-all opacity-0">
+          <svg class="h-3 w-3 text-white">
+            <use xlink:href="#icon-check"></use>
+          </svg>
         </div>
-       
-       <div class="min-w-0 flex-1">
-         <div class="flex flex-wrap items-center gap-1 sm:gap-2 mb-3">
-           <span class="h-5 sm:h-6 flex items-center text-[9px] sm:text-sm font-black text-orange-600 bg-orange-100 px-2 rounded uppercase tracking-wider whitespace-nowrap leading-none">
-             INV-<%= log.display_number %>
-           </span>
-            <div class="h-5 sm:h-6 flex items-center gap-1 px-2 bg-gray-100 border border-gray-200 rounded text-[9px] sm:text-xs font-black uppercase tracking-tighter text-gray-600 whitespace-nowrap">
-              <svg class="h-2.5 w-2.5 sm:h-3 sm:w-3 shrink-0">
+        <div class="min-w-0 flex-1">
+          <div class="flex flex-wrap items-center gap-1.5 mb-2">
+            <span class="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-md uppercase tracking-wider whitespace-nowrap">
+              INV-<%= log.display_number %>
+            </span>
+            <div class="flex items-center gap-1 px-2 py-0.5 bg-gray-100 rounded-md text-[10px] text-gray-500 whitespace-nowrap">
+              <svg class="h-3 w-3 shrink-0">
                 <use xlink:href="#icon-calendar"></use>
               </svg>
-              <span class="leading-none"><%= log.date ? l(Date.parse(log.date.to_s), format: :long) : l(log.created_at, format: :long) %></span>
+              <span><%= log.date ? l(Date.parse(log.date.to_s), format: :long) : l(log.created_at, format: :long) %></span>
             </div>
-
-           <% if log.due_date.present? %>
-              <div class="h-5 sm:h-6 flex items-center gap-1 px-2 bg-red-50 border border-red-100 rounded text-[9px] sm:text-xs font-black uppercase tracking-tighter text-red-600 whitespace-nowrap">
-                <svg class="h-2.5 w-2.5 sm:h-3 sm:w-3 shrink-0">
+            <% if log.due_date.present? %>
+              <div class="flex items-center gap-1 px-2 py-0.5 bg-red-50 rounded-md text-[10px] text-red-500 whitespace-nowrap">
+                <svg class="h-3 w-3 shrink-0">
                   <use xlink:href="#icon-clock"></use>
                 </svg>
-                <span class="leading-none text-xs sm:text-sm">
-                  <% if I18n.locale == :ka %>
-                    <%= l(Date.parse(log.due_date.to_s), format: :long) %>
-                  <% else %>
-                    <%= t('due') %>: <%= l(Date.parse(log.due_date.to_s), format: :long) %>
-                  <% end %>
-                </span>
+                <span><%= I18n.locale == :ka ? l(Date.parse(log.due_date.to_s), format: :long) : "#{t('due')}: #{l(Date.parse(log.due_date.to_s), format: :long)}" %></span>
               </div>
-           <% end %>
-         </div>
-         <h3 class="text-xl font-black text-black leading-tight break-words mb-0 select-none" 
-             style="overflow-wrap: anywhere;"
-             data-editable-type="client" data-log-id="<%= log.id %>">
-           <%= log.client.presence || t('unknown_client', default: 'Unknown Client') %>
-         </h3>
-       </div>
-    </div>
-    
-    <div class="text-right hidden sm:block">
-      <div class="text-2xl font-black text-orange-600">
-        <%= format_money_ruby(stats[:total_due], @profile, currency) %>
+            <% end %>
+          </div>
+          <h3 class="text-lg font-bold text-gray-900 leading-tight break-words"
+              style="overflow-wrap: anywhere;"
+              data-editable-type="client" data-log-id="<%= log.id %>">
+            <%= log.client.presence || t('unknown_client', default: 'Unknown Client') %>
+          </h3>
+        </div>
       </div>
-      <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest"><%= t('balance_due') %></div>
+      <div class="text-right shrink-0 ml-3">
+        <div class="text-xl font-bold text-orange-600">
+          <%= format_money_ruby(stats[:total_due], @profile, currency) %>
+        </div>
+        <div class="text-[10px] text-gray-400 uppercase tracking-wider"><%= t('balance_due') %></div>
+      </div>
     </div>
-  </div>
 
-  <!-- Collapsible Content Wrapper -->
-  <div class="grid grid-rows-[0fr] transition-[grid-template-rows] duration-300 ease-in-out collapsible-content">
-    <div class="overflow-hidden min-h-0">
-    
-      <!-- Items List -->
-      <div class="p-4 space-y-4">
+    <!-- Items List -->
+    <div class="px-4 pb-4 space-y-4 border-t border-gray-100 pt-3">
         <% # LABOR %>
         <% if stats[:categorized_items][:labor].any? %>
           <div class="space-y-1">
@@ -419,8 +394,6 @@
         <% end %>
 
     </div> <!-- End Items List -->
-  </div> <!-- End Overflow Hidden -->
-  </div> <!-- End Grid Collapsible -->
 
   <!-- Summary & Actions (Always Visible, but visually separated) -->
   <div class="bg-gray-50/60 border-t border-gray-100 p-4">
