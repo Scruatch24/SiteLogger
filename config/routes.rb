@@ -30,6 +30,7 @@ Rails.application.routes.draw do
   post "checkout/confirm", to: "home#confirm_checkout"
 
   # Use 'match' with 'via' to allow both POST and PATCH
+  post "disconnect_google", to: "home#disconnect_google"
   match "save_settings", to: "home#save_settings", via: [ :post, :patch ]
   match "save_profile", to: "home#save_profile", via: [ :post, :patch ]
 

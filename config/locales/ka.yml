@@ -613,6 +613,7 @@ ka:
   google_connected: "დაკავშირებულია"
   google_disconnect: "გათიშვა"
   google_integration_desc: "დააკავშირეთ თქვენი Google ანგარიში კალენდრის სინქრონიზაციისთვის."
+  google_disconnect_needs_password: "Google-ს გათიშვამდე დააყენეთ პაროლი (წინააღმდეგ შემთხვევაში ვერ შეხვალთ)."
   modal:
     preview: "გადახედვა"
     transcript: "ტექსტი"

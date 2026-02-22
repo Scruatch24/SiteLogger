@@ -2282,12 +2282,12 @@
           }
         }
 
-        // Hide due badge when paid (paid invoices are no longer "due")
+        // Hide due badge when paid or overdue (status already conveys due info)
         const statusBadgeContainer = badge.closest('.flex.items-end');
         if (statusBadgeContainer) {
           const dueBadge = statusBadgeContainer.querySelector('.pointer-events-none');
           if (dueBadge) {
-            if (newStatus === 'paid') {
+            if (newStatus === 'paid' || newStatus === 'overdue') {
               dueBadge.classList.add('hidden');
             } else {
               dueBadge.classList.remove('hidden');

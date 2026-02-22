@@ -388,8 +388,8 @@ en:
   x_days_overdue: "%{count} days overdue"
   sort_by: "Sort by"
   sort_default: "Default"
-  sort_newest: "Newest First"
-  sort_oldest: "Oldest First"
+  sort_newest: "Newest"
+  sort_oldest: "Oldest"
   sort_amount_high: "Amount (High)"
   sort_amount_low: "Amount (Low)"
   sort_client_az: "Client (A-Z)"
@@ -566,6 +566,7 @@ en:
   google_connected: "Connected"
   google_disconnect: "Disconnect"
   google_integration_desc: "Link your Google account to enable calendar sync and more."
+  google_disconnect_needs_password: "Set a password before disconnecting Google (otherwise you won't be able to sign in)."
   modal:
     preview: "Preview"
     transcript: "Transcript"

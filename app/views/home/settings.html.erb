@@ -418,10 +418,24 @@
                     <p class="text-[9px] text-gray-400 font-bold uppercase tracking-wider mt-0.5"><%= t('google_integration_desc') %></p>
                   </div>
                 </div>
-                <button type="button" id="googleConnectBtn" onclick="connectGoogle()"
-                        class="px-4 py-2 border-2 border-black rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 bg-white text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] hover:bg-orange-50 flex-shrink-0">
-                  <%= t('connect_google') %>
-                </button>
+                <% google_connected = user_signed_in? && current_user.provider == 'google_oauth2' %>
+                <div id="googleBtnContainer" class="flex items-center gap-2 flex-shrink-0">
+                  <% if google_connected %>
+                    <span class="px-3 py-1.5 bg-green-50 border-2 border-green-400 rounded-xl text-[9px] font-black uppercase tracking-widest text-green-600 flex items-center gap-1.5">
+                      <div class="w-1.5 h-1.5 rounded-full bg-green-500"></div>
+                      <%= t('google_connected') %>
+                    </span>
+                    <button type="button" id="googleDisconnectBtn" onclick="disconnectGoogle()"
+                            class="px-3 py-1.5 border-2 border-red-300 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 bg-white text-red-500 hover:bg-red-50 flex-shrink-0">
+                      <%= t('google_disconnect') %>
+                    </button>
+                  <% else %>
+                    <button type="button" id="googleConnectBtn" onclick="connectGoogle()"
+                            class="px-4 py-2 border-2 border-black rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 bg-white text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] hover:bg-orange-50 flex-shrink-0">
+                      <%= t('connect_google') %>
+                    </button>
+                  <% end %>
+                </div>
               </div>
             </div>
           </div>
@@ -957,8 +971,30 @@
 
   // Google Integration
   window.connectGoogle = function() {
-    // TODO: Implement Google OAuth connection
-    alert('Google integration coming soon!');
+    window.location.href = '/users/auth/google_oauth2';
+  };
+
+  window.disconnectGoogle = function() {
+    if (!confirm('<%= j t("google_disconnect") %>?')) return;
+    const btn = document.getElementById('googleDisconnectBtn');
+    if (btn) { btn.disabled = true; btn.textContent = '...'; }
+    fetch('/disconnect_google', {
+      method: 'POST',
+      headers: { 'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content }
+    })
+    .then(r => r.json())
+    .then(res => {
+      if (res.success) {
+        window.location.reload();
+      } else {
+        alert(res.error || 'Failed');
+        if (btn) { btn.disabled = false; btn.textContent = '<%= j t("google_disconnect") %>'; }
+      }
+    })
+    .catch(() => {
+      alert('Network error');
+      if (btn) { btn.disabled = false; btn.textContent = '<%= j t("google_disconnect") %>'; }
+    });
   };
 
   document.addEventListener('click', () => {
@@ -967,21 +1003,36 @@
     document.getElementById('documentLanguageMenu')?.classList.add('hidden');
   });
 
-  // PDF Modal
+  // PDF Modal — reuse preview iframe URL for instant open
   window.openPdfModal = function() {
     const modal = document.getElementById('pdfModal');
-    const style = document.getElementById('invoice_style_input').value || "professional";
-    const color = document.getElementById('accent_color_input').value || "";
-    const url = "/logs/preview_pdf?style=" + style + "&accent_color=" + encodeURIComponent(color) + "&t=" + new Date().getTime() + "#toolbar=0&view=FitH";
-    
-    document.getElementById('pdfModalFrame').src = url;
-    document.getElementById('pdfModalObject').data = url;
+    const modalFrame = document.getElementById('pdfModalFrame');
+    const previewFrame = document.getElementById('pdfPreviewFrame');
+    const loading = document.getElementById('modalLoading');
+
+    // Reuse the already-loaded preview URL if available
+    if (previewFrame && previewFrame.src && previewFrame.src !== 'about:blank') {
+      const previewUrl = previewFrame.src.replace('#toolbar=0&view=Fit', '#toolbar=0&view=FitH');
+      if (modalFrame.src === previewUrl) {
+        // Already loaded — hide spinner instantly
+        loading?.classList.add('hidden');
+      } else {
+        modalFrame.src = previewUrl;
+      }
+    } else {
+      // Fallback: generate fresh URL
+      const style = document.getElementById('invoice_style_input').value || "professional";
+      const color = document.getElementById('accent_color_input').value || "";
+      modalFrame.src = "/logs/preview_pdf?style=" + style + "&accent_color=" + encodeURIComponent(color) + "&t=" + new Date().getTime() + "#toolbar=0&view=FitH";
+    }
+
     modal.classList.remove('hidden');
     modal.classList.add('flex');
     document.body.style.overflow = 'hidden';
   };
 
-  window.closePdfModal = function() {
+  window.closePdfModal = function(e) {
+    if (e && e.target && e.target !== e.currentTarget) return;
     const modal = document.getElementById('pdfModal');
     modal.classList.add('hidden');
     modal.classList.remove('flex');

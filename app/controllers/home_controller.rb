@@ -580,6 +580,22 @@ class HomeController < ApplicationController
     # Guests can view but fields are disabled in the view
   end
 
+  def disconnect_google
+    unless user_signed_in?
+      return render json: { success: false, error: "Not authenticated" }, status: :unauthorized
+    end
+
+    user = current_user
+
+    # Safety: only allow disconnect if user has a password set (not blank)
+    if user.encrypted_password.blank?
+      return render json: { success: false, error: t("google_disconnect_needs_password") }, status: :unprocessable_entity
+    end
+
+    user.update_columns(provider: nil, uid: nil)
+    render json: { success: true }
+  end
+
   def profile
     @is_new_profile = !@profile.persisted?
     # Guests can view but fields are disabled in the view
