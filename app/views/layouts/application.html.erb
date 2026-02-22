@@ -1198,7 +1198,7 @@
           try {
             var ts = localStorage.getItem('pwa_dismiss_ts');
             if (!ts) return false;
-            return (Date.now() - parseInt(ts, 10)) < 7 * 24 * 60 * 60 * 1000;
+            return (Date.now() - parseInt(ts, 10)) < 3 * 24 * 60 * 60 * 1000;
           } catch(e) { return false; }
         }
 

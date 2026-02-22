@@ -753,6 +753,7 @@ ka:
     feature_colors: "ბრენდის ფერები"
     feature_logo: "ბიზნეს ლოგო"
     feature_categories: "საკუთარი კატეგორიები"
+    feature_analytics: "პროფესიონალური ანალიტიკა"
     feature_ai: "პრიორიტეტული AI და საპორტი"
     feature_text_enhancement: "ტექსტის გაუმჯობესება"
     unlimited_bilingual: "შეუზღუდავი"
@@ -865,9 +866,11 @@ ka:
     badge_paid: "გადახდილი"
     badge_pending: "მოლოდინში"
     badge_draft: "დრაფტი"
-    s7_headline_html: 'ყველაფერი შენს<br><span class="onb-accent">ხელშია</span>'
-    s7_sub: "შეცვალე ყველაფერი ექსპორტამდე. არაფერი იგზავნება ან ინახება შენს გარეშე."
-    s8_headline_html: 'მზად ხარ შენი პირველი<br>ინვოისის <span class="onb-accent">შესაქმნელად?</span>'
+    s7_headline_html: 'თვალყური ადევნე<br><span class="onb-accent">ბიზნესის ჯანმრთელობას</span>'
+    s7_sub: "პროფესიონალური ანალიტიკა შემოსავლების, კლიენტების და ექსპორტირებადი PDF ანგარიშებით."
+    s8_headline_html: 'ყველაფერი შენს<br><span class="onb-accent">ხელშია</span>'
+    s8_sub: "შეცვალე ყველაფერი ექსპორტამდე. არაფერი იგზავნება ან ინახება შენს გარეშე."
+    s9_headline_html: 'მზად ხარ შენი პირველი<br>ინვოისის <span class="onb-accent">შესაქმნელად?</span>'
     cta_button: "სცადე ახლავე"
     cta_note: "გასატესტად ანგარიშიც კი არ გჭირდება"
 
