@@ -399,6 +399,7 @@
         </div>
 
         <!-- ── ANALYTICS ── -->
+        <% is_analytics_locked = !@profile.paid? %>
         <div class="settings-divider"><span><%= t('settings_section.analytics') %></span> <span class="bg-black text-white text-[7px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded leading-none ml-1.5" style="vertical-align: middle;">PRO</span></div>
         <div class="space-y-6 <%= is_analytics_locked ? 'opacity-40 grayscale pointer-events-none select-none' : '' %>">
 
