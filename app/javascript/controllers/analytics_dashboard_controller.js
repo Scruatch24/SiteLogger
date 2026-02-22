@@ -60,6 +60,8 @@ export default class extends Controller {
     }
 
     const ctx = this.chartTarget.getContext("2d")
+    const dataMax = values.length ? Math.max(...values) : 0
+    const yMax = dataMax > 0 ? dataMax * 1.15 : 10
 
     const gradient = ctx.createLinearGradient(0, 0, 0, 280)
     gradient.addColorStop(0, "rgba(249, 115, 22, 0.25)")
@@ -146,6 +148,7 @@ export default class extends Controller {
           },
           y: {
             beginAtZero: true,
+            suggestedMax: yMax,
             grid: {
               color: "rgba(255,255,255,0.04)",
               drawBorder: false

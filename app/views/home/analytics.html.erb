@@ -1124,6 +1124,15 @@
         </div>
       <% end %>
 
+      <!-- ── Divider: Upcoming ── -->
+      <% if @due_soon_count > 0 %>
+        <div class="ana-section-divider" style="margin-top: 1rem;">
+          <div class="ana-section-divider-line"></div>
+          <span class="ana-section-divider-text"><%= t('analytics_page.upcoming_soon') %></span>
+          <div class="ana-section-divider-line"></div>
+        </div>
+      <% end %>
+
       <!-- Due Soon highlight (1-7 days upcoming) -->
       <% if @due_soon_count > 0 %>
         <div style="margin-top: 0.7rem; padding: 0.6rem 0.85rem; border-radius: 12px; border: 1px solid rgba(96,165,250,0.25); background: rgba(96,165,250,0.05);">

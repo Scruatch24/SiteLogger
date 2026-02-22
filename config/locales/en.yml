@@ -883,6 +883,7 @@ en:
     aging_30_plus: "30+ Days"
     due_next_7_days: "due in the next 7 days"
     view_in_history: "View in History"
+    upcoming_soon: "Upcoming"
     paid_ratio: "Paid"
     unpaid_ratio: "Unpaid"
     business_insights: "Business Insights"

@@ -991,6 +991,7 @@ ka:
     aging_7_30: "7–30 დღე"
     aging_30_plus: "30+ დღე"
     view_in_history: "ისტორიაში ნახვა"
+    upcoming_soon: "მომავალი"
     due_next_7_days: "მომდევნო 7 დღეში იწურება"
     paid_ratio: "გადახდილი"
     unpaid_ratio: "გადაუხდელი"
