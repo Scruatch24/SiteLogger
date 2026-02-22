@@ -421,8 +421,14 @@
         </button>
       </div>
 
-
-
+      <div class="space-y-2">
+        <label class="text-[12px] font-black text-black uppercase tracking-widest ml-1"><%= t('settings_info.alert_threshold_title') %></label>
+        <%= f.number_field :analytics_alert_threshold, step: 1, min: 0, value: (@profile.analytics_alert_threshold.presence || 5000), class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", disabled: is_guest %>
+        <button type="button" onclick="showSettingsInfo('<%= j t('settings_info.alert_threshold_title') %>', '<%= j t('settings_info.alert_threshold_desc') %>')" class="flex items-center gap-1.5 px-1.5 py-0.5 bg-gray-50 text-gray-400 text-[8px] font-black uppercase tracking-widest rounded-md border border-gray-200 ml-1 mt-1 hover:bg-orange-50 hover:text-orange-600 transition-colors">
+          <span><%= t('settings_info.alert_threshold_hint') %></span>
+          <div class="w-3 h-3 rounded-full bg-gray-200 flex items-center justify-center text-[7px] text-gray-500 font-black">!</div>
+        </button>
+      </div>
 
       </div> <%# End of disabled section %>
     </div> <%# End of space-y-6 container %>

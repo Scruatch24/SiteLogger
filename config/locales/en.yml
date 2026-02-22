@@ -370,7 +370,7 @@ en:
   credit_quantity: "AMOUNT"
   credit_amount_caps: "CREDIT AMOUNT"
   materials: "PRODUCTS"
-  expenses: "REIMB."
+  expenses: "REIMBURSEMENTS"
   fees: "FEES"
   discount_reason_placeholder: "Reason for discount..."
   stop: "STOP"
@@ -553,6 +553,9 @@ en:
     tax_scope_desc: "Defines what categories are taxable by default. If you mention e.g., 'tax products', 'do not tax services', or 'tax only nails and repair service' (specific categories or items) when creating the invoice, these instructions will always override the default."
     tax_rate_title: "Tax Rate"
     tax_rate_desc: "The default tax percentage applied to all items. You can use different rates for different categories (Labor, Products, Reimbursements, Fees) or items, e.g., 'tax nails at 8% and filters at 18%' (specific items) or 'tax services at 0%, fees at 5%' (entire categories). These instructions always override the default rate."
+    alert_threshold_title: "Outstanding Alert Threshold"
+    alert_threshold_desc: "When your total outstanding balance exceeds this amount, an alert will appear on your Analytics dashboard. Set to 0 to disable. Default is 5000."
+    alert_threshold_hint: "Analytics dashboard alert trigger"
   modal:
     preview: "Preview"
     transcript: "Transcript"

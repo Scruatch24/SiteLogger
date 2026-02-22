@@ -3117,7 +3117,8 @@ PROMPT
       :accent_color,
       :system_language,
       :document_language,
-      :transcription_language
+      :transcription_language,
+      :analytics_alert_threshold
     )
   end
 end
