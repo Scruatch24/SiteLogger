@@ -894,6 +894,17 @@ en:
     metric_outstanding: "Outstanding"
     metric_collected: "Collected"
     footer: "Analytics data updates in real-time as you create invoices."
+    last_updated: "Updated %{time} ago"
+    export_csv: "Export CSV"
+    avg_days_to_pay: "Avg Days to Get Paid"
+    days_unit: "days"
+    days_short: "days"
+    top_client_warning: "<strong>%{name}</strong> accounts for %{pct}% of your total revenue — consider diversifying your client base."
+    no_clients_hint: "Create your first invoice with a client name to start tracking."
+    no_invoices_yet: "No invoices yet"
+    no_invoices_hint: "Create your first invoice to see analytics here."
+    no_revenue_yet: "No revenue data"
+    no_revenue_hint: "Revenue will appear once invoices are marked as paid."
 
   pwa:
     badge: "Recommended"

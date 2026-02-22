@@ -2,7 +2,7 @@ import { Controller } from "@hotwired/stimulus"
 
 export default class extends Controller {
   static targets = ["chart", "periodBtn", "metricTab"]
-  static values = { dataUrl: String }
+  static values = { dataUrl: String, currencySymbol: String }
 
   connect() {
     this.currentPeriod = "30d"
@@ -119,8 +119,9 @@ export default class extends Controller {
               label: (ctx) => {
                 const val = ctx.parsed.y
                 const moneyMetrics = ["revenue", "outstanding", "collected"]
+                const sym = this.currencySymbolValue || "$"
                 if (moneyMetrics.includes(this.currentMetric)) {
-                  return `$${val.toLocaleString()}`
+                  return `${sym}${val.toLocaleString()}`
                 }
                 return val.toLocaleString()
               }
@@ -152,8 +153,9 @@ export default class extends Controller {
               maxTicksLimit: 5,
               callback: (val) => {
                 const moneyMetrics = ["revenue", "outstanding", "collected"]
+                const sym = this.currencySymbolValue || "$"
                 if (moneyMetrics.includes(this.currentMetric)) {
-                  return "$" + val.toLocaleString()
+                  return sym + val.toLocaleString()
                 }
                 return val
               }

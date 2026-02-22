@@ -19,6 +19,7 @@ Rails.application.routes.draw do
   post "subscription/billing_portal", to: "home#create_billing_portal", as: :subscription_billing_portal
   get "analytics", to: "home#analytics"
   get "analytics/data", to: "home#analytics_data", as: :analytics_data
+  get "analytics/export", to: "home#analytics_export", as: :analytics_export
   get "contact", to: "home#contact"
   post "send_contact", to: "home#send_contact"
   get "terms", to: "home#terms"

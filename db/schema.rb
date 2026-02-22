@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_02_21_225337) do
+ActiveRecord::Schema[8.0].define(version: 2026_02_21_235822) do
   create_schema "auth"
   create_schema "neon_auth"
   create_schema "pgrst"
@@ -184,6 +184,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_02_21_225337) do
     t.datetime "paddle_next_bill_at"
     t.string "paddle_customer_id"
     t.datetime "paddle_cancelled_at"
+    t.decimal "analytics_alert_threshold", precision: 12, scale: 2, default: "5000.0"
     t.index ["paddle_customer_email"], name: "index_profiles_on_paddle_customer_email"
     t.index ["paddle_subscription_id"], name: "index_profiles_on_paddle_subscription_id"
     t.index ["user_id"], name: "index_profiles_on_user_id"

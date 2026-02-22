@@ -6,6 +6,7 @@ class HomeController < ApplicationController
   require "base64"
   require "digest"
   require "cgi"
+  require "csv"
 
 
 
@@ -93,6 +94,22 @@ class HomeController < ApplicationController
     @revenue_trend        = analytics_data[:revenue_trend]
     @invoices_trend       = analytics_data[:invoices_trend]
     @new_clients_trend    = analytics_data[:new_clients_trend]
+    @avg_days_to_pay      = analytics_data[:avg_days_to_pay]
+    @due_soon_invoices    = analytics_data[:due_soon_invoices] || []
+    @top_client_share     = analytics_data[:top_client_share]
+    @top_client_name      = analytics_data[:top_client_name]
+    @outstanding_trend    = analytics_data[:outstanding_trend]
+
+    # ── Cache timestamp for "Last updated" display ──
+    @analytics_cached_at = analytics_data[:cached_at]
+
+    # ── Currency for charts ──
+    @currency_symbol = case (profile.currency.presence || "USD")
+                       when "GEL" then "₾"
+                       when "EUR" then "€"
+                       when "GBP" then "£"
+                       else "$"
+                       end
 
     # ── Alerts ──
     @alerts = build_alerts(analytics_data, profile)
@@ -131,6 +148,56 @@ class HomeController < ApplicationController
       filled = fill_time_series(data, period)
       render json: { labels: filled.keys, values: filled.values, period: period, metric: metric }
     end
+  end
+
+  def analytics_export
+    unless user_signed_in?
+      redirect_to root_path and return
+    end
+
+    profile = @profile || current_user.profile || Profile.new
+    today = Date.today
+    data = compute_invoice_analytics(current_user, profile, today)
+
+    currency_sym = case (profile.currency.presence || "USD")
+                   when "GEL" then "₾"
+                   when "EUR" then "€"
+                   when "GBP" then "£"
+                   else "$"
+                   end
+
+    csv_data = CSV.generate do |csv|
+      csv << ["TalkInvoice Analytics Export", today.strftime("%B %d, %Y")]
+      csv << []
+
+      csv << ["REVENUE SUMMARY"]
+      csv << ["Total Invoiced", "#{currency_sym}#{data[:total_invoiced]}"]
+      csv << ["Total Paid", "#{currency_sym}#{data[:total_paid_amount]}"]
+      csv << ["Total Outstanding", "#{currency_sym}#{data[:total_outstanding]}"]
+      csv << ["Total Overdue", "#{currency_sym}#{data[:total_overdue_amount]}"]
+      csv << ["Collected This Month", "#{currency_sym}#{data[:collected_this_month]}"]
+      csv << ["Projected Revenue", "#{currency_sym}#{data[:projected_revenue]}"]
+      csv << ["Average Invoice", "#{currency_sym}#{data[:avg_invoice]}"]
+      csv << ["Avg Days to Get Paid", data[:avg_days_to_pay] || "N/A"]
+      csv << ["Collection Rate", "#{data[:collection_rate]}%"]
+      csv << ["Health Score", "#{data[:health_score]}%"]
+      csv << []
+
+      csv << ["INVOICE STATUS"]
+      csv << ["Draft", data[:status_counts][:draft]]
+      csv << ["Sent", data[:status_counts][:sent]]
+      csv << ["Paid", data[:status_counts][:paid]]
+      csv << ["Overdue", data[:overdue_count]]
+      csv << []
+
+      csv << ["TOP CLIENTS"]
+      csv << ["Client", "Total Revenue", "Outstanding", "Invoices", "Last Invoice"]
+      data[:client_insights].each do |client|
+        csv << [client[:name], "#{currency_sym}#{client[:total]}", "#{currency_sym}#{client[:outstanding]}", client[:count], client[:last_at]&.strftime("%Y-%m-%d") || "—"]
+      end
+    end
+
+    send_data csv_data, filename: "analytics_#{today.strftime('%Y%m%d')}.csv", type: "text/csv"
   end
 
   def subscription
@@ -2446,6 +2513,16 @@ PROMPT
     last_month_start = (today - 1.month).beginning_of_month
     last_month_end = month_start - 1.day
 
+    # Avg days to pay tracking
+    paid_durations = []
+
+    # Due soon invoices detail list
+    due_soon_invoices = []
+
+    # Outstanding trend (this month vs last month)
+    this_month_outstanding_created = 0.0
+    last_month_outstanding_created = 0.0
+
     # Trend tracking (last month vs this month)
     this_month_revenue = 0.0
     last_month_revenue = 0.0
@@ -2485,6 +2562,11 @@ PROMPT
       when "paid"
         total_paid_amount += amount
         total_sent_amount += amount
+        # Avg days to pay
+        if log.paid_at && log.created_at
+          days_took = ((log.paid_at - log.created_at) / 1.day).round(1)
+          paid_durations << days_took if days_took >= 0
+        end
         if log.paid_at && log.paid_at >= month_start.to_time
           collected_this_month += amount
           this_month_revenue += amount
@@ -2517,6 +2599,12 @@ PROMPT
       when "sent"
         total_outstanding += amount
         total_sent_amount += amount
+        # Outstanding trend
+        if created >= month_start.to_time
+          this_month_outstanding_created += amount
+        elsif created >= last_month_start.to_time && created < month_start.to_time
+          last_month_outstanding_created += amount
+        end
         if parsed_due
           days_until = (parsed_due - today).to_i
           if days_until < 0
@@ -2536,10 +2624,17 @@ PROMPT
           elsif days_until <= 7
             due_soon_count += 1
             due_soon_amount += amount
+            due_soon_invoices << { id: log.id, client: log.client.to_s.strip.presence || "—", amount: amount.round(2), days_left: days_until, due_date: parsed_due.strftime("%b %d, %Y"), display_number: log.display_number }
           end
         end
       when "draft"
         total_outstanding += amount
+        # Outstanding trend
+        if created >= month_start.to_time
+          this_month_outstanding_created += amount
+        elsif created >= last_month_start.to_time && created < month_start.to_time
+          last_month_outstanding_created += amount
+        end
         if parsed_due
           days_until = (parsed_due - today).to_i
           if days_until < 0
@@ -2559,6 +2654,7 @@ PROMPT
           elsif days_until <= 7
             due_soon_count += 1
             due_soon_amount += amount
+            due_soon_invoices << { id: log.id, client: log.client.to_s.strip.presence || "—", amount: amount.round(2), days_left: days_until, due_date: parsed_due.strftime("%b %d, %Y"), display_number: log.display_number }
           end
         end
       end
@@ -2630,6 +2726,26 @@ PROMPT
     total_count = status_counts.values.sum
     avg_invoice = total_count > 0 ? (total_invoiced / total_count).round(2) : 0.0
 
+    # ── Avg Days to Pay ──
+    avg_days_to_pay = paid_durations.any? ? (paid_durations.sum / paid_durations.size).round(1) : nil
+
+    # ── Sort due_soon by urgency (fewest days left first, then highest amount) ──
+    due_soon_invoices.sort_by! { |inv| [inv[:days_left], -inv[:amount]] }
+
+    # ── Top Client Revenue Share ──
+    top_client_share = 0
+    top_client_name = nil
+    if client_data.any? && total_invoiced > 0
+      top = client_data.max_by { |_, d| d[:total] }
+      if top
+        top_client_name = top[0]
+        top_client_share = ((top[1][:total] / total_invoiced) * 100).round(0)
+      end
+    end
+
+    # ── Outstanding Trend (this month vs last month new outstanding) ──
+    outstanding_trend = last_month_outstanding_created > 0 ? (((this_month_outstanding_created - last_month_outstanding_created) / last_month_outstanding_created) * 100).round(0) : nil
+
     {
       total_invoiced: total_invoiced.round(2),
       total_outstanding: total_outstanding.round(2),
@@ -2656,7 +2772,13 @@ PROMPT
       invoices_trend: invoices_trend,
       new_clients_trend: new_clients_trend,
       this_month_invoices: this_month_invoices,
-      last_month_invoices: last_month_invoices
+      last_month_invoices: last_month_invoices,
+      avg_days_to_pay: avg_days_to_pay,
+      due_soon_invoices: due_soon_invoices,
+      top_client_share: top_client_share,
+      top_client_name: top_client_name,
+      outstanding_trend: outstanding_trend,
+      cached_at: Time.current
     }
   end
 
@@ -2692,7 +2814,9 @@ PROMPT
                   action: "due_soon" }
     end
 
-    if data[:total_outstanding] > 5000
+    threshold = profile.try(:analytics_alert_threshold).to_f
+    threshold = 5000 if threshold <= 0
+    if data[:total_outstanding] > threshold
       alerts << { type: "warning", icon: "dollar-sign",
                   title: t("analytics_page.alert_high_outstanding_title"),
                   desc: t("analytics_page.alert_high_outstanding_desc", amount: fmt.call(data[:total_outstanding])),

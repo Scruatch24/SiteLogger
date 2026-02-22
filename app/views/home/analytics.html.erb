@@ -672,6 +672,130 @@
     font-weight: 600;
   }
 
+  /* Last Updated + Export */
+  .ana-last-updated {
+    font-size: 10px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.3);
+    letter-spacing: 0.02em;
+  }
+  .ana-export-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(255,255,255,0.5);
+    text-decoration: none;
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.03);
+    transition: all 0.2s ease;
+  }
+  .ana-export-btn:hover {
+    color: #f97316;
+    border-color: rgba(249,115,22,0.4);
+    background: rgba(249,115,22,0.08);
+  }
+
+  /* Due Soon Detail List */
+  .ana-due-soon-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin-top: 0.6rem;
+  }
+  .ana-due-soon-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.55rem 0.75rem;
+    border-radius: 12px;
+    border: 1px solid rgba(96,165,250,0.15);
+    background: rgba(96,165,250,0.03);
+    transition: border-color 0.2s ease;
+  }
+  .ana-due-soon-row:hover { border-color: rgba(96,165,250,0.35); }
+  .ana-due-soon-row.urgent { border-color: rgba(251,191,36,0.3); background: rgba(251,191,36,0.04); }
+  .ana-due-soon-days {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-weight: 900;
+  }
+  .ana-due-soon-days-num { font-size: 14px; line-height: 1; }
+  .ana-due-soon-days-label { font-size: 7px; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.7; }
+  .ana-due-soon-row:not(.urgent) .ana-due-soon-days { background: rgba(96,165,250,0.12); color: #60a5fa; }
+  .ana-due-soon-row.urgent .ana-due-soon-days { background: rgba(251,191,36,0.15); color: #fbbf24; }
+  .ana-due-soon-info { flex: 1; min-width: 0; }
+  .ana-due-soon-client {
+    font-size: 12px;
+    font-weight: 700;
+    color: #f8fafc;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .ana-due-soon-meta {
+    font-size: 10px;
+    color: rgba(255,255,255,0.35);
+    font-weight: 600;
+  }
+  .ana-due-soon-amount {
+    font-size: 13px;
+    font-weight: 900;
+    color: #60a5fa;
+    flex-shrink: 0;
+  }
+  .ana-due-soon-row.urgent .ana-due-soon-amount { color: #fbbf24; }
+
+  /* Top Client Share Warning */
+  .ana-client-share-warning {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.6rem 0.85rem;
+    border-radius: 12px;
+    border: 1px solid rgba(251,191,36,0.25);
+    background: rgba(251,191,36,0.05);
+    margin-bottom: 0.7rem;
+  }
+  .ana-client-share-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: rgba(251,191,36,0.15);
+    color: #fbbf24;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .ana-client-share-icon svg { width: 14px; height: 14px; }
+  .ana-client-share-text {
+    font-size: 11px;
+    color: rgba(255,255,255,0.5);
+    font-weight: 600;
+  }
+  .ana-client-share-text strong { color: #fbbf24; font-weight: 800; }
+
+  /* Empty State Enhanced */
+  .ana-empty-state svg { width: 32px; height: 32px; margin-bottom: 0.5rem; opacity: 0.3; }
+  .ana-empty-state-hint {
+    font-size: 11px;
+    color: rgba(255,255,255,0.2);
+    margin-top: 0.3rem;
+    font-weight: 500;
+  }
+
   /* Footer */
   .ana-footer {
     text-align: center;
@@ -710,7 +834,7 @@
   }
 </style>
 
-<div class="analytics-page" data-controller="analytics-dashboard" data-analytics-dashboard-data-url-value="<%= analytics_data_path %>">
+<div class="analytics-page" data-controller="analytics-dashboard" data-analytics-dashboard-data-url-value="<%= analytics_data_path %>" data-analytics-dashboard-currency-symbol-value="<%= @currency_symbol %>">
   <div class="pricing-bg"></div>
   <div class="pricing-grid"></div>
 
@@ -728,6 +852,15 @@
 
     <header class="analytics-header" style="text-align:left;">
       <h1 class="analytics-title"><%= t('analytics_page.title_prefix') %> <span class="accent"><%= t('analytics_page.title_accent') %></span></h1>
+      <div style="display:flex; align-items:center; gap:0.75rem; margin-top:0.5rem; flex-wrap:wrap;">
+        <% if @analytics_cached_at %>
+          <span class="ana-last-updated"><%= t('analytics_page.last_updated', time: time_ago_in_words(@analytics_cached_at)) %></span>
+        <% end %>
+        <a href="<%= analytics_export_path %>" class="ana-export-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <%= t('analytics_page.export_csv') %>
+        </a>
+      </div>
     </header>
 
     <!-- ═══════════════ 0. FINANCIAL HEALTH SCORE ═══════════════ -->
@@ -768,7 +901,7 @@
         <div class="ana-card <%= @total_outstanding > 0 ? 'highlight-warning' : '' %>">
           <div class="ana-card-label"><%= t('analytics_page.outstanding') %></div>
           <div class="ana-card-value yellow"><%= fmt_money.call(@total_outstanding) %></div>
-          <div class="ana-card-trend"><%= t('analytics_page.outstanding_equals', pct: @outstanding_ratio) %></div>
+          <div class="ana-card-trend"><%= t('analytics_page.outstanding_equals', pct: @outstanding_ratio) %> <%= trend_badge.call(@outstanding_trend) %></div>
         </div>
         <div class="ana-card <%= @overdue_count > 0 ? 'highlight-danger' : '' %>">
           <div class="ana-card-label"><%= t('analytics_page.overdue_amount') %></div>
@@ -816,7 +949,14 @@
               <div class="ana-alert-title"><%= alert[:title] %></div>
               <div class="ana-alert-desc"><%= alert[:desc] %></div>
               <% if alert[:action] %>
-                <a href="<%= history_path %>" class="ana-action-link">
+                <% alert_href = case alert[:action]
+                   when "overdue" then "#{history_path}?status=overdue"
+                   when "due_today" then "#{history_path}?due=today"
+                   when "due_soon" then "#{history_path}?due=soon"
+                   when "unpaid" then "#{history_path}?unpaid=true"
+                   else history_path
+                   end %>
+                <a href="<%= alert_href %>" class="ana-action-link">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
                   <%= t("analytics_page.view_#{alert[:action]}") %>
                 </a>
@@ -878,8 +1018,25 @@
             <span style="font-size: 12px; font-weight: 800; color: #60a5fa;"><%= pluralize(@due_soon_count, t('analytics_page.invoice_singular')) %></span>
             <span style="font-size: 11px; color: rgba(255,255,255,0.5); font-weight: 600;"> <%= t('analytics_page.due_next_7_days') %> · <%= fmt_money.call(@due_soon_amount) %></span>
           </div>
-          <a href="<%= history_path %>" style="font-size: 10px; font-weight: 800; color: #60a5fa; text-decoration: none; text-transform: uppercase; letter-spacing: 0.06em;"><%= t('analytics_page.view_due_soon') %> →</a>
+          <a href="<%= history_path %>?due=soon" style="font-size: 10px; font-weight: 800; color: #60a5fa; text-decoration: none; text-transform: uppercase; letter-spacing: 0.06em;"><%= t('analytics_page.view_due_soon') %> →</a>
         </div>
+        <% if @due_soon_invoices.any? %>
+          <div class="ana-due-soon-list">
+            <% @due_soon_invoices.first(5).each do |inv| %>
+              <div class="ana-due-soon-row <%= inv[:days_left] <= 2 ? 'urgent' : '' %>">
+                <div class="ana-due-soon-days">
+                  <div class="ana-due-soon-days-num"><%= inv[:days_left] %></div>
+                  <div class="ana-due-soon-days-label"><%= t('analytics_page.days_short') %></div>
+                </div>
+                <div class="ana-due-soon-info">
+                  <div class="ana-due-soon-client"><%= inv[:client] %></div>
+                  <div class="ana-due-soon-meta">INV-<%= inv[:display_number] %> · <%= inv[:due_date] %></div>
+                </div>
+                <div class="ana-due-soon-amount"><%= fmt_money.call(inv[:amount]) %></div>
+              </div>
+            <% end %>
+          </div>
+        <% end %>
       <% end %>
 
       <!-- Paid vs Unpaid Ratio -->
@@ -922,6 +1079,10 @@
           <div class="ana-stat-key"><%= t('analytics_page.collection_rate') %></div>
           <div class="ana-stat-val <%= @collection_rate >= 80 ? 'green' : (@collection_rate >= 50 ? 'orange' : 'red') %>"><%= @collection_rate %>%</div>
         </div>
+        <div class="ana-stat-surface">
+          <div class="ana-stat-key"><%= t('analytics_page.avg_days_to_pay') %></div>
+          <div class="ana-stat-val <%= @avg_days_to_pay && @avg_days_to_pay <= 14 ? 'green' : (@avg_days_to_pay && @avg_days_to_pay <= 30 ? 'orange' : 'red') %>"><%= @avg_days_to_pay ? "#{@avg_days_to_pay} #{t('analytics_page.days_unit')}" : "—" %></div>
+        </div>
       </div>
     </section>
 
@@ -943,6 +1104,15 @@
           <div class="ana-client-summary-label"><%= t('analytics_page.new_this_month') %></div>
         </div>
       </div>
+
+      <% if @top_client_share && @top_client_share > 50 && @top_client_name %>
+        <div class="ana-client-share-warning">
+          <div class="ana-client-share-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+          </div>
+          <div class="ana-client-share-text"><%= t('analytics_page.top_client_warning', name: @top_client_name, pct: @top_client_share).html_safe %></div>
+        </div>
+      <% end %>
 
       <% if @client_insights.any? %>
         <div class="ana-clients-list">
@@ -972,7 +1142,11 @@
           <% end %>
         </div>
       <% else %>
-        <div class="ana-empty-state"><%= t('analytics_page.no_clients_yet') %></div>
+        <div class="ana-empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <%= t('analytics_page.no_clients_yet') %>
+          <div class="ana-empty-state-hint"><%= t('analytics_page.no_clients_hint') %></div>
+        </div>
       <% end %>
     </section>
 
