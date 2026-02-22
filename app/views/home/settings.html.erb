@@ -400,11 +400,11 @@
 
         <!-- ── ANALYTICS ── -->
         <% is_analytics_locked = !@profile.paid? %>
-        <div class="settings-divider"><span><%= t('settings_section.analytics') %></span> <span class="bg-black text-white text-[7px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded leading-none ml-1.5" style="vertical-align: middle;">PRO</span></div>
+        <div class="settings-divider"><span><%= t('settings_section.analytics') %></span></div>
         <div class="space-y-6 <%= is_analytics_locked ? 'opacity-40 grayscale pointer-events-none select-none' : '' %>">
 
       <div class="space-y-2">
-        <label class="text-[12px] font-black text-black uppercase tracking-widest ml-1"><%= t('settings_info.alert_threshold_title') %> <span class="bg-black text-white text-[7px] font-black uppercase tracking-wider px-1 py-0.5 rounded leading-none ml-1" style="vertical-align: middle;">PRO</span></label>
+        <label class="text-[12px] font-black text-black uppercase tracking-widest ml-1"><%= t('settings_info.alert_threshold_title') %><% if user_signed_in? && !@profile.paid? %> <span class="bg-black text-white text-[7px] font-black uppercase tracking-wider px-1 py-0.5 rounded leading-none ml-1" style="vertical-align: middle;">PRO</span><% end %></label>
         <%= f.number_field :analytics_alert_threshold, step: 1, min: 0, value: (@profile.analytics_alert_threshold.presence || 5000), class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", disabled: is_guest %>
         <button type="button" onclick="showSettingsInfo('<%= j t('settings_info.alert_threshold_title') %>', '<%= j t('settings_info.alert_threshold_desc') %>')" class="flex items-center gap-1.5 px-1.5 py-0.5 bg-gray-50 text-gray-400 text-[8px] font-black uppercase tracking-widest rounded-md border border-gray-200 ml-1 mt-1 hover:bg-orange-50 hover:text-orange-600 transition-colors">
           <span><%= t('settings_info.alert_threshold_hint') %></span>

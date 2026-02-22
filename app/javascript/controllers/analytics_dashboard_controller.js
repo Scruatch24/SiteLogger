@@ -64,8 +64,8 @@ export default class extends Controller {
     const yMax = dataMax > 0 ? dataMax * 1.15 : 10
 
     const gradient = ctx.createLinearGradient(0, 0, 0, 280)
-    gradient.addColorStop(0, "rgba(249, 115, 22, 0.25)")
-    gradient.addColorStop(1, "rgba(249, 115, 22, 0.0)")
+    gradient.addColorStop(0, "rgba(249, 115, 22, 0.35)")
+    gradient.addColorStop(1, "rgba(249, 115, 22, 0.02)")
 
     const formatLabel = (label) => {
       if (this.currentPeriod === "12m") {
@@ -80,22 +80,16 @@ export default class extends Controller {
     const displayLabels = labels.map(formatLabel)
 
     this.chartInstance = new Chart(ctx, {
-      type: "line",
+      type: "bar",
       data: {
         labels: displayLabels,
         datasets: [{
           data: values,
           borderColor: "#f97316",
           backgroundColor: gradient,
-          borderWidth: 2.5,
-          fill: true,
-          tension: 0.4,
-          pointRadius: 0,
-          pointHitRadius: 20,
-          pointHoverRadius: 5,
-          pointHoverBackgroundColor: "#f97316",
-          pointHoverBorderColor: "#fff",
-          pointHoverBorderWidth: 2
+          borderWidth: 1.5,
+          borderRadius: 4,
+          borderSkipped: false
         }]
       },
       options: {

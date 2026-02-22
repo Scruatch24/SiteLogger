@@ -1046,7 +1046,7 @@
   </div>
   <% end %>
 
-  <!-- Back + header always outside the blur wrap so they're interactive -->
+  <!-- Back button always outside the blur wrap so it's interactive -->
   <div class="analytics-content" style="padding-bottom:0; position:relative; z-index:10;">
     <%= link_to root_path, class: 'ana-back' do %>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -1054,9 +1054,6 @@
       </svg>
       <%= t('analytics_page.back_home') %>
     <% end %>
-    <header class="analytics-header" style="text-align:center;">
-      <h1 class="analytics-title"><%= t('analytics_page.title_prefix') %> <span class="accent"><%= t('analytics_page.title_accent') %></span></h1>
-    </header>
   </div>
 
   <% if @is_demo %>
@@ -1064,6 +1061,9 @@
   <% end %>
 
   <div class="analytics-content" style="padding-top:0;">
+    <header class="analytics-header" style="text-align:center;">
+      <h1 class="analytics-title"><%= t('analytics_page.title_prefix') %> <span class="accent"><%= t('analytics_page.title_accent') %></span></h1>
+    </header>
     <% if @analytics_cached_at %>
       <div style="text-align:center; margin-bottom: 1rem;">
         <span class="ana-last-updated"><%= t('analytics_page.last_updated', time: time_ago_in_words(@analytics_cached_at)) %></span>
