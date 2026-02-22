@@ -944,6 +944,8 @@ ka:
     pro_gate_desc: "მიიღე დეტალური ბიზნეს ანალიტიკა, შემოსავლების თრექინგი, კლიენტების ანალიზი და მეტი TalkInvoice Pro-ით."
     upgrade_to_pro: "გახდი Pro"
     back_home: "უკან"
+    demo_preview_label: "დემო რეჟიმი"
+    demo_preview_desc: "სავარჯიშო მონაცემები — Pro-ზე გადასვლით ნახე შენი რეალური სტატისტიკა"
     title_prefix: "თქვენი"
     title_accent: "ანალიტიკა"
     overview: "მიმოხილვა"

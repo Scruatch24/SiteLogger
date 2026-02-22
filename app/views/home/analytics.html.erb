@@ -3,8 +3,8 @@
 <% end %>
 
 <%
-  currency = @profile.currency.presence || "USD"
-  currency_symbol = case currency
+  currency = @is_demo ? "GEL" : (@profile.currency.presence || "USD")
+  currency_symbol = @is_demo ? "₾" : case currency
                     when "GEL" then "₾"
                     when "EUR" then "€"
                     when "GBP" then "£"
@@ -934,6 +934,81 @@
     .ana-aging-grid { grid-template-columns: repeat(2, 1fr); }
     .ana-client-summary { grid-template-columns: 1fr; }
   }
+
+  /* ── DEMO MODE ── */
+  .ana-demo-banner {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(10,10,10,0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(249,115,22,0.25);
+    padding: 0.65rem 1.25rem;
+  }
+  .ana-demo-banner-inner {
+    max-width: 860px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .ana-demo-banner-left {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    color: rgba(255,255,255,0.55);
+    min-width: 0;
+  }
+  .ana-demo-banner-left svg { color: #f97316; flex-shrink: 0; }
+  .ana-demo-label {
+    font-size: 10px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #f97316;
+    white-space: nowrap;
+  }
+  .ana-demo-desc {
+    font-size: 11px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.4);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .ana-demo-banner-right { flex-shrink: 0; }
+  .ana-demo-cta-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0.55rem 1.25rem;
+    background: linear-gradient(to right, #f97316, #ea580c);
+    color: white;
+    border-radius: 0.75rem;
+    font-size: 10px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    text-decoration: none;
+    box-shadow: 0 4px 14px rgba(249,115,22,0.3);
+    transition: opacity 0.2s;
+  }
+  .ana-demo-cta-btn:hover { opacity: 0.85; }
+
+  .ana-demo-content-wrap {
+    opacity: 0.35;
+    filter: blur(1.5px);
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  @media (max-width: 640px) {
+    .ana-demo-desc { display: none; }
+    .ana-demo-banner { padding: 0.55rem 1rem; }
+  }
 </style>
 
 <div class="analytics-page" <%= @is_pro ? "data-controller=\"analytics-dashboard\" data-analytics-dashboard-data-url-value=\"#{analytics_data_path}\" data-analytics-dashboard-currency-symbol-value=\"#{@currency_symbol}\"" : "" %>>
@@ -944,37 +1019,36 @@
     <div class="pricing-particle" style="left:<%= rand(5..95) %>%; bottom:-2%; animation-duration:<%= rand(8..16) %>s; animation-delay:<%= (rand(0..60) / 10.0) %>s; width:<%= rand(1..3) %>px; height:<%= rand(1..3) %>px; opacity:<%= rand(2..5) / 10.0 %>;"></div>
   <% end %>
 
-  <% unless @is_pro %>
-  <div class="analytics-content" style="display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:80vh;">
-    <%= link_to root_path, class: 'ana-back', style: 'align-self:flex-start;' do %>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M19 12H5"/><path d="m12 19-7-7 7-7"/>
-      </svg>
-      <%= t('analytics_page.back_home') %>
-    <% end %>
-
-    <div style="text-align:center; max-width:420px; margin:0 auto; padding:2rem 1.5rem;">
-      <div style="width:80px; height:80px; border-radius:24px; background:rgba(249,115,22,0.15); border:2px solid rgba(249,115,22,0.3); display:flex; align-items:center; justify-content:center; margin:0 auto 1.5rem;">
-        <svg style="width:40px; height:40px; color:#f97316;" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <% if @is_demo %>
+  <!-- ── DEMO OVERLAY CTA ── -->
+  <div class="ana-demo-banner" id="anaDemoBanner">
+    <div class="ana-demo-banner-inner">
+      <div class="ana-demo-banner-left">
+        <svg style="width:18px;height:18px;flex-shrink:0;" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>
         </svg>
+        <span class="ana-demo-label"><%= t('analytics_page.demo_preview_label') %></span>
+        <span class="ana-demo-desc"><%= t('analytics_page.demo_preview_desc') %></span>
       </div>
-      <h1 style="font-size:clamp(1.8rem,5vw,2.5rem); font-weight:900; color:white; text-transform:uppercase; letter-spacing:-0.03em; line-height:1.1; margin-bottom:0.75rem;">
-        <%= t('analytics_page.pro_gate_title').split(' ').first %> <span style="color:#f97316;"><%= t('analytics_page.pro_gate_title').split(' ')[1..].join(' ') %></span>
-      </h1>
-      <p style="font-size:14px; color:rgba(255,255,255,0.5); font-weight:500; line-height:1.6; margin-bottom:2rem;"><%= t('analytics_page.pro_gate_desc') %></p>
-      <div style="display:flex; flex-direction:column; gap:0.75rem; align-items:center;">
-        <%= link_to checkout_path, style: "display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:1rem 2.5rem; background:linear-gradient(to right,#f97316,#ea580c); color:white; border:none; border-radius:1rem; font-size:11px; font-weight:900; text-transform:uppercase; letter-spacing:0.12em; text-decoration:none; box-shadow:0 6px 18px rgba(249,115,22,0.25); transition:all 0.3s ease;" do %>
-          <svg style="width:16px; height:16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          <%= t('analytics_page.upgrade_to_pro') %>
-        <% end %>
-        <%= link_to pricing_path, style: "font-size:10px; font-weight:800; color:rgba(255,255,255,0.3); text-transform:uppercase; letter-spacing:0.15em; text-decoration:none; transition:color 0.2s;" do %>
-          <%= t('subscription_page.change_plan') %>
+      <div class="ana-demo-banner-right">
+        <% if user_signed_in? %>
+          <%= link_to checkout_path, class: 'ana-demo-cta-btn' do %>
+            <svg style="width:13px;height:13px;" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            <%= t('analytics_page.upgrade_to_pro') %>
+          <% end %>
+        <% else %>
+          <%= link_to new_user_registration_path, class: 'ana-demo-cta-btn' do %>
+            <%= t('modal.signup_free') %>
+          <% end %>
         <% end %>
       </div>
     </div>
   </div>
-  <% else %>
+  <% end %>
+
+  <% if @is_demo %>
+  <div class="ana-demo-content-wrap">
+  <% end %>
 
   <div class="analytics-content">
     <%= link_to root_path, class: 'ana-back' do %>
@@ -1366,10 +1440,13 @@
       <p class="ana-footer-text"><%= t('analytics_page.footer') %></p>
     </div>
   </div>
+
+  <% if @is_demo %>
+  </div><!-- /ana-demo-content-wrap -->
   <% end %>
 </div>
 
-<% if @is_pro %>
+<% if @is_pro || @is_demo %>
 <script>
   function toggleAgingExpand(key) {
     const panel = document.getElementById('aging-expand-' + key);

@@ -835,6 +835,8 @@ en:
     pro_gate_desc: "Unlock detailed business insights, revenue tracking, client analytics, and more with TalkInvoice Pro."
     upgrade_to_pro: "Upgrade to Pro"
     back_home: "Back"
+    demo_preview_label: "Demo Preview"
+    demo_preview_desc: "Sample data — upgrade to see your real insights"
     title_prefix: "YOUR"
     title_accent: "ANALYTICS"
     overview: "Overview"

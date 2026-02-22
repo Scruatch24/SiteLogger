@@ -56,12 +56,11 @@ class HomeController < ApplicationController
   end
 
   def analytics
-    unless user_signed_in?
-      redirect_to root_path and return
-    end
+    @is_pro  = user_signed_in? && current_user.profile&.paid?
+    @is_demo = !@is_pro
 
-    @is_pro = current_user.profile&.paid?
-    unless @is_pro
+    if @is_demo
+      populate_analytics_demo_data
       return
     end
 
@@ -3097,6 +3096,67 @@ PROMPT
       filled = data
     end
     filled
+  end
+
+  def populate_analytics_demo_data
+    ka = I18n.locale.to_s == "ka"
+
+    # Locale-aware dummy client names
+    clients_en = ["Acme Corp", "BuildRight LLC", "Nova Studio", "Peak Solutions", "Bright Media"]
+    clients_ka = ["აქმე კორპ", "ბილდრაიტი", "ნოვა სტუდია", "პიქ სოლუშენსი", "ბრაიტ მედია"]
+    client_names = ka ? clients_ka : clients_en
+
+    @currency_symbol   = "₾"
+    @total_invoiced    = 18_450.0
+    @total_outstanding = 4_200.0
+    @total_overdue_amt = 1_840.0
+    @total_paid_amt    = 14_250.0
+    @collected_this_month = 3_100.0
+    @projected_revenue = 5_800.0
+    @avg_invoice       = 1_230.0
+    @health_score      = 74
+    @health_level      = "risk"
+    @collection_rate   = 77
+    @outstanding_ratio = 23
+    @revenue_trend     = 24
+    @invoices_trend    = 12
+    @new_clients_trend = nil
+    @outstanding_trend = -8
+    @avg_days_to_pay   = 18
+    @overdue_count     = 3
+    @due_soon_count    = 2
+    @due_soon_amount   = 2_600.0
+    @due_today_count   = 1
+    @repeat_clients    = 4
+    @new_clients_month = 2
+    @top_client_share  = nil
+    @top_client_name   = nil
+    @analytics_cached_at = nil
+
+    @status_counts = { draft: 2, sent: 5, paid: 14, overdue: 3 }
+
+    @aging = { due_today: 1, overdue_1_7: 1, overdue_7_30: 2, overdue_30_plus: 0 }
+    @aging_invoices = {}
+    @aging_amounts  = { due_today: 840.0, overdue_1_7: 1_000.0, overdue_7_30: 840.0, overdue_30_plus: 0.0 }
+
+    @due_soon_invoices = [
+      { days_left: 2, client: client_names[0], display_number: "0042", due_date: (Date.today + 2).strftime("%d/%m/%Y"), amount: 1_500.0 },
+      { days_left: 5, client: client_names[2], display_number: "0041", due_date: (Date.today + 5).strftime("%d/%m/%Y"), amount: 1_100.0 }
+    ]
+
+    @client_insights = client_names.first(4).each_with_index.map do |name, i|
+      totals    = [6_200.0, 4_800.0, 3_900.0, 2_100.0]
+      outs      = [0.0, 1_200.0, 0.0, 840.0]
+      counts    = [8, 6, 5, 3]
+      last_ats  = [3.days.ago, 10.days.ago, 20.days.ago, 45.days.ago]
+      badges    = [["top_client"], [], ["repeat"], []]
+      { name: name, total: totals[i], outstanding: outs[i], count: counts[i],
+        last_at: last_ats[i], badges: badges[i] }
+    end
+
+    @alerts = []
+    @overview = { active_clients: 5, total_invoices: 24 }
+    @tracking_counts = { exports: 12, recordings_started: 38 }
   end
 
   def profile_params
