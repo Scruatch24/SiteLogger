@@ -587,8 +587,9 @@ class HomeController < ApplicationController
 
     user = current_user
 
-    # Safety: only allow disconnect if user has a password set (not blank)
-    if user.encrypted_password.blank?
+    # Only allow disconnect if user originally signed up via email (not Google-only).
+    # Email users have confirmation_sent_at set; Google-only users have skip_confirmation! which skips it.
+    unless user.confirmation_sent_at.present?
       return render json: { success: false, error: t("google_disconnect_needs_password") }, status: :unprocessable_entity
     end
 
