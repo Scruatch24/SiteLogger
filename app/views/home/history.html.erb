@@ -122,45 +122,6 @@
   .custom-scrollbar::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
   .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #d1d5db; }
 
-  /* ── Modern Card Overrides ── */
-  .log-card .card-inner {
-    border: 1px solid #e5e7eb !important;
-    border-radius: 16px !important;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03) !important;
-    transition: box-shadow 0.2s ease, border-color 0.2s ease;
-  }
-  .log-card:hover .card-inner {
-    box-shadow: 0 4px 16px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04) !important;
-    border-color: #d1d5db !important;
-  }
-  .log-card .card-inner .bg-gray-50.border-b-2 {
-    border-bottom-width: 1px !important; border-color: #f3f4f6 !important;
-  }
-  .log-card .card-inner .bg-gray-50.border-t-2 {
-    border-top-width: 1px !important; border-color: #e5e7eb !important;
-  }
-
-  /* Modern status badge */
-  .log-card [id^="status-badge-"] {
-    border-radius: 8px 8px 0 0 !important; border-width: 1px !important;
-    font-size: 9px !important; padding: 4px 10px !important;
-  }
-
-  /* Modern menu button */
-  .log-menu-btn {
-    border: 1px solid #e5e7eb !important;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important;
-  }
-  .log-menu-dropdown {
-    border: 1px solid #e5e7eb !important; border-radius: 16px !important;
-    box-shadow: 0 12px 40px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06) !important;
-  }
-
-  /* Modern category badges on cards */
-  .log-card .absolute.top-\[calc\(100\%-2px\)\] > div {
-    border-width: 1px !important; border-radius: 0 0 8px 8px !important;
-  }
-
   /* ── History Tile Grid ── */
   .hist-tile {
     border: 1px solid #e5e7eb; border-radius: 20px; background: white;
@@ -391,7 +352,7 @@
             <p class="text-sm"><%= t('generate_invoices_hint') %></p>
           </div>
         <% else %>
-          <div class="flex flex-col gap-20 px-4 pt-12">
+          <div class="flex flex-col gap-5 px-4 pt-2">
             <% @logs.each do |log| %>
               <%= render partial: "home/log_card", locals: { log: log } %>
             <% end %>
@@ -493,7 +454,7 @@
               </div>
             </div>
             <% if favorites.any? %>
-            <div class="flex flex-col gap-20 pt-12">
+            <div class="flex flex-col gap-5 pt-2">
                 <% favorites.each do |log| %>
                   <% assignment = log.log_category_assignments.find { |a| a.category_id == fav_cat&.id } %>
                   <% pinned_state = assignment&.pinned_at.present? %>
@@ -553,7 +514,7 @@
               </div>
 
               <% if category.logs.any? %>
-                <div class="flex flex-col gap-20 pt-12">
+                <div class="flex flex-col gap-5 pt-2">
                   <% category.logs.each do |log| %>
                     <% assignment = log.log_category_assignments.find { |a| a.category_id == category.id } %>
                     <% pinned_state = assignment&.pinned_at.present? %>
@@ -684,7 +645,7 @@
 
               <!-- Client's Invoices -->
               <% if client_logs.any? %>
-                <div class="flex flex-col gap-20 pt-12">
+                <div class="flex flex-col gap-5 pt-2">
                   <% client_logs.each do |log| %>
                     <%= render partial: "home/log_card", locals: { log: log, suffix: "-cli#{client.id}" } %>
                   <% end %>
