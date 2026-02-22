@@ -1083,8 +1083,8 @@ ka:
     metric_collected_this_month: "ამ თვეში შეგროვებული"
     metric_total_invoiced: "სულ გაშვერილი"
     note_this_month: "ამ თვის პროგნოზი"
-    yes: "დიახ"
-    no: "არა"
+    "yes": "დიახ"
+    "no": "არა"
 
   pwa:
     badge: "რეკომენდირებული"

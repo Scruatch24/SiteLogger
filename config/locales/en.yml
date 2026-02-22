@@ -974,8 +974,8 @@ en:
     metric_collected_this_month: "Collected This Month"
     metric_total_invoiced: "Total Invoiced"
     note_this_month: "Estimate this month"
-    yes: "Yes"
-    no: "No"
+    "yes": "Yes"
+    "no": "No"
 
   pwa:
     badge: "Recommended"
