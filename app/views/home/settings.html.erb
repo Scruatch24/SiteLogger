@@ -21,9 +21,9 @@
   };
 </script>
 
-<div class="min-h-screen text-black font-sans p-4 pb-24 md:pb-4">
-  <header class="md:static md:bg-transparent px-1 py-3 mb-2 md:mb-4 flex items-center justify-center">
-    <h1 class="text-xl md:text-2xl font-black text-black uppercase truncate pr-2"><%= t('settings') %></h1>
+<div class="min-h-screen text-black font-sans pb-24 md:pb-8">
+  <header class="px-4 pt-5 pb-3 md:pt-8 md:pb-6 flex items-center justify-center">
+    <h1 class="text-xl md:text-2xl font-black text-black uppercase tracking-tight"><%= t('settings') %></h1>
   </header>
 
   <%# saveToast removed — now handled by unified showToast() system %>
@@ -114,16 +114,12 @@
   </div>
 <% end %>
 
-<%= form_with model: @profile, url: save_settings_path, id: "settingsForm", local: false, class: "max-w-md mx-auto space-y-8 px-1 md:px-0" do |f| %>
+<%= form_with model: @profile, url: save_settings_path, id: "settingsForm", local: false, class: "max-w-md mx-auto space-y-6 px-1 md:px-0" do |f| %>
       <script>window.is_guest = <%= is_guest %>;</script>
-      <div class="space-y-3">
 
-        <!-- ═══ LANGUAGES ═══ -->
-        <button type="button" onclick="toggleSettingsSection('languages')" class="settings-section-toggle w-full">
-          <span><%= t('settings_section.languages') %></span>
-          <svg xmlns="http://www.w3.org/2000/svg" class="settings-chevron h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" /></svg>
-        </button>
-        <div id="section-languages" class="settings-section-body space-y-6">
+        <!-- ── LANGUAGES ── -->
+        <div class="settings-divider"><span><%= t('settings_section.languages') %></span></div>
+        <div class="space-y-4">
 
         <%# System Language Dropdown - Enabled even for guests %>
         <div class="space-y-2">
@@ -191,14 +187,11 @@
           </div>
         </div>
 
-        </div><%# close section-languages %>
+        </div>
 
-        <!-- ═══ INVOICE DESIGN ═══ -->
-        <button type="button" onclick="toggleSettingsSection('design')" class="settings-section-toggle w-full">
-          <span><%= t('settings_section.invoice_design') %></span>
-          <svg xmlns="http://www.w3.org/2000/svg" class="settings-chevron h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" /></svg>
-        </button>
-        <div id="section-design" class="settings-section-body space-y-6 <%= is_guest ? 'opacity-40 grayscale pointer-events-none select-none' : '' %>">
+        <!-- ── INVOICE DESIGN ── -->
+        <div class="settings-divider"><span><%= t('settings_section.invoice_design') %></span></div>
+        <div class="space-y-6 <%= is_guest ? 'opacity-40 grayscale pointer-events-none select-none' : '' %>">
 
         <%# Invoice Design Selection %>
         <div class="space-y-4">
@@ -257,7 +250,7 @@
                  <div class="absolute inset-0 z-20 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center pointer-events-none md:flex hidden">
                    <div class="bg-white/90 rounded-full p-3 shadow-lg">
                      <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                       <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                       <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                      </svg>
                    </div>
                  </div>
@@ -277,42 +270,11 @@
         </div>
       </div>
     </div>
-        </div><%# close section-design %>
-
-        <%# PDF Modal Lightbox %>
-        <div id="pdfModal" class="fixed inset-0 z-[9999] hidden items-center justify-center p-4 md:p-8" onclick="closePdfModal(event)">
-          <%# Blur backdrop - Force full coverage %>
-          <div class="fixed top-0 left-0 w-screen h-screen bg-black/60 backdrop-blur-sm z-[-1]"></div>
-          
-          <%# Modal Content - Removed background and forced block iframe to eliminate gaps %>
-          <div class="relative z-10 w-auto h-[90vh] aspect-[1/1.41]">
-             <%# Close Button - Moved Outside %>
-             <button type="button" onclick="closePdfModal()" class="absolute -top-4 -right-4 z-50 bg-white hover:bg-orange-100 rounded-full p-2 border-2 border-black shadow-lg transition-transform hover:scale-110 active:scale-95">
-               <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                 <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-               </svg>
-             </button>
-
-             <%# PDF Container %>
-              <div class="w-full h-full rounded-2xl shadow-2xl overflow-hidden border-2 border-black bg-white relative" onclick="event.stopPropagation()" style="-webkit-user-select: none; user-select: none; -webkit-touch-callout: none;">
-                <div id="modalLoading" class="absolute inset-0 z-20 bg-white flex items-center justify-center">
-                  <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-orange-600"></div>
-                </div>
-                <!-- Protective Overlay (Blocks interaction) -->
-                <div class="absolute inset-0 z-30 bg-transparent cursor-default" oncontextmenu="return false;"></div>
-                <object id="pdfModalObject" data="about:blank" type="application/pdf" class="hidden w-full h-full border-none pointer-events-none"></object>
-                <iframe id="pdfModalFrame" src="about:blank" scrolling="no" class="w-full h-full border-none block bg-transparent scale-[1.02] transform-origin-center relative z-10 pointer-events-none" onload="document.getElementById('modalLoading').classList.add('hidden')"></iframe>
-              </div>
-          </div>
         </div>
-      </div>
 
-        <!-- ═══ DEFAULT INSTRUCTIONS FOR AI ═══ -->
-        <button type="button" onclick="toggleSettingsSection('ai')" class="settings-section-toggle w-full">
-          <span><%= t('settings_section.default_instructions') %></span>
-          <svg xmlns="http://www.w3.org/2000/svg" class="settings-chevron h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" /></svg>
-        </button>
-        <div id="section-ai" class="settings-section-body space-y-6 <%= is_guest ? 'opacity-40 grayscale pointer-events-none select-none' : '' %>">
+        <!-- ── DEFAULT INSTRUCTIONS FOR AI ── -->
+        <div class="settings-divider"><span><%= t('settings_section.default_instructions') %></span></div>
+        <div class="space-y-6 <%= is_guest ? 'opacity-40 grayscale pointer-events-none select-none' : '' %>">
 
       <%# Currency Dropdown %>
       <div class="space-y-2">
@@ -367,8 +329,8 @@
 
       <div class="space-y-2">
         <label id="rateLabel" class="text-[12px] font-black text-black uppercase tracking-widest ml-1">
-          <% current_symbol = current_currency[:s] %>
-          <%= @profile.billing_mode == "fixed" ? t('default_price_with_symbol', symbol: current_symbol) : t('default_rate_hourly_with_symbol', symbol: current_symbol) %>
+          <% current_symbol = currencies_data.find { |c| c[:c] == (@profile.currency.presence || "USD") } || currencies_data.first %>
+          <%= @profile.billing_mode == "fixed" ? t('default_price_with_symbol', symbol: current_symbol[:s]) : t('default_rate_hourly_with_symbol', symbol: current_symbol[:s]) %>
         </label>
         <%= f.number_field :hourly_rate, step: 0.01, max: 999999999, oninput: "if(this.value > 999999999) this.value = 999999999", class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", disabled: is_guest %>
         <button type="button" onclick="showSettingsInfo('<%= j t('settings_info.default_rate_title') %>', '<%= j t('settings_info.default_rate_desc') %>')" class="flex items-center gap-1.5 px-1.5 py-0.5 bg-gray-50 text-gray-400 text-[8px] font-black uppercase tracking-widest rounded-md border border-gray-200 ml-1 mt-1 hover:bg-orange-50 hover:text-orange-600 transition-colors">
@@ -434,14 +396,11 @@
         </button>
       </div>
 
-        </div><%# close section-ai %>
+        </div>
 
-        <!-- ═══ ANALYTICS ═══ -->
-        <button type="button" onclick="toggleSettingsSection('analytics')" class="settings-section-toggle w-full">
-          <span><%= t('settings_section.analytics') %></span>
-          <svg xmlns="http://www.w3.org/2000/svg" class="settings-chevron h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" /></svg>
-        </button>
-        <div id="section-analytics" class="settings-section-body space-y-6 <%= is_guest ? 'opacity-40 grayscale pointer-events-none select-none' : '' %>">
+        <!-- ── ANALYTICS ── -->
+        <div class="settings-divider"><span><%= t('settings_section.analytics') %></span></div>
+        <div class="space-y-6 <%= is_guest ? 'opacity-40 grayscale pointer-events-none select-none' : '' %>">
 
       <div class="space-y-2">
         <label class="text-[12px] font-black text-black uppercase tracking-widest ml-1"><%= t('settings_info.alert_threshold_title') %></label>
@@ -452,8 +411,7 @@
         </button>
       </div>
 
-        </div><%# close section-analytics %>
-    </div><%# close outer container %>
+        </div>
 
     <% unless is_guest %>
       <button type="submit" id="saveSettingsBtn" class="w-full bg-orange-600 text-white border-2 border-black font-black py-4 rounded-xl shadow-[4px_4px_0px_0px_#000000] active:scale-[0.97] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all uppercase text-xs flex items-center justify-center gap-3 save-btn-hover">
@@ -511,48 +469,26 @@
     transform: translate(2px, 2px) !important;
   }
 
-  /* Collapsible Section Toggles */
-  .settings-section-toggle {
+  /* Section Dividers */
+  .settings-divider {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 14px 4px 10px;
-    border: none;
-    background: none;
-    cursor: pointer;
-    border-bottom: 2px solid #000;
-    margin-top: 8px;
+    gap: 12px;
+    padding-top: 8px;
   }
-  .settings-section-toggle span {
-    font-size: 11px;
+  .settings-divider span {
+    font-size: 10px;
     font-weight: 900;
     text-transform: uppercase;
-    letter-spacing: 0.15em;
+    letter-spacing: 0.18em;
     color: #9ca3af;
+    white-space: nowrap;
   }
-  .settings-section-toggle:hover span {
-    color: #f97316;
-  }
-  .settings-chevron {
-    transition: transform 0.25s ease;
-    color: #9ca3af;
-  }
-  .settings-section-toggle:hover .settings-chevron {
-    color: #f97316;
-  }
-  .settings-section-toggle.collapsed .settings-chevron {
-    transform: rotate(-90deg);
-  }
-  .settings-section-body {
-    transition: max-height 0.3s ease, opacity 0.2s ease, padding 0.3s ease;
-    overflow: hidden;
-  }
-  .settings-section-body.collapsed {
-    max-height: 0 !important;
-    opacity: 0;
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
-    pointer-events: none;
+  .settings-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #e5e7eb;
   }
 </style>
 
@@ -570,28 +506,6 @@
     changes_saved_ka: "<%= j t('changes_saved', locale: :ka) %>",
   };
   window.previewTimeout = null;
-
-  // --- Collapsible Section Toggle ---
-  window.toggleSettingsSection = function(section) {
-    const body = document.getElementById('section-' + section);
-    if (!body) return;
-    const btn = body.previousElementSibling;
-    const isCollapsed = body.classList.contains('collapsed');
-
-    if (isCollapsed) {
-      body.classList.remove('collapsed');
-      body.style.maxHeight = body.scrollHeight + 'px';
-      if (btn) btn.classList.remove('collapsed');
-      setTimeout(() => { body.style.maxHeight = ''; }, 350);
-    } else {
-      body.style.maxHeight = body.scrollHeight + 'px';
-      requestAnimationFrame(() => {
-        body.classList.add('collapsed');
-        body.style.maxHeight = '0';
-        if (btn) btn.classList.add('collapsed');
-      });
-    }
-  };
 
   // --- Global Functions ---
   function autoResize(el) {

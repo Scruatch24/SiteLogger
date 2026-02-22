@@ -93,33 +93,32 @@ class AnalyticsPdfGenerator
     geo_regular  = Rails.root.join("app", "assets", "fonts", "NotoSansGeorgian-Regular.ttf")
     geo_bold     = Rails.root.join("app", "assets", "fonts", "NotoSansGeorgian-Bold.ttf")
 
-    if File.exist?(noto_regular)
+    has_latin    = File.exist?(noto_regular)
+    has_georgian = File.exist?(geo_regular)
+
+    if has_latin
       pdf.font_families.update(
         "NotoSans" => {
           normal: noto_regular.to_s,
-          bold: File.exist?(noto_bold) ? noto_bold.to_s : noto_regular.to_s
+          bold:   has_latin && File.exist?(noto_bold) ? noto_bold.to_s : noto_regular.to_s
         }
       )
-      pdf.font "NotoSans"
+    end
 
-      # Register Georgian as a fallback so Georgian glyphs render when
-      # NotoSans doesn't have them (Prawn 2.x fallback_fonts feature).
-      if File.exist?(geo_regular)
-        pdf.font_families.update(
-          "NotoSansGeorgian" => {
-            normal: geo_regular.to_s,
-            bold: File.exist?(geo_bold) ? geo_bold.to_s : geo_regular.to_s
-          }
-        )
-        pdf.fallback_fonts(["NotoSansGeorgian"])
-      end
-    elsif File.exist?(geo_regular)
+    if has_georgian
       pdf.font_families.update(
         "NotoSansGeorgian" => {
           normal: geo_regular.to_s,
-          bold: File.exist?(geo_bold) ? geo_bold.to_s : geo_regular.to_s
+          bold:   File.exist?(geo_bold) ? geo_bold.to_s : geo_regular.to_s
         }
       )
+    end
+
+    # Set primary font and register fallback for mixed-script rendering
+    if has_latin
+      pdf.font "NotoSans"
+      pdf.fallback_fonts(["NotoSansGeorgian"]) if has_georgian
+    elsif has_georgian
       pdf.font "NotoSansGeorgian"
     else
       pdf.font "Helvetica"
