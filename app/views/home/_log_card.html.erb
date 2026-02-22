@@ -3,6 +3,36 @@
   currency = stats[:currency]
   suffix ||= ""
   pinned_state = local_assigns.fetch(:pinned, log.pinned)
+  _current_status = log.current_status
+  _parsed_due = log.parsed_due_date
+  _days_until_due = _parsed_due ? (_parsed_due - Date.today).to_i : nil
+  _due_label = if _current_status == "overdue" || (_days_until_due && _days_until_due < 0)
+                 nil # skip badge for overdue — status already shows it
+               elsif _days_until_due == 0
+                 "due_today"
+               elsif _days_until_due && _days_until_due >= 1 && _days_until_due <= 7
+                 "due_this_week"
+               elsif _days_until_due && _days_until_due >= 8 && _days_until_due <= 30
+                 "due_this_month"
+               end
+  _due_range = if _days_until_due.nil?
+                 "none"
+               elsif _days_until_due < 0
+                 days_overdue = -_days_until_due
+                 if days_overdue <= 7 then "overdue-1-7"
+                 elsif days_overdue <= 30 then "overdue-7-30"
+                 else "overdue-30plus"
+                 end
+               elsif _days_until_due == 0
+                 "today"
+               elsif _days_until_due <= 7
+                 "1-7"
+               elsif _days_until_due <= 30
+                 "7-30"
+               else
+                 "30plus"
+               end
+  _total_amount = stats[:total_due].to_f
 %>
 
 <div class="log-card group/card relative" 
@@ -10,7 +40,12 @@
      data-categories="<%= log.category_ids.to_json %>"
      data-pinned="<%= pinned_state ? 'true' : 'false' %>"
      data-log-id="<%= log.id %>"
-     data-client-id="<%= log.client_id %>">
+     data-client-id="<%= log.client_id %>"
+     data-status="<%= _current_status %>"
+     data-due-range="<%= _due_range %>"
+     data-amount="<%= _total_amount %>"
+     data-created="<%= log.created_at.to_i %>"
+     data-client-name="<%= log.client.to_s.strip.downcase %>">
   <!-- Hamburger Menu Button (Top Right Corner) -->
   <div class="absolute -top-3 -right-3 z-[60]">
     <button type="button" 
@@ -143,7 +178,8 @@
       'overdue' => { bg: 'bg-red-50', text: 'text-red-600', border: 'border-red-400' }
     }[current_status] || { bg: 'bg-gray-50', text: 'text-gray-500', border: 'border-gray-300' }
   %>
-  <div class="absolute bottom-[calc(100%-2px)] left-6 z-[50] group/status">
+  <div class="absolute bottom-[calc(100%-2px)] left-6 z-[50] flex items-end gap-1.5">
+    <div class="group/status">
     <button type="button" 
             id="status-badge-<%= log.id %><%= suffix %>"
             onclick="toggleStatusSelector(this, event)"
@@ -180,6 +216,24 @@
         </button>
       <% end %>
     </div>
+    </div>
+    <% if _due_label %>
+      <%
+        _due_badge_config = case _due_label
+                            when "due_today" then { bg: "bg-amber-50", border: "border-amber-400", text: "text-amber-700", dot: "bg-amber-500 animate-pulse" }
+                            when "due_this_week" then { bg: "bg-blue-50", border: "border-blue-300", text: "text-blue-600", dot: "bg-blue-400" }
+                            when "due_this_month" then { bg: "bg-gray-50", border: "border-gray-300", text: "text-gray-500", dot: "bg-gray-400" }
+                            else { bg: "bg-gray-50", border: "border-gray-300", text: "text-gray-500", dot: "bg-gray-400" }
+                            end
+      %>
+      <div class="flex items-center gap-1 px-2.5 py-1.5 <%= _due_badge_config[:bg] %> border-2 <%= _due_badge_config[:border] %> rounded-t-lg rounded-b-none text-[9px] font-black uppercase tracking-widest <%= _due_badge_config[:text] %> pointer-events-none">
+        <div class="w-1.5 h-1.5 rounded-full <%= _due_badge_config[:dot] %>"></div>
+        <%= t(_due_label) %>
+        <% if _days_until_due && _days_until_due > 0 %>
+          <span class="opacity-60">(<%= _days_until_due %>d)</span>
+        <% end %>
+      </div>
+    <% end %>
   </div>
 
   <div class="card-inner bg-white border-2 border-black rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden transition-all duration-200 relative">

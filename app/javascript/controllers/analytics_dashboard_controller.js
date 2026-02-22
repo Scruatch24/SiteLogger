@@ -118,7 +118,7 @@ export default class extends Controller {
             callbacks: {
               label: (ctx) => {
                 const val = ctx.parsed.y
-                const moneyMetrics = ["revenue", "outstanding", "collected"]
+                const moneyMetrics = ["revenue", "collected"]
                 const sym = this.currencySymbolValue || "$"
                 if (moneyMetrics.includes(this.currentMetric)) {
                   return `${sym}${val.toLocaleString()}`
@@ -152,7 +152,7 @@ export default class extends Controller {
               font: { size: 10, weight: "600" },
               maxTicksLimit: 5,
               callback: (val) => {
-                const moneyMetrics = ["revenue", "outstanding", "collected"]
+                const moneyMetrics = ["revenue", "collected"]
                 const sym = this.currencySymbolValue || "$"
                 if (moneyMetrics.includes(this.currentMetric)) {
                   return sym + val.toLocaleString()

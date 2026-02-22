@@ -852,7 +852,7 @@
 
     <header class="analytics-header" style="text-align:left;">
       <h1 class="analytics-title"><%= t('analytics_page.title_prefix') %> <span class="accent"><%= t('analytics_page.title_accent') %></span></h1>
-      <div style="display:flex; align-items:center; gap:0.75rem; margin-top:0.5rem; flex-wrap:wrap;">
+      <div style="display:flex; align-items:center; gap:0.75rem; margin-top:1rem; flex-wrap:wrap;">
         <% if @analytics_cached_at %>
           <span class="ana-last-updated"><%= t('analytics_page.last_updated', time: time_ago_in_words(@analytics_cached_at)) %></span>
         <% end %>
@@ -911,7 +911,7 @@
         <div class="ana-card">
           <div class="ana-card-label"><%= t('analytics_page.collected_this_month') %></div>
           <div class="ana-card-value green"><%= fmt_money.call(@collected_this_month) %></div>
-          <div class="ana-card-trend"><%= Date.today.strftime("%B %Y") %> <%= trend_badge.call(@revenue_trend) %></div>
+          <div class="ana-card-trend"><%= l(Date.today, format: "%B %Y") %> <%= trend_badge.call(@revenue_trend) %></div>
         </div>
         <div class="ana-card">
           <div class="ana-card-label"><%= t('analytics_page.projected_revenue') %></div>
@@ -993,22 +993,22 @@
 
       <!-- Aging Breakdown -->
       <div class="ana-aging-grid">
-        <div class="ana-aging-item green">
+        <a href="<%= history_path %>?due=today" class="ana-aging-item green" style="text-decoration:none; cursor:pointer;">
           <div class="ana-aging-count"><%= @aging[:due_today] %></div>
           <div class="ana-aging-label"><%= t('analytics_page.aging_due_today') %></div>
-        </div>
-        <div class="ana-aging-item yellow">
+        </a>
+        <a href="<%= history_path %>?due=1-7" class="ana-aging-item yellow" style="text-decoration:none; cursor:pointer;">
           <div class="ana-aging-count"><%= @aging[:overdue_1_7] %></div>
           <div class="ana-aging-label"><%= t('analytics_page.aging_1_7') %></div>
-        </div>
-        <div class="ana-aging-item orange">
+        </a>
+        <a href="<%= history_path %>?due=7-30" class="ana-aging-item orange" style="text-decoration:none; cursor:pointer;">
           <div class="ana-aging-count"><%= @aging[:overdue_7_30] %></div>
           <div class="ana-aging-label"><%= t('analytics_page.aging_7_30') %></div>
-        </div>
-        <div class="ana-aging-item red">
+        </a>
+        <a href="<%= history_path %>?due=30plus" class="ana-aging-item red" style="text-decoration:none; cursor:pointer;">
           <div class="ana-aging-count"><%= @aging[:overdue_30_plus] %></div>
           <div class="ana-aging-label"><%= t('analytics_page.aging_30_plus') %></div>
-        </div>
+        </a>
       </div>
 
       <!-- Due Soon highlight -->
@@ -1121,7 +1121,7 @@
               <div class="ana-client-rank"><%= idx + 1 %></div>
               <div class="ana-client-info">
                 <div class="ana-client-name"><%= client[:name] %></div>
-                <div class="ana-client-meta"><%= pluralize(client[:count], t('analytics_page.invoice_singular')) %> · <%= t('analytics_page.last_invoice') %>: <%= client[:last_at]&.strftime("%b %d, %Y") || "—" %></div>
+                <div class="ana-client-meta"><%= pluralize(client[:count], t('analytics_page.invoice_singular')) %> · <%= t('analytics_page.last_invoice') %>: <%= client[:last_at] ? l(client[:last_at].to_date, format: :long) : "—" %></div>
                 <% if client[:badges].any? %>
                   <div class="ana-client-badges">
                     <% client[:badges].each do |badge| %>

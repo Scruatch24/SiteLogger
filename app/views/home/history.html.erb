@@ -456,6 +456,60 @@
     </div>
     <% end %>
 
+      <!-- FILTER & SORT BAR -->
+      <div id="history-filters" class="mb-4 px-4 <%= 'opacity-30 grayscale pointer-events-none select-none' if @profile.guest? %>">
+        <!-- Status Filters -->
+        <div class="flex flex-wrap gap-1.5 mb-2">
+          <button onclick="filterByStatus('all')" data-filter-status="all" class="history-filter-btn active px-3 py-1.5 border-2 border-black rounded-xl text-[9px] font-black uppercase tracking-widest bg-black text-white transition-all">
+            <%= t('all') %>
+          </button>
+          <button onclick="filterByStatus('draft')" data-filter-status="draft" class="history-filter-btn px-3 py-1.5 border-2 border-gray-200 rounded-xl text-[9px] font-black uppercase tracking-widest bg-white text-gray-500 transition-all hover:border-gray-400">
+            <%= t('draft') %>
+          </button>
+          <button onclick="filterByStatus('sent')" data-filter-status="sent" class="history-filter-btn px-3 py-1.5 border-2 border-gray-200 rounded-xl text-[9px] font-black uppercase tracking-widest bg-white text-blue-600 transition-all hover:border-blue-400">
+            <%= t('sent') %>
+          </button>
+          <button onclick="filterByStatus('paid')" data-filter-status="paid" class="history-filter-btn px-3 py-1.5 border-2 border-gray-200 rounded-xl text-[9px] font-black uppercase tracking-widest bg-white text-green-600 transition-all hover:border-green-400">
+            <%= t('paid') %>
+          </button>
+          <button onclick="filterByStatus('overdue')" data-filter-status="overdue" class="history-filter-btn px-3 py-1.5 border-2 border-gray-200 rounded-xl text-[9px] font-black uppercase tracking-widest bg-white text-red-600 transition-all hover:border-red-400">
+            <%= t('overdue') %>
+          </button>
+        </div>
+
+        <!-- Due Date Range Filters -->
+        <div class="flex flex-wrap gap-1.5 mb-2">
+          <button onclick="filterByDue('all')" data-filter-due="all" class="history-due-btn active px-2.5 py-1 border-2 border-black rounded-lg text-[8px] font-black uppercase tracking-widest bg-black text-white transition-all">
+            <%= t('all') %>
+          </button>
+          <button onclick="filterByDue('today')" data-filter-due="today" class="history-due-btn px-2.5 py-1 border-2 border-gray-200 rounded-lg text-[8px] font-black uppercase tracking-widest bg-white text-amber-600 transition-all hover:border-amber-300">
+            <%= t('due_today') %>
+          </button>
+          <button onclick="filterByDue('1-7')" data-filter-due="1-7" class="history-due-btn px-2.5 py-1 border-2 border-gray-200 rounded-lg text-[8px] font-black uppercase tracking-widest bg-white text-blue-600 transition-all hover:border-blue-300">
+            1–7 <%= t('analytics_page.days_unit') %>
+          </button>
+          <button onclick="filterByDue('7-30')" data-filter-due="7-30" class="history-due-btn px-2.5 py-1 border-2 border-gray-200 rounded-lg text-[8px] font-black uppercase tracking-widest bg-white text-orange-600 transition-all hover:border-orange-300">
+            7–30 <%= t('analytics_page.days_unit') %>
+          </button>
+          <button onclick="filterByDue('30plus')" data-filter-due="30plus" class="history-due-btn px-2.5 py-1 border-2 border-gray-200 rounded-lg text-[8px] font-black uppercase tracking-widest bg-white text-red-600 transition-all hover:border-red-300">
+            30+ <%= t('analytics_page.days_unit') %>
+          </button>
+        </div>
+
+        <!-- Sort -->
+        <div class="flex items-center gap-2">
+          <span class="text-[8px] font-black uppercase tracking-widest text-gray-400"><%= t('sort_by') %>:</span>
+          <select id="historySortSelect" onchange="sortInvoices(this.value)" class="text-[9px] font-black uppercase tracking-widest bg-white border-2 border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:border-black cursor-pointer">
+            <option value="default"><%= t('sort_default') %></option>
+            <option value="newest"><%= t('sort_newest') %></option>
+            <option value="oldest"><%= t('sort_oldest') %></option>
+            <option value="amount-high"><%= t('sort_amount_high') %></option>
+            <option value="amount-low"><%= t('sort_amount_low') %></option>
+            <option value="client-az"><%= t('sort_client_az') %></option>
+          </select>
+        </div>
+      </div>
+
       <!-- VIEW: ALL -->
       <div id="view-all" class="view-section">
         <% if @logs.empty? %>
@@ -1288,17 +1342,109 @@
 
     searchInput.addEventListener('input', (e) => {
       const term = e.target.value.toLowerCase();
-      document.querySelectorAll('.log-card').forEach(card => {
-        // We can limit content to check if needed, but textContent checks everything visible which is usually accurate enough
-        const content = card.textContent.toLowerCase();
-        if (content.includes(term)) {
-          card.classList.remove('hidden');
-        } else {
-          card.classList.add('hidden');
-        }
-      });
+      applyAllFilters();
     });
   }
+
+  // ── Filter & Sort State ──
+  let activeStatusFilter = 'all';
+  let activeDueFilter = 'all';
+
+  function getViewAllCards() {
+    return document.querySelectorAll('#view-all .log-card');
+  }
+
+  function applyAllFilters() {
+    const term = (document.getElementById('historySearch')?.value || '').toLowerCase();
+    getViewAllCards().forEach(card => {
+      const matchesSearch = !term || card.textContent.toLowerCase().includes(term);
+      const matchesStatus = activeStatusFilter === 'all' || card.dataset.status === activeStatusFilter;
+      const matchesDue = activeDueFilter === 'all' || matchesDueRange(card.dataset.dueRange, activeDueFilter);
+      card.classList.toggle('hidden', !(matchesSearch && matchesStatus && matchesDue));
+    });
+  }
+
+  function matchesDueRange(cardRange, filter) {
+    if (filter === 'today') return cardRange === 'today';
+    if (filter === '1-7') return cardRange === '1-7' || cardRange === 'overdue-1-7';
+    if (filter === '7-30') return cardRange === '7-30' || cardRange === 'overdue-7-30';
+    if (filter === '30plus') return cardRange === '30plus' || cardRange === 'overdue-30plus';
+    if (filter === 'soon') return cardRange === 'today' || cardRange === '1-7';
+    return false;
+  }
+
+  function filterByStatus(status) {
+    activeStatusFilter = status;
+    document.querySelectorAll('.history-filter-btn').forEach(btn => {
+      const isActive = btn.dataset.filterStatus === status;
+      btn.classList.toggle('active', isActive);
+      if (isActive) {
+        btn.classList.add('bg-black', 'text-white', 'border-black');
+        btn.classList.remove('bg-white', 'border-gray-200');
+      } else {
+        btn.classList.remove('bg-black', 'text-white', 'border-black');
+        btn.classList.add('bg-white', 'border-gray-200');
+      }
+    });
+    applyAllFilters();
+  }
+
+  function filterByDue(due) {
+    activeDueFilter = due;
+    document.querySelectorAll('.history-due-btn').forEach(btn => {
+      const isActive = btn.dataset.filterDue === due;
+      btn.classList.toggle('active', isActive);
+      if (isActive) {
+        btn.classList.add('bg-black', 'text-white', 'border-black');
+        btn.classList.remove('bg-white', 'border-gray-200');
+      } else {
+        btn.classList.remove('bg-black', 'text-white', 'border-black');
+        btn.classList.add('bg-white', 'border-gray-200');
+      }
+    });
+    applyAllFilters();
+  }
+
+  function sortInvoices(sortBy) {
+    const container = document.querySelector('#view-all .flex.flex-col');
+    if (!container) return;
+    const cards = Array.from(container.querySelectorAll(':scope > .log-card'));
+    cards.sort((a, b) => {
+      switch (sortBy) {
+        case 'newest': return (parseInt(b.dataset.created) || 0) - (parseInt(a.dataset.created) || 0);
+        case 'oldest': return (parseInt(a.dataset.created) || 0) - (parseInt(b.dataset.created) || 0);
+        case 'amount-high': return (parseFloat(b.dataset.amount) || 0) - (parseFloat(a.dataset.amount) || 0);
+        case 'amount-low': return (parseFloat(a.dataset.amount) || 0) - (parseFloat(b.dataset.amount) || 0);
+        case 'client-az': return (a.dataset.clientName || '').localeCompare(b.dataset.clientName || '');
+        default: return 0;
+      }
+    });
+    cards.forEach(card => container.appendChild(card));
+  }
+
+  // ── Apply URL params on load (from analytics links) ──
+  (function applyUrlFilters() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const statusParam = urlParams.get('status');
+    const dueParam = urlParams.get('due');
+    const unpaidParam = urlParams.get('unpaid');
+
+    if (statusParam && ['draft', 'sent', 'paid', 'overdue'].includes(statusParam)) {
+      filterByStatus(statusParam);
+    }
+    if (dueParam) {
+      const dueMap = { 'today': 'today', 'soon': 'soon', '1-7': '1-7', '7-30': '7-30', '30plus': '30plus' };
+      if (dueMap[dueParam]) filterByDue(dueMap[dueParam]);
+    }
+    if (unpaidParam === 'true') {
+      // Show all non-paid invoices
+      activeStatusFilter = '_unpaid';
+      getViewAllCards().forEach(card => {
+        card.classList.toggle('hidden', card.dataset.status === 'paid');
+      });
+      // Highlight no specific button
+    }
+  })();
 
   // Close on ESC
   document.addEventListener('keydown', (e) => {
@@ -1659,6 +1805,12 @@
     
     // 2. Show the selected view
     document.getElementById(`view-${viewName}`).classList.remove('hidden');
+
+    // Show/hide filter bar only on "All" tab
+    const filterBar = document.getElementById('history-filters');
+    if (filterBar) {
+      filterBar.style.display = viewName === 'all' ? '' : 'none';
+    }
     
     // Persist view choice
     localStorage.setItem('history_active_view', viewName);

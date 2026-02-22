@@ -381,8 +381,17 @@ ka:
   subcategory_placeholder: "აღწერა..."
   got_it: "გავიგე"
   due_today: "დღეს"
+  due_this_week: "ამ კვირაში"
+  due_this_month: "ამ თვეში"
   in_x_days: "%{count} დღეში"
   x_days_overdue: "%{count} დღის ვადაგადაცილება"
+  sort_by: "სორტირება"
+  sort_default: "ნაგულისხმევი"
+  sort_newest: "უახლესი"
+  sort_oldest: "უძველესი"
+  sort_amount_high: "თანხა (მაღალი)"
+  sort_amount_low: "თანხა (დაბალი)"
+  sort_client_az: "კლიენტი (ა-ჰ)"
   jan: "იან"
   feb: "თებ"
   mar: "მარ"
@@ -475,6 +484,43 @@ ka:
       default: "%a, %-d %b %Y %H:%M:%S %z"
       long: "%b %-d, %Y"
       short: "%-d %b %H:%M"
+
+  datetime:
+    distance_in_words:
+      about_x_hours:
+        one: "დაახლოებით 1 საათი"
+        other: "დაახლოებით %{count} საათი"
+      about_x_months:
+        one: "დაახლოებით 1 თვე"
+        other: "დაახლოებით %{count} თვე"
+      about_x_years:
+        one: "დაახლოებით 1 წელი"
+        other: "დაახლოებით %{count} წელი"
+      almost_x_years:
+        one: "თითქმის 1 წელი"
+        other: "თითქმის %{count} წელი"
+      half_a_minute: "ნახევარი წუთი"
+      less_than_x_seconds:
+        one: "1 წამზე ნაკლები"
+        other: "%{count} წამზე ნაკლები"
+      less_than_x_minutes:
+        one: "1 წუთზე ნაკლები"
+        other: "%{count} წუთზე ნაკლები"
+      over_x_years:
+        one: "1 წელზე მეტი"
+        other: "%{count} წელზე მეტი"
+      x_days:
+        one: "1 დღე"
+        other: "%{count} დღე"
+      x_minutes:
+        one: "1 წუთი"
+        other: "%{count} წუთი"
+      x_months:
+        one: "1 თვე"
+        other: "%{count} თვე"
+      x_seconds:
+        one: "1 წამი"
+        other: "%{count} წამი"
 
   # System Messages
   profile_saved: "პროფილი წარმატებით შეინახა!"
