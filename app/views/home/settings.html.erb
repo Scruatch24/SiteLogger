@@ -239,7 +239,7 @@
                 </div>
               </div>
 
-              <div id="pdfPreviewContainer" class="relative group md:cursor-pointer cursor-default w-full pointer-events-none <%= is_guest ? '' : 'md:pointer-events-auto' %>" onclick="<%= is_guest ? '' : 'openPdfModal()' %>">
+              <div id="pdfPreviewContainer" class="relative group md:cursor-pointer cursor-default w-full <%= is_guest ? 'pointer-events-none' : 'pointer-events-none md:pointer-events-auto' %>" onclick="<%= is_guest ? '' : 'openPdfModal()' %>">
                <%# Border Wrapper %>
                <div class="relative w-full aspect-[1/1.41] rounded-2xl border-2 border-black overflow-hidden bg-gray-50 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)]">
                  <div id="previewLoading" class="absolute inset-0 z-10 bg-white/80 flex items-center justify-center hidden">
@@ -926,19 +926,24 @@
     }
   };
 
-  document.addEventListener('click', () => {
-    document.getElementById('currencyMenu')?.classList.add('hidden');
-    document.getElementById('systemLanguageMenu')?.classList.add('hidden');
-    document.getElementById('documentLanguageMenu')?.classList.add('hidden');
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#currencySelectBtn') && !e.target.closest('#currencyMenu')) {
+      document.getElementById('currencyMenu')?.classList.add('hidden');
+    }
+    if (!e.target.closest('#systemLanguageSelectBtn') && !e.target.closest('#systemLanguageMenu')) {
+      document.getElementById('systemLanguageMenu')?.classList.add('hidden');
+    }
+    if (!e.target.closest('#documentLanguageSelectBtn') && !e.target.closest('#documentLanguageMenu')) {
+      document.getElementById('documentLanguageMenu')?.classList.add('hidden');
+    }
   });
 
   // PDF Modal
   window.openPdfModal = function() {
     const modal = document.getElementById('pdfModal');
-    const style = document.getElementById('invoice_style_input').value || "professional";
-    const color = document.getElementById('accent_color_input').value || "";
-    const url = "/logs/preview_pdf?style=" + style + "&accent_color=" + encodeURIComponent(color) + "&t=" + new Date().getTime() + "#toolbar=0&view=FitH";
-    
+    const style = document.getElementById('invoice_style_input').value || 'professional';
+    const color = document.getElementById('accent_color_input').value || '';
+    const url = '/logs/preview_pdf?style=' + style + '&accent_color=' + encodeURIComponent(color) + '&t=' + new Date().getTime() + '#toolbar=0&view=FitH';
     document.getElementById('pdfModalFrame').src = url;
     document.getElementById('pdfModalObject').data = url;
     modal.classList.remove('hidden');
@@ -976,7 +981,7 @@
   // --- AJAX Settings Save (Fetch-based) ---
   document.getElementById('settingsForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    
+
     const form = e.target;
     const btn = document.getElementById('saveSettingsBtn');
     const mobileBtn = document.getElementById('mobileSaveBtn');
@@ -986,7 +991,7 @@
     // UI Loading State
     const originalText = text.innerText;
     const mobileBtnSpan = mobileBtn ? mobileBtn.querySelector('span') : null;
-    const originalMobileText = mobileBtnSpan ? mobileBtnSpan.innerText : "";
+    const originalMobileText = mobileBtnSpan ? mobileBtnSpan.innerText : '';
     
     if (btn) {
       btn.disabled = true;
