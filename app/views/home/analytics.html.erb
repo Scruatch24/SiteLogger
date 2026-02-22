@@ -848,32 +848,52 @@
     font-weight: 500;
   }
 
-  /* Export Bottom Button */
-  .ana-export-bottom {
+  /* Export Buttons */
+  .ana-export-buttons {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 1.2rem;
+    max-width: 480px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .ana-export-btn {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
-    margin-top: 1.2rem;
-    padding: 14px 28px;
+    flex: 1;
+    padding: 14px 20px;
     border-radius: 16px;
-    border: 1px solid rgba(249,115,22,0.35);
-    background: rgba(249,115,22,0.08);
-    color: #f97316;
     font-size: 12px;
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     text-decoration: none;
     transition: all 0.2s ease;
-    max-width: 360px;
-    margin-left: auto;
-    margin-right: auto;
+    cursor: pointer;
   }
-  .ana-export-bottom:hover {
+  .ana-export-btn.csv {
+    border: 1px solid rgba(249,115,22,0.35);
+    background: rgba(249,115,22,0.08);
+    color: #f97316;
+  }
+  .ana-export-btn.csv:hover {
     background: rgba(249,115,22,0.15);
     border-color: rgba(249,115,22,0.55);
     box-shadow: 0 4px 16px rgba(249,115,22,0.15);
+  }
+  .ana-export-btn.pdf {
+    border: 1px solid rgba(96,165,250,0.35);
+    background: rgba(96,165,250,0.08);
+    color: #60a5fa;
+  }
+  .ana-export-btn.pdf:hover {
+    background: rgba(96,165,250,0.15);
+    border-color: rgba(96,165,250,0.55);
+    box-shadow: 0 4px 16px rgba(96,165,250,0.15);
   }
 
   /* Footer */
@@ -905,7 +925,7 @@
     .ana-chart-wrap { height: 220px; }
     .ana-health-banner { flex-wrap: wrap; }
     .ana-health-metrics { width: 100%; justify-content: space-around; margin-top: 0.5rem; }
-    .ana-export-bottom { max-width: 100%; }
+    .ana-export-buttons { max-width: 100%; flex-direction: column; }
     .ana-aging-expand-header { flex-direction: column; align-items: flex-start; }
   }
   @media (max-width: 400px) {
@@ -1298,11 +1318,17 @@
       </div>
     </section>
 
-    <!-- ═══════════════ EXPORT BUTTON ═══════════════ -->
-    <a href="<%= analytics_export_path %>" class="ana-export-bottom">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      <%= t('analytics_page.export_csv') %>
-    </a>
+    <!-- ═══════════════ EXPORT BUTTONS ═══════════════ -->
+    <div class="ana-export-buttons">
+      <a href="<%= analytics_export_path %>" class="ana-export-btn csv">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <%= t('analytics_page.export_csv') %>
+      </a>
+      <a href="<%= analytics_export_pdf_path %>" class="ana-export-btn pdf">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        <%= t('analytics_page.export_pdf') %>
+      </a>
+    </div>
 
     <div class="ana-footer">
       <p class="ana-footer-text"><%= t('analytics_page.footer') %></p>

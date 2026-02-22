@@ -159,60 +159,199 @@ class HomeController < ApplicationController
     end
 
     profile = @profile || current_user.profile || Profile.new
+    locale = profile.system_language.presence || I18n.locale
     today = Date.today
-    data = compute_invoice_analytics(current_user, profile, today)
 
-    currency_sym = case (profile.currency.presence || "USD")
-                   when "GEL" then "₾"
-                   when "EUR" then "€"
-                   when "GBP" then "£"
-                   else "$"
-                   end
+    I18n.with_locale(locale) do
+      data = compute_invoice_analytics(current_user, profile, today)
+      currency_code = profile.currency.presence || "USD"
+      currency_sym = currency_symbol_for(currency_code)
 
-    total_invoices = data[:status_counts].values.sum
-    earliest_log = current_user.logs.kept.minimum(:created_at)
-    period_start = earliest_log ? earliest_log.strftime("%B %d, %Y") : "N/A"
+      # ── Build per-invoice rows ──
+      invoice_rows = []
+      current_user.logs.kept.find_each do |log|
+        totals = helpers.calculate_log_totals(log, profile)
+        amount = totals[:total_due].to_f.round(2)
+        effective_status = log.current_status
+        parsed_due = log.parsed_due_date
+        days_to_pay = nil
+        aging_cat = "—"
 
-    csv_data = CSV.generate do |csv|
-      csv << ["TalkInvoice Analytics Export", today.strftime("%B %d, %Y")]
-      csv << []
+        if effective_status == "paid" && log.paid_at && log.created_at
+          days_to_pay = ((log.paid_at - log.created_at) / 1.day).round(1)
+        end
 
-      csv << ["PERIOD"]
-      csv << ["Report Date", today.strftime("%B %d, %Y")]
-      csv << ["Data From", period_start]
-      csv << ["Data To", today.strftime("%B %d, %Y")]
-      csv << ["Total Invoices in Period", total_invoices]
-      csv << ["Currency", profile.currency.presence || "USD"]
-      csv << []
+        if parsed_due
+          days_diff = (today - parsed_due).to_i
+          aging_cat = if effective_status == "paid"
+                        t("analytics_export.aging_paid")
+                      elsif days_diff < 0
+                        t("analytics_export.aging_not_due")
+                      elsif days_diff == 0
+                        t("analytics_export.aging_due_today")
+                      elsif days_diff <= 7
+                        t("analytics_export.aging_1_7")
+                      elsif days_diff <= 30
+                        t("analytics_export.aging_7_30")
+                      else
+                        t("analytics_export.aging_30_plus")
+                      end
+        end
 
-      csv << ["REVENUE SUMMARY"]
-      csv << ["Total Invoiced", "#{currency_sym}#{data[:total_invoiced]}"]
-      csv << ["Total Paid", "#{currency_sym}#{data[:total_paid_amount]}"]
-      csv << ["Total Outstanding", "#{currency_sym}#{data[:total_outstanding]}"]
-      csv << ["Total Overdue", "#{currency_sym}#{data[:total_overdue_amount]}"]
-      csv << ["Collected This Month", "#{currency_sym}#{data[:collected_this_month]}"]
-      csv << ["Projected Revenue", "#{currency_sym}#{data[:projected_revenue]}"]
-      csv << ["Average Invoice", "#{currency_sym}#{data[:avg_invoice]}"]
-      csv << ["Avg Days to Get Paid", data[:avg_days_to_pay] || "N/A"]
-      csv << ["Collection Rate", "#{data[:collection_rate]}%"]
-      csv << ["Health Score", "#{data[:health_score]}%"]
-      csv << []
-
-      csv << ["INVOICE STATUS"]
-      csv << ["Draft", data[:status_counts][:draft]]
-      csv << ["Sent", data[:status_counts][:sent]]
-      csv << ["Paid", data[:status_counts][:paid]]
-      csv << ["Overdue", data[:overdue_count]]
-      csv << []
-
-      csv << ["TOP CLIENTS"]
-      csv << ["Client", "Total Revenue", "Outstanding", "Invoices", "Last Invoice"]
-      data[:client_insights].each do |client|
-        csv << [client[:name], "#{currency_sym}#{client[:total]}", "#{currency_sym}#{client[:outstanding]}", client[:count], client[:last_at]&.strftime("%Y-%m-%d") || "—"]
+        invoice_rows << {
+          id: "INV-#{log.display_number}",
+          client: log.client.to_s.strip.presence || t("unknown_client"),
+          status: t("analytics_export.status_#{effective_status}", default: effective_status.capitalize),
+          amount: amount,
+          currency: currency_code,
+          due_date: parsed_due&.strftime("%Y-%m-%d") || "—",
+          paid_date: log.paid_at&.strftime("%Y-%m-%d") || "—",
+          days_to_pay: days_to_pay || "—",
+          aging: aging_cat
+        }
       end
+
+      csv_data = CSV.generate(encoding: "UTF-8") do |csv|
+        # ── Section 1: Invoice Summary ──
+        csv << [t("analytics_export.section_invoices")]
+        csv << [
+          t("analytics_export.col_invoice_id"),
+          t("analytics_export.col_client"),
+          t("analytics_export.col_status"),
+          t("analytics_export.col_amount"),
+          t("analytics_export.col_currency"),
+          t("analytics_export.col_due_date"),
+          t("analytics_export.col_paid_date"),
+          t("analytics_export.col_days_to_pay"),
+          t("analytics_export.col_aging")
+        ]
+        invoice_rows.each do |row|
+          csv << [row[:id], row[:client], row[:status], row[:amount], row[:currency], row[:due_date], row[:paid_date], row[:days_to_pay], row[:aging]]
+        end
+        csv << []
+
+        # ── Section 2: Financial Metrics ──
+        csv << [t("analytics_export.section_metrics")]
+        csv << [t("analytics_export.col_metric"), t("analytics_export.col_value"), t("analytics_export.col_notes")]
+        metrics = [
+          [t("analytics_export.metric_total_invoices"), data[:status_counts].values.sum, ""],
+          [t("analytics_export.metric_total_paid"), "#{currency_sym}#{data[:total_paid_amount]}", ""],
+          [t("analytics_export.metric_total_outstanding"), "#{currency_sym}#{data[:total_outstanding]}", ""],
+          [t("analytics_export.metric_overdue_count"), data[:overdue_count], ""],
+          [t("analytics_export.metric_collection_rate"), "#{data[:collection_rate]}%", ""],
+          [t("analytics_export.metric_projected_revenue"), "#{currency_sym}#{data[:projected_revenue]}", t("analytics_export.note_this_month")],
+          [t("analytics_export.metric_avg_invoice"), "#{currency_sym}#{data[:avg_invoice]}", ""],
+          [t("analytics_export.metric_avg_days_to_pay"), data[:avg_days_to_pay] || "—", ""],
+          [t("analytics_export.metric_health_score"), "#{data[:health_score]}%", data[:health_level]],
+          [t("analytics_export.metric_collected_this_month"), "#{currency_sym}#{data[:collected_this_month]}", ""],
+          [t("analytics_export.metric_total_invoiced"), "#{currency_sym}#{data[:total_invoiced]}", ""]
+        ]
+        metrics.each { |m| csv << m }
+        csv << []
+
+        # ── Section 3: Client Insights ──
+        csv << [t("analytics_export.section_clients")]
+        csv << [
+          t("analytics_export.col_client"),
+          t("analytics_export.col_total_invoiced"),
+          t("analytics_export.col_outstanding"),
+          t("analytics_export.col_repeat_client"),
+          t("analytics_export.col_last_invoice_date"),
+          t("analytics_export.col_top_client")
+        ]
+        data[:client_insights].each do |client|
+          repeat = client[:count] > 1 ? t("analytics_export.yes") : t("analytics_export.no")
+          top = client[:badges].include?("top_client") ? t("analytics_export.yes") : t("analytics_export.no")
+          csv << [
+            client[:name],
+            "#{currency_sym}#{client[:total]}",
+            "#{currency_sym}#{client[:outstanding]}",
+            repeat,
+            client[:last_at]&.strftime("%Y-%m-%d") || "—",
+            top
+          ]
+        end
+      end
+
+      bom = "\xEF\xBB\xBF"
+      send_data bom + csv_data, filename: "analytics_#{today.strftime('%Y-%m-%d')}.csv", type: "text/csv; charset=utf-8", disposition: "attachment"
+    end
+  end
+
+  def analytics_export_pdf
+    unless user_signed_in?
+      redirect_to root_path and return
     end
 
-    send_data csv_data, filename: "analytics_#{today.strftime('%Y%m%d')}.csv", type: "text/csv"
+    profile = @profile || current_user.profile || Profile.new
+    locale = profile.system_language.presence || I18n.locale
+    today = Date.today
+
+    I18n.with_locale(locale) do
+      data = compute_invoice_analytics(current_user, profile, today)
+      alerts = build_alerts(data, profile)
+      currency_code = profile.currency.presence || "USD"
+      currency_sym = currency_symbol_for(currency_code)
+
+      # Build invoice rows for PDF
+      invoice_rows = []
+      current_user.logs.kept.find_each do |log|
+        totals = helpers.calculate_log_totals(log, profile)
+        amount = totals[:total_due].to_f.round(2)
+        effective_status = log.current_status
+        parsed_due = log.parsed_due_date
+        days_to_pay = nil
+        aging_cat = "—"
+
+        if effective_status == "paid" && log.paid_at && log.created_at
+          days_to_pay = ((log.paid_at - log.created_at) / 1.day).round(1)
+        end
+
+        if parsed_due
+          days_diff = (today - parsed_due).to_i
+          aging_cat = if effective_status == "paid"
+                        t("analytics_export.aging_paid")
+                      elsif days_diff < 0
+                        t("analytics_export.aging_not_due")
+                      elsif days_diff == 0
+                        t("analytics_export.aging_due_today")
+                      elsif days_diff <= 7
+                        t("analytics_export.aging_1_7")
+                      elsif days_diff <= 30
+                        t("analytics_export.aging_7_30")
+                      else
+                        t("analytics_export.aging_30_plus")
+                      end
+        end
+
+        invoice_rows << {
+          id: "INV-#{log.display_number}",
+          client: log.client.to_s.strip.presence || t("unknown_client"),
+          status: effective_status,
+          status_label: t("analytics_export.status_#{effective_status}", default: effective_status.capitalize),
+          amount: amount,
+          currency: currency_code,
+          due_date: parsed_due&.strftime("%Y-%m-%d") || "—",
+          paid_date: log.paid_at&.strftime("%Y-%m-%d") || "—",
+          days_to_pay: days_to_pay || "—",
+          aging: aging_cat
+        }
+      end
+
+      pdf_data = AnalyticsPdfGenerator.new(
+        data: data,
+        alerts: alerts,
+        invoice_rows: invoice_rows,
+        client_insights: data[:client_insights],
+        currency_sym: currency_sym,
+        currency_code: currency_code,
+        today: today,
+        profile: profile,
+        locale: locale
+      ).render
+
+      send_data pdf_data, filename: "analytics_#{today.strftime('%Y-%m-%d')}.pdf", type: "application/pdf", disposition: "attachment"
+    end
   end
 
   def subscription
@@ -2510,6 +2649,17 @@ PROMPT
         payment_method_label: hash[:payment_method_label].presence
       }
     end.first(10)
+  end
+
+  def currency_symbol_for(code)
+    case code.to_s.upcase
+    when "GEL" then "₾"
+    when "EUR" then "€"
+    when "GBP" then "£"
+    when "JPY" then "¥"
+    when "CHF" then "CHF "
+    else "$"
+    end
   end
 
   # ── Single-pass invoice analytics (all aggregates in one loop) ──
