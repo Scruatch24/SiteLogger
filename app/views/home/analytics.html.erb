@@ -1,5 +1,5 @@
 <% content_for :head do %>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" data-turbo-track="reload"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <% end %>
 
 <%
@@ -1011,7 +1011,7 @@
   }
 </style>
 
-<div class="analytics-page" <%= @is_pro ? "data-controller=\"analytics-dashboard\" data-analytics-dashboard-data-url-value=\"#{analytics_data_path}\" data-analytics-dashboard-currency-symbol-value=\"#{@currency_symbol}\"" : "" %>>
+<div class="analytics-page" <%= raw(@is_pro ? "data-controller=\"analytics-dashboard\" data-analytics-dashboard-data-url-value=\"#{analytics_data_path}\" data-analytics-dashboard-currency-symbol-value=\"#{@currency_symbol}\"" : "") %>>
   <div class="pricing-bg"></div>
   <div class="pricing-grid"></div>
 
