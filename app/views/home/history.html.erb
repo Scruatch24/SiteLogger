@@ -2,10 +2,10 @@
 <style>
   .log-menu-dropdown {
     transition: all 0.3s cubic-bezier(0.19, 1, 0.22, 1);
-    transform: scale(0.95) translateY(-10px);
+    transform: scale(0.95) translateY(-20px);
     opacity: 0;
     pointer-events: none;
-    filter: blur(6px);
+    filter: blur(10px);
     transform-origin: top right;
   }
   .log-menu-dropdown.active {
@@ -16,44 +16,84 @@
   }
 
   /* Selection Mode Styles */
-  .log-card.selection-mode { cursor: pointer; }
+  .log-card.selection-mode {
+    cursor: pointer;
+  }
   .log-card.selected .card-inner {
     border-color: #f97316 !important;
-    box-shadow: 0 0 0 2px #f97316, 0 4px 16px rgba(249,115,22,0.15) !important;
+    box-shadow: 4px 4px 0px 0px #f97316 !important;
   }
-  .selection-checkbox { scale: 0; opacity: 0; }
-  .selection-checkbox svg { scale: 0; }
+  .selection-checkbox {
+    scale: 0;
+    opacity: 0;
+  }
+  .selection-checkbox svg {
+    scale: 0;
+  }
   .log-card.selected .selection-checkbox {
-    background-color: #f97316; border-color: #f97316; scale: 1; opacity: 1;
+    background-color: #f97316;
+    border-color: #f97316;
+    scale: 1;
+    opacity: 1;
   }
-  .log-card.selected .selection-checkbox svg { scale: 1; }
-  .log-card.selection-mode .selection-checkbox { scale: 1; opacity: 1; }
+  .log-card.selected .selection-checkbox svg {
+    scale: 1;
+  }
 
-  /* Status Badge Chevron */
-  .status-chevron { transition: transform 0.3s cubic-bezier(0.19, 1, 0.22, 1); }
-  .status-chevron.rotate-180 { transform: rotate(180deg); }
+  .log-card.selection-mode .selection-checkbox {
+    scale: 1;
+    opacity: 1;
+  }
 
-  /* Bulk Action Bar */
+  /* Transition the chevron down when selection mode is active */
+  .log-card .chevron-icon {
+    position: absolute;
+    top: 2px;
+    left: 50%;
+    margin-left: -10px; /* half of w-5 (20px) to center */
+    transition: top 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+  }
+  .log-card .chevron-icon.rotate-180 {
+    rotate: 180deg;
+  }
+  .log-card.selection-mode .chevron-icon {
+    top: 32px;
+  }
+
+  /* Status Badge Chevron Animation */
+  .status-chevron {
+    transition: transform 0.3s cubic-bezier(0.19, 1, 0.22, 1);
+  }
+  .status-chevron.rotate-180 {
+    transform: rotate(180deg);
+  }
+
   .bulk-action-bar {
-    position: fixed; bottom: 24px; left: 50%;
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
     transform: translateX(-50%) translateY(100px);
     z-index: 100;
     transition: all 0.4s cubic-bezier(0.19, 1, 0.22, 1);
-    opacity: 0; pointer-events: none;
+    opacity: 0;
+    pointer-events: none;
   }
   .bulk-action-bar.active {
-    transform: translateX(-50%) translateY(0); opacity: 1; pointer-events: auto;
-  }
-  .bulk-action-bar-inner {
-    background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
-    border: 2px solid rgba(0,0,0,0.15);
-    border-radius: 20px;
-    box-shadow: 0 8px 32px rgba(249,115,22,0.3), 0 2px 8px rgba(0,0,0,0.1);
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+    pointer-events: auto;
   }
 
-  /* Hamburger to X */
+  .bulk-action-bar-inner {
+    background-color: #f97316;
+    border: 3px solid black;
+    box-shadow: 8px 8px 0px 0px rgba(0,0,0,1);
+  }
+
+  /* Hamburger to X Morph */
   .log-menu-btn .line {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); transform-origin: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-origin: center;
   }
   .log-menu-btn.active .line-1 { transform: translateY(6px) rotate(45deg); }
   .log-menu-btn.active .line-2 { opacity: 0; transform: scaleX(0); }
@@ -62,132 +102,272 @@
   /* Icon Micro-Animations */
   @keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
   .group\/item:hover .icon-recreate { animation: spin-slow 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
-  @keyframes pen-draw { 0%, 100% { transform: translate(0,0); } 50% { transform: translate(2px, -2px); } }
+
+  @keyframes pen-draw { 
+    0%, 100% { transform: translate(0,0); }
+    50% { transform: translate(2px, -2px); }
+  }
   .group\/item:hover .icon-rename { animation: pen-draw 0.5s ease-in-out infinite; }
-  @keyframes pin-wobble { 0%, 100% { transform: rotate(0deg); } 25% { transform: rotate(-15deg); } 75% { transform: rotate(15deg); } }
+
+  @keyframes pin-wobble {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(-15deg); }
+    75% { transform: rotate(15deg); }
+  }
   .group\/item:hover .icon-pin { animation: pin-wobble 0.4s ease-in-out; }
-  @keyframes trash-lid { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px) rotate(-5deg); } }
+
+  @keyframes trash-lid {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-3px) rotate(-5deg); }
+  }
   .group\/item:hover .icon-delete-lid { animation: trash-lid 0.4s ease-in-out; }
 
-  /* Editable fields */
+  /* Base transition for all potentially editable fields to ensure smooth exit */
   [data-editable-type] {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); transform-origin: left center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    /* Ensure transform origin is useful if we scale */
+    transform-origin: left center;
   }
-  h3[data-editable-type][contenteditable="true"] { transform: translateY(6px); }
+
+  /* Specific tweak for Client Name to move it down visually when editing */
+  h3[data-editable-type][contenteditable="true"] {
+    transform: translateY(6px);
+  }
+
   [contenteditable="true"] {
-    outline: 2px dashed #3b82f6; outline-offset: 4px; border-radius: 4px;
-    background-color: #eff6ff; cursor: text; padding: 2px 4px; min-width: 20px;
-    margin-bottom: 20px; margin-top: 4px; position: relative; z-index: 10;
-    user-select: text !important; -webkit-user-select: text !important;
+    outline: 2px dashed #3b82f6;
+    outline-offset: 4px;
+    border-radius: 4px;
+    background-color: #eff6ff;
+    cursor: text;
+    padding: 2px 4px;
+    min-width: 20px;
+    /* transition is inherited/cascaded from base rule now, but we keep generic param just in case */
+    margin-bottom: 20px;
+    margin-top: 4px;
+    position: relative;
+    z-index: 10;
+    user-select: text !important;
+    -webkit-user-select: text !important;
   }
   [contenteditable="true"]:focus {
-    outline: 2px solid #3b82f6; background-color: white;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); z-index: 20;
+    outline: 2px solid #3b82f6;
+    background-color: white;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    z-index: 20;
   }
 
   /* Modal Styles */
   .modal-backdrop {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.4);
-    backdrop-filter: blur(8px); display: none;
-    align-items: center; justify-content: center; z-index: 100;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
   }
-  .modal-backdrop.active { display: flex; }
+  .modal-backdrop.active {
+    display: flex;
+  }
   .modal-content {
-    background: white; width: 100%; max-width: 400px;
-    border: 1px solid #e5e7eb; border-radius: 24px;
-    box-shadow: 0 25px 60px rgba(0,0,0,0.15), 0 4px 16px rgba(0,0,0,0.08);
-    padding: 24px; position: relative; max-height: 90vh; overflow-y: auto;
+    background: white;
+    width: 100%;
+    max-width: 400px;
+    border: 3px solid black;
+    border-radius: 24px;
+    box-shadow: 8px 8px 0px 0px rgba(0,0,0,1);
+    padding: 24px;
+    position: relative;
+    max-height: 90vh;
+    overflow-y: auto;
   }
-  .icon-option { cursor: pointer; border: 2px solid transparent; transition: all 0.2s; }
-  .icon-option.selected { border-color: #f97316; background: #fff7ed; }
+  .icon-option {
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.2s;
+  }
+  .icon-option.selected {
+    border-color: black;
+    background: #f3f4f6;
+  }
 
-  /* Manage Categories Modal */
-  .manage-category-item.removing-category { background-color: #fef2f2 !important; }
+  /* Custom Styles for Manage Categories Modal */
+  .manage-category-item.removing-category {
+    background-color: #fef2f2 !important; /* light red */
+  }
   .manage-category-item.removing-category .check-indicator {
-    background-color: #dc2626 !important; border-color: #dc2626 !important;
+    background-color: #dc2626 !important; /* dark red */
+    border-color: #dc2626 !important;
   }
+
   label:has(input[type="checkbox"]:checked) .check-indicator {
-    background-color: #f97316 !important; border-color: #f97316 !important; transform: scale(1.1);
+    background-color: #f97316 !important; /* orange */
+    border-color: #f97316 !important;
+    transform: scale(1.1);
   }
-  .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-  .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-  .custom-scrollbar::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #d1d5db; }
-
-  /* ── History Tile Grid ── */
-  .hist-tile {
-    border: 1px solid #e5e7eb; border-radius: 20px; background: white;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03);
-    transition: all 0.25s cubic-bezier(0.19, 1, 0.22, 1);
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
   }
-  .hist-tile:hover {
-    box-shadow: 0 8px 24px rgba(0,0,0,0.08); transform: translateY(-2px);
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
   }
-  .hist-tile:active { transform: scale(0.97); }
-  .hist-tile-add {
-    border: 2px dashed #d1d5db; border-radius: 20px; background: #fafafa;
-    transition: all 0.2s ease;
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #e5e7eb;
+    border-radius: 10px;
   }
-  .hist-tile-add:hover {
-    border-color: #f97316; background: #fff7ed;
-    box-shadow: 0 4px 16px rgba(249,115,22,0.1);
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #d1d5db;
   }
 
-  /* ── Small-screen (≤430px) ── */
+  /* ── Small-screen (≤430px) responsive tightening ────────────── */
   @media (max-width: 430px) {
+    /* Modals: prevent clipping viewport */
     .modal-content {
-      max-width: calc(100vw - 24px); padding: 18px; border-radius: 20px;
+      max-width: calc(100vw - 24px);
+      padding: 18px;
+      border-width: 2px;
+      border-radius: 20px;
+      box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);
     }
-    .log-card h3 { font-size: 1.05rem; }
-    .log-menu-dropdown { min-width: 160px; }
-    .log-menu-dropdown .px-4 { padding-left: 12px; padding-right: 12px; }
-    .log-menu-btn { width: 34px; height: 34px; }
-    #categories-index .grid, #clients-index .grid { gap: 10px; }
-    .min-h-screen.text-black.font-sans { padding: 10px; padding-bottom: 8rem; }
-    #historySearch { padding-top: 10px; padding-bottom: 10px; font-size: 13px; }
+
+    /* Bulk action bar: reduce shadow */
+    .bulk-action-bar-inner {
+      border-width: 2px;
+      box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);
+    }
+
+    /* Log cards: lighter borders and shadow */
+    .log-card .card-inner {
+      box-shadow: 3px 3px 0px 0px rgba(0,0,0,1);
+    }
+    .log-card .card-inner .bg-gray-50.border-b-2 {
+      padding: 12px 12px 10px;
+    }
+    .log-card .card-inner .bg-gray-50.border-t-2 {
+      padding: 12px;
+    }
+
+    /* Log card header: tighten */
+    .log-card .header-main .min-w-0 .flex-wrap {
+      gap: 3px;
+    }
+    .log-card .header-main h3 {
+      font-size: 1.1rem;
+    }
+
+    /* Log card menu dropdown */
+    .log-menu-dropdown {
+      min-width: 160px;
+    }
+    .log-menu-dropdown .px-4 {
+      padding-left: 12px;
+      padding-right: 12px;
+    }
+
+    /* Log card hamburger button: slightly smaller */
+    .log-menu-btn {
+      width: 36px;
+      height: 36px;
+    }
+
+    /* Tile grids (Categories + Clients): tighter for narrow screens */
+    #categories-index .grid,
+    #clients-index .grid {
+      gap: 10px;
+    }
+    #categories-index .grid > *,
+    #clients-index .grid > * {
+      border-width: 3px;
+      border-radius: 20px;
+      box-shadow: 5px 5px 0px 0px rgba(0,0,0,1);
+    }
+    #categories-index .grid > *:first-child,
+    #clients-index .grid > *:first-child {
+      box-shadow: none;
+    }
+
+    /* Tile inner avatars: smaller */
+    #categories-index .w-14,
+    #clients-index .w-14 {
+      width: 44px;
+      height: 44px;
+    }
+    #categories-index .w-14 svg,
+    #clients-index .w-14 svg {
+      width: 22px;
+      height: 22px;
+    }
+
+    /* Client/Category detail header: keep back + action buttons on same row */
+
+    /* Outer padding: reduce from p-4 to p-3 */
+    .min-h-screen.text-black.font-sans {
+      padding: 10px;
+      padding-bottom: 8rem;
+    }
+
+    /* Log card list gap: reduce from gap-20 to gap-16 */
+    .flex.flex-col.gap-20 {
+      gap: 3.5rem;
+    }
+
+    /* Search bar: slightly smaller */
+    #historySearch {
+      padding-top: 10px;
+      padding-bottom: 10px;
+      font-size: 13px;
+    }
   }
 </style>
 
 <div class="min-h-screen text-black font-sans p-4 pb-32">
-  <header class="px-1 pt-2 pb-4 mb-1 flex items-center justify-center">
-    <h1 class="text-lg md:text-xl font-black tracking-tight text-gray-900 uppercase">
-      <% if I18n.locale == :ka %>
-        <%= t('history') %>
-      <% else %>
-        <%= t('history_logs') %>
-      <% end %>
-    </h1>
+  <header class="md:static md:bg-transparent px-1 py-3 mb-2 md:mb-4 flex items-center justify-center gap-2 md:gap-4">
+    <div class="flex items-center gap-3">
+      <h1 class="text-xl md:text-2xl font-black tracking-tighter text-black uppercase truncate pr-2">
+        <% if I18n.locale == :ka %>
+          <%= t('history') %>
+        <% else %>
+          <%= t('history_logs') %>
+        <% end %>
+      </h1>
+    </div>
   </header>
 
+
+
   <main class="max-w-2xl mx-auto">
-    <!-- Tabs -->
+    <!-- Tabs / Selectors -->
     <div class="mb-4 px-4 <%= 'opacity-30 grayscale pointer-events-none select-none' if @profile.guest? %>">
-       <div class="relative flex p-1 bg-gray-100 rounded-xl overflow-hidden h-11">
+       <!-- Brutalist Premium View Selector -->
+       <div class="relative flex p-1 bg-white rounded-2xl border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden h-14">
+        <!-- Sliding Highlight Pill (Slim/Inset version) -->
          <div id="tab-highlight" 
-              class="absolute top-0 bottom-0 left-0 w-1/3 p-1 transition-all duration-500 ease-[cubic-bezier(0.19,1,0.22,1)]">
-           <div class="w-full h-full bg-white rounded-lg shadow-sm"></div>
+              class="absolute top-0 bottom-0 left-0 w-1/3 p-2 transition-all duration-500 ease-[cubic-bezier(0.19,1,0.22,1)]">
+           <div class="w-full h-full bg-orange-600 rounded-xl border-2 border-black"></div>
          </div>
 
          <button onclick="switchView('all')" id="tab-all" 
-                 class="relative z-10 flex-1 flex items-center justify-center text-[11px] font-black uppercase tracking-widest text-gray-900">
+                 class="relative z-10 flex-1 flex items-center justify-center text-xs font-black uppercase tracking-widest text-white">
            <%= t('all') %>
          </button>
          <button onclick="switchView('categories')" id="tab-categories" 
-                 class="relative z-10 flex-1 flex items-center justify-center text-[11px] font-bold uppercase tracking-widest text-gray-400">
+                 class="relative z-10 flex-1 flex items-center justify-center text-xs font-bold uppercase tracking-widest text-black/40">
            <%= t('categories') %>
          </button>
          <button onclick="switchView('clients')" id="tab-clients" 
-                 class="relative z-10 flex-1 flex items-center justify-center text-[11px] font-bold uppercase tracking-widest text-gray-400">
+                 class="relative z-10 flex-1 flex items-center justify-center text-xs font-bold uppercase tracking-widest text-black/40">
            <%= t('clients') %>
          </button>
        </div>
     </div>
 
     <!-- Search Bar -->
-    <div class="mb-5 px-4 <%= 'opacity-40 grayscale pointer-events-none select-none' if @profile.guest? %>">
+    <div class="mb-6 px-4 <%= 'opacity-40 grayscale pointer-events-none select-none' if @profile.guest? %>">
       <div class="relative w-full">
-        <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-          <svg class="h-4 w-4 text-gray-400">
+        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+          <svg class="h-5 w-5 text-gray-400">
             <use xlink:href="#icon-search"></use>
           </svg>
         </div>
@@ -195,7 +375,7 @@
                id="historySearch" 
                placeholder="<%= t('search_placeholder') %>" 
                autocomplete="off"
-               class="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-black placeholder-gray-400 font-medium focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400 focus:bg-white transition-all">
+               class="w-full pl-12 pr-4 py-3 bg-white border-2 border-black rounded-xl text-black placeholder-gray-400 font-bold focus:outline-none focus:ring-0 focus:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-shadow">
       </div>
     </div>
 
@@ -279,27 +459,27 @@
       <!-- FILTER & SORT BAR -->
       <style>
         .hf-bar { padding: 0 1rem; margin-bottom: 1rem; }
-        .hf-row { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.45rem; }
-        .hf-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; white-space: nowrap; margin-right: 2px; }
+        .hf-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+        .hf-label { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; white-space: nowrap; margin-right: 2px; }
         .hf-pill {
           display: inline-flex; align-items: center; gap: 4px;
-          padding: 4px 10px; border-radius: 8px; font-size: 10px; font-weight: 700;
-          text-transform: uppercase; letter-spacing: 0.04em; cursor: pointer;
-          border: 1px solid transparent; background: #f3f4f6; color: #6b7280;
+          padding: 5px 12px; border-radius: 999px; font-size: 10px; font-weight: 800;
+          text-transform: uppercase; letter-spacing: 0.06em; cursor: pointer;
+          border: 1.5px solid #e5e7eb; background: #fff; color: #6b7280;
           transition: all 0.18s ease; white-space: nowrap;
         }
-        .hf-pill:hover { background: #e5e7eb; color: #374151; }
-        .hf-pill.active { background: #fff7ed; border-color: #fdba74; color: #ea580c; font-weight: 800; }
+        .hf-pill:hover { border-color: #d1d5db; color: #374151; }
+        .hf-pill.active { background: #fff7ed; border-color: #fb923c; color: #ea580c; }
         .hf-pill .hf-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
         .hf-sort-row { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
         .hf-sort-btn {
-          padding: 4px 10px; border-radius: 8px; font-size: 9px; font-weight: 700;
-          text-transform: uppercase; letter-spacing: 0.04em; cursor: pointer;
-          border: 1px solid transparent; background: #f3f4f6; color: #9ca3af;
+          padding: 4px 10px; border-radius: 8px; font-size: 9px; font-weight: 800;
+          text-transform: uppercase; letter-spacing: 0.06em; cursor: pointer;
+          border: 1.5px solid #e5e7eb; background: #fff; color: #9ca3af;
           transition: all 0.18s ease; white-space: nowrap;
         }
-        .hf-sort-btn:hover { background: #e5e7eb; color: #6b7280; }
-        .hf-sort-btn.active { background: #f3f4f6; border-color: #d1d5db; color: #374151; font-weight: 800; }
+        .hf-sort-btn:hover { border-color: #d1d5db; color: #6b7280; }
+        .hf-sort-btn.active { background: #f3f4f6; border-color: #9ca3af; color: #374151; }
       </style>
       <div id="history-filters" class="hf-bar <%= 'opacity-30 grayscale pointer-events-none select-none' if @profile.guest? %>">
         <div class="hf-row">
@@ -340,7 +520,7 @@
             <p class="text-sm"><%= t('generate_invoices_hint') %></p>
           </div>
         <% else %>
-          <div class="flex flex-col gap-5 px-4 pt-2">
+          <div class="flex flex-col gap-20 px-4 pt-12">
             <% @logs.each do |log| %>
               <%= render partial: "home/log_card", locals: { log: log } %>
             <% end %>
@@ -356,20 +536,20 @@
 
         <!-- INDEX: GRID OF TILES -->
         <div id="categories-index" class="px-4">
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-2 gap-4">
             <!-- Add Category Tile -->
             <% is_category_locked = user_signed_in? && !current_user.profile&.paid? %>
             <button onclick="<%= is_category_locked ? 'if(window.showPremiumModal) window.showPremiumModal(true)' : 'openAddCategoryModal()' %>" 
-                    class="aspect-[4/3] hist-tile-add flex flex-col items-center justify-center gap-2.5 group active:scale-95 relative">
+                    class="aspect-[4/3] border-4 border-black border-dashed rounded-3xl bg-gray-50 flex flex-col items-center justify-center gap-3 hover:bg-white hover:border-solid hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transition-all group active:scale-95 relative">
               <% if is_category_locked %>
-                <span class="absolute top-3 right-3 bg-gray-900 text-white text-[7px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md leading-none">PRO</span>
+                <span class="absolute top-3 right-3 bg-black text-white text-[7px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded leading-none">PRO</span>
               <% end %>
-              <div class="w-10 h-10 rounded-xl bg-gray-200 text-gray-500 flex items-center justify-center group-hover:bg-orange-500 group-hover:text-white transition-all <%= 'opacity-40' if is_category_locked %>">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+              <div class="w-12 h-12 rounded-full bg-black text-white flex items-center justify-center group-hover:scale-110 transition-transform <%= 'opacity-40' if is_category_locked %>">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
                 </svg>
               </div>
-              <span class="text-[10px] font-bold uppercase tracking-widest text-gray-400 group-hover:text-orange-600 transition-colors <%= 'opacity-40' if is_category_locked %>"><%= t('new_category') %></span>
+              <span class="text-xs font-black uppercase tracking-widest text-black <%= 'opacity-40' if is_category_locked %>"><%= t('new_category') %></span>
             </button>
 
             <!-- Favorites Tile -->
@@ -378,15 +558,15 @@
                favorites = fav_cat ? fav_cat.logs : []
             %>
             <div onclick="enterCategory('favorites')" 
-                 class="aspect-[4/3] hist-tile flex flex-col items-center justify-center gap-2.5 cursor-pointer group">
-              <div class="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+                 class="aspect-[4/3] border-4 border-black rounded-3xl bg-white shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col items-center justify-center gap-3 cursor-pointer hover:-translate-y-1 hover:shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] transition-all active:scale-95 group">
+              <div class="w-14 h-14 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-500 border-2 border-black group-hover:scale-110 transition-transform">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 20 20" fill="currentColor">
                   <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                 </svg>
               </div>
               <div class="text-center">
-                <span class="block text-[11px] font-bold uppercase tracking-wider text-gray-800"><%= t('favorites') %></span>
-                <span id="fav-count" class="text-[10px] font-medium text-gray-400" data-category-count="favorites"><%= favorites.size %> <%= t('items') %></span>
+                <span class="block text-xs font-black uppercase tracking-widest"><%= t('favorites') %></span>
+                <span id="fav-count" class="text-[10px] font-bold text-gray-400 uppercase tracking-widest" data-category-count="favorites"><%= favorites.size %> <%= t('items') %></span>
               </div>
             </div>
 
@@ -394,20 +574,20 @@
             <% @categories.each do |category| %>
               <% next if category.name == 'Favorites' %>
               <div onclick="enterCategory('cat-<%= category.id %>')" 
-                   class="aspect-[4/3] hist-tile flex flex-col items-center justify-center gap-2.5 cursor-pointer group">
-                <div class="w-12 h-12 rounded-2xl flex items-center justify-center overflow-hidden relative group-hover:scale-110 transition-transform"
-                     style="<%= category.color.present? ? "background-color: #{category.color}12; color: #{category.color};" : "background-color: #f3f4f6; color: #374151;" %>">
+                   class="aspect-[4/3] border-4 border-black rounded-3xl bg-white shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col items-center justify-center gap-3 cursor-pointer hover:-translate-y-1 hover:shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] transition-all active:scale-95 group">
+                <div class="w-14 h-14 rounded-2xl flex items-center justify-center overflow-hidden relative border-2 border-black group-hover:scale-110 transition-transform"
+                     style="<%= category.color.present? ? "background-color: #{category.color}20; color: #{category.color};" : "background-color: #f3f4f6; color: black;" %>">
                    <% if category.icon_type == 'custom' && category.custom_icon.attached? %>
                      <%= image_tag category.custom_icon, class: "w-full h-full object-cover" %>
                    <% else %>
-                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+                     <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 20 20" fill="currentColor">
                        <%= category_icon_map[category.icon].to_s.html_safe %>
                      </svg>
                    <% end %>
                 </div>
                 <div class="text-center px-2">
-                  <span class="block text-[11px] font-bold uppercase tracking-wider text-gray-800 truncate max-w-[120px]"><%= category.name %></span>
-                  <span id="cat-count-<%= category.id %>" class="text-[10px] font-medium text-gray-400" data-category-count="cat-<%= category.id %>"><%= category.logs.size %> <%= t('items') %></span>
+                  <span class="block text-xs font-black uppercase tracking-widest truncate max-w-[120px]"><%= category.name %></span>
+                  <span id="cat-count-<%= category.id %>" class="text-[10px] font-bold text-gray-400 uppercase tracking-widest" data-category-count="cat-<%= category.id %>"><%= category.logs.size %> <%= t('items') %></span>
                 </div>
               </div>
             <% end %>
@@ -420,29 +600,29 @@
           <!-- Detail Containers -->
           <div id="category-detail-favorites" class="category-detail-view hidden">
             <!-- Back button row -->
-            <div class="flex items-center justify-between mb-5 min-h-[40px]">
-              <button onclick="exitCategory()" class="flex items-center gap-2 text-gray-500 hover:text-orange-600 transition-colors group">
-                <div class="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center group-hover:bg-orange-50 transition-all">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <div class="flex items-center justify-between mb-6 min-h-[48px]">
+              <button onclick="exitCategory()" class="flex items-center gap-2 text-black hover:text-orange-600 transition-colors group">
+                <div class="w-8 h-8 rounded-full border-2 border-black flex items-center justify-center group-hover:bg-orange-600 group-hover:text-white transition-all">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
                   </svg>
                 </div>
-                <span class="text-[10px] font-bold uppercase tracking-widest"><%= t('back_to_categories') %></span>
+                <span class="text-xs font-black uppercase tracking-widest"><%= t('back_to_categories') %></span>
               </button>
             </div>
-            <div class="flex items-center gap-3.5 mb-8">
-              <div class="w-13 h-13 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-500 flex-shrink-0" style="width:52px;height:52px;">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" viewBox="0 0 20 20" fill="currentColor">
+            <div class="flex items-center gap-4 mb-10">
+              <div class="w-16 h-16 bg-amber-50 rounded-3xl flex items-center justify-center text-amber-500 border-2 border-black flex-shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" viewBox="0 0 20 20" fill="currentColor">
                   <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                 </svg>
               </div>
               <div>
-                <h2 class="text-xl font-black uppercase tracking-tight text-gray-900"><%= t('favorites').upcase %></h2>
-                <p id="fav-detail-count" class="text-[10px] font-medium text-gray-400" data-category-count="favorites"><%= favorites.size %> <%= t('items_found') %></p>
+                <h2 class="text-2xl font-black uppercase tracking-tighter"><%= t('favorites').upcase %></h2>
+                <p id="fav-detail-count" class="text-xs font-bold text-gray-400 uppercase tracking-widest" data-category-count="favorites"><%= favorites.size %> <%= t('items_found') %></p>
               </div>
             </div>
             <% if favorites.any? %>
-            <div class="flex flex-col gap-5 pt-2">
+            <div class="flex flex-col gap-20 pt-12">
                 <% favorites.each do |log| %>
                   <% assignment = log.log_category_assignments.find { |a| a.category_id == fav_cat&.id } %>
                   <% pinned_state = assignment&.pinned_at.present? %>
@@ -460,21 +640,21 @@
             <% next if category.name == 'Favorites' %>
             <div id="category-detail-cat-<%= category.id %>" class="category-detail-view hidden">
               <!-- Back + Delete row -->
-              <div class="flex items-center justify-between mb-5">
-                <button onclick="exitCategory()" class="flex items-center gap-2 text-gray-500 hover:text-orange-600 transition-colors group">
-                  <div class="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center group-hover:bg-orange-50 transition-all">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+              <div class="flex items-center justify-between mb-6">
+                <button onclick="exitCategory()" class="flex items-center gap-2 text-black hover:text-orange-600 transition-colors group">
+                  <div class="w-8 h-8 rounded-full border-2 border-black flex items-center justify-center group-hover:bg-orange-600 group-hover:text-white transition-all">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
                     </svg>
                   </div>
-                  <span class="text-[10px] font-bold uppercase tracking-widest"><%= t('back_to_categories') %></span>
+                  <span class="text-xs font-black uppercase tracking-widest"><%= t('back_to_categories') %></span>
                 </button>
                 <div class="flex gap-2">
                   <%= button_tag type: 'button', 
-                                class: "p-2.5 bg-red-50 text-red-400 rounded-xl hover:bg-red-500 hover:text-white transition-all active:scale-90",
+                                class: "p-3 bg-red-50 text-red-500 rounded-2xl border-2 border-red-300 hover:bg-red-500 hover:text-white hover:border-red-500 transition-all active:scale-90",
                                 data: { category_id: category.id, category_name: category.name },
                                 onclick: "handleDeleteClick(this)" do %>
-                    <svg class="h-4 w-4">
+                    <svg class="h-5 w-5">
                       <use xlink:href="#icon-delete"></use>
                     </svg>
                   <% end %>
@@ -485,24 +665,25 @@
                 </form>
               </div>
               <!-- Category header info -->
-              <div class="flex items-center gap-3.5 mb-8">
-                <div class="rounded-2xl flex items-center justify-center overflow-hidden relative flex-shrink-0" style="width:52px;height:52px;<%= category.color.present? ? "background-color: #{category.color}12; color: #{category.color};" : "background-color: #f3f4f6; color: #374151;" %>">
+              <div class="flex items-center gap-4 mb-10">
+                <div class="w-16 h-16 rounded-3xl flex items-center justify-center overflow-hidden relative border-2 border-black flex-shrink-0"
+                     style="<%= category.color.present? ? "background-color: #{category.color}20; color: #{category.color};" : "background-color: #f3f4f6; color: black;" %>">
                    <% if category.icon_type == 'custom' && category.custom_icon.attached? %>
                      <%= image_tag category.custom_icon, class: "w-full h-full object-cover", loading: "lazy" %>
                    <% else %>
-                     <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" viewBox="0 0 20 20" fill="currentColor">
+                     <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" viewBox="0 0 20 20" fill="currentColor">
                        <%= category_icon_map[category.icon].to_s.html_safe %>
                      </svg>
                    <% end %>
                 </div>
                 <div>
-                  <h2 class="text-xl font-black uppercase tracking-tight text-gray-900"><%= category.name %></h2>
-                  <p id="cat-detail-count-<%= category.id %>" class="text-[10px] font-medium text-gray-400" data-category-count="cat-<%= category.id %>"><%= category.logs.size %> <%= t('items_found') %></p>
+                  <h2 class="text-2xl font-black uppercase tracking-tighter"><%= category.name %></h2>
+                  <p id="cat-detail-count-<%= category.id %>" class="text-xs font-bold text-gray-400 uppercase tracking-widest" data-category-count="cat-<%= category.id %>"><%= category.logs.size %> <%= t('items_found') %></p>
                 </div>
               </div>
 
               <% if category.logs.any? %>
-                <div class="flex flex-col gap-5 pt-2">
+                <div class="flex flex-col gap-20 pt-12">
                   <% category.logs.each do |log| %>
                     <% assignment = log.log_category_assignments.find { |a| a.category_id == category.id } %>
                     <% pinned_state = assignment&.pinned_at.present? %>
@@ -523,27 +704,27 @@
       <div id="view-clients" class="view-section hidden">
         <!-- CLIENTS INDEX: GRID OF TILES -->
         <div id="clients-index" class="px-4">
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-2 gap-4">
             <!-- Add Client Tile -->
             <button onclick="openAddClientModal()"
-                    class="aspect-[4/3] hist-tile-add flex flex-col items-center justify-center gap-2.5 group active:scale-95">
-              <div class="w-10 h-10 rounded-xl bg-gray-200 text-gray-500 flex items-center justify-center group-hover:bg-orange-500 group-hover:text-white transition-all">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                    class="aspect-[4/3] border-4 border-black border-dashed rounded-3xl bg-gray-50 flex flex-col items-center justify-center gap-3 hover:bg-white hover:border-solid hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transition-all group active:scale-95">
+              <div class="w-12 h-12 rounded-full bg-black text-white flex items-center justify-center group-hover:scale-110 transition-transform">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
                 </svg>
               </div>
-              <span class="text-[10px] font-bold uppercase tracking-widest text-gray-400 group-hover:text-orange-600 transition-colors"><%= t('new_client') %></span>
+              <span class="text-xs font-black uppercase tracking-widest text-black"><%= t('new_client') %></span>
             </button>
 
             <% @clients.each do |client| %>
               <div onclick="enterClient(<%= client.id %>)"
-                   class="aspect-[4/3] hist-tile flex flex-col items-center justify-center gap-2.5 cursor-pointer group relative">
-                <div class="w-12 h-12 bg-orange-50 rounded-2xl flex items-center justify-center text-orange-600 group-hover:scale-110 transition-transform font-bold text-sm">
+                   class="aspect-[4/3] border-4 border-black rounded-3xl bg-white shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col items-center justify-center gap-3 cursor-pointer hover:-translate-y-1 hover:shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] transition-all active:scale-95 group relative">
+                <div class="w-14 h-14 bg-orange-50 rounded-2xl flex items-center justify-center text-orange-600 border-2 border-black group-hover:scale-110 transition-transform font-black text-lg">
                   <%= client.display_initials %>
                 </div>
                 <div class="text-center px-2">
-                  <span class="block text-[11px] font-bold uppercase tracking-wider text-gray-800 truncate max-w-[120px]"><%= client.name %></span>
-                  <span class="text-[10px] font-medium text-gray-400"><%= client.invoices_count %> <%= t('items') %></span>
+                  <span class="block text-xs font-black uppercase tracking-widest truncate max-w-[120px]"><%= client.name %></span>
+                  <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest"><%= client.invoices_count %> <%= t('items') %></span>
                 </div>
               </div>
             <% end %>
@@ -567,42 +748,42 @@
             <% client_logs = client.logs.kept.order(created_at: :desc) %>
             <div id="client-detail-<%= client.id %>" class="client-detail-view hidden">
               <!-- Back + Edit/Delete row -->
-              <div class="flex items-center justify-between mb-5">
-                <button onclick="exitClient()" class="flex items-center gap-2 text-gray-500 hover:text-orange-600 transition-colors group">
-                  <div class="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center group-hover:bg-orange-50 transition-all">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+              <div class="flex items-center justify-between mb-6">
+                <button onclick="exitClient()" class="flex items-center gap-2 text-black hover:text-orange-600 transition-colors group">
+                  <div class="w-8 h-8 rounded-full border-2 border-black flex items-center justify-center group-hover:bg-orange-600 group-hover:text-white transition-all">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
                     </svg>
                   </div>
-                  <span class="text-[10px] font-bold uppercase tracking-widest"><%= t('back_to_clients') %></span>
+                  <span class="text-xs font-black uppercase tracking-widest"><%= t('back_to_clients') %></span>
                 </button>
-                <div class="flex gap-1.5">
-                  <button onclick="openEditClientModal(<%= client.id %>)" class="p-2.5 bg-blue-50 text-blue-400 rounded-xl hover:bg-blue-500 hover:text-white transition-all active:scale-90">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <div class="flex gap-2">
+                  <button onclick="openEditClientModal(<%= client.id %>)" class="p-3 bg-blue-50 text-blue-500 rounded-2xl border-2 border-blue-300 hover:bg-blue-500 hover:text-white hover:border-blue-500 transition-all active:scale-90">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                     </svg>
                   </button>
-                  <button onclick="confirmDeleteClient(<%= client.id %>, '<%= j(client.name) %>')" class="p-2.5 bg-red-50 text-red-400 rounded-xl hover:bg-red-500 hover:text-white transition-all active:scale-90">
-                    <svg class="h-4 w-4">
+                  <button onclick="confirmDeleteClient(<%= client.id %>, '<%= j(client.name) %>')" class="p-3 bg-red-50 text-red-500 rounded-2xl border-2 border-red-300 hover:bg-red-500 hover:text-white hover:border-red-500 transition-all active:scale-90">
+                    <svg class="h-5 w-5">
                       <use xlink:href="#icon-delete"></use>
                     </svg>
                   </button>
                 </div>
               </div>
               <!-- Client header info -->
-              <div class="flex items-center gap-3.5 mb-5">
-                <div class="bg-orange-50 rounded-2xl flex items-center justify-center text-orange-600 font-bold text-base flex-shrink-0" style="width:52px;height:52px;">
+              <div class="flex items-center gap-4 mb-6">
+                <div class="w-16 h-16 bg-orange-50 rounded-3xl flex items-center justify-center text-orange-600 border-2 border-black font-black text-xl flex-shrink-0">
                   <%= client.display_initials %>
                 </div>
                 <div>
-                  <h2 class="text-xl font-black uppercase tracking-tight text-gray-900"><%= client.name %></h2>
-                  <p class="text-[10px] font-medium text-gray-400"><%= client_logs.size %> <%= t('items_found') %></p>
+                  <h2 class="text-2xl font-black uppercase tracking-tighter"><%= client.name %></h2>
+                  <p class="text-xs font-bold text-gray-400 uppercase tracking-widest"><%= client_logs.size %> <%= t('items_found') %></p>
                 </div>
               </div>
 
               <!-- Client Contact Info -->
               <% if client.email.present? || client.phone.present? || client.address.present? %>
-                <div class="mb-5 p-3.5 bg-gray-50 rounded-xl border border-gray-100 flex flex-col gap-2">
+                <div class="mb-6 p-4 bg-gray-50 rounded-2xl border-2 border-gray-100 flex flex-col gap-2">
                   <% if client.email.present? %>
                     <div class="flex items-center gap-2 text-sm">
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -633,7 +814,7 @@
 
               <!-- Client's Invoices -->
               <% if client_logs.any? %>
-                <div class="flex flex-col gap-5 pt-2">
+                <div class="flex flex-col gap-20 pt-12">
                   <% client_logs.each do |log| %>
                     <%= render partial: "home/log_card", locals: { log: log, suffix: "-cli#{client.id}" } %>
                   <% end %>
@@ -653,39 +834,39 @@
 
   <!-- Bulk Action Bar -->
   <div id="bulkActionBar" class="bulk-action-bar w-[calc(100%-32px)] max-w-lg">
-    <div class="bulk-action-bar-inner w-full text-white p-3.5 flex items-center justify-between">
-      <div class="flex flex-col pl-1.5">
-        <span id="bulkCount" class="text-lg font-black tracking-tight leading-none">0 <%= t('items').upcase %></span>
-        <span class="text-[8px] font-bold uppercase tracking-[0.15em] text-white/60"><%= t('selected') %></span>
+    <div class="bulk-action-bar-inner w-full text-white rounded-3xl p-4 flex items-center justify-between">
+      <div class="flex flex-col pl-2">
+        <span id="bulkCount" class="text-xl font-black tracking-tighter leading-none">0 <%= t('items').upcase %></span>
+        <span class="text-[8px] font-black uppercase tracking-[0.2em] text-white/70"><%= t('selected') %></span>
       </div>
       
-      <div class="flex items-center gap-1.5">
+      <div class="flex items-center gap-2">
         <!-- Add to Category -->
-        <button onclick="handleBulkCategory()" class="w-10 h-10 rounded-xl bg-white/20 backdrop-blur text-white flex items-center justify-center hover:bg-white/30 transition-all">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+        <button onclick="handleBulkCategory()" class="w-12 h-12 rounded-2xl bg-white text-[#f97316] border-2 border-black flex items-center justify-center hover:bg-gray-100 transition-all group">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
           </svg>
         </button>
 
         <!-- Pin -->
-        <button onclick="handleBulkPin()" id="bulkPinBtn" class="w-10 h-10 rounded-xl bg-white/20 backdrop-blur text-white flex items-center justify-center hover:bg-white/30 transition-all">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+        <button onclick="handleBulkPin()" id="bulkPinBtn" class="w-12 h-12 rounded-2xl bg-white text-[#f97316] border-2 border-black flex items-center justify-center hover:bg-gray-100 transition-all group">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
           </svg>
         </button>
 
         <!-- Delete -->
-        <button onclick="handleBulkDelete()" class="w-10 h-10 rounded-xl bg-red-500/80 text-white flex items-center justify-center hover:bg-red-600 transition-all active:scale-90">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+        <button onclick="handleBulkDelete()" class="w-12 h-12 rounded-2xl bg-red-600 text-white border-2 border-black flex items-center justify-center hover:bg-red-700 transition-all group active:scale-90">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
           </svg>
         </button>
 
-        <div class="w-[1px] h-6 bg-white/20 mx-0.5"></div>
+        <div class="w-[1px] h-8 bg-white/20 mx-1"></div>
 
         <!-- Close Selection Mode -->
-        <button onclick="exitSelectionMode()" class="w-8 h-8 rounded-lg bg-white/15 text-white/80 flex items-center justify-center hover:bg-white/25 transition-all">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+        <button onclick="exitSelectionMode()" class="w-9 h-9 rounded-xl bg-white text-black flex items-center justify-center hover:bg-gray-100 transition-all">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
@@ -710,12 +891,12 @@
 
     <%= form_with(model: Category.new, url: categories_path, local: true, multipart: true, id: "categoryForm") do |f| %>
       <div class="mb-6 relative">
-        <div class="flex items-center gap-2 mb-2">
+        <div class="flex justify-between items-center mb-2">
           <label class="block text-[10px] font-black uppercase tracking-widest text-gray-500"><%= t('category_name') %></label>
           <span id="categoryNameError" class="hidden text-[10px] font-black uppercase tracking-widest text-red-500 animate-pulse"><%= t('please_fill_field') %></span>
         </div>
         <%= f.text_field :name, id: "categoryNameInput", placeholder: t('example_category_placeholder'), 
-            class: "w-full px-4 py-3 bg-white border border-gray-200 rounded-xl font-bold text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400 transition-all" %>
+            class: "w-full px-4 py-3 bg-white border-2 border-black rounded-xl font-bold focus:outline-none focus:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all" %>
       </div>
 
       <div class="mb-6">
@@ -772,7 +953,7 @@
         </div>
         
         <button type="button" onclick="document.getElementById('customIconInput').click()" 
-                class="w-full py-3 px-4 border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center gap-2 hover:bg-gray-50 hover:border-orange-400 transition-all group overflow-hidden relative">
+                class="w-full py-3 px-4 border-2 border-black border-dashed rounded-xl flex items-center justify-center gap-2 hover:bg-gray-100 transition-all group overflow-hidden relative">
           <div id="uploadPreview" class="absolute inset-0 bg-white items-center justify-center hidden">
              <img src="" id="iconPreview" class="h-8 w-8 object-cover rounded shadow-sm">
              <span class="ml-2 text-xs font-bold text-black truncate max-w-[150px]" id="fileName"></span>
@@ -785,7 +966,7 @@
         <%= f.file_field :custom_icon, id: "customIconInput", class: "hidden", accept: "image/*", onchange: "handleIconUpload(this)" %>
       </div>
 
-      <button type="submit" class="w-full py-3.5 bg-orange-600 text-white rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-orange-700 transition-all active:scale-[0.98] shadow-sm">
+      <button type="submit" class="w-full py-4 bg-black text-white rounded-xl font-black uppercase tracking-widest hover:shadow-[4px_4px_0px_0px_rgba(234,88,12,1)] hover:bg-orange-600 transition-all active:scale-[0.98]">
         <%= t('create_category') %>
       </button>
     <% end %>
@@ -808,7 +989,7 @@
     <input type="hidden" id="manageLogId">
 
     <!-- ═══ CATEGORIES Collapsible ═══ -->
-    <div class="mb-3 border border-gray-200 rounded-2xl overflow-hidden">
+    <div class="mb-3 border-2 border-black rounded-2xl overflow-hidden">
       <button type="button" onclick="toggleManageSection('categories')" class="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 transition-colors">
         <div class="flex items-center gap-2">
           <div class="w-7 h-7 rounded-lg bg-orange-100 flex items-center justify-center text-orange-600">
@@ -829,7 +1010,7 @@
             <input type="text" 
                    placeholder="<%= t('search_categories') %>" 
                    oninput="filterManageCategories(this.value)"
-                   class="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold focus:outline-none focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400 transition-all">
+                   class="w-full pl-9 pr-3 py-2 bg-gray-50 border-2 border-black rounded-xl text-sm font-bold focus:outline-none focus:bg-white transition-all">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
@@ -881,7 +1062,7 @@
     </div>
 
     <!-- ═══ CLIENTS Collapsible ═══ -->
-    <div class="mb-4 border border-gray-200 rounded-2xl overflow-hidden">
+    <div class="mb-4 border-2 border-black rounded-2xl overflow-hidden">
       <button type="button" onclick="toggleManageSection('clients')" class="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 transition-colors">
         <div class="flex items-center gap-2">
           <div class="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600">
@@ -902,7 +1083,7 @@
             <input type="text" 
                    placeholder="<%= t('search_clients') %>" 
                    oninput="filterManageClients(this.value)"
-                   class="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold focus:outline-none focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400 transition-all">
+                   class="w-full pl-9 pr-3 py-2 bg-gray-50 border-2 border-black rounded-xl text-sm font-bold focus:outline-none focus:bg-white transition-all">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
@@ -939,7 +1120,7 @@
       </div>
     </div>
 
-    <button id="saveCategoriesBtn" onclick="saveLogCategories()" class="w-full py-3.5 bg-orange-600 text-white rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-orange-700 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm">
+    <button id="saveCategoriesBtn" onclick="saveLogCategories()" class="w-full py-4 bg-orange-600 text-white rounded-xl font-black uppercase tracking-widest hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-700 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
       <%= t('save_changes') %>
     </button>
   </div>
@@ -956,10 +1137,10 @@
     <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-10"><%= t('delete_category_hint') %></p>
 
     <div class="flex flex-col gap-3">
-      <button id="finalDeleteBtn" class="w-full py-3.5 bg-red-600 text-white rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-red-700 transition-all active:scale-95 shadow-sm">
+      <button id="finalDeleteBtn" class="w-full py-4 bg-red-600 text-white rounded-xl font-black uppercase tracking-widest hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-red-700 transition-all active:scale-95">
         <%= t('delete_permanently') %>
       </button>
-      <button onclick="closeDeleteModal()" class="w-full py-3.5 bg-gray-100 text-gray-700 rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-gray-200 transition-all active:scale-95">
+      <button onclick="closeDeleteModal()" class="w-full py-4 bg-gray-100 text-black rounded-xl font-black uppercase tracking-widest hover:bg-gray-200 transition-all active:scale-95">
         <%= t('go_back') %>
       </button>
     </div>
@@ -982,11 +1163,11 @@
       <form id="deleteLogForm" method="post" action="">
         <input type="hidden" name="_method" value="delete">
         <input type="hidden" name="authenticity_token" value="<%= form_authenticity_token %>">
-        <button type="submit" class="w-full py-3.5 bg-red-600 text-white rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-red-700 transition-all active:scale-95 shadow-sm">
+        <button type="submit" class="w-full py-4 bg-red-600 text-white rounded-xl font-black uppercase tracking-widest hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-red-700 transition-all active:scale-95">
           <%= t('delete_permanently') %>
         </button>
       </form>
-      <button onclick="closeDeleteLogModal()" class="w-full py-3.5 bg-gray-100 text-gray-700 rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-gray-200 transition-all active:scale-95">
+      <button onclick="closeDeleteLogModal()" class="w-full py-4 bg-gray-100 text-black rounded-xl font-black uppercase tracking-widest hover:bg-gray-200 transition-all active:scale-95">
         <%= t('go_back') %>
       </button>
     </div>
@@ -1006,10 +1187,10 @@
     <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-10"><%= t('delete_selected_hint') %></p>
 
     <div class="flex flex-col gap-3">
-      <button onclick="performBulkDelete()" class="w-full py-3.5 bg-red-600 text-white rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-red-700 transition-all active:scale-95 shadow-sm">
+      <button onclick="performBulkDelete()" class="w-full py-4 bg-red-600 text-white rounded-xl font-black uppercase tracking-widest hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-red-700 transition-all active:scale-95">
         <%= t('delete_permanently') %>
       </button>
-      <button onclick="closeBulkDeleteModal()" class="w-full py-3.5 bg-gray-100 text-gray-700 rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-gray-200 transition-all active:scale-95">
+      <button onclick="closeBulkDeleteModal()" class="w-full py-4 bg-gray-100 text-black rounded-xl font-black uppercase tracking-widest hover:bg-gray-200 transition-all active:scale-95">
         <%= t('go_back') %>
       </button>
     </div>
@@ -1030,10 +1211,10 @@
     <p class="text-xs text-gray-500 mb-6"><%= t('mark_as_paid_hint').split('<br>').first.html_safe %></p>
 
     <div class="flex flex-col gap-2.5">
-      <button id="finalConfirmPaidBtn" class="w-full py-3.5 bg-green-600 text-white rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-green-700 transition-all active:scale-95 shadow-sm">
+      <button id="finalConfirmPaidBtn" class="w-full py-4 bg-green-600 text-white rounded-xl font-black uppercase tracking-widest hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-green-700 transition-all active:scale-95">
         <%= t('confirm_payment') %>
       </button>
-      <button onclick="closeConfirmPaidModal()" class="w-full py-3 bg-gray-100 text-gray-700 rounded-xl font-bold uppercase tracking-widest text-[10px] hover:bg-gray-200 transition-all active:scale-95">
+      <button onclick="closeConfirmPaidModal()" class="w-full py-3.5 bg-gray-100 text-black rounded-xl font-black uppercase tracking-widest hover:bg-gray-200 transition-all active:scale-95 text-[10px]">
         <%= t('wait_go_back') %>
       </button>
     </div>
@@ -1061,35 +1242,35 @@
           <span id="clientNameError" class="hidden text-[10px] font-black uppercase tracking-widest text-red-500 animate-pulse"><%= t('please_fill_field') %></span>
         </div>
         <input type="text" id="clientNameInput" placeholder="<%= t('client_placeholder') %>"
-               class="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl font-bold text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400 transition-all">
+               class="w-full px-4 py-3 bg-white border-2 border-black rounded-xl font-bold focus:outline-none focus:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all">
       </div>
 
       <div>
         <label class="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5"><%= t('client_email_label') %></label>
         <input type="email" id="clientEmailInput" placeholder="client@example.com"
-               class="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl font-bold text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400 transition-all">
+               class="w-full px-4 py-3 bg-white border-2 border-black rounded-xl font-bold focus:outline-none focus:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all">
       </div>
 
       <div>
         <label class="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5"><%= t('client_phone_label') %></label>
         <input type="tel" id="clientPhoneInput" placeholder="+1 555 123 4567"
-               class="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl font-bold text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400 transition-all">
+               class="w-full px-4 py-3 bg-white border-2 border-black rounded-xl font-bold focus:outline-none focus:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all">
       </div>
 
       <div>
         <label class="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5"><%= t('client_address_label') %></label>
         <textarea id="clientAddressInput" rows="2" placeholder="<%= t('client_address_placeholder') %>"
-                  class="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl font-bold text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400 transition-all resize-none"></textarea>
+                  class="w-full px-4 py-3 bg-white border-2 border-black rounded-xl font-bold focus:outline-none focus:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all resize-none"></textarea>
       </div>
 
       <div>
         <label class="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5"><%= t('client_notes_label') %></label>
         <textarea id="clientNotesInput" rows="2" placeholder="<%= t('client_notes_placeholder') %>"
-                  class="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl font-bold text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400 transition-all resize-none"></textarea>
+                  class="w-full px-4 py-3 bg-white border-2 border-black rounded-xl font-bold focus:outline-none focus:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all resize-none"></textarea>
       </div>
     </div>
 
-    <button id="saveClientBtn" onclick="saveClient()" class="w-full mt-6 py-3.5 bg-orange-600 text-white rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-orange-700 transition-all active:scale-[0.98] shadow-sm">
+    <button id="saveClientBtn" onclick="saveClient()" class="w-full mt-6 py-4 bg-black text-white rounded-xl font-black uppercase tracking-widest hover:shadow-[4px_4px_0px_0px_rgba(234,88,12,1)] hover:bg-orange-600 transition-all active:scale-[0.98]">
       <%= t('save_client') %>
     </button>
   </div>
@@ -1110,10 +1291,10 @@
     <input type="hidden" id="deleteClientId" value="">
 
     <div class="flex flex-col gap-3">
-      <button onclick="performDeleteClient()" class="w-full py-3.5 bg-red-600 text-white rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-red-700 transition-all active:scale-95 shadow-sm">
+      <button onclick="performDeleteClient()" class="w-full py-4 bg-red-600 text-white rounded-xl font-black uppercase tracking-widest hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-red-700 transition-all active:scale-95">
         <%= t('delete_permanently') %>
       </button>
-      <button onclick="closeDeleteClientModal()" class="w-full py-3.5 bg-gray-100 text-gray-700 rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-gray-200 transition-all active:scale-95">
+      <button onclick="closeDeleteClientModal()" class="w-full py-4 bg-gray-100 text-black rounded-xl font-black uppercase tracking-widest hover:bg-gray-200 transition-all active:scale-95">
         <%= t('go_back') %>
       </button>
     </div>
@@ -1480,11 +1661,45 @@
   let lastHoldTimestamp = 0;
 
   function handleHeaderClick(header, e) {
-    if (!isSelectionMode) return;
-    if (Date.now() - lastHoldTimestamp < 300) return;
-    if (e.target.closest('button') || e.target.closest('[contenteditable="true"]')) return;
-    const cardId = header.closest('.log-card').dataset.logId;
-    if (cardId) toggleSelection(cardId);
+    if (isSelectionMode) {
+      // Prevent immediate deselect if we just finished a hold-to-enter
+      if (Date.now() - lastHoldTimestamp < 300) return;
+
+      // In selection mode, ONLY the chevron allows toggling content
+      if (e.target.closest('[data-toggle-trigger]')) {
+        toggleLogContent(header, e);
+      } else {
+        // Otherwise, tap toggles selection
+        const cardId = header.closest('.log-card').querySelector('[id^="status-badge-"]').id.split('-').pop();
+        toggleSelection(cardId);
+      }
+      return;
+    }
+    // Normal mode: whole header toggles
+    toggleLogContent(header, e);
+  }
+
+  function toggleLogContent(header, e) {
+    // Prevent toggle if renaming or interacting with buttons
+    if (e.target.closest('[contenteditable="true"]') || e.target.closest('button')) return;
+
+    // Also prevent toggle if we are currently in "Renaming Mode" on this card
+    const card = header.closest('.group\\/card');
+    const renameBtn = card.querySelector('.rename-btn');
+    if (renameBtn && renameBtn.dataset.editing === "true") return;
+
+    const content = card.querySelector('.collapsible-content');
+    const chevron = header.querySelector('.chevron-icon');
+    
+    const isExpanded = content.classList.contains('grid-rows-[1fr]');
+    
+    if (isExpanded) {
+      content.classList.replace('grid-rows-[1fr]', 'grid-rows-[0fr]');
+      chevron.classList.remove('rotate-180');
+    } else {
+      content.classList.replace('grid-rows-[0fr]', 'grid-rows-[1fr]');
+      chevron.classList.add('rotate-180');
+    }
   }
 
   function handleRecreate(btn) {
@@ -1601,12 +1816,12 @@
       const btn = document.getElementById(`tab-${tab}`);
       if (tab === viewName) {
         // Active Style
-        btn.classList.add('text-gray-900', 'font-black');
-        btn.classList.remove('text-gray-400', 'font-bold');
+        btn.classList.add('text-white', 'font-black');
+        btn.classList.remove('text-black/40', 'font-bold');
       } else {
         // Inactive Style
-        btn.classList.add('text-gray-400', 'font-bold');
-        btn.classList.remove('text-gray-900', 'font-black');
+        btn.classList.add('text-black/40', 'font-bold');
+        btn.classList.remove('text-white', 'font-black');
       }
     });
 
