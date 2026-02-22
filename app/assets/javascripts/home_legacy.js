@@ -3916,7 +3916,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
 
   div.innerHTML = `
     <div class="flex items-center gap-2 w-full">
-      <div class="flex flex-1 items-center border-2 border-black rounded-xl bg-white min-w-0 main-item-box transition-colors relative">
+      <div class="flex flex-1 items-center border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] min-w-0 main-item-box transition-colors relative">
         <!-- Add Sub-category Button -->
         <button type="button" onclick="addLaborSubCategory(this)" class="h-8 w-9 border-r-2 border-black flex-shrink-0 flex items-center justify-center bg-white transition-colors rounded-l-[10px] labor-add-sub-btn" title="${window.APP_LANGUAGES.add_subcategory || 'Add Description'}">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-black transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">

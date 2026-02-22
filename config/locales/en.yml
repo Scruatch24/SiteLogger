@@ -561,6 +561,11 @@ en:
     invoice_design: "Invoice Design"
     default_instructions: "Default Instructions for AI"
     analytics: "Analytics"
+    integrations: "Integrations"
+  connect_google: "Connect with Google"
+  google_connected: "Connected"
+  google_disconnect: "Disconnect"
+  google_integration_desc: "Link your Google account to enable calendar sync and more."
   modal:
     preview: "Preview"
     transcript: "Transcript"

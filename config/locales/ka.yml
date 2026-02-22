@@ -608,6 +608,11 @@ ka:
     invoice_design: "ინვოისის დიზაინი"
     default_instructions: "AI-ის ნაგულისხმები ინსტრუქციები"
     analytics: "ანალიტიკა"
+    integrations: "ინტეგრაციები"
+  connect_google: "Google-თან დაკავშირება"
+  google_connected: "დაკავშირებულია"
+  google_disconnect: "გათიშვა"
+  google_integration_desc: "დააკავშირეთ თქვენი Google ანგარიში კალენდრის სინქრონიზაციისთვის."
   modal:
     preview: "გადახედვა"
     transcript: "ტექსტი"
