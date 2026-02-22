@@ -414,6 +414,121 @@
   }
 
   /* ============================================ */
+  /* SCREEN 7 — ANALYTICS BAR CHART                */
+  /* ============================================ */
+  .onb-ana-visual {
+    position: relative;
+    width: 280px; height: 200px;
+    margin-bottom: 2.5rem;
+    display: flex; align-items: flex-end; justify-content: center;
+  }
+  .onb-ana-glow {
+    position: absolute;
+    bottom: 20px; left: 50%;
+    transform: translateX(-50%);
+    width: 160px; height: 60px;
+    border-radius: 50%;
+    background: radial-gradient(ellipse, rgba(249,115,22,0.18) 0%, transparent 70%);
+    opacity: 0;
+    transition: opacity 0.6s ease 0.3s;
+  }
+  .onb-screen.active .onb-ana-glow { opacity: 1; animation: onbAnaGlow 3s ease-in-out infinite; }
+  @keyframes onbAnaGlow {
+    0%,100% { transform: translateX(-50%) scale(1); opacity: 0.8; }
+    50%     { transform: translateX(-50%) scale(1.15); opacity: 1; }
+  }
+
+  .onb-ana-chart {
+    position: absolute;
+    bottom: 16px; left: 50%;
+    transform: translateX(-50%);
+    width: 160px; height: 110px;
+    display: flex; align-items: flex-end; gap: 8px;
+  }
+  .onb-ana-baseline {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 1.5px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 1px;
+  }
+  .onb-ana-bar {
+    flex: 1;
+    border-radius: 5px 5px 2px 2px;
+    transform-origin: bottom center;
+    transform: scaleY(0);
+    opacity: 0;
+    transition: transform 0.6s cubic-bezier(0.34, 1.4, 0.64, 1), opacity 0.3s ease;
+  }
+  .onb-screen.active .onb-ab-1 { transform: scaleY(1); opacity: 1; transition-delay: 0.15s; }
+  .onb-screen.active .onb-ab-2 { transform: scaleY(1); opacity: 1; transition-delay: 0.28s; }
+  .onb-screen.active .onb-ab-3 { transform: scaleY(1); opacity: 1; transition-delay: 0.41s; }
+  .onb-screen.active .onb-ab-4 { transform: scaleY(1); opacity: 1; transition-delay: 0.54s; }
+  .onb-screen.active .onb-ab-5 { transform: scaleY(1); opacity: 1; transition-delay: 0.67s; }
+  .onb-screen.active .onb-ab-6 { transform: scaleY(1); opacity: 1; transition-delay: 0.80s; }
+  .onb-ab-1 { height: 42px;  background: linear-gradient(to top, rgba(249,115,22,0.5), rgba(249,115,22,0.15)); }
+  .onb-ab-2 { height: 62px;  background: linear-gradient(to top, rgba(249,115,22,0.6), rgba(249,115,22,0.2)); }
+  .onb-ab-3 { height: 50px;  background: linear-gradient(to top, rgba(249,115,22,0.5), rgba(249,115,22,0.15)); }
+  .onb-ab-4 { height: 80px;  background: linear-gradient(to top, rgba(249,115,22,0.75), rgba(249,115,22,0.25)); }
+  .onb-ab-5 { height: 68px;  background: linear-gradient(to top, rgba(249,115,22,0.65), rgba(249,115,22,0.2)); }
+  .onb-ab-6 { height: 100px; background: linear-gradient(to top, #f97316, rgba(249,115,22,0.35)); box-shadow: 0 0 16px rgba(249,115,22,0.35); }
+
+  .onb-ana-trend {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.5s ease 1.1s;
+  }
+  .onb-screen.active .onb-ana-trend { opacity: 1; }
+  .onb-ana-trend-line {
+    stroke-dasharray: 160;
+    stroke-dashoffset: 160;
+    transition: stroke-dashoffset 1s ease 1.2s;
+  }
+  .onb-screen.active .onb-ana-trend-line { stroke-dashoffset: 0; }
+  .onb-ana-trend-dot {
+    opacity: 0;
+    transform: scale(0);
+    transform-origin: 110px 8px;
+    transition: opacity 0.3s ease 2.2s, transform 0.4s cubic-bezier(0.34,1.56,0.64,1) 2.2s;
+  }
+  .onb-screen.active .onb-ana-trend-dot { opacity: 1; transform: scale(1); }
+
+  /* Floating metric chips */
+  .onb-ana-chip {
+    position: absolute;
+    display: flex; flex-direction: column; gap: 2px;
+    padding: 8px 14px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+    opacity: 0;
+    transition: opacity 0.6s ease, transform 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 4;
+  }
+  .onb-ac-revenue { top: 0; left: 0; transform: translate(-20px, 10px) scale(0.8); }
+  .onb-ac-due     { top: 10px; right: 0; transform: translate(20px, 0px) scale(0.8); }
+  .onb-ac-clients { bottom: 10px; left: 12px; transform: translate(-16px, 16px) scale(0.8); }
+  .onb-screen.active .onb-ac-revenue { opacity:1; transform:translate(0,0) scale(1); transition-delay: 0.9s; animation: onbFloat1 3.5s ease-in-out 1.8s infinite; }
+  .onb-screen.active .onb-ac-due     { opacity:1; transform:translate(0,0) scale(1); transition-delay: 1.1s; animation: onbFloat2 3.8s ease-in-out 2.0s infinite; }
+  .onb-screen.active .onb-ac-clients { opacity:1; transform:translate(0,0) scale(1); transition-delay: 1.3s; animation: onbFloat3 3.2s ease-in-out 2.2s infinite; }
+  .onb-ac-label {
+    font-size: 8px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: rgba(255,255,255,0.35);
+  }
+  .onb-ac-val {
+    font-size: 13px; font-weight: 900;
+    color: white; letter-spacing: -0.02em;
+  }
+  .onb-ac-up   { color: #4ade80; }
+  .onb-ac-warn { color: #fbbf24; }
+
+  /* ============================================ */
   /* SCREEN 3 — THREE-STEP FLOW                    */
   /* ============================================ */
   .onb-s3-visual {
@@ -1368,20 +1483,36 @@
 
     <!-- SCREEN 7: Professional Analytics -->
     <div class="onb-screen" data-screen="6">
-      <div class="onb-s2-visual" style="position:relative;">
-        <div class="onb-invoice-glow"></div>
-        <div style="width:72px; height:72px; border-radius:20px; background:rgba(249,115,22,0.15); border:2px solid rgba(249,115,22,0.3); display:flex; align-items:center; justify-content:center; margin:0 auto; position:relative; z-index:2;">
-          <svg style="width:36px; height:36px; color:#f97316;" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>
+      <div class="onb-ana-visual">
+        <div class="onb-ana-glow"></div>
+        <!-- Bar chart -->
+        <div class="onb-ana-chart">
+          <div class="onb-ana-baseline"></div>
+          <div class="onb-ana-bar onb-ab-1"></div>
+          <div class="onb-ana-bar onb-ab-2"></div>
+          <div class="onb-ana-bar onb-ab-3"></div>
+          <div class="onb-ana-bar onb-ab-4"></div>
+          <div class="onb-ana-bar onb-ab-5"></div>
+          <div class="onb-ana-bar onb-ab-6"></div>
+          <!-- Trend line -->
+          <svg class="onb-ana-trend" viewBox="0 0 120 60" fill="none" preserveAspectRatio="none">
+            <polyline class="onb-ana-trend-line" points="10,52 30,38 50,44 70,22 90,28 110,8" stroke="#f97316" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            <circle class="onb-ana-trend-dot" cx="110" cy="8" r="3.5" fill="#f97316"/>
           </svg>
         </div>
-        <div style="position:absolute; top:8px; right:20%; z-index:3;">
-          <span style="background:#f97316; color:white; font-size:8px; font-weight:900; padding:3px 10px; border-radius:9999px; text-transform:uppercase; letter-spacing:0.05em;"><%= t('onboarding.badge_pro') %></span>
+        <!-- Floating metric chips -->
+        <div class="onb-ana-chip onb-ac-revenue">
+          <span class="onb-ac-label">Revenue</span>
+          <span class="onb-ac-val onb-ac-up">+24%</span>
         </div>
-        <div class="onb-sparkle onb-sp1"></div>
-        <div class="onb-sparkle onb-sp2"></div>
-        <div class="onb-sparkle onb-sp4"></div>
-        <div class="onb-sparkle onb-sp5"></div>
+        <div class="onb-ana-chip onb-ac-due">
+          <span class="onb-ac-label">Outstanding</span>
+          <span class="onb-ac-val onb-ac-warn">₾ 1,840</span>
+        </div>
+        <div class="onb-ana-chip onb-ac-clients">
+          <span class="onb-ac-label">Clients</span>
+          <span class="onb-ac-val">12</span>
+        </div>
       </div>
       <h2 class="onb-headline"><%= raw t('onboarding.s7_headline_html') %></h2>
       <p class="onb-sub"><%= t('onboarding.s7_sub') %></p>
