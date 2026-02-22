@@ -44,6 +44,7 @@ class Log < ApplicationRecord
   end
 
   before_save :set_paid_at_on_status_change
+  before_save :refresh_cached_total_due
   before_create :assign_invoice_number
 
   def display_number
@@ -100,6 +101,15 @@ class Log < ApplicationRecord
     if status_changed? && status == "paid" && paid_at.nil?
       self.paid_at = Time.current
     end
+  end
+
+  def refresh_cached_total_due
+    return unless respond_to?(:cached_total_due)
+    profile = user&.profile || Profile.new
+    totals = ApplicationController.helpers.calculate_log_totals(self, profile)
+    self.cached_total_due = totals[:total_due].to_f.round(2)
+  rescue => e
+    Rails.logger.warn("Log#refresh_cached_total_due error for log #{id}: #{e.message}")
   end
 
   def assign_invoice_number

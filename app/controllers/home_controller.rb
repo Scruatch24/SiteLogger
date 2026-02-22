@@ -66,8 +66,9 @@ class HomeController < ApplicationController
     today = Date.today
 
     # ── Single-pass invoice analytics (cached) ──
-    cache_key = "analytics/v2/#{user_id}/#{logs.maximum(:updated_at).to_i}"
-    analytics_data = Rails.cache.fetch(cache_key, expires_in: 10.minutes) do
+    analytics_ttl = (ENV["ANALYTICS_CACHE_TTL"].to_i.positive? ? ENV["ANALYTICS_CACHE_TTL"].to_i : 600).seconds
+    cache_key = "analytics/v3/#{user_id}/#{logs.maximum(:updated_at).to_i}"
+    analytics_data = Rails.cache.fetch(cache_key, expires_in: analytics_ttl) do
       compute_invoice_analytics(current_user, profile, today)
     end
 
@@ -168,8 +169,20 @@ class HomeController < ApplicationController
                    else "$"
                    end
 
+    total_invoices = data[:status_counts].values.sum
+    earliest_log = current_user.logs.kept.minimum(:created_at)
+    period_start = earliest_log ? earliest_log.strftime("%B %d, %Y") : "N/A"
+
     csv_data = CSV.generate do |csv|
       csv << ["TalkInvoice Analytics Export", today.strftime("%B %d, %Y")]
+      csv << []
+
+      csv << ["PERIOD"]
+      csv << ["Report Date", today.strftime("%B %d, %Y")]
+      csv << ["Data From", period_start]
+      csv << ["Data To", today.strftime("%B %d, %Y")]
+      csv << ["Total Invoices in Period", total_invoices]
+      csv << ["Currency", profile.currency.presence || "USD"]
       csv << []
 
       csv << ["REVENUE SUMMARY"]
@@ -2884,8 +2897,9 @@ PROMPT
       .where(status: %w[draft sent overdue])
       .where(created_at: range)
       .group("DATE_TRUNC('#{trunc}', created_at)")
-      .count
+      .sum(:cached_total_due)
       .transform_keys { |k| k.strftime(trunc == "month" ? "%Y-%m" : "%Y-%m-%d") }
+      .transform_values { |v| v.to_f.round(2) }
   end
 
   def collected_time_series(user_id, period)
@@ -2901,8 +2915,9 @@ PROMPT
       .where(status: "paid")
       .where(paid_at: range)
       .group("DATE_TRUNC('#{trunc}', COALESCE(paid_at, updated_at))")
-      .count
+      .sum(:cached_total_due)
       .transform_keys { |k| k.strftime(trunc == "month" ? "%Y-%m" : "%Y-%m-%d") }
+      .transform_values { |v| v.to_f.round(2) }
   end
 
   def fill_time_series(data, period)
