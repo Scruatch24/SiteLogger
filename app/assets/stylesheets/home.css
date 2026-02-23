@@ -38,7 +38,7 @@ body {
   justify-content: space-between;
   gap: 1rem;
 }
-@media (min-width: 1024px) {
+@media (min-width: 1280px) {
   .site-header-inner {
     height: 64px;
     padding: 0 1.5rem;
@@ -46,7 +46,7 @@ body {
 }
 
 /* Compact sub-desktop header spacing — equal margins */
-@media (max-width: 1023px) {
+@media (max-width: 1279px) {
   .site-header-inner {
     padding: 0 10px;
     gap: 10px;
@@ -65,7 +65,7 @@ body {
     margin-left: 0;
     transition: margin-left 0.5s ease-in-out;
   }
-  @media (min-width: 1024px) {
+  @media (min-width: 1280px) {
     .site-logo {
       margin-left: 46px;
     }
@@ -85,7 +85,7 @@ body {
     box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
     flex-shrink: 0;
   }
-  @media (min-width: 1024px) {
+  @media (min-width: 1280px) {
     .site-logo-icon {
       width: 44px;
       height: 44px;
@@ -118,14 +118,14 @@ body {
   .site-logo.logo-text-open .site-logo-text {
     transform: translateX(0);
   }
-  @media (min-width: 1024px) {
+  @media (min-width: 1280px) {
     .site-logo-text {
       font-size: 1.5rem;
     }
   }
 
   /* Sub-desktop: just show logo icon, hide text */
-  @media (max-width: 1023px) {
+  @media (max-width: 1279px) {
     .site-logo {
       margin-left: 0;
       flex-shrink: 0;
@@ -141,12 +141,12 @@ body {
     align-items: center;
     gap: 0.25rem;
   }
-  @media (min-width: 1024px) {
+  @media (min-width: 1280px) {
     .site-nav-links {
       display: flex;
     }
   }
-  @media (max-width: 1023px) {
+  @media (max-width: 1279px) {
     .site-nav-links.mobile-fit-active {
       display: flex;
       flex: 0 0 auto;
@@ -164,7 +164,7 @@ body {
     background: #fff7ed;
   }
   /* Georgian: ~15% smaller nav buttons on sub-desktop */
-  @media (max-width: 1023px) {
+  @media (max-width: 1279px) {
     html[lang="ka"] .site-nav-link {
       font-size: 9.5px;
       padding: 0.3rem 0.625rem;
@@ -228,7 +228,7 @@ body {
     align-items: center;
     gap: 0.5rem;
   }
-  @media (min-width: 1024px) {
+  @media (min-width: 1280px) {
     .site-auth-links {
       display: flex;
     }
@@ -305,7 +305,7 @@ body {
   .site-hamburger.has-overflow {
     display: flex;
   }
-  @media (min-width: 1024px) {
+  @media (min-width: 1280px) {
     .site-hamburger, .site-hamburger.has-overflow {
       display: none !important;
     }

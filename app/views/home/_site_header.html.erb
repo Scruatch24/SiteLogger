@@ -315,8 +315,8 @@
     function fitNav() {
       var vw = window.innerWidth;
 
-      /* ── Desktop (≥ 1024): CSS handles everything ── */
-      if (vw >= 1024) {
+      /* ── Desktop (≥ 1280): CSS handles everything ── */
+      if (vw >= 1280) {
         navWrap.classList.remove('mobile-fit-active');
         navWrap.querySelectorAll('[data-nav-key]').forEach(function(el) {
           el.classList.remove('nav-hidden');
@@ -338,7 +338,7 @@
         el.style.width = '';
       });
 
-      var isTablet = vw >= 1024;
+      var isTablet = vw >= 1280;
       var logoW = logo.offsetWidth;
       var burgerW, authW = 0, budget, showKeys, fitted;
 
@@ -405,7 +405,7 @@
     requestAnimationFrame(fitNav);
 
     /* ── Logo hover animation (unchanged) ── */
-    const isMobile = () => window.innerWidth < 1024;
+    const isMobile = () => window.innerWidth < 1280;
     const VISITED_KEY = 'logoTextVisited';
 
     function attachDesktopHover() {
