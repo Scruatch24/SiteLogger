@@ -159,25 +159,29 @@
     const menuNav  = document.getElementById('siteMenuNav');
     if (!header || !navWrap || !burger) return;
 
-    const PRIORITY = ['home', 'history', 'settings', 'analytics', 'pricing'];
-    const ALT_MAP  = { settings: 'profile' };
+    const PRIORITY = ['home', 'history', 'settings', 'profile', 'analytics', 'pricing'];
     const EDGE_MARGIN = 10; /* equal margin on logo-left and burger-right */
     const NAV_GAP = 4;      /* gap between nav buttons */
 
-    /* Measure natural (minimum) widths once — uses desktop rendering */
+    /* Measure natural (minimum) widths once — isolate each item so flex can't compress */
     let natW = {};
     let measured = false;
 
     function measureNatural() {
       if (measured) return;
-      /* Temporarily show all items at their natural size */
-      navWrap.querySelectorAll('[data-nav-key]').forEach(el => {
+      var items = navWrap.querySelectorAll('[data-nav-key]');
+      items.forEach(function(el) {
         el.classList.remove('nav-hidden');
         el.style.width = '';
+        el.style.position = 'absolute';
+        el.style.visibility = 'hidden';
       });
-      /* Read widths */
-      navWrap.querySelectorAll('[data-nav-key]').forEach(el => {
-        natW[el.dataset.navKey] = el.offsetWidth;
+      items.forEach(function(el) {
+        natW[el.dataset.navKey] = el.getBoundingClientRect().width;
+      });
+      items.forEach(function(el) {
+        el.style.position = '';
+        el.style.visibility = '';
       });
       measured = true;
     }
@@ -236,7 +240,6 @@
       for (var i = 0; i < PRIORITY.length; i++) {
         var key = PRIORITY[i];
         var el  = navWrap.querySelector('[data-nav-key="' + key + '"]');
-        var alt = ALT_MAP[key] ? navWrap.querySelector('[data-nav-key="' + ALT_MAP[key] + '"]') : null;
         if (!el) continue;
 
         var w = natW[key] || 0;
@@ -245,18 +248,6 @@
         if (totalMinW + w + gapNeeded <= budget) {
           fitted.push({ key: key, el: el, minW: w });
           totalMinW += w + gapNeeded;
-          if (alt) overflowed.push(ALT_MAP[key]);
-        } else if (alt) {
-          var altKey = ALT_MAP[key];
-          var altW = natW[altKey] || 0;
-          if (totalMinW + altW + gapNeeded <= budget) {
-            fitted.push({ key: altKey, el: alt, minW: altW });
-            totalMinW += altW + gapNeeded;
-            overflowed.push(key);
-          } else {
-            overflowed.push(key);
-            overflowed.push(altKey);
-          }
         } else {
           overflowed.push(key);
         }
