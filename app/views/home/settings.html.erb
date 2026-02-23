@@ -419,13 +419,13 @@
                 <% can_disconnect_google = google_connected && user_signed_in? && current_user.confirmation_sent_at.present? %>
                 <div id="googleBtnContainer" class="flex items-center gap-2 flex-shrink-0">
                   <% if google_connected %>
-                    <span class="px-2 py-1 md:px-2.5 md:py-1 bg-green-50 border-2 border-green-400 rounded-xl text-[8px] md:text-[8px] font-black uppercase tracking-widest text-green-600 flex items-center gap-1.5">
+                    <span class="px-2.5 py-1 bg-green-50 border-2 border-green-400 rounded-xl text-[9px] font-black uppercase tracking-widest text-green-600 flex items-center gap-1.5">
                       <div class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
                       <%= t('google_connected') %>
                     </span>
                     <% if can_disconnect_google %>
                       <button type="button" id="googleDisconnectBtn" onclick="showDisconnectGoogleModal()"
-                              class="px-2 py-0.5 md:px-2 md:py-0.5 border border-red-300 rounded-lg text-[7px] md:text-[7px] font-bold uppercase tracking-widest transition-all active:scale-95 bg-white text-red-400 hover:bg-red-50 flex-shrink-0">
+                              class="px-2 py-0.5 border border-red-300 rounded-lg text-[8px] font-bold uppercase tracking-widest transition-all active:scale-95 bg-white text-red-400 hover:bg-red-50 flex-shrink-0">
                         <%= t('google_disconnect') %>
                       </button>
                     <% end %>

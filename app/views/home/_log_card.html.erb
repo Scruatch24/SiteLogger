@@ -17,7 +17,7 @@
                elsif _days_until_due && _days_until_due >= 8 && _days_until_due <= 30
                  "due_this_month"
                end
-  _due_range = if _days_until_due.nil?
+  _due_range = if _current_status == "paid" || _days_until_due.nil?
                  "none"
                elsif _days_until_due < 0
                  days_overdue = -_days_until_due
@@ -232,7 +232,7 @@
         <div class="w-1.5 h-1.5 rounded-full <%= _due_badge_config[:dot] %>"></div>
         <%= t(_due_label) %>
         <% if _days_until_due && _days_until_due > 0 %>
-          <span class="opacity-60">(<%= _days_until_due %>d)</span>
+          <span class="opacity-60">(<%= t('days_suffix', count: _days_until_due) %>)</span>
         <% end %>
       </div>
     <% end %>
