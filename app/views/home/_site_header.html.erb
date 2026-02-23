@@ -222,12 +222,12 @@
       if (!(getEl('history') && canFit('history'))) return keys;
       add('history');
 
-      var sEl = getEl('settings'), pEl = getEl('profile'), p3 = false;
-      if (sEl && canFit('settings')) {
-        add('settings'); p3 = true;
-        if (pEl && canFit('profile')) add('profile');
-      } else if (pEl && canFit('profile')) {
+      var pEl = getEl('profile'), sEl = getEl('settings'), p3 = false;
+      if (pEl && canFit('profile')) {
         add('profile'); p3 = true;
+        if (sEl && canFit('settings')) add('settings');
+      } else if (sEl && canFit('settings')) {
+        add('settings'); p3 = true;
       }
       if (!p3) return keys;
 
