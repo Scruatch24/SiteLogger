@@ -637,7 +637,7 @@
                fav_cat = @categories.find { |c| c.name == 'Favorites' } 
                favorites = fav_cat ? fav_cat.logs : []
             %>
-            <% fav_overdue = favorites.count { |l| l.status == 'overdue' } %>
+            <% fav_overdue = favorites.count { |l| l.current_status == 'overdue' } %>
             <div onclick="enterCategory('favorites')" 
                  class="aspect-[4/3] border-4 border-black rounded-3xl bg-white shadow-[5px_5px_0px_0px_rgba(0,0,0,1)] flex flex-col items-center justify-center gap-3 cursor-pointer hover:-translate-y-1 hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transition-all active:scale-95 group relative">
               <% if fav_overdue > 0 %>
@@ -659,7 +659,7 @@
             <!-- User Categories Tiles -->
             <% @categories.each do |category| %>
               <% next if category.name == 'Favorites' %>
-              <% cat_overdue = category.logs.count { |l| l.status == 'overdue' } %>
+              <% cat_overdue = category.logs.count { |l| l.current_status == 'overdue' } %>
               <div onclick="enterCategory('cat-<%= category.id %>')" 
                    class="aspect-[4/3] border-4 border-black rounded-3xl bg-white shadow-[5px_5px_0px_0px_rgba(0,0,0,1)] flex flex-col items-center justify-center gap-3 cursor-pointer hover:-translate-y-1 hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transition-all active:scale-95 group relative">
                 <% if cat_overdue > 0 %>
@@ -808,7 +808,7 @@
               <span class="text-xs font-black uppercase tracking-widest text-black"><%= t('new_client') %></span>
             </button>
 
-            <% client_overdue_map = Log.where(client_id: @clients.map(&:id), status: 'overdue').group(:client_id).count %>
+            <% client_overdue_map = {}; @clients.each { |c| cnt = c.logs.kept.count { |l| l.current_status == 'overdue' }; client_overdue_map[c.id] = cnt if cnt > 0 } %>
             <% @clients.each do |client| %>
               <% cl_overdue = client_overdue_map[client.id] || 0 %>
               <div onclick="enterClient(<%= client.id %>)"
@@ -2075,9 +2075,6 @@
     document.querySelectorAll('.category-detail-view').forEach(v => v.classList.add('hidden'));
     // Show the targeted one
     document.getElementById(`category-detail-${categoryId}`).classList.remove('hidden');
-    
-    // Scroll to top of categories section
-    document.getElementById('view-categories').scrollIntoView({ behavior: 'smooth' });
   }
 
   function exitCategory() {
@@ -2909,7 +2906,6 @@
     document.querySelectorAll('.client-detail-view').forEach(v => v.classList.add('hidden'));
     const detail = document.getElementById(`client-detail-${clientId}`);
     if (detail) detail.classList.remove('hidden');
-    document.getElementById('view-clients').scrollIntoView({ behavior: 'smooth' });
   }
 
   function exitClient() {
