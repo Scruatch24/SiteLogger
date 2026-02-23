@@ -141,11 +141,6 @@ body {
     align-items: center;
     gap: 0.25rem;
   }
-  @media (min-width: 1024px) {
-    .site-nav-links {
-      display: flex;
-    }
-  }
   @media (max-width: 1023px) {
     .site-nav-links.mobile-fit-active {
       display: flex;
@@ -202,9 +197,15 @@ body {
     min-width: 14px;
     min-height: 14px;
   }
+  .site-nav-link:not(.site-nav-active):not(.site-nav-pricing) {
+    background: #f3f4f6;
+  }
+  .site-nav-link.site-nav-pricing:not(.site-nav-active) {
+    background: #fff7ed;
+  }
   .site-nav-link:hover {
     color: black;
-    background: #f9fafb;
+    background: #e5e7eb;
   }
   .site-nav-link.site-nav-active {
     color: black;
