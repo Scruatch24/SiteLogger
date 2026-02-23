@@ -165,8 +165,8 @@
      *
      * Fitting priority:
      *   1. Home  2. History  (always tried first)
-     *   3. Settings — if it doesn't fit, try Profile instead
-     *      if Settings DOES fit, also try Profile
+     *   3. If both fit → PROFILE + SETTINGS
+     *      If only one fits → Settings preferred over Profile
      *   4. Analytics  5. Pricing
      */
     const DISPLAY_ORDER = ['home', 'history', 'profile', 'settings', 'analytics', 'pricing'];
@@ -223,9 +223,16 @@
       add('history');
 
       var pEl = getEl('profile'), sEl = getEl('settings'), p3 = false;
-      if (sEl && canFit('settings')) {
-        add('profile'); p3 = true;
-        add('settings');
+      /* Check if both profile + settings fit together */
+      var bothFit = false;
+      if (pEl && sEl) {
+        var need = (natW['profile'] || 0) + NAV_GAP + (natW['settings'] || 0) + NAV_GAP;
+        bothFit = (used + need <= budget);
+      }
+      if (bothFit) {
+        add('profile'); add('settings'); p3 = true;
+      } else if (sEl && canFit('settings')) {
+        add('settings'); p3 = true;
       } else if (pEl && canFit('profile')) {
         add('profile'); p3 = true;
       }
