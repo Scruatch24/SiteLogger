@@ -451,11 +451,13 @@
       <!-- FILTER & SORT BAR -->
       <style>
         .hf-bar { padding: 0 1rem; margin-bottom: 1rem; }
-        .hf-dd-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-        @media (max-width: 767px) { .hf-dd-row { flex-direction: column; } }
+        .hf-dd-row { display: flex; gap: 0.5rem; align-items: flex-end; }
+        @media (max-width: 767px) { .hf-dd-row { flex-direction: column; align-items: stretch; } }
         .hf-dd { position: relative; flex: 1; min-width: 0; }
-        .hf-dd-mobile-label { display: none; font-size: 8px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; color: #9ca3af; margin-bottom: 4px; padding-left: 2px; }
-        @media (max-width: 767px) { .hf-dd-mobile-label { display: block; } .hf-dd-trigger .hf-dd-label { display: none; } }
+        .hf-dd-label-above { font-size: 8px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; color: #9ca3af; margin-bottom: 4px; padding-left: 2px; }
+        .hf-dd-sub-row { display: flex; gap: 0.5rem; flex: 1; min-width: 0; }
+        .hf-dd-sub-row > .hf-dd { flex: 1; }
+        @media (max-width: 767px) { .hf-dd-sub-row { flex: auto; } }
         .hf-dd-trigger {
           width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 6px;
           padding: 8px 12px; border-radius: 12px; font-size: 9px; font-weight: 900;
@@ -463,9 +465,14 @@
           border: 2px solid black; background: #fff; color: #000;
           transition: all 0.15s ease; white-space: nowrap;
         }
-        .hf-dd-trigger:hover { background: #fff7ed; }
-        .hf-dd-trigger.active { background: #fff7ed; border-color: #fb923c; color: #ea580c; }
-        .hf-dd-trigger .hf-dd-label { color: #9ca3af; margin-right: 2px; font-size: 8px; letter-spacing: 0.1em; }
+        .hf-dd-trigger:hover { background: #f9fafb; }
+        .hf-dd-trigger.active-default { background: #fff7ed; border-color: #fb923c; color: #ea580c; }
+        .hf-dd-trigger.active-gray { background: #f3f4f6; border-color: #9ca3af; color: #6b7280; }
+        .hf-dd-trigger.active-blue { background: #eff6ff; border-color: #60a5fa; color: #2563eb; }
+        .hf-dd-trigger.active-green { background: #f0fdf4; border-color: #4ade80; color: #16a34a; }
+        .hf-dd-trigger.active-red { background: #fef2f2; border-color: #f87171; color: #dc2626; }
+        .hf-dd-trigger.active-amber { background: #fffbeb; border-color: #fbbf24; color: #d97706; }
+        .hf-dd-trigger.active-slate { background: #f8fafc; border-color: #94a3b8; color: #475569; }
         .hf-dd-trigger .hf-dd-chevron { width: 12px; height: 12px; flex-shrink: 0; transition: transform 0.2s; }
         .hf-dd-trigger.open .hf-dd-chevron { transform: rotate(180deg); }
         .hf-dd-menu {
@@ -485,14 +492,35 @@
         .hf-dd-option.selected { background: #fff7ed; color: #ea580c; }
         .hf-dd-option + .hf-dd-option { border-top: 1px solid #f3f4f6; }
         .hf-dd-option .hf-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+        /* STATUS per-status option colors */
+        #hfStatusMenu .hf-dd-option[data-filter-status="draft"]:hover { background: #f9fafb; }
+        #hfStatusMenu .hf-dd-option[data-filter-status="draft"].selected { background: #f3f4f6; color: #6b7280; }
+        #hfStatusMenu .hf-dd-option[data-filter-status="sent"]:hover { background: #eff6ff; }
+        #hfStatusMenu .hf-dd-option[data-filter-status="sent"].selected { background: #dbeafe; color: #2563eb; }
+        #hfStatusMenu .hf-dd-option[data-filter-status="paid"]:hover { background: #f0fdf4; }
+        #hfStatusMenu .hf-dd-option[data-filter-status="paid"].selected { background: #dcfce7; color: #16a34a; }
+        #hfStatusMenu .hf-dd-option[data-filter-status="overdue"]:hover { background: #fef2f2; }
+        #hfStatusMenu .hf-dd-option[data-filter-status="overdue"].selected { background: #fee2e2; color: #dc2626; }
+        /* DUE IN per-option colors */
+        #hfDueinMenu .hf-dd-option[data-filter-duein="today"]:hover { background: #fffbeb; }
+        #hfDueinMenu .hf-dd-option[data-filter-duein="today"].selected { background: #fef3c7; color: #d97706; }
+        #hfDueinMenu .hf-dd-option[data-filter-duein="1-7"]:hover { background: #eff6ff; }
+        #hfDueinMenu .hf-dd-option[data-filter-duein="1-7"].selected { background: #dbeafe; color: #2563eb; }
+        #hfDueinMenu .hf-dd-option[data-filter-duein="7-30"]:hover { background: #f8fafc; }
+        #hfDueinMenu .hf-dd-option[data-filter-duein="7-30"].selected { background: #f1f5f9; color: #475569; }
+        #hfDueinMenu .hf-dd-option[data-filter-duein="30plus"]:hover { background: #f9fafb; }
+        #hfDueinMenu .hf-dd-option[data-filter-duein="30plus"].selected { background: #f3f4f6; color: #6b7280; }
+        /* OVERDUE FOR option colors (all red) */
+        #hfOverdueforMenu .hf-dd-option:not([data-filter-overduefor="all"]):hover { background: #fef2f2; }
+        #hfOverdueforMenu .hf-dd-option:not([data-filter-overduefor="all"]).selected { background: #fee2e2; color: #dc2626; }
       </style>
       <div id="history-filters" class="hf-bar <%= 'opacity-30 grayscale pointer-events-none select-none' if @profile.guest? %>">
         <div class="hf-dd-row">
           <!-- STATUS Dropdown -->
           <div class="hf-dd" data-dropdown="status">
-            <div class="hf-dd-mobile-label"><%= t('status') %></div>
+            <div class="hf-dd-label-above"><%= t('status') %></div>
             <button type="button" onclick="toggleHfDropdown('status', event)" class="hf-dd-trigger" id="hfStatusTrigger">
-              <span><span class="hf-dd-label"><%= t('status') %>:</span> <span id="hfStatusText"><%= t('all') %></span></span>
+              <span id="hfStatusText"><%= t('all') %></span>
               <svg class="hf-dd-chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
             </button>
             <div class="hf-dd-menu" id="hfStatusMenu">
@@ -504,42 +532,45 @@
             </div>
           </div>
 
-          <!-- DUE IN Dropdown -->
-          <div class="hf-dd" data-dropdown="duein">
-            <div class="hf-dd-mobile-label"><%= t('due_in_label') %></div>
-            <button type="button" onclick="toggleHfDropdown('duein', event)" class="hf-dd-trigger" id="hfDueinTrigger">
-              <span><span class="hf-dd-label"><%= t('due_in_label') %>:</span> <span id="hfDueinText"><%= t('any') %></span></span>
-              <svg class="hf-dd-chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
-            </button>
-            <div class="hf-dd-menu" id="hfDueinMenu">
-              <button type="button" onclick="selectDueIn('all')" data-filter-duein="all" class="hf-dd-option selected"><%= t('any') %></button>
-              <button type="button" onclick="selectDueIn('today')" data-filter-duein="today" class="hf-dd-option"><%= t('due_today') %></button>
-              <button type="button" onclick="selectDueIn('1-7')" data-filter-duein="1-7" class="hf-dd-option"><%= t('filter_due_in_1_7') %></button>
-              <button type="button" onclick="selectDueIn('7-30')" data-filter-duein="7-30" class="hf-dd-option"><%= t('filter_due_in_7_30') %></button>
-              <button type="button" onclick="selectDueIn('30plus')" data-filter-duein="30plus" class="hf-dd-option"><%= t('filter_due_in_30plus') %></button>
+          <!-- DUE IN + OVERDUE FOR sub-row -->
+          <div class="hf-dd-sub-row">
+            <!-- DUE IN Dropdown -->
+            <div class="hf-dd" data-dropdown="duein">
+              <div class="hf-dd-label-above"><%= t('due_in_label') %></div>
+              <button type="button" onclick="toggleHfDropdown('duein', event)" class="hf-dd-trigger" id="hfDueinTrigger">
+                <span id="hfDueinText"><%= t('any') %></span>
+                <svg class="hf-dd-chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+              </button>
+              <div class="hf-dd-menu" id="hfDueinMenu">
+                <button type="button" onclick="selectDueIn('all')" data-filter-duein="all" class="hf-dd-option selected"><%= t('any') %></button>
+                <button type="button" onclick="selectDueIn('today')" data-filter-duein="today" class="hf-dd-option"><span class="hf-dot" style="background:#f59e0b;"></span><%= t('due_today') %></button>
+                <button type="button" onclick="selectDueIn('1-7')" data-filter-duein="1-7" class="hf-dd-option"><span class="hf-dot" style="background:#3b82f6;"></span><%= t('filter_due_in_1_7') %></button>
+                <button type="button" onclick="selectDueIn('7-30')" data-filter-duein="7-30" class="hf-dd-option"><span class="hf-dot" style="background:#64748b;"></span><%= t('filter_due_in_7_30') %></button>
+                <button type="button" onclick="selectDueIn('30plus')" data-filter-duein="30plus" class="hf-dd-option"><span class="hf-dot" style="background:#9ca3af;"></span><%= t('filter_due_in_30plus') %></button>
+              </div>
             </div>
-          </div>
 
-          <!-- OVERDUE FOR Dropdown -->
-          <div class="hf-dd" data-dropdown="overduefor">
-            <div class="hf-dd-mobile-label"><%= t('overdue_for_label') %></div>
-            <button type="button" onclick="toggleHfDropdown('overduefor', event)" class="hf-dd-trigger" id="hfOverdueforTrigger">
-              <span><span class="hf-dd-label"><%= t('overdue_for_label') %>:</span> <span id="hfOverdueforText"><%= t('any') %></span></span>
-              <svg class="hf-dd-chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
-            </button>
-            <div class="hf-dd-menu" id="hfOverdueforMenu">
-              <button type="button" onclick="selectOverdueFor('all')" data-filter-overduefor="all" class="hf-dd-option selected"><%= t('any') %></button>
-              <button type="button" onclick="selectOverdueFor('overdue-1-7')" data-filter-overduefor="overdue-1-7" class="hf-dd-option"><%= t('filter_overdue_1_7') %></button>
-              <button type="button" onclick="selectOverdueFor('overdue-7-30')" data-filter-overduefor="overdue-7-30" class="hf-dd-option"><%= t('filter_overdue_7_30') %></button>
-              <button type="button" onclick="selectOverdueFor('overdue-30plus')" data-filter-overduefor="overdue-30plus" class="hf-dd-option"><%= t('filter_overdue_30plus') %></button>
+            <!-- OVERDUE FOR Dropdown -->
+            <div class="hf-dd" data-dropdown="overduefor">
+              <div class="hf-dd-label-above"><%= t('overdue_for_label') %></div>
+              <button type="button" onclick="toggleHfDropdown('overduefor', event)" class="hf-dd-trigger" id="hfOverdueforTrigger">
+                <span id="hfOverdueforText"><%= t('any') %></span>
+                <svg class="hf-dd-chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+              </button>
+              <div class="hf-dd-menu" id="hfOverdueforMenu">
+                <button type="button" onclick="selectOverdueFor('all')" data-filter-overduefor="all" class="hf-dd-option selected"><%= t('any') %></button>
+                <button type="button" onclick="selectOverdueFor('overdue-1-7')" data-filter-overduefor="overdue-1-7" class="hf-dd-option"><span class="hf-dot" style="background:#ef4444;"></span><%= t('filter_overdue_1_7') %></button>
+                <button type="button" onclick="selectOverdueFor('overdue-7-30')" data-filter-overduefor="overdue-7-30" class="hf-dd-option"><span class="hf-dot" style="background:#ef4444;"></span><%= t('filter_overdue_7_30') %></button>
+                <button type="button" onclick="selectOverdueFor('overdue-30plus')" data-filter-overduefor="overdue-30plus" class="hf-dd-option"><span class="hf-dot" style="background:#ef4444;"></span><%= t('filter_overdue_30plus') %></button>
+              </div>
             </div>
           </div>
 
           <!-- SORT BY Dropdown -->
           <div class="hf-dd" data-dropdown="sort">
-            <div class="hf-dd-mobile-label"><%= t('sort_by') %></div>
+            <div class="hf-dd-label-above"><%= t('sort_by') %></div>
             <button type="button" onclick="toggleHfDropdown('sort', event)" class="hf-dd-trigger" id="hfSortTrigger">
-              <span><span class="hf-dd-label"><%= t('sort_by') %>:</span> <span id="hfSortText"><%= t('sort_default') %></span></span>
+              <span id="hfSortText"><%= t('sort_default') %></span>
               <svg class="hf-dd-chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
             </button>
             <div class="hf-dd-menu" id="hfSortMenu">
@@ -1439,6 +1470,10 @@
 
   document.addEventListener('click', () => closeAllHfDropdowns());
 
+  const _activeColorClasses = ['active-default','active-gray','active-blue','active-green','active-red','active-amber','active-slate'];
+  function clearTriggerColors(trigger) { _activeColorClasses.forEach(c => trigger.classList.remove(c)); }
+
+  const _statusColorMap = { all: '', draft: 'active-gray', sent: 'active-blue', paid: 'active-green', overdue: 'active-red' };
   function selectStatus(status) {
     activeStatusFilter = status;
     const menu = document.getElementById('hfStatusMenu');
@@ -1448,12 +1483,14 @@
       opt.classList.toggle('selected', opt.dataset.filterStatus === status);
       if (opt.dataset.filterStatus === status) textEl.textContent = opt.textContent.trim();
     });
-    trigger.classList.toggle('active', status !== 'all');
+    clearTriggerColors(trigger);
+    if (_statusColorMap[status]) trigger.classList.add(_statusColorMap[status]);
     closeAllHfDropdowns();
     applyAllFilters();
   }
   window.filterByStatus = selectStatus;
 
+  const _dueInColorMap = { all: '', today: 'active-amber', '1-7': 'active-blue', '7-30': 'active-slate', '30plus': 'active-gray' };
   function selectDueIn(val, silent) {
     activeDueInFilter = val;
     const menu = document.getElementById('hfDueinMenu');
@@ -1463,9 +1500,9 @@
       opt.classList.toggle('selected', opt.dataset.filterDuein === val);
       if (opt.dataset.filterDuein === val) textEl.textContent = opt.textContent.trim();
     });
-    trigger.classList.toggle('active', val !== 'all');
+    clearTriggerColors(trigger);
+    if (_dueInColorMap[val]) trigger.classList.add(_dueInColorMap[val]);
     if (!silent) {
-      // Clear OVERDUE FOR when selecting a DUE IN filter
       if (val !== 'all') selectOverdueFor('all', true);
       closeAllHfDropdowns();
       applyAllFilters();
@@ -1487,9 +1524,9 @@
       opt.classList.toggle('selected', opt.dataset.filterOverduefor === val);
       if (opt.dataset.filterOverduefor === val) textEl.textContent = opt.textContent.trim();
     });
-    trigger.classList.toggle('active', val !== 'all');
+    clearTriggerColors(trigger);
+    if (val !== 'all') trigger.classList.add('active-red');
     if (!silent) {
-      // Auto-select STATUS: OVERDUE when choosing an overdue range
       if (val !== 'all') {
         selectStatus('overdue');
         selectDueIn('all', true);
@@ -1507,7 +1544,8 @@
       opt.classList.toggle('selected', opt.dataset.sort === sortBy);
       if (opt.dataset.sort === sortBy) textEl.textContent = opt.textContent.trim();
     });
-    trigger.classList.toggle('active', sortBy !== 'default');
+    clearTriggerColors(trigger);
+    if (sortBy !== 'default') trigger.classList.add('active-default');
     closeAllHfDropdowns();
     sortInvoices(sortBy);
   }
