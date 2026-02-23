@@ -2065,6 +2065,9 @@
     // Update active state
     activeCategoryId = categoryId;
 
+    // Preserve scroll position across layout shift
+    const sy = window.scrollY;
+
     // Hide grid
     document.getElementById('categories-index').classList.add('hidden');
     // Show details container
@@ -2075,6 +2078,8 @@
     document.querySelectorAll('.category-detail-view').forEach(v => v.classList.add('hidden'));
     // Show the targeted one
     document.getElementById(`category-detail-${categoryId}`).classList.remove('hidden');
+
+    window.scrollTo(0, sy);
   }
 
   function exitCategory() {
@@ -2900,12 +2905,14 @@
   };
 
   function enterClient(clientId) {
+    const sy = window.scrollY;
     document.getElementById('clients-index').classList.add('hidden');
     const detailsContainer = document.getElementById('clients-details');
     detailsContainer.classList.remove('hidden');
     document.querySelectorAll('.client-detail-view').forEach(v => v.classList.add('hidden'));
     const detail = document.getElementById(`client-detail-${clientId}`);
     if (detail) detail.classList.remove('hidden');
+    window.scrollTo(0, sy);
   }
 
   function exitClient() {
