@@ -387,7 +387,8 @@ body {
     color: #ea580c;
     border: 1px solid #fed7aa;
   }
-  .site-mobile-pricing {
+  .site-mobile-pricing,
+  .site-mobile-link.site-mobile-pricing.menu-visible {
     color: #ea580c;
   }
   .site-mobile-auth {
