@@ -156,6 +156,15 @@ body {
     .site-nav-link:not(.site-nav-active) {
       background: #f3f4f6;
     }
+    .site-nav-link {
+      font-size: 10px;
+    }
+    .site-nav-pricing {
+      color: #ea580c;
+    }
+    .site-nav-pricing:not(.site-nav-active) {
+      background: #fff7ed;
+    }
   }
   .site-nav-link.nav-hidden {
     display: none !important;
