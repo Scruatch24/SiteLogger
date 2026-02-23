@@ -252,26 +252,38 @@
         used += (natW[key] || 0) + gap;
       }
 
-      /* Phase 1: Home, History */
-      if (getEl('home') && canFit('home')) addKey('home');
-      if (getEl('history') && canFit('history')) addKey('history');
+      /* Phase 1: Home — stop if doesn't fit */
+      if (!getEl('home') || !canFit('home')) { /* nothing fits */ }
+      else {
+        addKey('home');
 
-      /* Phase 2: Settings / Profile */
-      var settingsEl = getEl('settings');
-      var profileEl  = getEl('profile');
+        /* Phase 2: History — stop if doesn't fit */
+        if (getEl('history') && canFit('history')) {
+          addKey('history');
 
-      if (settingsEl && canFit('settings')) {
-        addKey('settings');
-        if (profileEl && canFit('profile')) addKey('profile');
-      } else if (profileEl && canFit('profile')) {
-        addKey('profile');
+          /* Phase 3: Settings / Profile — stop if neither fits */
+          var settingsEl = getEl('settings');
+          var profileEl  = getEl('profile');
+          var phase3ok = false;
+
+          if (settingsEl && canFit('settings')) {
+            addKey('settings');
+            phase3ok = true;
+            if (profileEl && canFit('profile')) addKey('profile');
+          } else if (profileEl && canFit('profile')) {
+            addKey('profile');
+            phase3ok = true;
+          }
+
+          /* Phase 4: Analytics — only if phase 3 placed at least one */
+          if (phase3ok && getEl('analytics') && canFit('analytics')) {
+            addKey('analytics');
+
+            /* Phase 5: Pricing — only if Analytics fit */
+            if (getEl('pricing') && canFit('pricing')) addKey('pricing');
+          }
+        }
       }
-
-      /* Phase 3: Analytics */
-      if (getEl('analytics') && canFit('analytics')) addKey('analytics');
-
-      /* Phase 4: Pricing */
-      if (getEl('pricing') && canFit('pricing')) addKey('pricing');
 
       /* ── Build fitted array in DISPLAY ORDER ── */
       var showSet = {};
