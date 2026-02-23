@@ -241,6 +241,13 @@
         }
       }
       
+      /* Tablet: widen content to 75% of viewport */
+      @media (min-width: 768px) and (max-width: 1279px) {
+        .app-main {
+          max-width: 75vw !important;
+        }
+      }
+
       @keyframes logout-slide {
         0%, 100% { transform: translateX(0); }
         50% { transform: translateX(5px); }
