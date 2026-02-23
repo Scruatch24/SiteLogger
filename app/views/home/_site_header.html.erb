@@ -262,37 +262,33 @@
         }
       }
 
-      /* Show fitted items */
-      for (var j = 0; j < fitted.length; j++) {
-        fitted[j].el.classList.remove('nav-hidden');
-      }
+      /* ── Show, equalize, verify — loop until no overlap ── */
+      var safe = 10; /* max iterations to prevent infinite loop */
+      while (safe-- > 0) {
+        /* Show fitted items, hide others */
+        navWrap.querySelectorAll('[data-nav-key]').forEach(function(el) { el.classList.add('nav-hidden'); el.style.width = ''; });
+        for (var j = 0; j < fitted.length; j++) fitted[j].el.classList.remove('nav-hidden');
 
-      /* ── Equalize button widths to fill the available space ── */
-      if (fitted.length > 0) {
+        if (fitted.length === 0) break;
+
+        /* Equalize button widths to fill budget */
         var totalGaps = (fitted.length - 1) * NAV_GAP;
         var spaceForButtons = budget - totalGaps;
         var targetW = Math.floor(spaceForButtons / fitted.length);
 
-        /* If target is bigger than all minimums, make all equal */
         var allFit = true;
         for (var k = 0; k < fitted.length; k++) {
           if (fitted[k].minW > targetW) { allFit = false; break; }
         }
 
         if (allFit) {
-          /* All buttons become targetW — perfectly equal */
-          for (var k = 0; k < fitted.length; k++) {
-            fitted[k].el.style.width = targetW + 'px';
-          }
+          for (var k = 0; k < fitted.length; k++) fitted[k].el.style.width = targetW + 'px';
         } else {
-          /* Some buttons are wider than target — lock them, distribute rest */
-          var locked = [];
-          var unlocked = [];
+          var locked = [], unlocked = [], lockedTotal = 0;
           for (var k = 0; k < fitted.length; k++) {
             if (fitted[k].minW > targetW) locked.push(fitted[k]);
             else unlocked.push(fitted[k]);
           }
-          var lockedTotal = 0;
           for (var k = 0; k < locked.length; k++) {
             locked[k].el.style.width = locked[k].minW + 'px';
             lockedTotal += locked[k].minW;
@@ -305,6 +301,21 @@
             }
           }
         }
+
+        /* ── Post-render verification: measure actual rendered total ── */
+        var actualTotal = 0;
+        for (var j = 0; j < fitted.length; j++) {
+          actualTotal += fitted[j].el.getBoundingClientRect().width;
+        }
+        actualTotal += totalGaps;
+
+        if (actualTotal <= budget + 0.5) break; /* fits — done */
+
+        /* Overflow: drop the last fitted item and retry */
+        var dropped = fitted.pop();
+        dropped.el.classList.add('nav-hidden');
+        dropped.el.style.width = '';
+        overflowed.push(dropped.key);
       }
 
       /* Menu items: show overflowed ones, hide fitted ones */
