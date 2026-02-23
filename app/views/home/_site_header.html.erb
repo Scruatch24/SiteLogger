@@ -159,13 +159,23 @@
     const menuNav  = document.getElementById('siteMenuNav');
     if (!header || !navWrap || !burger) return;
 
-    const PRIORITY = ['home', 'history', 'profile', 'settings', 'analytics', 'pricing'];
-    const EDGE_MARGIN = 10; /* equal margin on logo-left and burger-right */
-    const NAV_GAP = 4;      /* gap between nav buttons */
+    /*
+     * Display order (when shown in header):
+     *   HOME  HISTORY  PROFILE  SETTINGS  ANALYTICS  PRICING
+     *
+     * Fitting priority:
+     *   1. Home  2. History  (always tried first)
+     *   3. Settings — if it doesn't fit, try Profile instead
+     *      if Settings DOES fit, also try Profile
+     *   4. Analytics  5. Pricing
+     */
+    const DISPLAY_ORDER = ['home', 'history', 'profile', 'settings', 'analytics', 'pricing'];
+    const M = 10;           /* margin — CSS padding + gap are both this value */
+    const NAV_GAP = 4;      /* gap between nav buttons (CSS .mobile-fit-active gap) */
 
-    /* Measure natural (minimum) widths once — isolate each item so flex can't compress */
-    let natW = {};
-    let measured = false;
+    /* Measure natural (minimum) widths once — isolate each item */
+    var natW = {};
+    var measured = false;
 
     function measureNatural() {
       if (measured) return;
@@ -177,27 +187,32 @@
         el.style.visibility = 'hidden';
       });
       items.forEach(function(el) {
-        natW[el.dataset.navKey] = el.getBoundingClientRect().width;
+        natW[el.dataset.navKey] = Math.ceil(el.getBoundingClientRect().width);
       });
       items.forEach(function(el) {
         el.style.position = '';
         el.style.visibility = '';
+        el.classList.add('nav-hidden');
       });
       measured = true;
+    }
+
+    function getEl(key) {
+      return navWrap.querySelector('[data-nav-key="' + key + '"]');
     }
 
     function fitNav() {
       /* ── Desktop: CSS handles everything, just clean up ── */
       if (window.innerWidth >= 768) {
         navWrap.classList.remove('mobile-fit-active');
-        navWrap.querySelectorAll('[data-nav-key]').forEach(el => {
+        navWrap.querySelectorAll('[data-nav-key]').forEach(function(el) {
           el.classList.remove('nav-hidden');
           el.style.width = '';
         });
         burger.classList.remove('has-overflow');
         burger.style.display = '';
         if (authWrap) authWrap.classList.remove('auth-hidden');
-        menuNav.querySelectorAll('[data-menu-key]').forEach(el => el.classList.remove('menu-visible'));
+        menuNav.querySelectorAll('[data-menu-key]').forEach(function(el) { el.classList.remove('menu-visible'); });
         return;
       }
 
@@ -205,64 +220,80 @@
       navWrap.classList.add('mobile-fit-active');
       measureNatural();
 
-      /* Hide auth on mobile (Log Out only in hamburger) */
       if (authWrap) authWrap.classList.add('auth-hidden');
-
-      /* Always show hamburger on mobile */
       burger.classList.add('has-overflow');
       burger.style.display = '';
 
-      /* Reset all nav items to hidden */
-      navWrap.querySelectorAll('[data-nav-key]').forEach(el => {
+      /* Reset all nav items */
+      navWrap.querySelectorAll('[data-nav-key]').forEach(function(el) {
         el.classList.add('nav-hidden');
         el.style.width = '';
       });
 
-      /* Calculate fixed zones:
-         [EDGE_MARGIN] [LOGO] [EDGE_MARGIN] ... navs ... [EDGE_MARGIN] [BURGER] [EDGE_MARGIN]
-         But logo and burger already sit inside the header padding.
-         We measure their actual occupied space from the DOM. */
-      var logoBox = logo.getBoundingClientRect();
-      var burgerBox = burger.getBoundingClientRect();
-      var headerBox = header.getBoundingClientRect();
-
-      /* Available nav space = gap between logo right edge and burger left edge, minus small inner margins */
-      var navStart = logoBox.right - headerBox.left + EDGE_MARGIN;
-      var navEnd   = burgerBox.left - headerBox.left - EDGE_MARGIN;
-      var budget   = navEnd - navStart;
+      /* Budget = viewport - logo - burger - 4 equal margins
+         Layout: [M pad] [LOGO] [M gap] [NAVS] [M gap] [BURGER] [M pad] */
+      var logoW   = logo.offsetWidth;
+      var burgerW = burger.offsetWidth;
+      var budget  = header.clientWidth - logoW - burgerW - (4 * M);
       if (budget < 0) budget = 0;
 
-      /* Greedily fit items in priority order using natural widths as minimums */
-      var fitted = [];
-      var overflowed = [];
-      var totalMinW = 0;
+      /* ── Custom priority fitting ── */
+      var showKeys = [];   /* keys that fit, in fitting order */
+      var used = 0;
 
-      for (var i = 0; i < PRIORITY.length; i++) {
-        var key = PRIORITY[i];
-        var el  = navWrap.querySelector('[data-nav-key="' + key + '"]');
-        if (!el) continue;
-
+      function canFit(key) {
         var w = natW[key] || 0;
-        var gapNeeded = fitted.length > 0 ? NAV_GAP : 0;
+        var gap = showKeys.length > 0 ? NAV_GAP : 0;
+        return (used + w + gap <= budget);
+      }
+      function addKey(key) {
+        var gap = showKeys.length > 0 ? NAV_GAP : 0;
+        showKeys.push(key);
+        used += (natW[key] || 0) + gap;
+      }
 
-        if (totalMinW + w + gapNeeded <= budget) {
-          fitted.push({ key: key, el: el, minW: w });
-          totalMinW += w + gapNeeded;
-        } else {
-          overflowed.push(key);
-        }
+      /* Phase 1: Home, History */
+      if (getEl('home') && canFit('home')) addKey('home');
+      if (getEl('history') && canFit('history')) addKey('history');
+
+      /* Phase 2: Settings / Profile */
+      var settingsEl = getEl('settings');
+      var profileEl  = getEl('profile');
+
+      if (settingsEl && canFit('settings')) {
+        addKey('settings');
+        if (profileEl && canFit('profile')) addKey('profile');
+      } else if (profileEl && canFit('profile')) {
+        addKey('profile');
+      }
+
+      /* Phase 3: Analytics */
+      if (getEl('analytics') && canFit('analytics')) addKey('analytics');
+
+      /* Phase 4: Pricing */
+      if (getEl('pricing') && canFit('pricing')) addKey('pricing');
+
+      /* ── Build fitted array in DISPLAY ORDER ── */
+      var showSet = {};
+      for (var i = 0; i < showKeys.length; i++) showSet[showKeys[i]] = true;
+
+      var fitted = [];
+      for (var i = 0; i < DISPLAY_ORDER.length; i++) {
+        var key = DISPLAY_ORDER[i];
+        if (!showSet[key]) continue;
+        var el = getEl(key);
+        if (!el) continue;
+        fitted.push({ key: key, el: el, minW: natW[key] || 0 });
       }
 
       /* ── Show, equalize, verify — loop until no overlap ── */
-      var safe = 10; /* max iterations to prevent infinite loop */
+      var safe = 10;
       while (safe-- > 0) {
-        /* Show fitted items, hide others */
         navWrap.querySelectorAll('[data-nav-key]').forEach(function(el) { el.classList.add('nav-hidden'); el.style.width = ''; });
         for (var j = 0; j < fitted.length; j++) fitted[j].el.classList.remove('nav-hidden');
 
         if (fitted.length === 0) break;
 
-        /* Equalize button widths to fill budget */
         var totalGaps = (fitted.length - 1) * NAV_GAP;
         var spaceForButtons = budget - totalGaps;
         var targetW = Math.floor(spaceForButtons / fitted.length);
@@ -293,23 +324,21 @@
           }
         }
 
-        /* ── Post-render verification: measure actual rendered total ── */
+        /* Post-render verification */
         var actualTotal = 0;
         for (var j = 0; j < fitted.length; j++) {
           actualTotal += fitted[j].el.getBoundingClientRect().width;
         }
         actualTotal += totalGaps;
 
-        if (actualTotal <= budget + 0.5) break; /* fits — done */
+        if (actualTotal <= budget + 0.5) break;
 
-        /* Overflow: drop the last fitted item and retry */
         var dropped = fitted.pop();
         dropped.el.classList.add('nav-hidden');
         dropped.el.style.width = '';
-        overflowed.push(dropped.key);
       }
 
-      /* Menu items: show overflowed ones, hide fitted ones */
+      /* Menu: show items not in header */
       var fittedSet = {};
       for (var j = 0; j < fitted.length; j++) fittedSet[fitted[j].key] = true;
       menuNav.querySelectorAll('[data-menu-key]').forEach(function(el) {

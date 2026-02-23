@@ -45,11 +45,12 @@ body {
   }
 }
 
-/* Compact mobile header spacing */
+/* Compact mobile header spacing — equal margins: logo-L = logo-R = burger-L = burger-R */
 @media (max-width: 767px) {
   .site-header-inner {
-    padding: 0 0.5rem;
-    gap: 0.5rem;
+    padding: 0 10px;
+    gap: 10px;
+    overflow: hidden;
   }
 }
 
@@ -126,7 +127,7 @@ body {
   /* Mobile: just show logo icon, hide text */
   @media (max-width: 767px) {
     .site-logo {
-      margin-left: 4px;
+      margin-left: 0;
       flex-shrink: 0;
     }
     .site-logo-text-wrap {
@@ -171,6 +172,14 @@ body {
     border-radius: 10px;
     transition: all 0.2s ease;
     white-space: nowrap;
+    overflow: hidden;
+  }
+  .site-nav-link svg {
+    flex-shrink: 0;
+    width: 14px;
+    height: 14px;
+    min-width: 14px;
+    min-height: 14px;
   }
   .site-nav-link:hover {
     color: black;
