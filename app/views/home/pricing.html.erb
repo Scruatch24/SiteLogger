@@ -74,7 +74,7 @@
   /* Header */
   .pricing-header {
     text-align: center;
-    padding: 1.2rem 0 1.4rem;
+    margin: 1.2rem 0 1.4rem;
   }
   .pricing-headline {
     font-size: clamp(2rem, 5.7vw, 3.4rem);
@@ -349,14 +349,12 @@
 
   <div class="pricing-content">
     <!-- Back Link -->
-    <div style="margin-bottom: 1rem;">
-      <%= link_to root_path, class: "pricing-back" do %>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M19 12H5"/><path d="m12 19-7-7 7-7"/>
-        </svg>
-        <%= t('pricing_page.back_home') %>
-      <% end %>
-    </div>
+    <%= link_to root_path, class: "pricing-back" do %>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M19 12H5"/><path d="m12 19-7-7 7-7"/>
+      </svg>
+      <%= t('pricing_page.back_home') %>
+    <% end %>
 
     <!-- Header -->
     <div class="pricing-header">

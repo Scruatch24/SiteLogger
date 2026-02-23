@@ -38,7 +38,7 @@ body {
   justify-content: space-between;
   gap: 1rem;
 }
-@media (min-width: 768px) {
+@media (min-width: 1024px) {
   .site-header-inner {
     height: 64px;
     padding: 0 1.5rem;
@@ -228,7 +228,7 @@ body {
     align-items: center;
     gap: 0.5rem;
   }
-  @media (min-width: 768px) {
+  @media (min-width: 1024px) {
     .site-auth-links {
       display: flex;
     }
@@ -308,11 +308,6 @@ body {
   @media (min-width: 1024px) {
     .site-hamburger, .site-hamburger.has-overflow {
       display: none !important;
-    }
-  }
-  @media (min-width: 768px) and (max-width: 1023px) {
-    .site-auth-links {
-      flex-shrink: 0;
     }
   }
   .hamburger-line {
