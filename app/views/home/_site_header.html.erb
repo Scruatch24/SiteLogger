@@ -159,7 +159,7 @@
     const menuNav  = document.getElementById('siteMenuNav');
     if (!header || !navWrap || !burger) return;
 
-    const PRIORITY = ['home', 'history', 'settings', 'profile', 'analytics', 'pricing'];
+    const PRIORITY = ['home', 'history', 'profile', 'settings', 'analytics', 'pricing'];
     const EDGE_MARGIN = 10; /* equal margin on logo-left and burger-right */
     const NAV_GAP = 4;      /* gap between nav buttons */
 
@@ -202,8 +202,8 @@
       }
 
       /* ── Mobile ── */
-      measureNatural();
       navWrap.classList.add('mobile-fit-active');
+      measureNatural();
 
       /* Hide auth on mobile (Log Out only in hamburger) */
       if (authWrap) authWrap.classList.add('auth-hidden');
