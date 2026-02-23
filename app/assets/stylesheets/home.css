@@ -228,9 +228,14 @@ body {
     align-items: center;
     gap: 0.5rem;
   }
-  @media (min-width: 1280px) {
+  @media (min-width: 768px) {
     .site-auth-links {
       display: flex;
+    }
+  }
+  @media (min-width: 768px) and (max-width: 1279px) {
+    .site-auth-links {
+      flex-shrink: 0;
     }
   }
   .site-auth-links.auth-hidden {
