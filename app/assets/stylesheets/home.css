@@ -153,6 +153,15 @@ body {
       gap: 4px;
       justify-content: center;
     }
+    .site-nav-link:not(.site-nav-active) {
+      background: #f3f4f6;
+    }
+    .site-nav-link.site-nav-pricing {
+      color: #ea580c;
+    }
+    html[lang="ka"] .site-nav-link {
+      font-size: 10px;
+    }
   }
   .site-nav-link.nav-hidden {
     display: none !important;
@@ -160,6 +169,7 @@ body {
   .site-nav-link {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 4px;
     padding: 0.375rem 0.75rem;
     font-size: 11px;
@@ -198,20 +208,6 @@ body {
   .site-nav-pricing:hover {
     color: #ea580c;
     background: #fff7ed;
-  }
-  @media (max-width: 1023px) {
-    .site-nav-link {
-      font-size: 10px;
-    }
-    .site-nav-link:not(.site-nav-active) {
-      background: #f3f4f6;
-    }
-    .site-nav-pricing {
-      color: #ea580c;
-    }
-    .site-nav-pricing:not(.site-nav-active) {
-      background: #fff7ed;
-    }
   }
 
   /* Auth — hidden on mobile, shown on desktop; JS may hide via .auth-hidden */
