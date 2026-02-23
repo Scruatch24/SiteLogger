@@ -149,7 +149,7 @@
     btn.classList.toggle('open');
   }
 
-  /* ── Priority-Plus Nav: auto-overflow + dynamic sizing ── */
+  /* ── Priority-Plus Nav: mobile-only overflow + equalized sizing ── */
   (function() {
     const header   = document.getElementById('siteHeaderInner');
     const logo     = document.getElementById('siteLogo');
@@ -159,38 +159,36 @@
     const menuNav  = document.getElementById('siteMenuNav');
     if (!header || !navWrap || !burger) return;
 
-    /* Priority order: home, history, settings (with profile fallback), analytics, pricing */
     const PRIORITY = ['home', 'history', 'settings', 'analytics', 'pricing'];
     const ALT_MAP  = { settings: 'profile' };
-    const GAP = 6;          /* px gap between inline items */
-    const BASE_PAD = 12;    /* default horizontal padding per side */
+    const EDGE_MARGIN = 10; /* equal margin on logo-left and burger-right */
+    const NAV_GAP = 4;      /* gap between nav buttons */
 
-    /* Cache natural widths (measured once with base padding) */
-    let naturalWidths = {};
+    /* Measure natural (minimum) widths once — uses desktop rendering */
+    let natW = {};
     let measured = false;
 
     function measureNatural() {
       if (measured) return;
+      /* Temporarily show all items at their natural size */
       navWrap.querySelectorAll('[data-nav-key]').forEach(el => {
-        el.style.display = '';
-        el.style.paddingLeft = BASE_PAD + 'px';
-        el.style.paddingRight = BASE_PAD + 'px';
         el.classList.remove('nav-hidden');
+        el.style.width = '';
       });
+      /* Read widths */
       navWrap.querySelectorAll('[data-nav-key]').forEach(el => {
-        naturalWidths[el.dataset.navKey] = el.offsetWidth;
+        natW[el.dataset.navKey] = el.offsetWidth;
       });
       measured = true;
     }
 
     function fitNav() {
-      /* Desktop: skip — CSS handles everything */
+      /* ── Desktop: CSS handles everything, just clean up ── */
       if (window.innerWidth >= 768) {
         navWrap.classList.remove('mobile-fit-active');
         navWrap.querySelectorAll('[data-nav-key]').forEach(el => {
           el.classList.remove('nav-hidden');
-          el.style.paddingLeft = '';
-          el.style.paddingRight = '';
+          el.style.width = '';
         });
         burger.classList.remove('has-overflow');
         burger.style.display = '';
@@ -199,115 +197,136 @@
         return;
       }
 
-      /* Mobile: run overflow logic */
+      /* ── Mobile ── */
       measureNatural();
       navWrap.classList.add('mobile-fit-active');
 
-      /* Reset all nav items */
+      /* Hide auth on mobile (Log Out only in hamburger) */
+      if (authWrap) authWrap.classList.add('auth-hidden');
+
+      /* Always show hamburger on mobile */
+      burger.classList.add('has-overflow');
+      burger.style.display = '';
+
+      /* Reset all nav items to hidden */
       navWrap.querySelectorAll('[data-nav-key]').forEach(el => {
         el.classList.add('nav-hidden');
-        el.style.paddingLeft = BASE_PAD + 'px';
-        el.style.paddingRight = BASE_PAD + 'px';
+        el.style.width = '';
       });
 
-      /* Measure fixed elements (temporarily show hidden ones) */
-      burger.style.display = 'flex';
-      if (authWrap) authWrap.classList.remove('auth-hidden');
-      const containerW = header.clientWidth;
-      const logoMargin = parseFloat(getComputedStyle(logo).marginLeft) || 0;
-      const logoW      = logo.offsetWidth + logoMargin;
-      const burgerW    = burger.offsetWidth;
-      const authW      = authWrap ? authWrap.offsetWidth : 0;
+      /* Calculate fixed zones:
+         [EDGE_MARGIN] [LOGO] [EDGE_MARGIN] ... navs ... [EDGE_MARGIN] [BURGER] [EDGE_MARGIN]
+         But logo and burger already sit inside the header padding.
+         We measure their actual occupied space from the DOM. */
+      var logoBox = logo.getBoundingClientRect();
+      var burgerBox = burger.getBoundingClientRect();
+      var headerBox = header.getBoundingClientRect();
 
-      /* Available space for nav items (we always reserve burger space; hide it later if not needed) */
-      let budget = containerW - logoW - burgerW - GAP * 3;
+      /* Available nav space = gap between logo right edge and burger left edge, minus small inner margins */
+      var navStart = logoBox.right - headerBox.left + EDGE_MARGIN;
+      var navEnd   = burgerBox.left - headerBox.left - EDGE_MARGIN;
+      var budget   = navEnd - navStart;
+      if (budget < 0) budget = 0;
 
-      /* Try to fit auth inline */
-      let authInline = false;
-      if (authWrap && authW > 0 && authW + GAP <= budget) {
-        authInline = true;
-        budget -= (authW + GAP);
-      }
+      /* Greedily fit items in priority order using natural widths as minimums */
+      var fitted = [];
+      var overflowed = [];
+      var totalMinW = 0;
 
-      /* Greedily fit items in priority order */
-      const fitted = [];       /* { key, el } */
-      const overflowed = [];   /* keys */
-
-      for (const key of PRIORITY) {
-        const el  = navWrap.querySelector('[data-nav-key="' + key + '"]');
-        const alt = ALT_MAP[key] ? navWrap.querySelector('[data-nav-key="' + ALT_MAP[key] + '"]') : null;
+      for (var i = 0; i < PRIORITY.length; i++) {
+        var key = PRIORITY[i];
+        var el  = navWrap.querySelector('[data-nav-key="' + key + '"]');
+        var alt = ALT_MAP[key] ? navWrap.querySelector('[data-nav-key="' + ALT_MAP[key] + '"]') : null;
         if (!el) continue;
 
-        const w = naturalWidths[key] || 0;
-        if (w + GAP <= budget) {
-          fitted.push({ key, el });
-          budget -= (w + GAP);
-          if (alt) overflowed.push(ALT_MAP[key]); /* alt always in menu when primary fits */
+        var w = natW[key] || 0;
+        var gapNeeded = fitted.length > 0 ? NAV_GAP : 0;
+
+        if (totalMinW + w + gapNeeded <= budget) {
+          fitted.push({ key: key, el: el, minW: w });
+          totalMinW += w + gapNeeded;
+          if (alt) overflowed.push(ALT_MAP[key]);
         } else if (alt) {
-          /* Primary doesn't fit — try alternative */
-          const altW = naturalWidths[ALT_MAP[key]] || 0;
-          if (altW + GAP <= budget) {
-            fitted.push({ key: ALT_MAP[key], el: alt });
-            budget -= (altW + GAP);
+          var altKey = ALT_MAP[key];
+          var altW = natW[altKey] || 0;
+          if (totalMinW + altW + gapNeeded <= budget) {
+            fitted.push({ key: altKey, el: alt, minW: altW });
+            totalMinW += altW + gapNeeded;
             overflowed.push(key);
           } else {
             overflowed.push(key);
-            overflowed.push(ALT_MAP[key]);
+            overflowed.push(altKey);
           }
         } else {
           overflowed.push(key);
         }
       }
 
-      /* Apply visibility — inline nav */
-      fitted.forEach(f => f.el.classList.remove('nav-hidden'));
-
-      /* Hamburger visibility */
-      const hasOverflow = overflowed.length > 0;
-      burger.classList.toggle('has-overflow', hasOverflow || !authInline);
-
-      /* Auth visibility */
-      if (authWrap) {
-        authWrap.classList.toggle('auth-hidden', !authInline);
+      /* Show fitted items */
+      for (var j = 0; j < fitted.length; j++) {
+        fitted[j].el.classList.remove('nav-hidden');
       }
 
-      /* Menu items: show overflowed, hide fitted */
-      const fittedKeys = new Set(fitted.map(f => f.key));
-      menuNav.querySelectorAll('[data-menu-key]').forEach(el => {
-        el.classList.toggle('menu-visible', !fittedKeys.has(el.dataset.menuKey));
-      });
+      /* ── Equalize button widths to fill the available space ── */
+      if (fitted.length > 0) {
+        var totalGaps = (fitted.length - 1) * NAV_GAP;
+        var spaceForButtons = budget - totalGaps;
+        var targetW = Math.floor(spaceForButtons / fitted.length);
 
-      /* ── Dynamic sizing: distribute leftover space as extra padding ── */
-      if (fitted.length > 0 && budget > 2) {
-        const extra = Math.floor(budget / (fitted.length * 2));
-        if (extra >= 1) {
-          fitted.forEach(f => {
-            f.el.style.paddingLeft  = (BASE_PAD + extra) + 'px';
-            f.el.style.paddingRight = (BASE_PAD + extra) + 'px';
-          });
+        /* If target is bigger than all minimums, make all equal */
+        var allFit = true;
+        for (var k = 0; k < fitted.length; k++) {
+          if (fitted[k].minW > targetW) { allFit = false; break; }
+        }
+
+        if (allFit) {
+          /* All buttons become targetW — perfectly equal */
+          for (var k = 0; k < fitted.length; k++) {
+            fitted[k].el.style.width = targetW + 'px';
+          }
+        } else {
+          /* Some buttons are wider than target — lock them, distribute rest */
+          var locked = [];
+          var unlocked = [];
+          for (var k = 0; k < fitted.length; k++) {
+            if (fitted[k].minW > targetW) locked.push(fitted[k]);
+            else unlocked.push(fitted[k]);
+          }
+          var lockedTotal = 0;
+          for (var k = 0; k < locked.length; k++) {
+            locked[k].el.style.width = locked[k].minW + 'px';
+            lockedTotal += locked[k].minW;
+          }
+          if (unlocked.length > 0) {
+            var remaining = spaceForButtons - lockedTotal;
+            var eachW = Math.floor(remaining / unlocked.length);
+            for (var k = 0; k < unlocked.length; k++) {
+              unlocked[k].el.style.width = Math.max(eachW, unlocked[k].minW) + 'px';
+            }
+          }
         }
       }
 
-      /* If nothing overflowed AND auth is inline, hide hamburger entirely */
-      if (!hasOverflow && authInline) {
-        burger.style.display = 'none';
-      }
+      /* Menu items: show overflowed ones, hide fitted ones */
+      var fittedSet = {};
+      for (var j = 0; j < fitted.length; j++) fittedSet[fitted[j].key] = true;
+      menuNav.querySelectorAll('[data-menu-key]').forEach(function(el) {
+        el.classList.toggle('menu-visible', !fittedSet[el.dataset.menuKey]);
+      });
     }
 
     /* Run on load + resize (debounced) */
-    let resizeTimer;
+    var resizeTimer;
     window.addEventListener('resize', function() {
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(fitNav, 80);
     });
 
-    /* Initial fit after fonts are loaded */
     if (document.fonts && document.fonts.ready) {
       document.fonts.ready.then(function() { requestAnimationFrame(fitNav); });
     } else {
       window.addEventListener('load', fitNav);
     }
-    /* Also run immediately for fast paint */
     requestAnimationFrame(fitNav);
 
     /* ── Logo hover animation (unchanged) ── */

@@ -148,8 +148,9 @@ body {
   @media (max-width: 767px) {
     .site-nav-links.mobile-fit-active {
       display: flex;
-      flex: 1;
-      min-width: 0;
+      flex: 0 0 auto;
+      gap: 4px;
+      justify-content: center;
     }
   }
   .site-nav-link.nav-hidden {
@@ -158,6 +159,7 @@ body {
   .site-nav-link {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 4px;
     padding: 0.375rem 0.75rem;
     font-size: 11px;
