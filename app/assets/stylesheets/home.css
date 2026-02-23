@@ -134,13 +134,23 @@ body {
     }
   }
 
-  /* Nav Links (always flex, JS controls item visibility) */
+  /* Nav Links — hidden on mobile (JS controls which show), always visible on desktop */
   .site-nav-links {
-    display: flex;
+    display: none;
     align-items: center;
     gap: 0.25rem;
     flex: 1;
     min-width: 0;
+  }
+  @media (min-width: 768px) {
+    .site-nav-links {
+      display: flex;
+    }
+  }
+  @media (max-width: 767px) {
+    .site-nav-links.mobile-fit-active {
+      display: flex;
+    }
   }
   .site-nav-link.nav-hidden {
     display: none !important;
@@ -180,11 +190,16 @@ body {
     background: #fff7ed;
   }
 
-  /* Auth (JS controls visibility via .auth-hidden) */
+  /* Auth — hidden on mobile, shown on desktop; JS may hide via .auth-hidden */
   .site-auth-links {
-    display: flex;
+    display: none;
     align-items: center;
     gap: 0.5rem;
+  }
+  @media (min-width: 768px) {
+    .site-auth-links {
+      display: flex;
+    }
   }
   .site-auth-links.auth-hidden {
     display: none !important;
@@ -238,7 +253,7 @@ body {
     box-shadow: 2px 2px 0px 0px #dc2626;
   }
 
-  /* Hamburger (hidden by default, shown by JS .has-overflow) */
+  /* Hamburger — shown on mobile (JS .has-overflow), always hidden on desktop */
   .site-hamburger {
     display: none;
     flex-direction: column;
@@ -257,6 +272,11 @@ body {
   }
   .site-hamburger.has-overflow {
     display: flex;
+  }
+  @media (min-width: 768px) {
+    .site-hamburger, .site-hamburger.has-overflow {
+      display: none !important;
+    }
   }
   .hamburger-line {
     display: block;
