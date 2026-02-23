@@ -1508,5 +1508,19 @@
       if (item) item.classList.add('expanded');
     }
   }
+
+  // Auto-select highest-priority aging bucket with count > 0
+  document.addEventListener('DOMContentLoaded', function() {
+    const priority = ['overdue_30_plus', 'overdue_7_30', 'overdue_1_7', 'due_today'];
+    for (const key of priority) {
+      const item = document.querySelector('[data-aging-key="' + key + '"]');
+      if (!item) continue;
+      const count = parseInt(item.querySelector('.ana-aging-count')?.textContent) || 0;
+      if (count > 0) {
+        toggleAgingExpand(key);
+        break;
+      }
+    }
+  });
 </script>
 <% end %>
