@@ -54,17 +54,26 @@
       <% end %>
     </div>
 
-    <!-- Desktop Auth (Sign In / Sign Up only — Log Out lives in hamburger) -->
-    <% unless user_signed_in? %>
-      <div class="site-auth-links" id="siteAuthLinks">
+    <!-- Desktop Auth -->
+    <div class="site-auth-links" id="siteAuthLinks">
+      <% if user_signed_in? %>
+        <button type="button" onclick="window.showLogoutModal()" class="site-auth-btn site-auth-logout">
+          <span class="inline-flex items-center gap-1.5">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+            </svg>
+            <%= t('nav.log_out') %>
+          </span>
+        </button>
+      <% else %>
         <%= link_to new_user_session_path, class: "site-auth-btn site-auth-signin" do %>
           <%= t('nav.sign_in') %>
         <% end %>
         <%= link_to new_user_registration_path, class: "site-auth-btn site-auth-signup" do %>
           <%= t('nav.sign_up') %>
         <% end %>
-      </div>
-    <% end %>
+      <% end %>
+    </div>
 
     <!-- Hamburger (visible when overflow items exist) -->
     <button type="button" class="site-hamburger" id="siteHamburger" onclick="toggleSiteMenu()" aria-label="<%= t('nav.menu') %>">

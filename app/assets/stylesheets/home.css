@@ -139,8 +139,6 @@ body {
     display: none;
     align-items: center;
     gap: 0.25rem;
-    flex: 1;
-    min-width: 0;
   }
   @media (min-width: 768px) {
     .site-nav-links {
@@ -150,6 +148,8 @@ body {
   @media (max-width: 767px) {
     .site-nav-links.mobile-fit-active {
       display: flex;
+      flex: 1;
+      min-width: 0;
     }
   }
   .site-nav-link.nav-hidden {
