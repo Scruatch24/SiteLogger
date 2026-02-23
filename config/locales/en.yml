@@ -16,7 +16,7 @@ en:
   # Global Settings
   system_language: "System Language"
   document_language: "Default Document Language"
-  english: "English"
+  english: "English (US)"
   georgian: "Georgian"
   current_guess: "Current guess:"
   not_specified: "Not specified"

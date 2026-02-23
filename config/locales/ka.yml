@@ -16,7 +16,7 @@ ka:
   # Global Settings
   system_language: "სისტემის ენა"
   document_language: "დოკუმენტის დათქმული ენა"
-  english: "ინგლისური"
+  english: "ინგლისური (აშშ)"
   georgian: "ქართული"
   current_guess: "ვარაუდი:"
   not_specified: "მიუთითებელი"
