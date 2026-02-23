@@ -1,6 +1,6 @@
 <% is_guest = @profile.guest? && !user_signed_in? %>
 <% is_design_locked = !@profile.paid? && !is_guest %>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" async></script>
 <script>
   (function() {
     const lib = window['pdfjs-dist/build/pdf'] || window.pdfjsLib;
@@ -258,7 +258,7 @@
                  <object id="pdfPreviewObject" data="about:blank" type="application/pdf" class="hidden w-full h-full border-none pointer-events-none" style="-webkit-user-select: none; user-select: none; -webkit-touch-callout: none;"></object>
                  
                  <!-- Desktop Iframe -->
-                 <iframe id="pdfPreviewFrame" src="<%= preview_pdf_logs_path(style: (@profile.invoice_style.presence || "classic"), accent_color: (@profile.accent_color.presence || "#F97316"), t: Time.now.to_i) %>#toolbar=0&view=Fit" scrolling="no" class="hidden md:block w-full h-full border-none pointer-events-none" style="-webkit-user-select: none; user-select: none; -webkit-touch-callout: none;" onload="document.getElementById('previewLoading').classList.add('hidden')"></iframe>
+                 <iframe id="pdfPreviewFrame" src="about:blank" scrolling="no" class="hidden md:block w-full h-full border-none pointer-events-none" style="-webkit-user-select: none; user-select: none; -webkit-touch-callout: none;" onload="if(this.src !== 'about:blank') document.getElementById('previewLoading').classList.add('hidden')"></iframe>
                  
                  <!-- Mobile Canvas (PDF.js) -->
                  <canvas id="mobilePdfCanvas" class="md:hidden w-full h-full object-contain pointer-events-none"></canvas>
@@ -702,13 +702,32 @@
       refreshPdfPreview();
   };
 
+  window.abortSettingsPdf = function() {
+    clearTimeout(window.previewTimeout);
+    if (window._settingsPdfAbort) { try { window._settingsPdfAbort.abort(); } catch(e){} window._settingsPdfAbort = null; }
+    const iframe = document.getElementById('pdfPreviewFrame');
+    if (iframe && iframe.src !== 'about:blank') iframe.src = 'about:blank';
+  };
+
+  document.addEventListener('click', function(e) {
+    const link = e.target.closest('a[href]');
+    if (link && link.href && !link.href.includes('#') && !link.href.includes('javascript:')) {
+      window.abortSettingsPdf();
+    }
+  }, true);
+
   function refreshPdfPreview() {
     const styleEl = document.getElementById('invoice_style_input');
     const colorEl = document.getElementById('accent_color_input');
     if (!styleEl || !colorEl) return;
 
     clearTimeout(window.previewTimeout);
+    if (window._settingsPdfAbort) { try { window._settingsPdfAbort.abort(); } catch(e){} }
+    window._settingsPdfAbort = new AbortController();
+    const signal = window._settingsPdfAbort.signal;
+
     window.previewTimeout = setTimeout(async () => {
+      if (signal.aborted) return;
       const iframe = document.getElementById('pdfPreviewFrame');
       const canvas = document.getElementById('mobilePdfCanvas');
       const loading = document.getElementById('previewLoading');
