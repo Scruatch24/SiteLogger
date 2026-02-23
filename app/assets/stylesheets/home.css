@@ -1,6 +1,12 @@
   /* ============================================ */
 /* GLOBAL SUBTLE BACKGROUND                     */
 /* ============================================ */
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
 .app-content-wrap {
   background:
     radial-gradient(ellipse 90% 70% at 20% 10%, rgba(249,115,22,0.06) 0%, transparent 50%),

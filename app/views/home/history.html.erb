@@ -451,53 +451,85 @@
       <!-- FILTER & SORT BAR -->
       <style>
         .hf-bar { padding: 0 1rem; margin-bottom: 1rem; }
-        .hf-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
-        .hf-label { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; white-space: nowrap; margin-right: 2px; min-width: 56px; text-align: right; }
-        .hf-pill {
-          display: inline-flex; align-items: center; gap: 4px;
-          padding: 5px 12px; border-radius: 999px; font-size: 10px; font-weight: 800;
-          text-transform: uppercase; letter-spacing: 0.06em; cursor: pointer;
-          border: 1.5px solid #e5e7eb; background: #fff; color: #6b7280;
-          transition: all 0.18s ease; white-space: nowrap;
+        .hf-dd-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        .hf-dd { position: relative; flex: 1; min-width: 0; }
+        .hf-dd-trigger {
+          width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 6px;
+          padding: 8px 12px; border-radius: 12px; font-size: 9px; font-weight: 900;
+          text-transform: uppercase; letter-spacing: 0.08em; cursor: pointer;
+          border: 2px solid black; background: #fff; color: #000;
+          transition: all 0.15s ease; white-space: nowrap;
         }
-        .hf-pill:hover { border-color: #d1d5db; color: #374151; }
-        .hf-pill.active { background: #fff7ed; border-color: #fb923c; color: #ea580c; }
-        .hf-pill .hf-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
-        .hf-sort-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
-        .hf-sort-btn {
-          padding: 4px 10px; border-radius: 8px; font-size: 9px; font-weight: 800;
-          text-transform: uppercase; letter-spacing: 0.06em; cursor: pointer;
-          border: 1.5px solid #e5e7eb; background: #fff; color: #9ca3af;
-          transition: all 0.18s ease; white-space: nowrap;
+        .hf-dd-trigger:hover { background: #fff7ed; }
+        .hf-dd-trigger.active { background: #fff7ed; border-color: #fb923c; color: #ea580c; }
+        .hf-dd-trigger .hf-dd-label { color: #9ca3af; margin-right: 2px; font-size: 8px; letter-spacing: 0.1em; }
+        .hf-dd-trigger .hf-dd-chevron { width: 12px; height: 12px; flex-shrink: 0; transition: transform 0.2s; }
+        .hf-dd-trigger.open .hf-dd-chevron { transform: rotate(180deg); }
+        .hf-dd-menu {
+          position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 80;
+          background: #fff; border: 2px solid black; border-radius: 12px;
+          overflow: hidden; display: none; min-width: 140px;
         }
-        .hf-sort-btn:hover { border-color: #d1d5db; color: #6b7280; }
-        .hf-sort-btn.active { background: #f3f4f6; border-color: #9ca3af; color: #374151; }
+        .hf-dd-menu.show { display: block; }
+        .hf-dd-option {
+          width: 100%; display: flex; align-items: center; gap: 6px;
+          padding: 8px 12px; font-size: 9px; font-weight: 800;
+          text-transform: uppercase; letter-spacing: 0.06em; cursor: pointer;
+          border: none; background: transparent; color: #374151;
+          transition: background 0.12s; text-align: left; white-space: nowrap;
+        }
+        .hf-dd-option:hover { background: #fff7ed; }
+        .hf-dd-option.selected { background: #fff7ed; color: #ea580c; }
+        .hf-dd-option + .hf-dd-option { border-top: 1px solid #f3f4f6; }
+        .hf-dd-option .hf-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
       </style>
       <div id="history-filters" class="hf-bar <%= 'opacity-30 grayscale pointer-events-none select-none' if @profile.guest? %>">
-        <div class="hf-row">
-          <span class="hf-label"><%= t('status') %>:</span>
-          <button onclick="filterByStatus('all')" data-filter-status="all" class="hf-pill active"><%= t('all') %></button>
-          <button onclick="filterByStatus('draft')" data-filter-status="draft" class="hf-pill"><span class="hf-dot" style="background:#9ca3af;"></span><%= t('draft') %></button>
-          <button onclick="filterByStatus('sent')" data-filter-status="sent" class="hf-pill"><span class="hf-dot" style="background:#3b82f6;"></span><%= t('sent') %></button>
-          <button onclick="filterByStatus('paid')" data-filter-status="paid" class="hf-pill"><span class="hf-dot" style="background:#22c55e;"></span><%= t('paid') %></button>
-          <button onclick="filterByStatus('overdue')" data-filter-status="overdue" class="hf-pill"><span class="hf-dot" style="background:#ef4444;"></span><%= t('overdue') %></button>
-        </div>
-        <div class="hf-row">
-          <span class="hf-label"><%= t('due_date_label') %>:</span>
-          <button onclick="filterByDue('all')" data-filter-due="all" class="hf-pill active"><%= t('all') %></button>
-          <button onclick="filterByDue('today')" data-filter-due="today" class="hf-pill"><%= t('due_today') %></button>
-          <button onclick="filterByDue('1-7')" data-filter-due="1-7" class="hf-pill">1–7d</button>
-          <button onclick="filterByDue('7-30')" data-filter-due="7-30" class="hf-pill">7–30d</button>
-          <button onclick="filterByDue('30plus')" data-filter-due="30plus" class="hf-pill">30+d</button>
-        </div>
-        <div class="hf-sort-row">
-          <span class="hf-label"><%= t('sort_by') %>:</span>
-          <button onclick="sortInvoices('default', this)" data-sort="default" class="hf-sort-btn active"><%= t('sort_default') %></button>
-          <button onclick="sortInvoices('newest', this)" data-sort="newest" class="hf-sort-btn"><%= t('sort_newest') %></button>
-          <button onclick="sortInvoices('oldest', this)" data-sort="oldest" class="hf-sort-btn"><%= t('sort_oldest') %></button>
-          <button onclick="sortInvoices('amount-high', this)" data-sort="amount-high" class="hf-sort-btn">$ ↓</button>
-          <button onclick="sortInvoices('amount-low', this)" data-sort="amount-low" class="hf-sort-btn">$ ↑</button>
-          <button onclick="sortInvoices('client-az', this)" data-sort="client-az" class="hf-sort-btn">A→Z</button>
+        <div class="hf-dd-row">
+          <!-- STATUS Dropdown -->
+          <div class="hf-dd" data-dropdown="status">
+            <button type="button" onclick="toggleHfDropdown('status', event)" class="hf-dd-trigger" id="hfStatusTrigger">
+              <span><span class="hf-dd-label"><%= t('status') %>:</span> <span id="hfStatusText"><%= t('all') %></span></span>
+              <svg class="hf-dd-chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+            <div class="hf-dd-menu" id="hfStatusMenu">
+              <button type="button" onclick="selectStatus('all')" data-filter-status="all" class="hf-dd-option selected"><%= t('all') %></button>
+              <button type="button" onclick="selectStatus('draft')" data-filter-status="draft" class="hf-dd-option"><span class="hf-dot" style="background:#9ca3af;"></span><%= t('draft') %></button>
+              <button type="button" onclick="selectStatus('sent')" data-filter-status="sent" class="hf-dd-option"><span class="hf-dot" style="background:#3b82f6;"></span><%= t('sent') %></button>
+              <button type="button" onclick="selectStatus('paid')" data-filter-status="paid" class="hf-dd-option"><span class="hf-dot" style="background:#22c55e;"></span><%= t('paid') %></button>
+              <button type="button" onclick="selectStatus('overdue')" data-filter-status="overdue" class="hf-dd-option"><span class="hf-dot" style="background:#ef4444;"></span><%= t('overdue') %></button>
+            </div>
+          </div>
+
+          <!-- DUE DATE Dropdown -->
+          <div class="hf-dd" data-dropdown="due">
+            <button type="button" onclick="toggleHfDropdown('due', event)" class="hf-dd-trigger" id="hfDueTrigger">
+              <span><span class="hf-dd-label"><%= t('due_date_label') %>:</span> <span id="hfDueText"><%= t('all') %></span></span>
+              <svg class="hf-dd-chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+            <div class="hf-dd-menu" id="hfDueMenu">
+              <button type="button" onclick="selectDue('all')" data-filter-due="all" class="hf-dd-option selected"><%= t('all') %></button>
+              <button type="button" onclick="selectDue('today')" data-filter-due="today" class="hf-dd-option"><%= t('due_today') %></button>
+              <button type="button" onclick="selectDue('1-7')" data-filter-due="1-7" class="hf-dd-option">1–7d</button>
+              <button type="button" onclick="selectDue('7-30')" data-filter-due="7-30" class="hf-dd-option">7–30d</button>
+              <button type="button" onclick="selectDue('30plus')" data-filter-due="30plus" class="hf-dd-option">30+d</button>
+            </div>
+          </div>
+
+          <!-- SORT BY Dropdown -->
+          <div class="hf-dd" data-dropdown="sort">
+            <button type="button" onclick="toggleHfDropdown('sort', event)" class="hf-dd-trigger" id="hfSortTrigger">
+              <span><span class="hf-dd-label"><%= t('sort_by') %>:</span> <span id="hfSortText"><%= t('sort_default') %></span></span>
+              <svg class="hf-dd-chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+            <div class="hf-dd-menu" id="hfSortMenu">
+              <button type="button" onclick="selectSort('default')" data-sort="default" class="hf-dd-option selected"><%= t('sort_default') %></button>
+              <button type="button" onclick="selectSort('newest')" data-sort="newest" class="hf-dd-option"><%= t('sort_newest') %></button>
+              <button type="button" onclick="selectSort('oldest')" data-sort="oldest" class="hf-dd-option"><%= t('sort_oldest') %></button>
+              <button type="button" onclick="selectSort('amount-high')" data-sort="amount-high" class="hf-dd-option">$ ↓</button>
+              <button type="button" onclick="selectSort('amount-low')" data-sort="amount-low" class="hf-dd-option">$ ↑</button>
+              <button type="button" onclick="selectSort('client-az')" data-sort="client-az" class="hf-dd-option">A→Z</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1364,27 +1396,70 @@
     return false;
   }
 
-  function filterByStatus(status) {
-    activeStatusFilter = status;
-    document.querySelectorAll('[data-filter-status]').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.filterStatus === status);
-    });
-    applyAllFilters();
-  }
-
-  function filterByDue(due) {
-    activeDueFilter = due;
-    document.querySelectorAll('[data-filter-due]').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.filterDue === due);
-    });
-    applyAllFilters();
-  }
-
-  function sortInvoices(sortBy, clickedBtn) {
-    if (clickedBtn) {
-      document.querySelectorAll('.hf-sort-btn').forEach(b => b.classList.remove('active'));
-      clickedBtn.classList.add('active');
+  // ── Dropdown Toggle ──
+  function toggleHfDropdown(name, e) {
+    e.stopPropagation();
+    const menu = document.getElementById('hf' + name.charAt(0).toUpperCase() + name.slice(1) + 'Menu');
+    const trigger = document.getElementById('hf' + name.charAt(0).toUpperCase() + name.slice(1) + 'Trigger');
+    const isOpen = menu.classList.contains('show');
+    closeAllHfDropdowns();
+    if (!isOpen) {
+      menu.classList.add('show');
+      trigger.classList.add('open');
     }
+  }
+
+  function closeAllHfDropdowns() {
+    document.querySelectorAll('.hf-dd-menu').forEach(m => m.classList.remove('show'));
+    document.querySelectorAll('.hf-dd-trigger').forEach(t => t.classList.remove('open'));
+  }
+
+  document.addEventListener('click', () => closeAllHfDropdowns());
+
+  function selectStatus(status) {
+    activeStatusFilter = status;
+    const menu = document.getElementById('hfStatusMenu');
+    const textEl = document.getElementById('hfStatusText');
+    const trigger = document.getElementById('hfStatusTrigger');
+    menu.querySelectorAll('.hf-dd-option').forEach(opt => {
+      opt.classList.toggle('selected', opt.dataset.filterStatus === status);
+      if (opt.dataset.filterStatus === status) textEl.textContent = opt.textContent.trim();
+    });
+    trigger.classList.toggle('active', status !== 'all');
+    closeAllHfDropdowns();
+    applyAllFilters();
+  }
+  window.filterByStatus = selectStatus;
+
+  function selectDue(due) {
+    activeDueFilter = due;
+    const menu = document.getElementById('hfDueMenu');
+    const textEl = document.getElementById('hfDueText');
+    const trigger = document.getElementById('hfDueTrigger');
+    menu.querySelectorAll('.hf-dd-option').forEach(opt => {
+      opt.classList.toggle('selected', opt.dataset.filterDue === due);
+      if (opt.dataset.filterDue === due) textEl.textContent = opt.textContent.trim();
+    });
+    trigger.classList.toggle('active', due !== 'all');
+    closeAllHfDropdowns();
+    applyAllFilters();
+  }
+  window.filterByDue = selectDue;
+
+  function selectSort(sortBy) {
+    const menu = document.getElementById('hfSortMenu');
+    const textEl = document.getElementById('hfSortText');
+    const trigger = document.getElementById('hfSortTrigger');
+    menu.querySelectorAll('.hf-dd-option').forEach(opt => {
+      opt.classList.toggle('selected', opt.dataset.sort === sortBy);
+      if (opt.dataset.sort === sortBy) textEl.textContent = opt.textContent.trim();
+    });
+    trigger.classList.toggle('active', sortBy !== 'default');
+    closeAllHfDropdowns();
+    sortInvoices(sortBy);
+  }
+
+  function sortInvoices(sortBy) {
     const container = document.querySelector('#view-all .flex.flex-col');
     if (!container) return;
     const cards = Array.from(container.querySelectorAll(':scope > .log-card'));
