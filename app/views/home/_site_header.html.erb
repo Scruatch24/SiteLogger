@@ -223,11 +223,11 @@
       add('history');
 
       var pEl = getEl('profile'), sEl = getEl('settings'), p3 = false;
-      if (pEl && canFit('profile')) {
+      if (sEl && canFit('settings')) {
         add('profile'); p3 = true;
-        if (sEl && canFit('settings')) add('settings');
-      } else if (sEl && canFit('settings')) {
-        add('settings'); p3 = true;
+        add('settings');
+      } else if (pEl && canFit('profile')) {
+        add('profile'); p3 = true;
       }
       if (!p3) return keys;
 
