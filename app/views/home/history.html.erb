@@ -504,19 +504,34 @@
             </div>
           </div>
 
-          <!-- DUE DATE Dropdown -->
-          <div class="hf-dd" data-dropdown="due">
-            <div class="hf-dd-mobile-label"><%= t('due_date_label') %></div>
-            <button type="button" onclick="toggleHfDropdown('due', event)" class="hf-dd-trigger" id="hfDueTrigger">
-              <span><span class="hf-dd-label"><%= t('due_date_label') %>:</span> <span id="hfDueText"><%= t('all') %></span></span>
+          <!-- DUE IN Dropdown -->
+          <div class="hf-dd" data-dropdown="duein">
+            <div class="hf-dd-mobile-label"><%= t('due_in_label') %></div>
+            <button type="button" onclick="toggleHfDropdown('duein', event)" class="hf-dd-trigger" id="hfDueinTrigger">
+              <span><span class="hf-dd-label"><%= t('due_in_label') %>:</span> <span id="hfDueinText"><%= t('any') %></span></span>
               <svg class="hf-dd-chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
             </button>
-            <div class="hf-dd-menu" id="hfDueMenu">
-              <button type="button" onclick="selectDue('all')" data-filter-due="all" class="hf-dd-option selected"><%= t('all') %></button>
-              <button type="button" onclick="selectDue('today')" data-filter-due="today" class="hf-dd-option"><%= t('due_today') %></button>
-              <button type="button" onclick="selectDue('1-7')" data-filter-due="1-7" class="hf-dd-option"><%= t('filter_due_1_7') %></button>
-              <button type="button" onclick="selectDue('7-30')" data-filter-due="7-30" class="hf-dd-option"><%= t('filter_due_7_30') %></button>
-              <button type="button" onclick="selectDue('30plus')" data-filter-due="30plus" class="hf-dd-option"><%= t('filter_due_30plus') %></button>
+            <div class="hf-dd-menu" id="hfDueinMenu">
+              <button type="button" onclick="selectDueIn('all')" data-filter-duein="all" class="hf-dd-option selected"><%= t('any') %></button>
+              <button type="button" onclick="selectDueIn('today')" data-filter-duein="today" class="hf-dd-option"><%= t('due_today') %></button>
+              <button type="button" onclick="selectDueIn('1-7')" data-filter-duein="1-7" class="hf-dd-option"><%= t('filter_due_in_1_7') %></button>
+              <button type="button" onclick="selectDueIn('7-30')" data-filter-duein="7-30" class="hf-dd-option"><%= t('filter_due_in_7_30') %></button>
+              <button type="button" onclick="selectDueIn('30plus')" data-filter-duein="30plus" class="hf-dd-option"><%= t('filter_due_in_30plus') %></button>
+            </div>
+          </div>
+
+          <!-- OVERDUE FOR Dropdown -->
+          <div class="hf-dd" data-dropdown="overduefor">
+            <div class="hf-dd-mobile-label"><%= t('overdue_for_label') %></div>
+            <button type="button" onclick="toggleHfDropdown('overduefor', event)" class="hf-dd-trigger" id="hfOverdueforTrigger">
+              <span><span class="hf-dd-label"><%= t('overdue_for_label') %>:</span> <span id="hfOverdueforText"><%= t('any') %></span></span>
+              <svg class="hf-dd-chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+            <div class="hf-dd-menu" id="hfOverdueforMenu">
+              <button type="button" onclick="selectOverdueFor('all')" data-filter-overduefor="all" class="hf-dd-option selected"><%= t('any') %></button>
+              <button type="button" onclick="selectOverdueFor('overdue-1-7')" data-filter-overduefor="overdue-1-7" class="hf-dd-option"><%= t('filter_overdue_1_7') %></button>
+              <button type="button" onclick="selectOverdueFor('overdue-7-30')" data-filter-overduefor="overdue-7-30" class="hf-dd-option"><%= t('filter_overdue_7_30') %></button>
+              <button type="button" onclick="selectOverdueFor('overdue-30plus')" data-filter-overduefor="overdue-30plus" class="hf-dd-option"><%= t('filter_overdue_30plus') %></button>
             </div>
           </div>
 
@@ -1377,7 +1392,8 @@
 
   // ── Filter & Sort State ──
   let activeStatusFilter = 'all';
-  let activeDueFilter = 'all';
+  let activeDueInFilter = 'all';
+  let activeOverdueForFilter = 'all';
 
   function getViewAllCards() {
     return document.querySelectorAll('#view-all .log-card');
@@ -1388,17 +1404,18 @@
     getViewAllCards().forEach(card => {
       const matchesSearch = !term || card.textContent.toLowerCase().includes(term);
       const matchesStatus = activeStatusFilter === 'all' || card.dataset.status === activeStatusFilter;
-      const matchesDue = activeDueFilter === 'all' || matchesDueRange(card.dataset.dueRange, activeDueFilter);
-      card.classList.toggle('hidden', !(matchesSearch && matchesStatus && matchesDue));
+      const range = card.dataset.dueRange;
+      const matchesDueIn = activeDueInFilter === 'all' || matchesDueInRange(range, activeDueInFilter);
+      const matchesOverdue = activeOverdueForFilter === 'all' || range === activeOverdueForFilter;
+      card.classList.toggle('hidden', !(matchesSearch && matchesStatus && matchesDueIn && matchesOverdue));
     });
   }
 
-  function matchesDueRange(cardRange, filter) {
+  function matchesDueInRange(cardRange, filter) {
     if (filter === 'today') return cardRange === 'today';
-    if (filter === '1-7') return cardRange === '1-7' || cardRange === 'overdue-1-7';
-    if (filter === '7-30') return cardRange === '7-30' || cardRange === 'overdue-7-30';
-    if (filter === '30plus') return cardRange === '30plus' || cardRange === 'overdue-30plus';
-    if (filter === 'soon') return cardRange === 'today' || cardRange === '1-7';
+    if (filter === '1-7') return cardRange === '1-7' || cardRange === 'today';
+    if (filter === '7-30') return cardRange === '7-30';
+    if (filter === '30plus') return cardRange === '30plus';
     return false;
   }
 
@@ -1437,20 +1454,50 @@
   }
   window.filterByStatus = selectStatus;
 
-  function selectDue(due) {
-    activeDueFilter = due;
-    const menu = document.getElementById('hfDueMenu');
-    const textEl = document.getElementById('hfDueText');
-    const trigger = document.getElementById('hfDueTrigger');
+  function selectDueIn(val, silent) {
+    activeDueInFilter = val;
+    const menu = document.getElementById('hfDueinMenu');
+    const textEl = document.getElementById('hfDueinText');
+    const trigger = document.getElementById('hfDueinTrigger');
     menu.querySelectorAll('.hf-dd-option').forEach(opt => {
-      opt.classList.toggle('selected', opt.dataset.filterDue === due);
-      if (opt.dataset.filterDue === due) textEl.textContent = opt.textContent.trim();
+      opt.classList.toggle('selected', opt.dataset.filterDuein === val);
+      if (opt.dataset.filterDuein === val) textEl.textContent = opt.textContent.trim();
     });
-    trigger.classList.toggle('active', due !== 'all');
-    closeAllHfDropdowns();
-    applyAllFilters();
+    trigger.classList.toggle('active', val !== 'all');
+    if (!silent) {
+      // Clear OVERDUE FOR when selecting a DUE IN filter
+      if (val !== 'all') selectOverdueFor('all', true);
+      closeAllHfDropdowns();
+      applyAllFilters();
+    }
   }
-  window.filterByDue = selectDue;
+  window.filterByDue = function(due) {
+    if (due === 'all') { selectDueIn('all'); return; }
+    if (due === 'today') { selectDueIn('today'); return; }
+    if (due === 'soon') { selectDueIn('1-7'); return; }
+    selectDueIn(due);
+  };
+
+  function selectOverdueFor(val, silent) {
+    activeOverdueForFilter = val;
+    const menu = document.getElementById('hfOverdueforMenu');
+    const textEl = document.getElementById('hfOverdueforText');
+    const trigger = document.getElementById('hfOverdueforTrigger');
+    menu.querySelectorAll('.hf-dd-option').forEach(opt => {
+      opt.classList.toggle('selected', opt.dataset.filterOverduefor === val);
+      if (opt.dataset.filterOverduefor === val) textEl.textContent = opt.textContent.trim();
+    });
+    trigger.classList.toggle('active', val !== 'all');
+    if (!silent) {
+      // Auto-select STATUS: OVERDUE when choosing an overdue range
+      if (val !== 'all') {
+        selectStatus('overdue');
+        selectDueIn('all', true);
+      }
+      closeAllHfDropdowns();
+      applyAllFilters();
+    }
+  }
 
   function selectSort(sortBy) {
     const menu = document.getElementById('hfSortMenu');

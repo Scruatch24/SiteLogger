@@ -6,10 +6,11 @@
   _current_status = log.current_status
   _parsed_due = log.parsed_due_date
   _days_until_due = _parsed_due ? (_parsed_due - Date.today).to_i : nil
+  _days_overdue = (_days_until_due && _days_until_due < 0) ? -_days_until_due : nil
   _due_label = if _current_status == "paid"
                  nil # skip badge for paid — no longer due
                elsif _current_status == "overdue" || (_days_until_due && _days_until_due < 0)
-                 nil # skip badge for overdue — status already shows it
+                 "overdue_for" # show overdue duration badge
                elsif _days_until_due == 0
                  "due_today"
                elsif _days_until_due && _days_until_due >= 1 && _days_until_due <= 7
@@ -222,6 +223,7 @@
     <% if _due_label %>
       <%
         _due_badge_config = case _due_label
+                            when "overdue_for" then { bg: "bg-red-50", border: "border-red-400", text: "text-red-600", dot: "bg-red-500 animate-pulse" }
                             when "due_today" then { bg: "bg-amber-50", border: "border-amber-400", text: "text-amber-700", dot: "bg-amber-500 animate-pulse" }
                             when "due_this_week" then { bg: "bg-blue-50", border: "border-blue-300", text: "text-blue-600", dot: "bg-blue-400" }
                             when "due_this_month" then { bg: "bg-gray-50", border: "border-gray-300", text: "text-gray-500", dot: "bg-gray-400" }
@@ -230,9 +232,13 @@
       %>
       <div class="flex items-center gap-1 px-2.5 py-1.5 <%= _due_badge_config[:bg] %> border-2 <%= _due_badge_config[:border] %> rounded-t-lg rounded-b-none text-[9px] font-black uppercase tracking-widest <%= _due_badge_config[:text] %> pointer-events-none">
         <div class="w-1.5 h-1.5 rounded-full <%= _due_badge_config[:dot] %>"></div>
-        <%= t(_due_label) %>
-        <% if _days_until_due && _days_until_due > 0 %>
-          <span class="opacity-60">(<%= t('days_suffix', count: _days_until_due) %>)</span>
+        <% if _due_label == "overdue_for" && _days_overdue %>
+          <%= t('overdue_for_badge', count: _days_overdue) %>
+        <% else %>
+          <%= t(_due_label) %>
+          <% if _days_until_due && _days_until_due > 0 %>
+            <span class="opacity-60">(<%= t('days_suffix', count: _days_until_due) %>)</span>
+          <% end %>
         <% end %>
       </div>
     <% end %>
