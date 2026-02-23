@@ -173,12 +173,10 @@
     const M = 10;           /* margin — CSS padding + gap are both this value */
     const NAV_GAP = 4;      /* gap between nav buttons (CSS .mobile-fit-active gap) */
 
-    /* Measure natural (minimum) widths once — isolate each item */
+    /* Measure natural (minimum) widths — always fresh (font loading can change sizes) */
     var natW = {};
-    var measured = false;
 
     function measureNatural() {
-      if (measured) return;
       var items = navWrap.querySelectorAll('[data-nav-key]');
       items.forEach(function(el) {
         el.classList.remove('nav-hidden');
@@ -194,7 +192,6 @@
         el.style.visibility = '';
         el.classList.add('nav-hidden');
       });
-      measured = true;
     }
 
     function getEl(key) {

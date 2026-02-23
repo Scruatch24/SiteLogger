@@ -153,14 +153,11 @@ body {
       gap: 4px;
       justify-content: center;
     }
-    .site-nav-link:not(.site-nav-active) {
+    .site-nav-link:not(.site-nav-active):not(.site-nav-pricing) {
       background: #f3f4f6;
     }
-    .site-nav-link.site-nav-pricing {
-      color: #ea580c;
-    }
-    html[lang="ka"] .site-nav-link {
-      font-size: 10px;
+    .site-nav-link.site-nav-pricing:not(.site-nav-active) {
+      background: #fff7ed;
     }
   }
   .site-nav-link.nav-hidden {
@@ -178,6 +175,7 @@ body {
     letter-spacing: 0.06em;
     color: #6b7280;
     text-decoration: none;
+    border: 1px solid transparent;
     border-radius: 10px;
     transition: all 0.2s ease;
     white-space: nowrap;
@@ -197,7 +195,7 @@ body {
   .site-nav-link.site-nav-active {
     color: black;
     background: #fff7ed;
-    border: 1px solid #fed7aa;
+    border-color: #fed7aa;
   }
   .site-nav-pricing {
     display: inline-flex;
