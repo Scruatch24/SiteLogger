@@ -1,73 +1,49 @@
 <div id="aiAssistantSection" class="hidden mt-8 space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300 overflow-visible p-1">
   
-  <!-- Conversation History (chat bubbles) -->
-  <div id="assistantConversation" class="space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar">
-    <!-- AI messages and user bubbles will be inserted here dynamically -->
+  <!-- Chat Conversation -->
+  <div id="assistantConversation" class="space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar pr-1">
   </div>
 
-  <!-- AI Questions Area (per-question inputs) -->
-  <div id="assistantQuestionsArea" class="hidden space-y-2">
-    <div id="assistantQuestionsList" class="bg-white border-2 border-black rounded-xl p-4 space-y-4 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
-      <!-- Per-question input rows will be inserted here dynamically -->
+  <!-- Chat Input -->
+  <div class="flex gap-2">
+    <div class="flex-1 border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,0.05),4px_4px_0px_0px_rgba(0,0,0,1)] flex flex-col">
+      <textarea id="assistantInput"
+                rows="1"
+                oninput="autoResize(this); updateDynamicCountersCheck(this)"
+                class="w-full bg-transparent border-none text-sm font-bold text-black focus:ring-0 px-4 py-3 outline-none placeholder:text-gray-400 resize-none rounded-xl custom-scrollbar"
+                style="max-height: 8rem; overflow-y: hidden;"
+                placeholder="<%= t('assistant_placeholder') %>"
+                onkeydown="if(event.key==='Enter' && !event.shiftKey) { event.preventDefault(); submitAssistantMessage(); }"></textarea>
+      <div class="flex justify-end px-3 pb-1.5">
+        <span class="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+           <span id="assistantCharCount">0</span> / <span id="assistantMax"><%= @profile.char_limit %></span>
+        </span>
+      </div>
     </div>
-    
-    <!-- Confirm All Button -->
-    <div class="flex justify-center">
+    <div class="flex flex-col gap-1.5">
       <button type="button" 
-              id="confirmAllBtn"
-              onclick="confirmAllGuesses()"
-              class="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 border-2 border-black text-white rounded-xl active:scale-95 transition-all shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-emerald-600 font-black text-xs uppercase tracking-widest">
-        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+              id="assistantMicBtn"
+              onclick="startAssistantRecording()"
+              class="w-10 h-10 rounded-xl bg-black border-2 border-black flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all hover:bg-gray-800"
+              title="<%= t('answer_placeholder') %>">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
         </svg>
-        <span><%= t('confirm_all') %></span>
       </button>
-    </div>
-  </div>
-
-  <!-- Unified Input Area (always visible when section is shown) -->
-  <div id="assistantInputArea" class="pt-1 pb-1">
-    <div id="assistantInputContainer" class="flex gap-2">
-      <div class="flex-1 border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,0.05),4px_4px_0px_0px_rgba(0,0,0,1)] flex flex-col">
-        <textarea id="assistantInput"
-                  rows="2"
-                  oninput="autoResize(this); updateDynamicCountersCheck(this)"
-                  class="w-full bg-transparent border-none text-sm font-bold text-black focus:ring-0 p-4 outline-none placeholder:text-gray-400 resize-none rounded-xl custom-scrollbar"
-                  style="max-height: 12rem; overflow-y: hidden;"
-                  placeholder="<%= t('assistant_placeholder') %>"
-                  onkeydown="if(event.key==='Enter' && !event.shiftKey) { event.preventDefault(); submitAssistantMessage(); }"></textarea>
-        <div class="flex justify-end px-3 pb-2">
-          <span class="text-[9px] font-black text-gray-400 uppercase tracking-widest">
-             <span id="assistantCharCount">0</span> / <span id="assistantMax"><%= @profile.char_limit %></span>
-          </span>
-        </div>
+      <div id="assistantTimer" class="flex flex-col items-center justify-center hidden scale-90">
+        <span class="text-[8px] font-black text-gray-600 uppercase tracking-tighter leading-none">
+          <span id="assistantTimeLeft">0</span>s
+        </span>
       </div>
-      <div class="flex flex-col gap-2">
-        <button type="button" 
-                id="assistantMicBtn"
-                onclick="startAssistantRecording()"
-                class="w-11 h-11 rounded-xl bg-black border-2 border-black flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all hover:bg-gray-800"
-                title="<%= t('answer_placeholder') %>">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-          </svg>
-        </button>
-        <div id="assistantTimer" class="h-auto flex flex-col items-center justify-center hidden -mt-1 scale-90">
-          <span class="text-[8px] font-black text-gray-600 uppercase tracking-tighter leading-none">
-            <span id="assistantTimeLeft">0</span>s
-          </span>
-          <span class="text-[7px] font-black text-gray-400 uppercase tracking-tighter leading-none"><%= t('left') %></span>
-        </div>
-        <button type="button" 
-                id="assistantSendBtn"
-                onclick="submitAssistantMessage()"
-                class="w-11 h-11 rounded-xl bg-orange-500 border-2 border-black flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all hover:bg-orange-600"
-                title="Send">
-          <svg class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-          </svg>
-        </button>
-      </div>
+      <button type="button" 
+              id="assistantSendBtn"
+              onclick="submitAssistantMessage()"
+              class="w-10 h-10 rounded-xl bg-orange-500 border-2 border-black flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all hover:bg-orange-600"
+              title="Send">
+        <svg class="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+        </svg>
+      </button>
     </div>
   </div>
 </div>

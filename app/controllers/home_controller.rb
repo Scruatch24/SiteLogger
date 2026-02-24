@@ -1097,6 +1097,7 @@ RULES:
 - ONLY ask about missing PRICES or COSTS (e.g., "parts were expensive" but no dollar amount given)
 - When uncertain about a value, PREFER asking a clarification question over guessing wrong — a question is cheaper than a wrong invoice
 - CRITICAL: When you add a clarification with a guess value, you MUST populate the corresponding JSON field with that SAME value. The guess and actual field value must match.
+- MATH CHECK: When computing derived values (discounts, totals, percentages), ALWAYS double-check your arithmetic step by step. Example: 7% of (3 x 8500) = 7% of 25500 = 1785, NOT 7% of 30000. Show the base amount in your question so the user can verify.
 
 CONVERSATION CONTEXT AWARENESS (CRITICAL):
 - The input may contain a "PREVIOUS Q&A CONTEXT" section with numbered rounds of previous questions and answers.

@@ -5298,19 +5298,22 @@ function updateUI(data) {
     // Update totals summary after all items are added
     updateTotalsSummary();
 
-    // Handle AI Clarification Questions — this decides whether to show invoice preview
-    const hasClarifications = handleClarifications(data.clarifications || []);
+    // Always show invoice preview
+    document.getElementById("invoicePreview").classList.remove("hidden");
 
-    if (!hasClarifications) {
-      // No questions → show invoice preview immediately
-      document.getElementById("invoicePreview").classList.remove("hidden");
-      document.getElementById("invoicePreview").scrollIntoView({ behavior: 'smooth' });
+    // Handle AI Clarification Questions (shown as chat bubbles alongside invoice)
+    handleClarifications(data.clarifications || []);
+
+    if (window.pendingClarifications && window.pendingClarifications.length === 0) {
       window.setupSaveButton();
+    }
+
+    // Scroll to assistant chat if questions exist, otherwise to invoice
+    const assistantSection = document.getElementById('aiAssistantSection');
+    if (window.pendingClarifications && window.pendingClarifications.length > 0 && assistantSection) {
+      assistantSection.scrollIntoView({ behavior: 'smooth' });
     } else {
-      // Has questions → keep invoice hidden, scroll to assistant section
-      document.getElementById("invoicePreview").classList.add("hidden");
-      const assistantSection = document.getElementById('aiAssistantSection');
-      if (assistantSection) assistantSection.scrollIntoView({ behavior: 'smooth' });
+      document.getElementById("invoicePreview").scrollIntoView({ behavior: 'smooth' });
     }
 
     if (typeof window.trackEvent === 'function') {
@@ -5372,9 +5375,6 @@ window.rollbackPendingAnswer = function() {
 
 function handleClarifications(clarifications) {
   const section = document.getElementById('aiAssistantSection');
-  const questionsArea = document.getElementById('assistantQuestionsArea');
-  const list = document.getElementById('assistantQuestionsList');
-  const conversation = document.getElementById('assistantConversation');
 
   // Filter out already-answered clarifications
   const unansweredClarifications = (clarifications || []).filter(c => {
@@ -5388,42 +5388,42 @@ function handleClarifications(clarifications) {
   renderConversationHistory();
 
   if (!unansweredClarifications || unansweredClarifications.length === 0) {
-    if (questionsArea) questionsArea.classList.add('hidden');
-    if (list) list.innerHTML = '';
     window.pendingClarifications = [];
 
-    // Add AI "ready" message to conversation
-    addAIBubble(window.APP_LANGUAGES.invoice_ready || "Invoice looks complete!");
+    // AI "all good" message
+    addAIBubble(window.APP_LANGUAGES.anything_else || "Anything else to change?");
 
-    // Update placeholder for free-text input
     const assistInput = document.getElementById('assistantInput');
     if (assistInput) {
       assistInput.placeholder = window.APP_LANGUAGES.assistant_placeholder || "Tell me what to change...";
+      assistInput.focus();
     }
-    return false; // No clarifications
+    return;
   }
 
   // Store for later submission
   window.pendingClarifications = unansweredClarifications;
   window.originalTranscript = document.getElementById('mainTranscript').value;
 
-  // Add AI questions message to conversation
-  addAIBubble(window.APP_LANGUAGES.questions_to_confirm || "A few things to confirm:");
+  // Show each question as its own chat bubble
+  unansweredClarifications.forEach((c, index) => {
+    const guessDisplay = (c.guess === 0 || c.guess === "0" || c.guess === "" || c.guess === null || c.guess === undefined)
+      ? (window.APP_LANGUAGES.not_specified || "Not specified")
+      : c.guess;
 
-  // Render per-question inputs
-  renderAssistantQuestions(unansweredClarifications);
-  if (questionsArea) questionsArea.classList.remove('hidden');
+    const questionText = `${c.question}  (${window.APP_LANGUAGES.current_guess || "Current guess:"} ${guessDisplay})`;
+    addAIBubble(questionText);
+  });
 
   // Clear the input field for fresh answer
   if (!window._pendingAnswer) {
     const assistInput = document.getElementById('assistantInput');
     if (assistInput) {
       assistInput.value = '';
-      assistInput.placeholder = window.APP_LANGUAGES.assistant_placeholder || "Tell me what to change...";
+      assistInput.placeholder = window.APP_LANGUAGES.answer_placeholder || "Type or speak your answer...";
+      assistInput.focus();
     }
   }
-
-  return true; // Has clarifications
 }
 
 function toggleSection(contentId, arrowId, btn) {
@@ -5439,141 +5439,6 @@ function toggleSection(contentId, arrowId, btn) {
     content.classList.add('hidden');
     arrow.classList.add('-rotate-90');
     if (btn) btn.classList.remove('rounded-b-none');
-  }
-}
-
-// ============================================================
-// NEW UNIFIED AI ASSISTANT FUNCTIONS
-// ============================================================
-
-function renderAssistantQuestions(clarifications) {
-  const list = document.getElementById('assistantQuestionsList');
-  if (!list) return;
-  list.innerHTML = '';
-
-  clarifications.forEach((c, index) => {
-    const div = document.createElement('div');
-    div.className = "assistant-question-item pb-3 last:pb-0";
-    div.dataset.index = index;
-    div.dataset.field = c.field || '';
-    div.dataset.guess = (c.guess !== null && c.guess !== undefined) ? c.guess : '';
-    div.dataset.question = c.question || '';
-    div.dataset.resolved = 'false';
-
-    const isNumeric = typeof c.guess === 'number' || (c.guess !== null && c.guess !== undefined && c.guess !== '' && !isNaN(c.guess));
-    const guessDisplay = (c.guess === 0 || c.guess === "0" || c.guess === "" || c.guess === null || c.guess === undefined)
-      ? ''
-      : c.guess;
-
-    div.innerHTML = `
-      <p class="text-sm font-bold text-black leading-relaxed mb-2">
-        <span class="text-orange-600 font-black">${index + 1}.</span> ${escapeHtml(c.question)}
-      </p>
-      <div class="flex items-center gap-2 ml-5">
-        <input type="${isNumeric ? 'number' : 'text'}"
-               class="assistant-question-input flex-1 border-2 border-gray-200 rounded-lg px-3 py-2 text-sm font-bold text-black focus:border-orange-400 focus:ring-0 outline-none transition-colors"
-               value="${escapeHtml(String(guessDisplay))}"
-               data-original-guess="${escapeHtml(String(guessDisplay))}"
-               placeholder="${window.APP_LANGUAGES.not_specified || 'Not specified'}"
-               onkeydown="if(event.key==='Enter') { event.preventDefault(); confirmGuess(${index}); }" />
-        <button type="button"
-                onclick="confirmGuess(${index})"
-                class="assistant-confirm-btn shrink-0 px-3 py-2 bg-emerald-500 border-2 border-black text-white rounded-lg active:scale-95 transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-emerald-600 text-xs font-black uppercase tracking-widest"
-                title="${window.APP_LANGUAGES.confirm || 'Confirm'}">
-          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-          </svg>
-        </button>
-      </div>
-    `;
-
-    list.appendChild(div);
-  });
-}
-
-function confirmGuess(index) {
-  const items = document.querySelectorAll('.assistant-question-item');
-  const item = items[index];
-  if (!item || item.dataset.resolved === 'true') return;
-
-  const input = item.querySelector('.assistant-question-input');
-  const confirmBtn = item.querySelector('.assistant-confirm-btn');
-  const value = input ? input.value.trim() : '';
-  const originalGuess = input ? input.dataset.originalGuess : '';
-  const wasEdited = value !== originalGuess;
-
-  // Mark as resolved
-  item.dataset.resolved = 'true';
-  item.dataset.finalValue = value;
-  item.dataset.wasEdited = wasEdited ? 'true' : 'false';
-
-  // Visual feedback - green confirmed state
-  if (input) {
-    input.disabled = true;
-    input.classList.remove('border-gray-200', 'focus:border-orange-400');
-    input.classList.add('border-emerald-300', 'bg-emerald-50');
-  }
-  if (confirmBtn) {
-    confirmBtn.disabled = true;
-    confirmBtn.classList.remove('bg-emerald-500', 'hover:bg-emerald-600');
-    confirmBtn.classList.add('bg-emerald-300');
-    confirmBtn.innerHTML = `<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>`;
-  }
-
-  // Check if all questions are resolved
-  checkAllQuestionsResolved();
-}
-
-function confirmAllGuesses() {
-  const items = document.querySelectorAll('.assistant-question-item');
-  items.forEach((item, index) => {
-    if (item.dataset.resolved !== 'true') {
-      confirmGuess(index);
-    }
-  });
-}
-
-function checkAllQuestionsResolved() {
-  const items = document.querySelectorAll('.assistant-question-item');
-  const allResolved = Array.from(items).every(item => item.dataset.resolved === 'true');
-
-  if (!allResolved) return;
-
-  // Collect edited values
-  const editedAnswers = [];
-  items.forEach(item => {
-    if (item.dataset.wasEdited === 'true') {
-      editedAnswers.push({
-        field: item.dataset.field,
-        question: item.dataset.question,
-        value: item.dataset.finalValue
-      });
-    }
-  });
-
-  // Hide questions area
-  const questionsArea = document.getElementById('assistantQuestionsArea');
-  if (questionsArea) questionsArea.classList.add('hidden');
-
-  if (editedAnswers.length === 0) {
-    // ALL guesses confirmed as-is → no re-parse needed!
-    // The AI already populated the fields with guess values.
-    // Just show the invoice preview.
-    addUserBubble(window.APP_LANGUAGES.confirmed_value || "Confirmed");
-    window.pendingClarifications = [];
-
-    document.getElementById("invoicePreview").classList.remove("hidden");
-    document.getElementById("invoicePreview").scrollIntoView({ behavior: 'smooth' });
-    window.setupSaveButton();
-  } else {
-    // Some values were edited → re-parse with the corrections
-    const answerParts = editedAnswers.map(ea => {
-      return `${ea.question} → ${ea.value}`;
-    });
-    const combinedAnswer = answerParts.join('; ');
-
-    addUserBubble(combinedAnswer);
-    triggerAssistantReparse(combinedAnswer, 'clarification');
   }
 }
 
@@ -5921,16 +5786,13 @@ function updateUIWithoutTranscript(data) {
 
     updateTotalsSummary();
 
-    // Handle AI Clarification Questions — this decides whether to show invoice preview
-    const hasClarifications = handleClarifications(data.clarifications || []);
+    document.getElementById("invoicePreview").classList.remove("hidden");
 
-    if (!hasClarifications) {
-      document.getElementById("invoicePreview").classList.remove("hidden");
+    // Handle AI Clarification Questions (shown as chat bubbles alongside invoice)
+    handleClarifications(data.clarifications || []);
+
+    if (window.pendingClarifications && window.pendingClarifications.length === 0) {
       window.setupSaveButton();
-    } else {
-      document.getElementById("invoicePreview").classList.add("hidden");
-      const assistantSection = document.getElementById('aiAssistantSection');
-      if (assistantSection) assistantSection.scrollIntoView({ behavior: 'smooth' });
     }
 
     window._analysisSucceeded = true;
@@ -6138,10 +6000,6 @@ Object.assign(window, {
   updateUI,
   handleClarifications,
   toggleSection,
-  renderAssistantQuestions,
-  confirmGuess,
-  confirmAllGuesses,
-  checkAllQuestionsResolved,
   addAIBubble,
   addUserBubble,
   renderConversationHistory,
