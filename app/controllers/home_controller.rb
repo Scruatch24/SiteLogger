@@ -1054,6 +1054,8 @@ TAXABILITY & PRICES (STRICT)
    - EXPLICIT "Tax everything except [X]": Set `taxable: false` for X items, and `taxable: true` for ALL other items.
    - EXPLICIT "Tax [X] only": Set `taxable: true` for X items, `taxable: false` for others.
    - EXPLICIT "Tax materials" or "Tax parts": Set `taxable: true` for Materials.
+   - EXPLICIT "Don't tax labor" / "No tax on service": You MUST set `labor_taxable: false` AND set `taxable: false` on EVERY labor_service_item. This overrides the user's profile defaults.
+   - EXPLICIT "Don't tax materials" / "No tax on parts": Set `taxable: false` on EVERY material item.
 2. PRICE BUNDLING: Always consolidate. "Labor was 1200" -> ONE fixed labor item, price 1200. "Materials 2300" -> ONE materials item, qty 1, unit_price 2300.
 3. NUMERIC WORDS: "twelve hundred" -> 1200, "twenty-three hundred" -> 2300.
 
@@ -1063,6 +1065,8 @@ TAX SCOPE & RATES
 - DEFAULT SCOPE: Use null if no instruction.#{' '}
 - EXPLICIT SCOPE: If user says "tax ONLY on parts", `tax_scope` MUST be "materials".
 - TAX RATES: "8% tax" -> tax_rate: 8.0.
+- GENERAL TAX INSTRUCTION (e.g., "add 18% tax", "დაამატე 18% დღგ"): Set `tax_rate: 18` on every item. Leave `tax_scope: null` — the system will apply it using the user's profile defaults. Do NOT ask which categories to tax. Do NOT break it apart per category.
+- TAX IS NEVER A CLARIFICATION CANDIDATE. If user says "add X% tax" or "X% VAT", just apply it. Never ask to confirm tax instructions.
 
 ----------------------------
 CLARIFICATION QUESTIONS (CRITICAL - ask the user to confirm uncertain or missing values)
@@ -1094,12 +1098,13 @@ RULES:
 - Limit to #{@profile.clarification_limit} clarifications maximum per request (prioritize most impactful ones)
 - Do NOT ask if the value is clear and explicit (e.g., "800 dollars" needs no clarification)
 - Do NOT ask about ANY RATES (hourly rate, team rate, special rate, tax rate) - the system has user-configured defaults
-- ONLY ask about missing PRICES or COSTS (e.g., "parts were expensive" but no dollar amount given)
-- NEVER ask yes/no or true/false questions. If the user explicitly states something (e.g., "add 18% VAT", "7% discount on hardware"), just DO IT — do not ask for confirmation.
-- NEVER ask about tax applicability, discount applicability, or scope when the user already specified it. "Add 18% VAT at the end" means apply 18% to everything. "7% discount on hardware but not service" means apply 7% only to hardware. Just follow the instruction.
-- When uncertain about a NUMERIC value, PREFER asking a clarification question over guessing wrong — a question is cheaper than a wrong invoice
+- ONLY ask about genuinely MISSING numeric values (e.g., "parts were expensive" but no dollar amount given)
+- NEVER ask yes/no or true/false questions. NEVER ask for confirmation of something the user already stated.
+- NEVER create clarifications about: tax rates, tax scope, tax applicability, discount percentages, discount scope. These are INSTRUCTIONS, not missing values.
+- "Add 18% VAT" → set tax_rate: 18. "7% discount on hardware" → set discount_percent: 7 on hardware items. Just DO IT.
+- When uncertain about a NUMERIC value (price, cost, quantity, hours), PREFER asking a clarification question over guessing wrong — a question is cheaper than a wrong invoice
 - CRITICAL: When you add a clarification with a guess value, you MUST populate the corresponding JSON field with that SAME value. The guess and actual field value must match.
-- MATH CHECK: When computing derived values (discounts, totals, percentages), ALWAYS double-check your arithmetic step by step. Example: 7% of (3 x 8500) = 7% of 25500 = 1785, NOT 7% of 30000. Show the base amount in your question so the user can verify.
+- MATH CHECK: When computing derived values (discounts, totals, percentages), ALWAYS double-check your arithmetic step by step. Example: 7% of (3 x 8500) = 7% of 25500 = 1785, NOT 7% of 30000.
 
 CONVERSATION CONTEXT AWARENESS (CRITICAL):
 - The input may contain a "PREVIOUS Q&A CONTEXT" section with numbered rounds of previous questions and answers.
@@ -1126,11 +1131,12 @@ OUTPUT & TONE
 DISCOUNT RULES (CRITICAL)
 ----------------------------
 - Discounts are MUTUALLY EXCLUSIVE: each item can have EITHER discount_flat OR discount_percent, NEVER BOTH.
-- If the user mentions a percentage discount (e.g., "10% off"), use discount_percent and leave discount_flat empty.
+- If the user mentions a percentage discount (e.g., "10% off"), use discount_percent and leave discount_flat empty. NEVER compute the flat equivalent of a percentage discount. The system calculates it automatically.
 - If the user mentions a flat/fixed discount (e.g., "$50 off"), use discount_flat and leave discount_percent empty.
 - discount_percent MUST NOT exceed 100.
 - discount_flat MUST NOT exceed the item's total price (unit_price * qty, or hours * rate for labor).
 - Same rules apply to global_discount_flat/global_discount_percent and labor_discount_flat/labor_discount_percent.
+- PERCENTAGE DISCOUNTS ARE NEVER CLARIFICATION CANDIDATES. If user says "X% discount on [category]", put discount_percent: X on those items. Do NOT compute the flat amount and ask about it. Do NOT create a clarification for a percentage discount.
 
 ----------------------------
 OUTPUT JSON SCHEMA (must match exactly)
