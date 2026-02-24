@@ -861,6 +861,11 @@ class HomeController < ApplicationController
        return render json: { error: t("audio_too_short") }, status: :unprocessable_entity
     end
 
+    # Empty/barely legible input check
+    if is_manual_text && params[:manual_text].to_s.strip.length < 2
+      return render json: { error: t("input_too_short", default: "Input too short to process.") }, status: :unprocessable_entity
+    end
+
     # Character Limit Check
     current_length = params[:manual_text].to_s.length
     # We allow a 250-character buffer on the server to account for the overhead

@@ -2013,6 +2013,7 @@ document.addEventListener("DOMContentLoaded", () => {
   reParseBtn.onclick = async () => {
     if (isAnalyzing) return; // Prevent spam clicks
     const text = transcriptArea.value;
+    if (!text || text.trim().length < 2) return; // Ignore empty/barely legible input
     const limit = window.profileCharLimit || 2000;
 
     startAnalysisUI();
@@ -5688,8 +5689,9 @@ async function processAssistantAudio() {
     const data = await res.json();
     if (input) {
       input.placeholder = window.APP_LANGUAGES.assistant_placeholder || "Tell me what to change...";
-      if (data.raw_summary) {
-        input.value = data.raw_summary.trim();
+      const transcribed = (data.raw_summary || '').trim();
+      if (transcribed.length >= 2) {
+        input.value = transcribed;
         setTimeout(() => submitAssistantMessage(), 300);
       }
     }
@@ -5704,9 +5706,8 @@ async function submitAssistantMessage() {
   const input = document.getElementById('assistantInput');
   const userMessage = input ? input.value.trim() : '';
 
-  if (!userMessage) {
-    showError(window.APP_LANGUAGES.provide_answer || "Please provide an answer first");
-    return;
+  if (!userMessage || userMessage.length < 2) {
+    return; // Silently ignore empty/barely legible input
   }
 
   // Determine type: if there are pending clarifications, it's a clarification answer; otherwise it's a user-initiated change

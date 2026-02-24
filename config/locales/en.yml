@@ -503,6 +503,7 @@ en:
   # System Messages
   profile_saved: "Profile saved successfully!"
   audio_too_short: "Audio too short. Please speak longer."
+  input_too_short: "Input too short to process."
   transcript_limit_exceeded: "Your transcript exceeds the character limit."
   transcription_failed: "Failed to transcribe audio."
   input_unclear: "Input unclear - please try again."

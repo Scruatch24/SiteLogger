@@ -550,6 +550,7 @@ ka:
   # System Messages
   profile_saved: "პროფილი წარმატებით შეინახა!"
   audio_too_short: "აუდიო ძალიან მოკლეა. გთხოვთ ილაპარაკოთ უფრო დიდხანს."
+  input_too_short: "ტექსტი ძალიან მოკლეა დასამუშავებლად."
   transcript_limit_exceeded: "ტექსტი აჭარბებს სიმბოლოების ლიმიტს."
   transcription_failed: "აუდიოს დამუშავება ვერ მოხერხდა."
   input_unclear: "გაუგებარი მონაცემები - გთხოვთ სცადოთ თავიდან."
