@@ -5884,8 +5884,8 @@ function updateUIWithoutTranscript(data) {
     }
 
     // Sections
-    const sectionContainer = document.getElementById("sectionsContainer");
-    sectionContainer.querySelectorAll('.dynamic-section:not([data-protected])').forEach(s => s.remove());
+    const sectionContainer = document.getElementById("dynamicSections");
+    sectionContainer.innerHTML = "";
 
     if (data.sections && data.sections.length > 0) {
       data.sections.forEach(sec => addFullSection(sec.title, sec.items));
