@@ -2951,10 +2951,10 @@ function updateDueDate(dueDays, dueDate) {
   if (dueDate) {
     // Explicit date provided
     targetDate = new Date(dueDate);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const baseDate = window.selectedMainDate ? new Date(window.selectedMainDate) : new Date();
+    baseDate.setHours(0, 0, 0, 0);
     targetDate.setHours(0, 0, 0, 0);
-    daysUntil = Math.ceil((targetDate - today) / (1000 * 60 * 60 * 24));
+    daysUntil = Math.ceil((targetDate - baseDate) / (1000 * 60 * 60 * 24));
 
     // Clear offset if hard date pick
     window.currentDueOffset = null;
@@ -5845,11 +5845,10 @@ function updateUIWithoutTranscript(data) {
     // Billing Mode Synchronization
     const billingMode = data.billing_mode || currentLogBillingMode;
     if (data.hourly_rate) {
-      document.getElementById("hourlyRateInput").value = data.hourly_rate;
-      currentLogHourlyRate = data.hourly_rate;
+      profileHourlyRate = parseFloat(data.hourly_rate);
     }
-    if (data.labor_tax_rate) {
-      document.getElementById("defaultTaxInput").value = data.labor_tax_rate;
+    if (data.labor_tax_rate !== undefined && data.labor_tax_rate !== null && data.labor_tax_rate !== "") {
+      profileTaxRate = parseFloat(data.labor_tax_rate);
     }
     setGlobalBillingMode(billingMode);
 

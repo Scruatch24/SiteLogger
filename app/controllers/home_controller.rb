@@ -995,7 +995,7 @@ NATURAL LANGUAGE / SLANG RULESET (pragmatic)
 - If user says "usual rate", "standard rate", or "same rate", leave rate fields as NULL (system will apply defaults).
 - DAY REFERENCES: When user mentions "day", "half day", "workday", or "X days" for labor time, convert using #{hours_per_workday} hours per day. Examples: "three days" = #{three_days_hours} hours, "half day" = #{half_day_hours} hours.
 - DATE EXTRACTION: If user mentions WHEN the work was done (e.g., "yesterday", "last Tuesday", "on February 5th", "this was from last week", "the job was on Monday", "set the date to...", "change the date to..."), extract this as the invoice date and return it in the "date" field. Use format "MMM DD, YYYY" (e.g., "Feb 07, 2026"). Today's date is #{today_for_prompt}. If no date is mentioned, return null for the "date" field.
-- GEORGIAN DATE TERMS: "საწყისი თარიღი", "ინვოისის თარიღი", "გაცემის თარიღი" → invoice "date". "ბოლო ვადა", "ბოლო თარიღი", "ვადა", "გადახდის ვადა" → "due_date". "მიწოდების თარიღი" (delivery date), "დაწყების თარიღი" (start date) → these are NOT invoice dates. Add as a sub_category on the most relevant/main item (e.g., "მიწოდება: 15 მარტი, 2026"). Do NOT put delivery/start dates in the "date" or "due_date" fields.
+- GEORGIAN DATE TERMS: "საწყისი თარიღი", "ინვოისის თარიღი", "გაცემის თარიღი" → invoice "date". "ბოლო ვადა", "ბოლო თარიღი", "ვადა", "გადახდის ვადა" → "due_date". "მიწოდების თარიღი" (delivery date), "დაწყების თარიღი" (start date), "დასრულების თარიღი" (completion date), "შესრულების თარიღი" (fulfillment date), "ჩაბარების თარიღი" (handover date), "საქმის დასრულების თარიღი", "სამსახურის დასრულების თარიღი" → these are NOT invoice or due dates. Add as a sub_category on the most relevant/main item (e.g., "მიწოდება: 15 მარტი, 2026" or "დასრულება: 15 მარტი, 2026"). Do NOT put delivery/completion/start dates in the "date" or "due_date" fields.
 
 ----------------------------
 CATEGORY RULES (must map correctly)
@@ -1124,8 +1124,9 @@ Ask ONLY when a category is mentioned but has NO number at all:
 3. APPROXIMATE VALUES with hedging words:
    - "around 500", "just under 800", "about 2 hours" → ask for exact value
 4. AMBIGUOUS NOTES/METADATA — warranty, guarantee, condition, note applies to MULTIPLE possible items:
-   - "warranty 1 year" after listing iPhone + cases → ask which items the warranty applies to (all, iPhone only, etc.)
-   - "გარანტია 1 წელი" after multiple products → ask "რომელ პროდუქტებს ეხება გარანტია?"
+   - "warranty 1 year" after listing iPhone + cases → YOU MUST ask which items the warranty applies to (all, iPhone only, cases only, etc.)
+   - "გარანტია 1 წელი" after multiple products → YOU MUST ask "რომელ პროდუქტებს ეხება გარანტია?"
+   - THIS IS MANDATORY: When 2+ items exist and a note/warranty/guarantee is mentioned without specifying EXACTLY which items it covers, you MUST add a clarification question. Do NOT silently assume it applies to one item.
    - GUESS FORMAT: The "guess" field MUST contain the ITEM NAME(S) the note is guessed to apply to, NOT the note text itself. E.g., guess: "iPhone 15 Pro" or guess: "ყველა პროდუქტი" (all products). NEVER put the warranty/note text as the guess.
    - GUESS REFLECTS JSON: Your initial JSON MUST reflect the guess — attach the sub_category ONLY to the guessed item(s). If guess is "iPhone 15 Pro", add "1 წლიანი გარანტია" as sub_category ONLY on the iPhone item, NOT on other items.
    - Once the user clarifies, the corrected answer will be applied on re-parse.
@@ -1834,7 +1835,7 @@ PROMPT
       3. DATES (today is #{today_for_prompt}):
          - Invoice date: "საწყისი თარიღი", "ინვოისის თარიღი", "set the date", "change the date" → modify "date" field. Format: "MMM DD, YYYY".
          - Due date: "ბოლო ვადა", "ვადა", "გადახდის ვადა", "due date" → modify "due_date" field. Format: "MMM DD, YYYY".
-         - Delivery/start date: "მიწოდების თარიღი", "დაწყების თარიღი" → add as sub_category on the most relevant main item (e.g., "მიწოდება: 15 მარტი, 2026"). Do NOT put in "date" or "due_date" fields.
+         - Delivery/completion/start date: "მიწოდების თარიღი", "დაწყების თარიღი", "დასრულების თარიღი", "შესრულების თარიღი", "ჩაბარების თარიღი", "საქმის დასრულების თარიღი", "სამსახურის დასრულების თარიღი" → add as sub_category on the most relevant main item (e.g., "მიწოდება: 15 მარტი, 2026" or "დასრულება: 15 მარტი, 2026"). Do NOT put in "date" or "due_date" fields.
       4. TAX:
          - "ნუ დაადებ დღგ-ს" / "no tax" / "მთლიანს ნუ დაადებ დღგ-ს" → set taxable:false on ALL items in ALL sections AND set "labor_taxable": false.
          - "დაამატე X% დღგ" / "add X% tax" → set tax_rate:X on all items, taxable:true.
