@@ -1120,8 +1120,13 @@ Ask ONLY when a category is mentioned but has NO number at all:
    - "a lot", "significant amount" → ask for exact value
 3. APPROXIMATE VALUES with hedging words:
    - "around 500", "just under 800", "about 2 hours" → ask for exact value
+4. AMBIGUOUS NOTES/METADATA — warranty, guarantee, condition, note applies to MULTIPLE possible items:
+   - "warranty 1 year" after listing iPhone + cases → ask which items the warranty applies to (all, iPhone only, etc.)
+   - "გარანტია 1 წელი" after multiple products → ask "რომელ პროდუქტებს ეხება გარანტია?"
+   - Once clarified, add the note (e.g., "1-Year Warranty" / "1 წლიანი გარანტია") as a sub_category on the applicable items.
+   - If only ONE item exists, do NOT ask — just attach it.
 
-If ALL values are explicit numbers, return clarifications: [] (empty array).
+If ALL values are explicit numbers AND no ambiguous notes, return clarifications: [] (empty array).
 
 FORMAT: { "field": "[category].[field_name]", "guess": [best_guess_or_0], "question": "[short direct question]" }
 
