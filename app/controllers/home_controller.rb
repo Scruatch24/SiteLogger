@@ -697,18 +697,30 @@ class HomeController < ApplicationController
     output_language_rule = "Return output only in #{target_language_name}."
 
     instruction = <<~TEXT
-      You rewrite transcript text so downstream invoice extraction is more reliable.
-      This output will be consumed by a separate strict JSON invoice extraction AI model.
-      Rewrite for machine-readability: clear sentence boundaries, explicit wording, and minimal ambiguity.
-      Keep all facts unchanged: names, quantities, prices, dates, and technical details.
-      Keep all numbers/currency values exact as provided.
-      Improve grammar, punctuation, and clarity. Remove filler words/repetitions.
-      Do NOT add any new information.
-      If USER TEXT is not already in #{target_language_name}, first translate it to #{target_language_name}, then enhance it.
-      If USER TEXT is already in #{target_language_name}, do not translate.
-      #{output_language_rule}
+      You are a preprocessing step for an invoice extraction AI. Your job: rewrite messy user text into clean, unambiguous, structured text that a downstream JSON extractor can parse perfectly.
+
+      CRITICAL RULES:
+      1. Keep ALL facts unchanged: client names, quantities, prices, dates, percentages, technical details.
+      2. Keep ALL numbers/currency values EXACT. Never round, estimate, or recalculate.
+      3. Do NOT add any new information. Do NOT invent prices or details not in the original.
+      4. Remove filler words, repetitions, hesitations ("uh", "like", "basically", "ანუ", "ეგ", "ხო").
+      5. Fix grammar, punctuation, spelling. Use clear sentence boundaries.
+
+      STRUCTURE ENHANCEMENT:
+      - Separate each item/service onto its own line or sentence with its price clearly attached.
+      - Make category boundaries clear: services vs products/materials vs fees.
+      - Make discount scope explicit: "7% discount on hardware" should stay "7% discount on hardware", not become vague.
+      - Make tax instructions explicit: preserve exact scope ("add 18% VAT at the end" stays as-is).
+      - If quantities and unit prices are mentioned, keep them separate: "3 servers at 8,500 each" stays as "3 servers at 8,500 each", NOT "servers 25,500".
+      - Payment terms should be preserved exactly.
+
+      LANGUAGE:
+      - If USER TEXT is not in #{target_language_name}, translate it to #{target_language_name} first, then enhance.
+      - If USER TEXT is already in #{target_language_name}, enhance without translation.
+      - #{output_language_rule}
+
+      OUTPUT: Return ONLY the rewritten text. No JSON, no markdown, no quotes, no commentary.
       Output MUST be at most #{limit} characters.
-      Return ONLY the rewritten text. No JSON, no markdown, no quotes.
 
       USER TEXT:
       #{raw_text}
@@ -1045,6 +1057,7 @@ EXTRACTION STRATEGY (MULTI-PASS)
 - STEP 2: Map these totals to their functional categories (Labor, Materials, Fees).
 - STEP 3: ONLY then gather descriptions and sub-categories.
 - LATE TOTAL RULE: If items are listed first (e.g. "Condenser, coil, pipe...") and a price follows later (e.g. "...materials were 2300"), you MUST consolidate them. It is strictly forbidden to leave the categorized parts with $0. Create ONE priced item and use the parts as sub-categories.
+- SEPARATE PRICES = SEPARATE ITEMS: If two items each have their OWN explicit price, they are ALWAYS separate items. NEVER merge them. Example: "ERP system 45,000" and "3 servers at 8,500 each" are TWO separate items — ERP is a service (labor_service_items, fixed, price=45000), servers are materials (materials, qty=3, unit_price=8500). The fact that they are mentioned together does NOT mean one includes the other.
 
 ----------------------------
 TAXABILITY & PRICES (STRICT)

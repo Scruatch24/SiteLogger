@@ -5347,21 +5347,20 @@ window.finalizePendingAnswer = function() {
   if (!window._pendingAnswer) return;
   var pending = window._pendingAnswer;
 
-  // Commit history entry
+  // Commit history entry (data only, NO DOM rebuild)
   if (pending.historyEntry) {
     if (!window.clarificationHistory) window.clarificationHistory = [];
     window.clarificationHistory.push(pending.historyEntry);
   }
 
-  // Add to conversation bubbles
+  // Add to conversation history (data only)
   if (!window.previousClarificationAnswers) window.previousClarificationAnswers = [];
   window.previousClarificationAnswers.push({ text: pending.text, type: pending.type });
 
-  // Clear and re-enable the unified input
+  // Re-enable the unified input (user bubble is already in DOM from submitAssistantMessage)
   var assistIn = document.getElementById('assistantInput');
   if (assistIn) { assistIn.value = ''; assistIn.disabled = false; }
 
-  renderConversationHistory();
   if (window.updateDynamicCounters) window.updateDynamicCounters();
   window._pendingAnswer = null;
 };
@@ -5385,8 +5384,13 @@ function handleClarifications(clarifications) {
   // Always show the assistant section after analysis
   if (section) section.classList.remove('hidden');
 
-  // Render conversation history (previous Q&A bubbles)
-  renderConversationHistory();
+  // Only rebuild conversation from scratch on FIRST call (fresh analysis)
+  // Subsequent calls (after user answers) just append — bubbles already in DOM
+  const conversation = document.getElementById('assistantConversation');
+  const isFirstCall = !conversation || conversation.children.length === 0;
+  if (isFirstCall) {
+    renderConversationHistory();
+  }
 
   if (!unansweredClarifications || unansweredClarifications.length === 0) {
     window.pendingClarifications = [];
@@ -5478,11 +5482,7 @@ function showTypingIndicator() {
   const div = document.createElement('div');
   div.className = "typing-indicator flex items-start gap-2 animate-in fade-in duration-200";
   div.innerHTML = `
-    <div class="shrink-0 w-7 h-7 rounded-lg bg-orange-500 border-2 border-black flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-      <svg class="h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
-      </svg>
-    </div>
+    <img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">
     <div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-2.5 shadow-sm">
       <div class="flex gap-1 items-center h-4">
         <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0ms;"></span>
@@ -5509,11 +5509,7 @@ function addAIBubble(text) {
   const div = document.createElement('div');
   div.className = "flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300";
   div.innerHTML = `
-    <div class="shrink-0 w-7 h-7 rounded-lg bg-orange-500 border-2 border-black flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-      <svg class="h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
-      </svg>
-    </div>
+    <img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">
     <div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-2 text-sm font-bold text-gray-800 shadow-sm max-w-[85%]">
       ${escapeHtml(text)}
     </div>
@@ -5543,20 +5539,26 @@ function renderConversationHistory() {
 
   conversation.innerHTML = '';
 
-  if (!window.previousClarificationAnswers || window.previousClarificationAnswers.length === 0) {
-    return;
-  }
+  const history = window.clarificationHistory || [];
+  const answers = window.previousClarificationAnswers || [];
 
-  // Rebuild from history
-  window.clarificationHistory.forEach((h, i) => {
-    if (h.questions && h.questions !== "User requested change") {
-      addAIBubble(h.questions);
+  if (history.length === 0 && answers.length === 0) return;
+
+  // Interleave Q&A in chronological order: Q1 → A1 → Q2 → A2 → ...
+  const maxLen = Math.max(history.length, answers.length);
+  for (let i = 0; i < maxLen; i++) {
+    if (i < history.length) {
+      const h = history[i];
+      if (h.questions && h.questions !== "User requested change") {
+        addAIBubble(h.questions);
+      } else if (h.questions === "User requested change") {
+        // Show a subtle label for user-initiated changes
+      }
     }
-  });
-
-  window.previousClarificationAnswers.forEach(ans => {
-    addUserBubble(ans.text);
-  });
+    if (i < answers.length) {
+      addUserBubble(answers[i].text);
+    }
+  }
 }
 
 function escapeHtml(text) {
