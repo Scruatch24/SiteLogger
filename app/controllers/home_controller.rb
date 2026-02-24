@@ -697,30 +697,31 @@ class HomeController < ApplicationController
     output_language_rule = "Return output only in #{target_language_name}."
 
     instruction = <<~TEXT
-      You are a preprocessing step for an invoice extraction AI. Your job: rewrite messy user text into clean, unambiguous, structured text that a downstream JSON extractor can parse perfectly.
+      You clean up speech-to-text transcripts for invoice extraction. Be MINIMAL and CONSERVATIVE.
 
-      CRITICAL RULES:
-      1. Keep ALL facts unchanged: client names, quantities, prices, dates, percentages, technical details.
-      2. Keep ALL numbers/currency values EXACT. Never round, estimate, or recalculate.
-      3. Do NOT add any new information. Do NOT invent prices or details not in the original.
-      4. Remove filler words, repetitions, hesitations ("uh", "like", "basically", "ანუ", "ეგ", "ხო").
-      5. Fix grammar, punctuation, spelling. Use clear sentence boundaries.
+      GOLDEN RULE: If the text is already clear and well-structured, return it UNCHANGED or with only trivial fixes (typos, punctuation). Do NOT rewrite text that an AI can already parse correctly.
 
-      STRUCTURE ENHANCEMENT:
-      - Separate each item/service onto its own line or sentence with its price clearly attached.
-      - Make category boundaries clear: services vs products/materials vs fees.
-      - Make discount scope explicit: "7% discount on hardware" should stay "7% discount on hardware", not become vague.
-      - Make tax instructions explicit: preserve exact scope ("add 18% VAT at the end" stays as-is).
-      - If quantities and unit prices are mentioned, keep them separate: "3 servers at 8,500 each" stays as "3 servers at 8,500 each", NOT "servers 25,500".
-      - Payment terms should be preserved exactly.
+      ONLY fix these problems when present:
+      1. Speech artifacts: "uh", "um", "like", "basically", "ანუ", "ეგ", "ხო", repeated words/phrases
+      2. Broken sentences from speech recognition (missing punctuation, run-on text)
+      3. Obvious typos and misspellings
+      4. If text is a messy stream-of-consciousness, add line breaks between distinct items
+
+      NEVER do these:
+      - NEVER rewrite, rephrase, or restructure already-clear sentences
+      - NEVER combine quantities with unit prices (keep "3 servers at 8,500 each" as-is, NOT "servers 25,500")
+      - NEVER change, round, or recalculate any numbers
+      - NEVER add information, labels, or formatting not in the original
+      - NEVER make tax/discount instructions vaguer than the original
+      - NEVER remove meaningful words or change meaning
 
       LANGUAGE:
-      - If USER TEXT is not in #{target_language_name}, translate it to #{target_language_name} first, then enhance.
-      - If USER TEXT is already in #{target_language_name}, enhance without translation.
+      - If USER TEXT is not in #{target_language_name}, translate it to #{target_language_name}.
+      - If USER TEXT is already in #{target_language_name}, keep the same language.
       - #{output_language_rule}
 
-      OUTPUT: Return ONLY the rewritten text. No JSON, no markdown, no quotes, no commentary.
-      Output MUST be at most #{limit} characters.
+      OUTPUT: Return ONLY the cleaned text. No JSON, no markdown, no quotes, no commentary.
+      Maximum #{limit} characters.
 
       USER TEXT:
       #{raw_text}
@@ -1797,7 +1798,7 @@ PROMPT
   end
 
 
-  def gemini_generate_content(api_key:, model:, prompt_parts:, cached_instruction_name: nil)
+  def gemini_generate_content(api_key:, model:, prompt_parts:, cached_instruction_name: nil, temperature: 0.1)
     uri = URI("https://generativelanguage.googleapis.com/v1beta/models/#{model}:generateContent")
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = true
@@ -1806,7 +1807,8 @@ PROMPT
 
     req = Net::HTTP::Post.new(uri, "Content-Type" => "application/json", "x-goog-api-key" => api_key)
     payload = {
-      contents: [ { parts: prompt_parts } ]
+      contents: [ { parts: prompt_parts } ],
+      generationConfig: { temperature: temperature }
     }
     payload[:cachedContent] = cached_instruction_name if cached_instruction_name.present?
     req.body = payload.to_json
