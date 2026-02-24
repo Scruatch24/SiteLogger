@@ -5855,9 +5855,9 @@ function updateUIWithoutTranscript(data) {
     // Currency Update
     if (data.currency) {
       activeCurrencyCode = data.currency.toUpperCase();
-      const curr = allCurrencies.find(c => c.c === activeCurrencyCode);
+      const curr = CURRENCIES.find(c => c.c === activeCurrencyCode);
       if (curr) {
-        currencySymbol = curr.s;
+        activeCurrencySymbol = curr.s;
         const display = document.getElementById('globalCurrencyDisplay');
         if (display) {
           display.innerHTML = `<span class="fi fi-${curr.i} rounded-sm shadow-sm scale-90"></span> <span>${curr.c} (${curr.s})</span>`;
