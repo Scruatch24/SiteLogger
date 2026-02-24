@@ -1091,10 +1091,11 @@ CLARIFICATION LANGUAGE (NON-NEGOTIABLE):
 #{ui_is_georgian ? '- You MUST write ALL clarification question text in Georgian (ქართული). Every single "question" value in the clarifications array MUST be in Georgian. Example: "რა ღირდა მასალები?" not "What was the cost for materials?"' : '- You MUST write ALL clarification question text in English.'}
 
 RULES:
-- Limit to 5 clarifications maximum per request (prioritize most impactful ones)
+- Limit to #{@profile.clarification_limit} clarifications maximum per request (prioritize most impactful ones)
 - Do NOT ask if the value is clear and explicit (e.g., "800 dollars" needs no clarification)
 - Do NOT ask about ANY RATES (hourly rate, team rate, special rate, tax rate) - the system has user-configured defaults
 - ONLY ask about missing PRICES or COSTS (e.g., "parts were expensive" but no dollar amount given)
+- When uncertain about a value, PREFER asking a clarification question over guessing wrong — a question is cheaper than a wrong invoice
 - CRITICAL: When you add a clarification with a guess value, you MUST populate the corresponding JSON field with that SAME value. The guess and actual field value must match.
 
 CONVERSATION CONTEXT AWARENESS (CRITICAL):

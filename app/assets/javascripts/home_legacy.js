@@ -1745,18 +1745,16 @@ document.addEventListener("DOMContentLoaded", () => {
         window.clarificationHistory = [];
         window._pendingAnswer = null;
         window._analysisSucceeded = false;
-        renderPreviousAnswers();
-        const refInput = document.getElementById('refinementInput');
-        const clarInput = document.getElementById('clarificationAnswerInput');
-        if (refInput) { refInput.value = ''; refInput.disabled = false; }
-        if (clarInput) { clarInput.value = ''; clarInput.disabled = false; }
+        renderConversationHistory();
+        const assistInput = document.getElementById('assistantInput');
+        if (assistInput) { assistInput.value = ''; assistInput.disabled = false; }
         if (window.updateDynamicCounters) window.updateDynamicCounters();
         window.totalVoiceUsed = 0; // Reset bank on new main recording
 
-        // Clear previous QUICK QUESTIONS and WANT TO CHANGE DETAILS
+        // Clear previous AI assistant section
         hidePostAnalysisSections();
-        const clarList = document.getElementById('clarificationsList');
-        if (clarList) clarList.innerHTML = '';
+        const questionsList = document.getElementById('assistantQuestionsList');
+        if (questionsList) questionsList.innerHTML = '';
       }
 
       // Enforce Guest/Free Limits BEFORE starting
@@ -1997,16 +1995,12 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function hidePostAnalysisSections() {
-    const ref = document.getElementById('refinementSection');
-    const clar = document.getElementById('clarificationsSection');
-    if (ref) ref.classList.add('hidden');
-    if (clar) clar.classList.add('hidden');
+    const assistant = document.getElementById('aiAssistantSection');
+    if (assistant) assistant.classList.add('hidden');
     window.pendingClarifications = [];
-    // Re-enable inputs if they were disabled by a pending answer
-    const refIn = document.getElementById('refinementInput');
-    const clarIn = document.getElementById('clarificationAnswerInput');
-    if (refIn) refIn.disabled = false;
-    if (clarIn) clarIn.disabled = false;
+    // Re-enable input if it was disabled by a pending answer
+    const assistIn = document.getElementById('assistantInput');
+    if (assistIn) assistIn.disabled = false;
   }
 
   // Expose recorder functions to global scope for Object.assign(window, {...}) export
@@ -5098,16 +5092,14 @@ function updateUI(data) {
       transcriptArea.value = data.raw_summary.substring(0, limit);
       autoResize(transcriptArea);
     }
-    // Reset clarification/refinement state for ANY fresh parse (not a follow-up)
+    // Reset assistant state for ANY fresh parse (not a follow-up)
     if (!window.skipTranscriptUpdate) {
       window.previousClarificationAnswers = [];
       window.clarificationHistory = [];
       window._pendingAnswer = null;
-      renderPreviousAnswers();
-      const refInput = document.getElementById('refinementInput');
-      const clarInput = document.getElementById('clarificationAnswerInput');
-      if (refInput) { refInput.value = ''; refInput.disabled = false; }
-      if (clarInput) { clarInput.value = ''; clarInput.disabled = false; }
+      renderConversationHistory();
+      const assistInput = document.getElementById('assistantInput');
+      if (assistInput) { assistInput.value = ''; assistInput.disabled = false; }
       if (window.updateDynamicCounters) window.updateDynamicCounters();
     }
     window.skipTranscriptUpdate = false; // Reset flag after use
@@ -5303,21 +5295,26 @@ function updateUI(data) {
       }
     }
 
-    document.getElementById("invoicePreview").classList.remove("hidden");
-    document.getElementById("invoicePreview").scrollIntoView({ behavior: 'smooth' });
-
-    if (typeof window.trackEvent === 'function') {
-      window.trackEvent('invoice_generated');
-    }
-
     // Update totals summary after all items are added
     updateTotalsSummary();
 
-    // Handle AI Clarification Questions
-    handleClarifications(data.clarifications || []);
+    // Handle AI Clarification Questions — this decides whether to show invoice preview
+    const hasClarifications = handleClarifications(data.clarifications || []);
 
-    if (window.pendingClarifications && window.pendingClarifications.length === 0) {
+    if (!hasClarifications) {
+      // No questions → show invoice preview immediately
+      document.getElementById("invoicePreview").classList.remove("hidden");
+      document.getElementById("invoicePreview").scrollIntoView({ behavior: 'smooth' });
       window.setupSaveButton();
+    } else {
+      // Has questions → keep invoice hidden, scroll to assistant section
+      document.getElementById("invoicePreview").classList.add("hidden");
+      const assistantSection = document.getElementById('aiAssistantSection');
+      if (assistantSection) assistantSection.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    if (typeof window.trackEvent === 'function') {
+      window.trackEvent('invoice_generated');
     }
 
     window._analysisSucceeded = true;
@@ -5353,81 +5350,80 @@ window.finalizePendingAnswer = function() {
     window.clarificationHistory.push(pending.historyEntry);
   }
 
-  // Add to UI bubbles
+  // Add to conversation bubbles
   if (!window.previousClarificationAnswers) window.previousClarificationAnswers = [];
   window.previousClarificationAnswers.push({ text: pending.text, type: pending.type });
 
-  // Clear and re-enable the appropriate input
-  if (pending.type === 'clarification') {
-    var clarIn = document.getElementById('clarificationAnswerInput');
-    if (clarIn) { clarIn.value = ''; clarIn.disabled = false; }
-  } else {
-    var refIn = document.getElementById('refinementInput');
-    if (refIn) { refIn.value = ''; refIn.disabled = false; }
-  }
+  // Clear and re-enable the unified input
+  var assistIn = document.getElementById('assistantInput');
+  if (assistIn) { assistIn.value = ''; assistIn.disabled = false; }
 
-  renderPreviousAnswers();
+  renderConversationHistory();
   if (window.updateDynamicCounters) window.updateDynamicCounters();
   window._pendingAnswer = null;
 };
 
 window.rollbackPendingAnswer = function() {
   if (!window._pendingAnswer) return;
-  var pending = window._pendingAnswer;
-  // Re-enable input without committing — user can retry
-  if (pending.type === 'clarification') {
-    var clarIn = document.getElementById('clarificationAnswerInput');
-    if (clarIn) clarIn.disabled = false;
-  } else {
-    var refIn = document.getElementById('refinementInput');
-    if (refIn) refIn.disabled = false;
-  }
+  var assistIn = document.getElementById('assistantInput');
+  if (assistIn) assistIn.disabled = false;
   window._pendingAnswer = null;
 };
 
 function handleClarifications(clarifications) {
-  const section = document.getElementById('clarificationsSection');
-  const refinementSection = document.getElementById('refinementSection');
-  const list = document.getElementById('clarificationsList');
+  const section = document.getElementById('aiAssistantSection');
+  const questionsArea = document.getElementById('assistantQuestionsArea');
+  const list = document.getElementById('assistantQuestionsList');
+  const conversation = document.getElementById('assistantConversation');
 
-  // Filter out already-answered clarifications (if we have answers for them)
-  const unansweredClarifications = clarifications.filter(c => {
-    // Keep questions that haven't been answered yet
+  // Filter out already-answered clarifications
+  const unansweredClarifications = (clarifications || []).filter(c => {
     return c.question && c.question.trim();
   });
 
+  // Always show the assistant section after analysis
+  if (section) section.classList.remove('hidden');
+
+  // Render conversation history (previous Q&A bubbles)
+  renderConversationHistory();
+
   if (!unansweredClarifications || unansweredClarifications.length === 0) {
-    if (section) section.classList.add('hidden');
+    if (questionsArea) questionsArea.classList.add('hidden');
     if (list) list.innerHTML = '';
     window.pendingClarifications = [];
-    // No clarifications → show refinement section
-    if (refinementSection) refinementSection.classList.remove('hidden');
-    return;
+
+    // Add AI "ready" message to conversation
+    addAIBubble(window.APP_LANGUAGES.invoice_ready || "Invoice looks complete!");
+
+    // Update placeholder for free-text input
+    const assistInput = document.getElementById('assistantInput');
+    if (assistInput) {
+      assistInput.placeholder = window.APP_LANGUAGES.assistant_placeholder || "Tell me what to change...";
+    }
+    return false; // No clarifications
   }
 
   // Store for later submission
   window.pendingClarifications = unansweredClarifications;
   window.originalTranscript = document.getElementById('mainTranscript').value;
 
-  renderClarifications(unansweredClarifications);
-  section.classList.remove('hidden');
+  // Add AI questions message to conversation
+  addAIBubble(window.APP_LANGUAGES.questions_to_confirm || "A few things to confirm:");
 
-  // Hide refinement when clarifications are present
-  if (refinementSection) refinementSection.classList.add('hidden');
+  // Render per-question inputs
+  renderAssistantQuestions(unansweredClarifications);
+  if (questionsArea) questionsArea.classList.remove('hidden');
 
-  // No auto-expand, honor user request for collapsed by default
-  const content = document.getElementById('clarificationsContent');
-  const btn = section.querySelector('.section-toggle-btn');
-  if (content && !content.classList.contains('hidden')) {
-    // If it was already open, make sure button state matches
-    if (btn) btn.classList.add('rounded-b-none');
-  }
-
-  // Clear the input field for fresh answer (only if no pending answer — finalizePendingAnswer handles it)
+  // Clear the input field for fresh answer
   if (!window._pendingAnswer) {
-    const answerInput = document.getElementById('clarificationAnswerInput');
-    if (answerInput) answerInput.value = '';
+    const assistInput = document.getElementById('assistantInput');
+    if (assistInput) {
+      assistInput.value = '';
+      assistInput.placeholder = window.APP_LANGUAGES.assistant_placeholder || "Tell me what to change...";
+    }
   }
+
+  return true; // Has clarifications
 }
 
 function toggleSection(contentId, arrowId, btn) {
@@ -5446,21 +5442,219 @@ function toggleSection(contentId, arrowId, btn) {
   }
 }
 
-// Logic for Refinements (Green Section)
-let refinementRecorder = null;
-let refinementChunks = [];
+// ============================================================
+// NEW UNIFIED AI ASSISTANT FUNCTIONS
+// ============================================================
 
-async function startRefinementRecording() {
-  const btn = document.getElementById('refinementMicBtn');
+function renderAssistantQuestions(clarifications) {
+  const list = document.getElementById('assistantQuestionsList');
+  if (!list) return;
+  list.innerHTML = '';
+
+  clarifications.forEach((c, index) => {
+    const div = document.createElement('div');
+    div.className = "assistant-question-item pb-3 last:pb-0";
+    div.dataset.index = index;
+    div.dataset.field = c.field || '';
+    div.dataset.guess = (c.guess !== null && c.guess !== undefined) ? c.guess : '';
+    div.dataset.question = c.question || '';
+    div.dataset.resolved = 'false';
+
+    const isNumeric = typeof c.guess === 'number' || (c.guess !== null && c.guess !== undefined && c.guess !== '' && !isNaN(c.guess));
+    const guessDisplay = (c.guess === 0 || c.guess === "0" || c.guess === "" || c.guess === null || c.guess === undefined)
+      ? ''
+      : c.guess;
+
+    div.innerHTML = `
+      <p class="text-sm font-bold text-black leading-relaxed mb-2">
+        <span class="text-orange-600 font-black">${index + 1}.</span> ${escapeHtml(c.question)}
+      </p>
+      <div class="flex items-center gap-2 ml-5">
+        <input type="${isNumeric ? 'number' : 'text'}"
+               class="assistant-question-input flex-1 border-2 border-gray-200 rounded-lg px-3 py-2 text-sm font-bold text-black focus:border-orange-400 focus:ring-0 outline-none transition-colors"
+               value="${escapeHtml(String(guessDisplay))}"
+               data-original-guess="${escapeHtml(String(guessDisplay))}"
+               placeholder="${window.APP_LANGUAGES.not_specified || 'Not specified'}"
+               onkeydown="if(event.key==='Enter') { event.preventDefault(); confirmGuess(${index}); }" />
+        <button type="button"
+                onclick="confirmGuess(${index})"
+                class="assistant-confirm-btn shrink-0 px-3 py-2 bg-emerald-500 border-2 border-black text-white rounded-lg active:scale-95 transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-emerald-600 text-xs font-black uppercase tracking-widest"
+                title="${window.APP_LANGUAGES.confirm || 'Confirm'}">
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+        </button>
+      </div>
+    `;
+
+    list.appendChild(div);
+  });
+}
+
+function confirmGuess(index) {
+  const items = document.querySelectorAll('.assistant-question-item');
+  const item = items[index];
+  if (!item || item.dataset.resolved === 'true') return;
+
+  const input = item.querySelector('.assistant-question-input');
+  const confirmBtn = item.querySelector('.assistant-confirm-btn');
+  const value = input ? input.value.trim() : '';
+  const originalGuess = input ? input.dataset.originalGuess : '';
+  const wasEdited = value !== originalGuess;
+
+  // Mark as resolved
+  item.dataset.resolved = 'true';
+  item.dataset.finalValue = value;
+  item.dataset.wasEdited = wasEdited ? 'true' : 'false';
+
+  // Visual feedback - green confirmed state
+  if (input) {
+    input.disabled = true;
+    input.classList.remove('border-gray-200', 'focus:border-orange-400');
+    input.classList.add('border-emerald-300', 'bg-emerald-50');
+  }
+  if (confirmBtn) {
+    confirmBtn.disabled = true;
+    confirmBtn.classList.remove('bg-emerald-500', 'hover:bg-emerald-600');
+    confirmBtn.classList.add('bg-emerald-300');
+    confirmBtn.innerHTML = `<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>`;
+  }
+
+  // Check if all questions are resolved
+  checkAllQuestionsResolved();
+}
+
+function confirmAllGuesses() {
+  const items = document.querySelectorAll('.assistant-question-item');
+  items.forEach((item, index) => {
+    if (item.dataset.resolved !== 'true') {
+      confirmGuess(index);
+    }
+  });
+}
+
+function checkAllQuestionsResolved() {
+  const items = document.querySelectorAll('.assistant-question-item');
+  const allResolved = Array.from(items).every(item => item.dataset.resolved === 'true');
+
+  if (!allResolved) return;
+
+  // Collect edited values
+  const editedAnswers = [];
+  items.forEach(item => {
+    if (item.dataset.wasEdited === 'true') {
+      editedAnswers.push({
+        field: item.dataset.field,
+        question: item.dataset.question,
+        value: item.dataset.finalValue
+      });
+    }
+  });
+
+  // Hide questions area
+  const questionsArea = document.getElementById('assistantQuestionsArea');
+  if (questionsArea) questionsArea.classList.add('hidden');
+
+  if (editedAnswers.length === 0) {
+    // ALL guesses confirmed as-is → no re-parse needed!
+    // The AI already populated the fields with guess values.
+    // Just show the invoice preview.
+    addUserBubble(window.APP_LANGUAGES.confirmed_value || "Confirmed");
+    window.pendingClarifications = [];
+
+    document.getElementById("invoicePreview").classList.remove("hidden");
+    document.getElementById("invoicePreview").scrollIntoView({ behavior: 'smooth' });
+    window.setupSaveButton();
+  } else {
+    // Some values were edited → re-parse with the corrections
+    const answerParts = editedAnswers.map(ea => {
+      return `${ea.question} → ${ea.value}`;
+    });
+    const combinedAnswer = answerParts.join('; ');
+
+    addUserBubble(combinedAnswer);
+    triggerAssistantReparse(combinedAnswer, 'clarification');
+  }
+}
+
+function addAIBubble(text) {
+  const conversation = document.getElementById('assistantConversation');
+  if (!conversation) return;
+
+  const div = document.createElement('div');
+  div.className = "flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300";
+  div.innerHTML = `
+    <div class="shrink-0 w-7 h-7 rounded-lg bg-orange-500 border-2 border-black flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+      <svg class="h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+      </svg>
+    </div>
+    <div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-2 text-sm font-bold text-gray-800 shadow-sm max-w-[85%]">
+      ${escapeHtml(text)}
+    </div>
+  `;
+  conversation.appendChild(div);
+  conversation.scrollTop = conversation.scrollHeight;
+}
+
+function addUserBubble(text) {
+  const conversation = document.getElementById('assistantConversation');
+  if (!conversation) return;
+
+  const div = document.createElement('div');
+  div.className = "flex justify-end animate-in fade-in slide-in-from-right-2 duration-300";
+  div.innerHTML = `
+    <div class="bg-orange-50 border-2 border-orange-200 rounded-2xl rounded-tr-none px-4 py-2 text-sm font-bold text-orange-800 shadow-sm max-w-[80%]">
+      ${escapeHtml(text)}
+    </div>
+  `;
+  conversation.appendChild(div);
+  conversation.scrollTop = conversation.scrollHeight;
+}
+
+function renderConversationHistory() {
+  const conversation = document.getElementById('assistantConversation');
+  if (!conversation) return;
+
+  conversation.innerHTML = '';
+
+  if (!window.previousClarificationAnswers || window.previousClarificationAnswers.length === 0) {
+    return;
+  }
+
+  // Rebuild from history
+  window.clarificationHistory.forEach((h, i) => {
+    if (h.questions && h.questions !== "User requested change") {
+      addAIBubble(h.questions);
+    }
+  });
+
+  window.previousClarificationAnswers.forEach(ans => {
+    addUserBubble(ans.text);
+  });
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// Unified voice recording for assistant input
+let assistantRecorder = null;
+let assistantChunks = [];
+
+async function startAssistantRecording() {
+  const btn = document.getElementById('assistantMicBtn');
   if (!btn) return;
 
-  if (refinementRecorder && refinementRecorder.state === 'recording') {
-    refinementRecorder.stop();
+  if (assistantRecorder && assistantRecorder.state === 'recording') {
+    assistantRecorder.stop();
     return;
   }
 
   try {
-    const input = document.getElementById('refinementInput');
+    const input = document.getElementById('assistantInput');
     const audioLimit = window.profileAudioLimit || 120;
     const timeLeft = audioLimit - (window.totalVoiceUsed || 0);
 
@@ -5471,22 +5665,22 @@ async function startRefinementRecording() {
     }
 
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    refinementRecorder = new MediaRecorder(stream);
-    refinementChunks = [];
-    window.recordingStartTime = Date.now(); // Update global start time for sub-recording
+    assistantRecorder = new MediaRecorder(stream);
+    assistantChunks = [];
+    window.recordingStartTime = Date.now();
 
-    refinementRecorder.ondataavailable = (e) => refinementChunks.push(e.data);
-    refinementRecorder.onstop = processRefinementAudio;
-    refinementRecorder.start();
+    assistantRecorder.ondataavailable = (e) => assistantChunks.push(e.data);
+    assistantRecorder.onstop = processAssistantAudio;
+
+    assistantRecorder.start();
     if (input) startLiveTranscription(input);
 
-    btn.classList.remove('bg-emerald-500', 'hover:bg-emerald-600');
+    btn.classList.remove('bg-black', 'hover:bg-gray-800');
     btn.classList.add('bg-red-500', 'animate-pulse');
     btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>`;
 
-    // Timer UI
-    const timerCont = document.getElementById('refinementTimer');
-    const timerLabel = document.getElementById('refinementTimeLeft');
+    const timerCont = document.getElementById('assistantTimer');
+    const timerLabel = document.getElementById('assistantTimeLeft');
     if (timerCont) timerCont.classList.remove('hidden');
     if (timerLabel) timerLabel.innerText = timeLeft;
 
@@ -5496,22 +5690,21 @@ async function startRefinementRecording() {
       if (timerLabel) timerLabel.innerText = Math.max(0, remaining);
       if (remaining <= 0) {
         clearInterval(localInterval);
-        if (refinementRecorder && refinementRecorder.state === 'recording') {
-          window.voiceLimitTriggered = true; // Set flag
-          refinementRecorder.stop();
+        if (assistantRecorder && assistantRecorder.state === 'recording') {
+          window.voiceLimitTriggered = true;
+          assistantRecorder.stop();
           if (window.showPremiumModal) window.showPremiumModal();
         }
       }
     }, 1000);
 
-    refinementRecorder.addEventListener('stop', () => clearInterval(localInterval), { once: true });
+    assistantRecorder.addEventListener('stop', () => clearInterval(localInterval), { once: true });
 
-    // Ensure we don't exceed the global limit
     setTimeout(() => {
-      if (refinementRecorder && refinementRecorder.state === 'recording') refinementRecorder.stop();
+      if (assistantRecorder && assistantRecorder.state === 'recording') assistantRecorder.stop();
     }, timeLeft * 1000);
   } catch (e) {
-    console.error("Refinement Recording Error:", e);
+    console.error("Assistant Recording Error:", e);
     if (e.name === 'NotAllowedError' || e.name === 'NotFoundError') {
       showError(window.APP_LANGUAGES.microphone_access_denied || "Microphone access required");
     } else {
@@ -5520,12 +5713,13 @@ async function startRefinementRecording() {
   }
 }
 
-async function processRefinementAudio() {
-  const btn = document.getElementById('refinementMicBtn');
-  const input = document.getElementById('refinementInput');
+async function processAssistantAudio() {
+  const btn = document.getElementById('assistantMicBtn');
+  const input = document.getElementById('assistantInput');
+
   if (btn) {
     btn.classList.remove('bg-red-500', 'animate-pulse');
-    btn.classList.add('bg-emerald-500', 'hover:bg-emerald-600');
+    btn.classList.add('bg-black', 'hover:bg-gray-800');
     btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>`;
   }
   if (window.liveRecognition) {
@@ -5535,23 +5729,26 @@ async function processRefinementAudio() {
   const duration = window.recordingStartTime ? Math.floor((Date.now() - window.recordingStartTime) / 1000) : 0;
   window.totalVoiceUsed = (window.totalVoiceUsed || 0) + duration;
 
-  const timerCont = document.getElementById('refinementTimer');
+  const timerCont = document.getElementById('assistantTimer');
   if (timerCont) timerCont.classList.add('hidden');
 
-  if (refinementRecorder && refinementRecorder.stream) refinementRecorder.stream.getTracks().forEach(t => t.stop());
-  if (refinementChunks.length === 0) return;
+  if (assistantRecorder && assistantRecorder.stream) {
+    assistantRecorder.stream.getTracks().forEach(t => t.stop());
+  }
 
-  // OPTIMIZATION: If live transcription already captured text, skip server call
-  // OPTIMIZATION: If live transcription already captured text, skip server call
+  if (assistantChunks.length === 0) return;
+
+  // If live transcription already captured text, skip server call
   if (input && input.value.trim().length > 5) {
-    submitRefinement();
+    submitAssistantMessage();
     return;
   }
 
-  const audioBlob = new Blob(refinementChunks, { type: 'audio/webm' });
+  const audioBlob = new Blob(assistantChunks, { type: 'audio/webm' });
   const formData = new FormData();
   formData.append("audio", audioBlob);
   formData.append("transcribe_only", "true");
+  formData.append("language", localStorage.getItem('transcriptLanguage') || window.profileSystemLanguage || 'en');
 
   try {
     const res = await fetch("/process_audio", {
@@ -5561,27 +5758,49 @@ async function processRefinementAudio() {
     });
     const data = await res.json();
     if (input) {
-      input.placeholder = window.APP_LANGUAGES.refinement_placeholder || "Need to fix something? Tell me here...";
+      input.placeholder = window.APP_LANGUAGES.assistant_placeholder || "Tell me what to change...";
       if (data.raw_summary) {
         input.value = data.raw_summary.trim();
-        setTimeout(() => submitRefinement(), 300);
+        setTimeout(() => submitAssistantMessage(), 300);
       }
     }
   } catch (e) {
     showError(window.APP_LANGUAGES.transcription_failed || "Transcription failed");
+    console.error(e);
   }
 }
 
-async function submitRefinement() {
-  const input = document.getElementById('refinementInput');
-  const instruction = input ? input.value.trim() : '';
-  if (!instruction) return showError(window.APP_LANGUAGES.enter_instruction || "Please enter an instruction first");
+async function submitAssistantMessage() {
+  const input = document.getElementById('assistantInput');
+  const userMessage = input ? input.value.trim() : '';
 
-  // PRE-VALIDATION: Check limits BEFORE modifying history
+  if (!userMessage) {
+    showError(window.APP_LANGUAGES.provide_answer || "Please provide an answer first");
+    return;
+  }
+
+  // Determine type: if there are pending clarifications, it's a clarification answer; otherwise it's a user-initiated change
+  const hasPendingQuestions = window.pendingClarifications && window.pendingClarifications.length > 0;
+  const type = hasPendingQuestions ? 'clarification' : 'refinement';
+  const questionsText = hasPendingQuestions
+    ? window.pendingClarifications.map(c => c.question).join(' ')
+    : "User requested change";
+
+  addUserBubble(userMessage);
+  triggerAssistantReparse(userMessage, type, questionsText);
+}
+
+function triggerAssistantReparse(userAnswer, type, questionsText) {
+  const input = document.getElementById('assistantInput');
+  const currentQuestions = questionsText || (type === 'clarification'
+    ? (window.pendingClarifications || []).map(c => c.question).join(' ')
+    : "User requested change");
+
+  // PRE-VALIDATION
   const limit = window.profileCharLimit;
   const historyChars = (window.calculateHistoricalChars ? window.calculateHistoricalChars() : 0);
   const transcriptChars = document.getElementById('mainTranscript')?.value.length || 0;
-  const projectedTotal = transcriptChars + historyChars + instruction.length;
+  const projectedTotal = transcriptChars + historyChars + userAnswer.length;
 
   if (projectedTotal > limit) {
     if (window.showPremiumModal) window.showPremiumModal();
@@ -5589,11 +5808,11 @@ async function submitRefinement() {
     return;
   }
 
-  const historyEntry = { questions: "User requested change", answer: instruction };
+  const historyEntry = { questions: currentQuestions, answer: userAnswer };
 
-  // Queue answer for display AFTER AI finishes (keep text in input, disable it)
-  window._pendingAnswer = { text: instruction, type: 'refinement', historyEntry: historyEntry };
-  input.disabled = true;
+  // Queue answer for display AFTER AI finishes
+  window._pendingAnswer = { text: userAnswer, type: type, historyEntry: historyEntry };
+  if (input) input.disabled = true;
 
   // Build conversation history including all previous + this new entry
   const allEntries = [...(window.clarificationHistory || []), historyEntry];
@@ -5611,287 +5830,6 @@ async function submitRefinement() {
   const transcriptArea = document.getElementById('mainTranscript');
   const originalValue = transcriptArea.value;
   transcriptArea.value = `${window.originalTranscript || originalValue}${historyText}`;
-
-  const applyBtn = document.getElementById('reParseBtn');
-  if (applyBtn) {
-    applyBtn.click();
-  }
-
-  // No auto-expand here, honor user request for collapsed by default
-  const content = document.getElementById('refinementContent');
-  const btn = document.getElementById('refinementSection').querySelector('.section-toggle-btn');
-  if (content && !content.classList.contains('hidden')) {
-    if (btn) btn.classList.add('rounded-b-none');
-  }
-
-  transcriptArea.value = originalValue;
-}
-
-function renderClarifications(clarifications) {
-  const list = document.getElementById('clarificationsList');
-  list.innerHTML = '';
-
-  clarifications.forEach((c, index) => {
-    const div = document.createElement('div');
-    div.className = "clarification-item border-b border-gray-100 pb-3 last:border-0 last:pb-0";
-    div.dataset.index = index;
-    div.dataset.field = c.field || '';
-    div.dataset.guess = c.guess || '';
-    div.dataset.question = c.question || '';
-
-    // Display "Not specified" for empty/zero guesses
-    const guessDisplay = (c.guess === 0 || c.guess === "0" || c.guess === "" || c.guess === null)
-      ? (window.APP_LANGUAGES.not_specified || "Not specified")
-      : c.guess;
-
-    div.innerHTML = `
-      <p class="text-sm font-medium text-black leading-relaxed"><span class="text-orange-600 font-bold">${index + 1}.</span> ${escapeHtml(c.question)}</p>
-      <p class="text-xs text-gray-500 mt-1 ml-4">${window.APP_LANGUAGES.current_guess || "Current guess:"} <span class="font-bold text-orange-600">${guessDisplay}</span></p>
-    `;
-
-    list.appendChild(div);
-  });
-}
-
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
-
-function renderPreviousAnswers() {
-  const section = document.getElementById('previousAnswersSection');
-  const list = document.getElementById('previousAnswersList');
-
-  if (!section || !list) return;
-
-  if (!window.previousClarificationAnswers || window.previousClarificationAnswers.length === 0) {
-    section.classList.add('hidden');
-    list.innerHTML = '';
-    return;
-  }
-
-  list.innerHTML = '';
-  window.previousClarificationAnswers.forEach(ans => {
-    const isRefinement = ans.type === 'refinement';
-    const div = document.createElement('div');
-
-    // Choose colors based on type
-    const bgClass = isRefinement ? 'bg-emerald-50 border-emerald-100' : 'bg-orange-50 border-orange-100';
-    const textClass = isRefinement ? 'text-emerald-700' : 'text-orange-700';
-
-    div.className = `self-end ${bgClass} border-2 rounded-2xl rounded-tr-none px-4 py-2 text-sm font-bold ${textClass} shadow-sm animate-in fade-in slide-in-from-right-2 duration-300 max-w-[80%]`;
-    div.innerText = ans.text;
-    list.appendChild(div);
-  });
-
-  section.classList.remove('hidden');
-}
-
-// Voice recording for clarification answers - SINGLE MIC for all questions
-let clarificationRecorder = null;
-let clarificationChunks = [];
-
-async function startClarificationRecording() {
-  const btn = document.getElementById('clarificationMicBtn');
-  if (!btn) return;
-
-  // If already recording, stop
-  if (clarificationRecorder && clarificationRecorder.state === 'recording') {
-    clarificationRecorder.stop();
-    return;
-  }
-
-  try {
-    const input = document.getElementById('clarificationAnswerInput');
-    const audioLimit = window.profileAudioLimit || 120;
-    const timeLeft = audioLimit - (window.totalVoiceUsed || 0);
-
-    if (timeLeft <= 0) {
-      if (window.showPremiumModal) window.showPremiumModal();
-      else showError(window.APP_LANGUAGES.voice_limit_reached || "Voice limit reached for this session.");
-      return;
-    }
-
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    clarificationRecorder = new MediaRecorder(stream);
-    clarificationChunks = [];
-    window.recordingStartTime = Date.now();
-
-    clarificationRecorder.ondataavailable = (e) => clarificationChunks.push(e.data);
-    clarificationRecorder.onstop = processClarificationAudio;
-
-    clarificationRecorder.start();
-    if (input) startLiveTranscription(input);
-
-    // Visual feedback - recording state
-    btn.classList.remove('bg-orange-500', 'hover:bg-orange-600');
-    btn.classList.add('bg-red-500', 'animate-pulse');
-    btn.innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-        <rect x="6" y="6" width="12" height="12" rx="2" />
-      </svg>
-    `;
-
-    // Timer UI
-    const timerCont = document.getElementById('clarificationTimer');
-    const timerLabel = document.getElementById('clarificationTimeLeft');
-    if (timerCont) timerCont.classList.remove('hidden');
-    if (timerLabel) timerLabel.innerText = timeLeft;
-
-    let localInterval = setInterval(() => {
-      const elapsed = Math.floor((Date.now() - window.recordingStartTime) / 1000);
-      const remaining = timeLeft - elapsed;
-      if (timerLabel) timerLabel.innerText = Math.max(0, remaining);
-      if (remaining <= 0) {
-        clearInterval(localInterval);
-        if (clarificationRecorder && clarificationRecorder.state === 'recording') {
-          window.voiceLimitTriggered = true; // Set flag
-          clarificationRecorder.stop();
-          if (window.showPremiumModal) window.showPremiumModal();
-        }
-      }
-    }, 1000);
-
-    clarificationRecorder.addEventListener('stop', () => clearInterval(localInterval), { once: true });
-
-    // Auto-stop
-    setTimeout(() => {
-      if (clarificationRecorder && clarificationRecorder.state === 'recording') {
-        clarificationRecorder.stop();
-      }
-    }, timeLeft * 1000);
-
-  } catch (e) {
-    console.error("Clarification Recording Error:", e);
-    if (e.name === 'NotAllowedError' || e.name === 'NotFoundError') {
-      showError(window.APP_LANGUAGES.microphone_access_denied || "Microphone access required");
-    } else {
-      showError((window.APP_LANGUAGES.recording_failed || "Recording failed: ") + e.message);
-    }
-  }
-}
-
-async function processClarificationAudio() {
-  const btn = document.getElementById('clarificationMicBtn');
-  const input = document.getElementById('clarificationAnswerInput');
-
-  // Reset button visual
-  if (btn) {
-    btn.classList.remove('bg-red-500', 'animate-pulse');
-    btn.classList.add('bg-orange-500', 'hover:bg-orange-600');
-    btn.innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-      </svg>
-    `;
-  }
-  if (window.liveRecognition) {
-    try { window.liveRecognition.stop(); } catch (e) { }
-    window.liveRecognition = null;
-  }
-  const duration = window.recordingStartTime ? Math.floor((Date.now() - window.recordingStartTime) / 1000) : 0;
-  window.totalVoiceUsed = (window.totalVoiceUsed || 0) + duration;
-
-  const timerCont = document.getElementById('clarificationTimer');
-  if (timerCont) timerCont.classList.add('hidden');
-
-  // Stop tracks
-  if (clarificationRecorder && clarificationRecorder.stream) {
-    clarificationRecorder.stream.getTracks().forEach(t => t.stop());
-  }
-
-  if (clarificationChunks.length === 0) return;
-
-  // OPTIMIZATION: If live transcription already captured text, skip server call
-  // OPTIMIZATION: If live transcription already captured text, skip server call
-  if (input && input.value.trim().length > 5) {
-    submitClarifications();
-    return;
-  }
-
-  const audioBlob = new Blob(clarificationChunks, { type: 'audio/webm' });
-
-  // Send to transcription endpoint
-  const formData = new FormData();
-  formData.append("audio", audioBlob);
-  formData.append("transcribe_only", "true");
-  formData.append("language", localStorage.getItem('transcriptLanguage') || window.profileSystemLanguage || 'en');
-
-  try {
-    const res = await fetch("/process_audio", {
-      method: "POST",
-      headers: { "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]').content },
-      body: formData
-    });
-
-    const data = await res.json();
-
-    if (input) {
-      input.placeholder = window.APP_LANGUAGES.answer_placeholder || "Type or speak your answer...";
-      if (data.raw_summary) {
-        input.value = data.raw_summary.trim();
-        // Auto-send after voice transcription
-        setTimeout(() => submitClarifications(), 300);
-      }
-    }
-  } catch (e) {
-    showError(window.APP_LANGUAGES.transcription_failed || "Transcription failed");
-    console.error(e);
-  }
-}
-
-async function submitClarifications() {
-  const answerInput = document.getElementById('clarificationAnswerInput');
-  const userAnswer = answerInput ? answerInput.value.trim() : '';
-
-  if (!userAnswer) {
-    showError(window.APP_LANGUAGES.provide_answer || "Please provide an answer first");
-    return;
-  }
-
-  const currentQuestions = window.pendingClarifications.map(c => c.question).join(' ');
-
-  // PRE-VALIDATION
-  const limit = window.profileCharLimit;
-  const historyChars = (window.calculateHistoricalChars ? window.calculateHistoricalChars() : 0);
-  const transcriptChars = document.getElementById('mainTranscript')?.value.length || 0;
-  const projectedTotal = transcriptChars + historyChars + userAnswer.length;
-
-  if (projectedTotal > limit) {
-    if (window.showPremiumModal) window.showPremiumModal();
-    else showError((window.APP_LANGUAGES.limit_reached_upgrade || "Limit Reached (%{limit}). Upgrade to add more.").replace('%{limit}', limit));
-    return;
-  }
-
-  const historyEntry = { questions: currentQuestions, answer: userAnswer };
-
-  // Queue answer for display AFTER AI finishes (keep text in input, disable it)
-  window._pendingAnswer = { text: userAnswer, type: 'clarification', historyEntry: historyEntry };
-  answerInput.disabled = true;
-
-  // Build conversation history including all previous + this new entry
-  const allEntries = [...(window.clarificationHistory || []), historyEntry];
-  let historyText = "\n\n--- PREVIOUS Q&A CONTEXT (you MUST treat this as an ongoing conversation and consider ALL previous answers) ---";
-  allEntries.forEach((h, i) => {
-    if (h.questions === "User requested change") {
-      historyText += `\n[Round ${i + 1} - User correction/addition: "${h.answer}"]`;
-    } else {
-      historyText += `\n[Round ${i + 1} - AI asked: "${h.questions}" → User answered: "${h.answer}"]`;
-    }
-  });
-  historyText += "\n--- END CONTEXT ---";
-
-  const clarificationPrompt = `${window.originalTranscript || document.getElementById('mainTranscript')?.value}${historyText}`;
-
-  window.skipTranscriptUpdate = true;
-
-  const transcriptArea = document.getElementById('mainTranscript');
-  const originalValue = transcriptArea.value;
-  transcriptArea.value = clarificationPrompt;
-
-  // Don't hide clarificationsSection here — let the analyzing animation show over it.
-  // handleClarifications (called from updateUI) will update it when AI finishes.
 
   const applyBtn = document.getElementById('reParseBtn');
   if (applyBtn) {
@@ -5981,15 +5919,18 @@ function updateUIWithoutTranscript(data) {
       }
     }
 
-    document.getElementById("invoicePreview").classList.remove("hidden");
-
     updateTotalsSummary();
 
-    // Handle new clarifications (questions that are still unanswered)
-    handleClarifications(data.clarifications || []);
+    // Handle AI Clarification Questions — this decides whether to show invoice preview
+    const hasClarifications = handleClarifications(data.clarifications || []);
 
-    if (window.pendingClarifications && window.pendingClarifications.length === 0) {
+    if (!hasClarifications) {
+      document.getElementById("invoicePreview").classList.remove("hidden");
       window.setupSaveButton();
+    } else {
+      document.getElementById("invoicePreview").classList.add("hidden");
+      const assistantSection = document.getElementById('aiAssistantSection');
+      if (assistantSection) assistantSection.scrollIntoView({ behavior: 'smooth' });
     }
 
     window._analysisSucceeded = true;
@@ -6197,15 +6138,18 @@ Object.assign(window, {
   updateUI,
   handleClarifications,
   toggleSection,
-  startRefinementRecording,
-  processRefinementAudio,
-  submitRefinement,
-  renderClarifications,
+  renderAssistantQuestions,
+  confirmGuess,
+  confirmAllGuesses,
+  checkAllQuestionsResolved,
+  addAIBubble,
+  addUserBubble,
+  renderConversationHistory,
   escapeHtml,
-  renderPreviousAnswers,
-  startClarificationRecording,
-  processClarificationAudio,
-  submitClarifications,
+  startAssistantRecording,
+  processAssistantAudio,
+  submitAssistantMessage,
+  triggerAssistantReparse,
   updateUIWithoutTranscript,
   showError,
   toggleLaborGroup,

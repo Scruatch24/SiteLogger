@@ -104,16 +104,14 @@
     
     // Get Elements
     const elT = document.getElementById('mainTranscript');
-    const elR = document.getElementById('refinementInput');
-    const elC = document.getElementById('clarificationAnswerInput');
+    const elA = document.getElementById('assistantInput');
     
     // Get Lengths
     const lenT = elT ? elT.value.length : 0;
-    const lenR = elR ? elR.value.length : 0;
-    const lenC = elC ? elC.value.length : 0;
+    const lenA = elA ? elA.value.length : 0;
     const lenHistory = window.calculateHistoricalChars();
     
-    const totalUsed = lenT + lenR + lenC + lenHistory;
+    const totalUsed = lenT + lenA + lenHistory;
     const remaining = Math.max(0, limit - totalUsed);
     
     // Update Transcript Counter (T)
@@ -121,23 +119,15 @@
     const maxT = document.getElementById('mainTranscriptMax');
     if (valT && maxT) {
       valT.innerText = lenT;
-      maxT.innerText = Math.max(0, limit - lenR - lenC - lenHistory);
+      maxT.innerText = Math.max(0, limit - lenA - lenHistory);
     }
     
-    // Update Refinement Counter (R)
-    const valR = document.getElementById('refinementCharCount');
-    const maxR = document.getElementById('refinementMax');
-    if (valR && maxR) {
-      valR.innerText = lenR;
-      maxR.innerText = Math.max(0, limit - lenT - lenC - lenHistory);
-    }
-
-    // Update Clarification Counter (C)
-    const valC = document.getElementById('clarificationCharCount');
-    const maxC = document.getElementById('clarificationMax');
-    if (valC && maxC) {
-      valC.innerText = lenC;
-      maxC.innerText = Math.max(0, limit - lenT - lenR - lenHistory);
+    // Update Assistant Counter (A)
+    const valA = document.getElementById('assistantCharCount');
+    const maxA = document.getElementById('assistantMax');
+    if (valA && maxA) {
+      valA.innerText = lenA;
+      maxA.innerText = Math.max(0, limit - lenT - lenHistory);
     }
     
     return totalUsed;
@@ -166,14 +156,9 @@
             mainRecordBtn.click();
          }
          
-         const refMicBtn = document.getElementById('refinementMicBtn');
-         if (refMicBtn && refMicBtn.classList.contains('bg-red-500')) {
-            refMicBtn.click();
-         }
-         
-         const clarMicBtn = document.getElementById('clarificationMicBtn');
-         if (clarMicBtn && clarMicBtn.classList.contains('bg-red-500')) {
-            clarMicBtn.click();
+         const assistMicBtn = document.getElementById('assistantMicBtn');
+         if (assistMicBtn && assistMicBtn.classList.contains('bg-red-500')) {
+            assistMicBtn.click();
          }
        }
        
@@ -362,8 +347,18 @@
     not_specified: "<%= j t('not_specified') %>",
     empty_audio: "<%= j t('empty_audio') %>",
     refinement_placeholder: "<%= j t('refinement_placeholder') %>",
-    answer_placeholder: "<%= j t('answer_placeholder') %>"
+    answer_placeholder: "<%= j t('answer_placeholder') %>",
+    ai_assistant: "<%= j t('ai_assistant') %>",
+    confirm: "<%= j t('confirm') %>",
+    confirm_all: "<%= j t('confirm_all') %>",
+    anything_else: "<%= j t('anything_else') %>",
+    assistant_placeholder: "<%= j t('assistant_placeholder') %>",
+    invoice_ready: "<%= j t('invoice_ready') %>",
+    questions_to_confirm: "<%= j t('questions_to_confirm') %>",
+    confirmed_value: "<%= j t('confirmed_value') %>",
+    editing_value: "<%= j t('editing_value') %>"
   };
+  window.clarificationLimit = <%= @profile.clarification_limit %>;
   
   // Initialize once on load
   document.addEventListener('DOMContentLoaded', () => {
