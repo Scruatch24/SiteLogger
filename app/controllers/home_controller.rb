@@ -969,6 +969,8 @@ CORE DIRECTIVES (non-negotiable)
 7. NUMERIC WORDS: "twelve hundred" -> 1200, "twenty-three hundred" -> 2300, "thirty-five hundred" -> 3500. Always return numbers as numeric strings or integers.
 8. CLIENT EXTRACTION: Explicitly look for introductions like "This is [Name]", "Invoice for [Name]", "Bill to [Name]".
    - "Hello, this is Apex Roofing" -> Client: "Apex Roofing"
+   - Georgian: "კლიენტი", "კლიენტია" → extract the name that follows.
+   - GEORGIAN COMPANY NAMES: In Georgian, the legal form (შპს, სს, შპს-ი) comes BEFORE the quoted company name. Normalize: "ჯეო ლოჯისტიქსი" შპს → შპს "ჯეო ლოჯისტიქსი". Strip trailing periods/extra quotes. Output clean format: შპს "Company Name".
 9. Output STRICT JSON. No extra fields. Use null for unknown numeric values, empty arrays for absent categories.
 10. OUTPUT TONE: Use Title Case for 'desc'/'name' fields. Be extremely brief — short, impactful technical terms. No parentheses/metadata in descriptions. Put specifics into 'sub_categories'.
 11. AMBIGUOUS REDUCTIONS: If no currency or percent indicated, default to CURRENCY (flat amount). Hours with no rate → return hours, hourly_rate = null (system applies default).
@@ -993,6 +995,7 @@ NATURAL LANGUAGE / SLANG RULESET (pragmatic)
 - If user says "usual rate", "standard rate", or "same rate", leave rate fields as NULL (system will apply defaults).
 - DAY REFERENCES: When user mentions "day", "half day", "workday", or "X days" for labor time, convert using #{hours_per_workday} hours per day. Examples: "three days" = #{three_days_hours} hours, "half day" = #{half_day_hours} hours.
 - DATE EXTRACTION: If user mentions WHEN the work was done (e.g., "yesterday", "last Tuesday", "on February 5th", "this was from last week", "the job was on Monday", "set the date to...", "change the date to..."), extract this as the invoice date and return it in the "date" field. Use format "MMM DD, YYYY" (e.g., "Feb 07, 2026"). Today's date is #{today_for_prompt}. If no date is mentioned, return null for the "date" field.
+- GEORGIAN DATE TERMS: "საწყისი თარიღი", "ინვოისის თარიღი", "გაცემის თარიღი" → invoice "date". "ბოლო ვადა", "ბოლო თარიღი", "ვადა", "გადახდის ვადა" → "due_date". "მიწოდების თარიღი" (delivery date), "დაწყების თარიღი" (start date) → these are NOT invoice dates. Add as a sub_category on the most relevant/main item (e.g., "მიწოდება: 15 მარტი, 2026"). Do NOT put delivery/start dates in the "date" or "due_date" fields.
 
 ----------------------------
 CATEGORY RULES (must map correctly)
@@ -1123,7 +1126,9 @@ Ask ONLY when a category is mentioned but has NO number at all:
 4. AMBIGUOUS NOTES/METADATA — warranty, guarantee, condition, note applies to MULTIPLE possible items:
    - "warranty 1 year" after listing iPhone + cases → ask which items the warranty applies to (all, iPhone only, etc.)
    - "გარანტია 1 წელი" after multiple products → ask "რომელ პროდუქტებს ეხება გარანტია?"
-   - Once clarified, add the note (e.g., "1-Year Warranty" / "1 წლიანი გარანტია") as a sub_category on the applicable items.
+   - GUESS FORMAT: The "guess" field MUST contain the ITEM NAME(S) the note is guessed to apply to, NOT the note text itself. E.g., guess: "iPhone 15 Pro" or guess: "ყველა პროდუქტი" (all products). NEVER put the warranty/note text as the guess.
+   - GUESS REFLECTS JSON: Your initial JSON MUST reflect the guess — attach the sub_category ONLY to the guessed item(s). If guess is "iPhone 15 Pro", add "1 წლიანი გარანტია" as sub_category ONLY on the iPhone item, NOT on other items.
+   - Once the user clarifies, the corrected answer will be applied on re-parse.
    - If only ONE item exists, do NOT ask — just attach it.
 
 If ALL values are explicit numbers AND no ambiguous notes, return clarifications: [] (empty array).
@@ -1787,6 +1792,125 @@ PROMPT
     end
   end
 
+  def refine_invoice
+    api_key = ENV["GEMINI_API_KEY"]
+    current_json = params[:current_json]
+    user_message = params[:user_message].to_s.strip
+
+    return render json: { error: t("input_too_short", default: "Input too short.") }, status: :unprocessable_entity if user_message.length < 2
+    return render json: { error: "Missing invoice data" }, status: :unprocessable_entity if current_json.blank?
+
+    doc_language = params[:language] || @profile.try(:transcription_language) || session[:transcription_language] || @profile.try(:document_language) || "en"
+    target_is_georgian = (doc_language == "ge" || doc_language == "ka")
+    ui_is_georgian = (I18n.locale.to_s == "ka")
+    today_for_prompt = Date.today.strftime("%b %d, %Y")
+
+    lang_rule = if target_is_georgian
+      "ALL text values (desc, name, reason, sub_categories) MUST be in Georgian (ქართული). JSON keys and section type values stay in English."
+    else
+      "ALL text values MUST be in English. Translate Georgian text to English if needed."
+    end
+
+    question_lang = ui_is_georgian ? "Georgian (ქართული)" : "English"
+    conversation_history = params[:conversation_history].to_s
+
+    # Serialize current_json properly - it arrives as a hash from params
+    json_text = current_json.is_a?(String) ? current_json : current_json.to_json
+
+    prompt = <<~PROMPT
+      You are modifying an existing invoice JSON based on the user's chat instruction.
+      LANGUAGE RULE: #{lang_rule}
+
+      CURRENT INVOICE STATE:
+      #{json_text}
+
+      USER'S INSTRUCTION: "#{user_message}"
+
+      #{conversation_history.present? ? "CONVERSATION CONTEXT:\n#{conversation_history}" : ""}
+
+      MODIFICATION RULES:
+      1. Only change what the user explicitly asks for. Keep everything else EXACTLY as-is.
+      2. Return the COMPLETE modified JSON in the SAME structure as the input above.
+      3. DATES (today is #{today_for_prompt}):
+         - Invoice date: "საწყისი თარიღი", "ინვოისის თარიღი", "set the date", "change the date" → modify "date" field. Format: "MMM DD, YYYY".
+         - Due date: "ბოლო ვადა", "ვადა", "გადახდის ვადა", "due date" → modify "due_date" field. Format: "MMM DD, YYYY".
+         - Delivery/start date: "მიწოდების თარიღი", "დაწყების თარიღი" → add as sub_category on the most relevant main item (e.g., "მიწოდება: 15 მარტი, 2026"). Do NOT put in "date" or "due_date" fields.
+      4. TAX:
+         - "ნუ დაადებ დღგ-ს" / "no tax" / "მთლიანს ნუ დაადებ დღგ-ს" → set taxable:false on ALL items in ALL sections AND set "labor_taxable": false.
+         - "დაამატე X% დღგ" / "add X% tax" → set tax_rate:X on all items, taxable:true.
+      5. DISCOUNTS: Apply to the correct scope (global_discount_flat/percent, labor_discount_flat/percent, or per-item discount_flat/percent).
+      6. ADDING ITEMS: Place in the appropriate section by type.
+         - Labor: { desc, price, rate, mode: "hourly"|"fixed", taxable, tax_rate, discount_flat, discount_percent, sub_categories: [] }
+         - Materials: { desc, qty (default 1), price, taxable, tax_rate, discount_flat, discount_percent, sub_categories: [] }
+         - Expenses/Fees: { desc, price, taxable, tax_rate, discount_flat, discount_percent, sub_categories: [] }
+         - If adding a new section type, use: { type: "materials"|"expenses"|"fees", title: "#{ui_is_georgian ? 'appropriate Georgian title' : 'appropriate English title'}", items: [...] }
+      7. REMOVING ITEMS: Remove from the section's items array. If section becomes empty after removal, remove the entire section object from "sections".
+      8. CLIENT: If user changes client name, update "client" field. Georgian convention: შპს "Company Name" (legal form before quoted name).
+      9. Return "clarifications": [] (empty) unless the instruction is genuinely ambiguous.
+      10. Keep "raw_summary" unchanged.
+      11. CREDITS: Array of { amount: number, reason: "string" }. Add/remove/modify as instructed.
+      12. All clarification questions MUST be in #{question_lang}.
+      13. IMPORTANT: Preserve ALL existing fields even if you don't modify them (billing_mode, currency, hourly_rate, labor_tax_rate, tax_scope, etc.).
+
+      Return ONLY valid JSON. No markdown fences, no explanation text, no preamble.
+    PROMPT
+
+    begin
+      gemini_model = ENV["GEMINI_PRIMARY_MODEL"].presence || ENV["GEMINI_MODEL"].presence || "gemini-2.5-flash"
+      thinking_budget = (ENV["GEMINI_THINKING_BUDGET"].presence || 2048).to_i
+
+      body = gemini_generate_content(
+        api_key: api_key,
+        model: gemini_model,
+        prompt_parts: [{ text: prompt }],
+        thinking_budget: thinking_budget
+      )
+
+      if body["error"].present?
+        Rails.logger.warn("REFINE ERROR (#{gemini_model}): #{body["error"].to_json}")
+        return render json: { error: t("processing_error") }, status: 500
+      end
+
+      parts = body.dig("candidates", 0, "content", "parts")
+      raw = parts&.reject { |p| p["thought"] }&.map { |p| p["text"] }&.join("\n")
+
+      if raw.blank?
+        Rails.logger.warn("REFINE EMPTY RESPONSE")
+        return render json: { error: t("processing_error") }, status: 500
+      end
+
+      Rails.logger.info "REFINE RAW (#{gemini_model}): #{raw}"
+
+      json_match = raw.match(/\{[\s\S]*\}/m)
+      unless json_match
+        Rails.logger.error "REFINE NO JSON FOUND: #{raw}"
+        return render json: { error: t("invalid_ai_output") }, status: 422
+      end
+
+      result = begin
+        JSON.parse(json_match[0])
+      rescue => e
+        Rails.logger.error "REFINE JSON PARSE ERROR: #{e.message}"
+        nil
+      end
+
+      unless result
+        return render json: { error: t("invalid_ai_output") }, status: 422
+      end
+
+      # Ensure required arrays exist
+      result["sections"] ||= []
+      result["credits"] ||= []
+      result["clarifications"] = Array(result["clarifications"]).select { |c| c.is_a?(Hash) && c["question"].present? }
+
+      Rails.logger.info "REFINE RESULT: #{result.to_json}"
+      render json: result
+
+    rescue => e
+      Rails.logger.error "REFINE ERROR: #{e.message}\n#{e.backtrace.first(5).join("\n")}"
+      render json: { error: t("processing_error") }, status: 500
+    end
+  end
 
   def gemini_generate_content(api_key:, model:, prompt_parts:, cached_instruction_name: nil, temperature: 0, thinking_budget: 0)
     uri = URI("https://generativelanguage.googleapis.com/v1beta/models/#{model}:generateContent")

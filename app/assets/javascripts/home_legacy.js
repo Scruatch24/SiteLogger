@@ -1746,6 +1746,7 @@ document.addEventListener("DOMContentLoaded", () => {
         window.clarificationHistory = [];
         window._pendingAnswer = null;
         window._analysisSucceeded = false;
+        window.lastAiResult = null;
         renderConversationHistory();
         const assistInput = document.getElementById('assistantInput');
         if (assistInput) { assistInput.value = ''; assistInput.disabled = false; }
@@ -5324,6 +5325,7 @@ function updateUI(data) {
     }
 
     window._analysisSucceeded = true;
+    window.lastAiResult = data;
     window.isAutoUpdating = false;
   } catch (e) {
     window.isAutoUpdating = false;
@@ -5340,6 +5342,7 @@ window.previousClarificationAnswers = [];
 window.clarificationHistory = [];
 window._pendingAnswer = null;
 window._analysisSucceeded = false;
+window.lastAiResult = null;
 
 window.calculateHistoricalChars = function() {
   if (!window.clarificationHistory || window.clarificationHistory.length === 0) return 0;
@@ -5723,23 +5726,11 @@ async function submitAssistantMessage() {
   triggerAssistantReparse(userMessage, type, questionsText);
 }
 
-function triggerAssistantReparse(userAnswer, type, questionsText) {
+async function triggerAssistantReparse(userAnswer, type, questionsText) {
   const input = document.getElementById('assistantInput');
   const currentQuestions = questionsText || (type === 'clarification'
     ? (window.pendingClarifications || []).map(c => c.question).join(' ')
     : "User requested change");
-
-  // PRE-VALIDATION
-  const limit = window.profileCharLimit;
-  const historyChars = (window.calculateHistoricalChars ? window.calculateHistoricalChars() : 0);
-  const transcriptChars = document.getElementById('mainTranscript')?.value.length || 0;
-  const projectedTotal = transcriptChars + historyChars + userAnswer.length;
-
-  if (projectedTotal > limit) {
-    if (window.showPremiumModal) window.showPremiumModal();
-    else showError((window.APP_LANGUAGES.limit_reached_upgrade || "Limit Reached (%{limit}). Upgrade to add more.").replace('%{limit}', limit));
-    return;
-  }
 
   const historyEntry = { questions: currentQuestions, answer: userAnswer };
 
@@ -5747,22 +5738,80 @@ function triggerAssistantReparse(userAnswer, type, questionsText) {
   window._pendingAnswer = { text: userAnswer, type: type, historyEntry: historyEntry };
   if (input) input.disabled = true;
 
-  // Build conversation history including all previous + this new entry
+  // Build conversation history text
   const allEntries = [...(window.clarificationHistory || []), historyEntry];
-  let historyText = "\n\n--- PREVIOUS Q&A CONTEXT (you MUST treat this as an ongoing conversation and consider ALL previous answers) ---";
-  allEntries.forEach((h, i) => {
-    if (h.questions === "User requested change") {
-      historyText += `\n[Round ${i + 1} - User correction/addition: "${h.answer}"]`;
-    } else {
-      historyText += `\n[Round ${i + 1} - AI asked: "${h.questions}" → User answered: "${h.answer}"]`;
-    }
-  });
-  historyText += "\n--- END CONTEXT ---";
+  let historyText = "";
+  if (allEntries.length > 1) {
+    historyText = "--- PREVIOUS Q&A CONTEXT ---";
+    allEntries.slice(0, -1).forEach((h, i) => {
+      if (h.questions === "User requested change") {
+        historyText += `\n[Round ${i + 1} - User correction/addition: "${h.answer}"]`;
+      } else {
+        historyText += `\n[Round ${i + 1} - AI asked: "${h.questions}" → User answered: "${h.answer}"]`;
+      }
+    });
+    historyText += "\n--- END CONTEXT ---";
+  }
 
+  // Use /refine_invoice with existing JSON if available
+  if (window.lastAiResult) {
+    try {
+      const res = await fetch("/refine_invoice", {
+        method: "POST",
+        headers: {
+          "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]').content,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          current_json: window.lastAiResult,
+          user_message: userAnswer,
+          conversation_history: historyText,
+          language: localStorage.getItem('transcriptLanguage') || window.profileSystemLanguage || 'en'
+        })
+      });
+      const data = await res.json();
+
+      removeTypingIndicator();
+
+      if (data.error) {
+        showError(data.error);
+        if (window.rollbackPendingAnswer) window.rollbackPendingAnswer();
+        return;
+      }
+
+      // Update UI with refined result (without touching transcript)
+      updateUIWithoutTranscript(data);
+
+      // Finalize the pending answer
+      if (window._pendingAnswer && window._analysisSucceeded) {
+        if (window.finalizePendingAnswer) window.finalizePendingAnswer();
+      } else if (window._pendingAnswer) {
+        if (window.rollbackPendingAnswer) window.rollbackPendingAnswer();
+      }
+
+    } catch (e) {
+      removeTypingIndicator();
+      showError(window.APP_LANGUAGES.network_error || "Network error.");
+      console.error("Refine error:", e);
+      if (window.rollbackPendingAnswer) window.rollbackPendingAnswer();
+    }
+    return;
+  }
+
+  // Fallback: no lastAiResult available, use legacy re-parse via Apply button
   window.skipTranscriptUpdate = true;
   const transcriptArea = document.getElementById('mainTranscript');
   const originalValue = transcriptArea.value;
-  transcriptArea.value = `${window.originalTranscript || originalValue}${historyText}`;
+  let fullHistory = "\n\n--- PREVIOUS Q&A CONTEXT (you MUST treat this as an ongoing conversation and consider ALL previous answers) ---";
+  allEntries.forEach((h, i) => {
+    if (h.questions === "User requested change") {
+      fullHistory += `\n[Round ${i + 1} - User correction/addition: "${h.answer}"]`;
+    } else {
+      fullHistory += `\n[Round ${i + 1} - AI asked: "${h.questions}" → User answered: "${h.answer}"]`;
+    }
+  });
+  fullHistory += "\n--- END CONTEXT ---";
+  transcriptArea.value = `${window.originalTranscript || originalValue}${fullHistory}`;
 
   const applyBtn = document.getElementById('reParseBtn');
   if (applyBtn) {
@@ -5864,6 +5913,7 @@ function updateUIWithoutTranscript(data) {
     }
 
     window._analysisSucceeded = true;
+    window.lastAiResult = data;
     window.isAutoUpdating = false;
   } catch (e) {
     window.isAutoUpdating = false;
