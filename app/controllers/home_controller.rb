@@ -996,6 +996,7 @@ Categories: LABOR/SERVICE, MATERIALS, EXPENSES, FEES, CREDITS.
 THESE ARE THE ONLY 5 CATEGORIES. You MUST classify every item into one of these. There is NO "other", "notes", "miscellaneous", or any other category. If an item does not clearly fit LABOR, EXPENSES, or FEES, classify it as MATERIALS.
 
 LABOR:
+- SERVICE ACTIONS: Implementation, deployment, installation, configuration, setup, migration, integration, consulting, training are ALWAYS labor/service — even if the object sounds like a product (e.g., "ERP system implementation" = SERVICE, "server installation" = SERVICE, "database migration" = SERVICE). Georgian: "დანერგვა", "ინსტალაცია", "კონფიგურაცია", "მიგრაცია", "ინტეგრაცია" = ALWAYS SERVICE.
 - If multiple distinct services are mentioned, create separate labor entries.
 - If user gives "2 hours, $100 total": treat as fixed $100 (flat). Do NOT infer $50/hr.
 - Hours + rate → mode "hourly", include hours and rate fields. Flat total → mode "fixed", include price field and set hours=1 or include hours as metadata (per your schema).
@@ -1007,7 +1008,9 @@ LABOR:
 - FREE LABOR ITEMS: If user mentions "free", "no charge", "complimentary", "on the house" (Georgian: "უფასოდ", "უფასო", "უფასოდ ჩავუთვლი", "უფასოდ გავუკეთე") for a labor item, you MUST set price=0, hours=0, rate=0, mode="fixed", and taxable=false. Do NOT assign any default rate or price.
 
 MATERIALS:
-- Physical goods the client keeps. Extract ONLY the noun/item name, stripping action verbs.
+- Physical goods the client keeps or receives (servers, parts, equipment, supplies). NOT services/actions.
+- "hardware" / "აპარატურა" / "equipment" = ONLY physical items (servers, devices, parts). Implementation, installation, configuration are NOT hardware.
+- Extract ONLY the noun/item name, stripping action verbs.
 - NAMING: When user says "used nails" or "got filters", the action verb ("used", "got", "bought", "grabbed") is NOT part of the item name. Extract just "Nails", "Filters". Only include adjectives that describe the item itself (e.g., "new filters" → "New Filters", "copper pipe" → "Copper Pipe").
 #{target_is_georgian ? '- GEORGIAN NAMING: Keep material names in singular form (e.g., "ნაჯახი" for any quantity). Do NOT pluralize.' : '- TRANSLATION: If the input is in Georgian or any other non-English language, you MUST translate material names to English. E.g., "ნაჯახი" → "Axe", "ლურსმანი" → "Nail", "მილი" → "Pipe". Do NOT leave Georgian text in the name field.'}
 - UNIT PRICE RULE: If a total price is given for a quantity (e.g., "4 items cost 60" or "4 axes... but put 60"), set qty=4 and unit_price=60/4. Do NOT assign total as unit_price.
@@ -1022,6 +1025,7 @@ MATERIALS:
 
 AMBIGUOUS ITEMS (Labor vs Materials):
 - "Action + Object + Price" (e.g. "Replaced filter $25", "Cleaned vents $15") -> CLASSIFY AS LABOR/SERVICE. Name it "Filter Replacement" or "Vent Cleaning".
+- "[System/Software] + [action noun] + Price" → ALWAYS LABOR. E.g., "ERP სისტემის დანერგვა 45000" → LABOR (desc: "ERP System Implementation", mode: fixed, price: 45000). The system name is the OBJECT of the service, not a product being sold.
 - REDUNDANCY CHECK: Do NOT add a sub_category that just repeats the main title or is a variation of it. (e.g. if desc is "AC Repair", do NOT add "Repaired AC" as a subcategory). Subcategories are ONLY for additional details (e.g. specific part names, location) not implied by the title.
 - Only classify as Materials if the spoken text purely describes the object (e.g. "The filter cost $25", "New filter: $25").
 - If in doubt, prefer Labor/Service for tasks.
