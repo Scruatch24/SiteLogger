@@ -395,7 +395,8 @@ window.setGlobalBillingMode = function (mode) {
   const fixedBtn = document.getElementById('billingModelFixed');
   const mixedBtn = document.getElementById('billingModelMixed');
 
-  const inactiveClasses = ['bg-white', 'text-black', 'hover:bg-orange-50'];
+  const shadowClass = 'shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]';
+  const inactiveClasses = ['bg-white', 'text-black', 'hover:bg-orange-50', shadowClass];
   const activeClasses = ['bg-orange-600', 'text-white', 'shadow-none', 'translate-x-[2px]', 'translate-y-[2px]'];
   const translateInactive = ['translate-x-0', 'translate-y-0'];
 
@@ -2010,6 +2011,7 @@ document.addEventListener("DOMContentLoaded", () => {
   window.stopAnalysisUI = stopAnalysisUI;
 
   reParseBtn.onclick = async () => {
+    if (isAnalyzing) return; // Prevent spam clicks
     const text = transcriptArea.value;
     const limit = window.profileCharLimit || 2000;
 
@@ -5698,6 +5700,7 @@ async function processAssistantAudio() {
 }
 
 async function submitAssistantMessage() {
+  if (window._pendingAnswer) return; // Prevent spam clicks while reparse in flight
   const input = document.getElementById('assistantInput');
   const userMessage = input ? input.value.trim() : '';
 

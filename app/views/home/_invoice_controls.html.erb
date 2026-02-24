@@ -28,15 +28,15 @@
     <label data-nosnippet class="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1"><%= t('billing_model') %></label>
     <div class="flex gap-2 h-11">
        <button type="button" id="billingModelHourly" onclick="setGlobalBillingMode('hourly')" 
-               class="flex-1 text-[9px] font-black uppercase tracking-widest transition-all border-2 border-black rounded-xl <%= @profile.billing_mode == 'hourly' || @profile.billing_mode.nil? ? 'bg-orange-600 text-white shadow-none translate-x-[2px] translate-y-[2px]' : 'bg-white text-black hover:bg-orange-50' %>">
+               class="flex-1 text-[9px] font-black uppercase tracking-widest transition-all border-2 border-black rounded-xl <%= @profile.billing_mode == 'hourly' || @profile.billing_mode.nil? ? 'bg-orange-600 text-white shadow-none translate-x-[2px] translate-y-[2px]' : 'bg-white text-black hover:bg-orange-50 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]' %>">
           <%= t('hourly') %>
        </button>
        <button type="button" id="billingModelFixed" onclick="setGlobalBillingMode('fixed')" 
-               class="flex-1 text-[9px] font-black uppercase tracking-widest transition-all border-2 border-black rounded-xl <%= @profile.billing_mode == 'fixed' ? 'bg-orange-600 text-white shadow-none translate-x-[2px] translate-y-[2px]' : 'bg-white text-black hover:bg-orange-50' %>">
+               class="flex-1 text-[9px] font-black uppercase tracking-widest transition-all border-2 border-black rounded-xl <%= @profile.billing_mode == 'fixed' ? 'bg-orange-600 text-white shadow-none translate-x-[2px] translate-y-[2px]' : 'bg-white text-black hover:bg-orange-50 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]' %>">
           <%= t('fixed') %>
        </button>
        <button type="button" id="billingModelMixed" onclick="setGlobalBillingMode('mixed')" 
-               class="flex-1 text-[9px] font-black uppercase tracking-widest transition-all border-2 border-black rounded-xl <%= @profile.billing_mode == 'mixed' ? 'bg-orange-600 text-white shadow-none translate-x-[2px] translate-y-[2px]' : 'bg-white text-black hover:bg-orange-50' %>">
+               class="flex-1 text-[9px] font-black uppercase tracking-widest transition-all border-2 border-black rounded-xl <%= @profile.billing_mode == 'mixed' ? 'bg-orange-600 text-white shadow-none translate-x-[2px] translate-y-[2px]' : 'bg-white text-black hover:bg-orange-50 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]' %>">
           <%= t('mixed') %>
        </button>
     </div>
