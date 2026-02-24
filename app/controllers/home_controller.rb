@@ -747,7 +747,7 @@ class HomeController < ApplicationController
       end
 
       parts = body.dig("candidates", 0, "content", "parts")
-      candidate = parts&.map { |p| p["text"] }&.join(" ")&.to_s&.strip
+      candidate = parts&.reject { |p| p["thought"] }&.map { |p| p["text"] }&.join(" ")&.to_s&.strip
       next if candidate.blank?
 
       candidate = candidate.gsub(/\A```(?:text)?\s*/i, "").gsub(/\s*```\z/, "").strip
@@ -787,7 +787,7 @@ class HomeController < ApplicationController
       )
 
       validation_parts = validation_body.dig("candidates", 0, "content", "parts")
-      validation_raw = validation_parts&.map { |p| p["text"] }&.join(" ")&.to_s&.strip
+      validation_raw = validation_parts&.reject { |p| p["thought"] }&.map { |p| p["text"] }&.join(" ")&.to_s&.strip
 
       if validation_raw.present?
         validation_json = validation_raw[/\{.*\}/m]
@@ -898,7 +898,7 @@ class HomeController < ApplicationController
         body = JSON.parse(res.body) rescue {}
 
         parts = body.dig("candidates", 0, "content", "parts")
-        raw = parts&.map { |p| p["text"] }&.join(" ")&.strip
+        raw = parts&.reject { |p| p["thought"] }&.map { |p| p["text"] }&.join(" ")&.strip
 
         if raw.blank? || raw.strip.upcase == "EMPTY" || raw.strip.length < 2
           return render json: { raw_summary: "" }
@@ -1246,11 +1246,14 @@ PROMPT
         prompt_parts << { text: runtime_cache_context } if use_cached_instruction
         prompt_parts.concat(user_input_parts)
 
+        thinking_budget = (ENV["GEMINI_THINKING_BUDGET"].presence || 2048).to_i
+
         body = gemini_generate_content(
           api_key: api_key,
           model: gemini_model,
           prompt_parts: prompt_parts,
-          cached_instruction_name: (use_cached_instruction ? cached_instruction_name : nil)
+          cached_instruction_name: (use_cached_instruction ? cached_instruction_name : nil),
+          thinking_budget: thinking_budget
         )
 
         if use_cached_instruction && body["error"].present?
@@ -1264,7 +1267,8 @@ PROMPT
             api_key: api_key,
             model: gemini_model,
             prompt_parts: fallback_parts,
-            cached_instruction_name: nil
+            cached_instruction_name: nil,
+            thinking_budget: thinking_budget
           )
         end
 
@@ -1276,7 +1280,7 @@ PROMPT
         end
 
         parts = body.dig("candidates", 0, "content", "parts")
-        candidate_raw = parts&.map { |p| p["text"] }&.join("\n")
+        candidate_raw = parts&.reject { |p| p["thought"] }&.map { |p| p["text"] }&.join("\n")
 
         if candidate_raw.blank?
           Rails.logger.warn("AI MODEL EMPTY RAW (#{gemini_model}).")
@@ -1768,17 +1772,19 @@ PROMPT
   end
 
 
-  def gemini_generate_content(api_key:, model:, prompt_parts:, cached_instruction_name: nil, temperature: 0.1)
+  def gemini_generate_content(api_key:, model:, prompt_parts:, cached_instruction_name: nil, temperature: 0.1, thinking_budget: 0)
     uri = URI("https://generativelanguage.googleapis.com/v1beta/models/#{model}:generateContent")
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = true
-    http.read_timeout = 30
+    http.read_timeout = thinking_budget > 0 ? 60 : 30
     http.open_timeout = 10
 
     req = Net::HTTP::Post.new(uri, "Content-Type" => "application/json", "x-goog-api-key" => api_key)
+    gen_config = { temperature: temperature }
+    gen_config[:thinkingConfig] = { thinkingBudget: thinking_budget } if thinking_budget > 0
     payload = {
       contents: [ { parts: prompt_parts } ],
-      generationConfig: { temperature: temperature }
+      generationConfig: gen_config
     }
     payload[:cachedContent] = cached_instruction_name if cached_instruction_name.present?
     req.body = payload.to_json
