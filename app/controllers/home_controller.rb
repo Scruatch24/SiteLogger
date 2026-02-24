@@ -965,20 +965,17 @@ CORE DIRECTIVES (non-negotiable)
 8. CLIENT EXTRACTION: Explicitly look for introductions like "This is [Name]", "Invoice for [Name]", "Bill to [Name]".
    - "Hello, this is Apex Roofing" -> Client: "Apex Roofing"
 9. Output STRICT JSON. No extra fields. Use null for unknown numeric values, empty arrays for absent categories.
+10. OUTPUT TONE: Use Title Case for 'desc'/'name' fields. Be extremely brief — short, impactful technical terms. No parentheses/metadata in descriptions. Put specifics into 'sub_categories'.
+11. AMBIGUOUS REDUCTIONS: If no currency or percent indicated, default to CURRENCY (flat amount). Hours with no rate → return hours, hourly_rate = null (system applies default).
 
 ----------------------------
-ERROR HANDLING (return **only** below JSON on error)
+EXTRACTION STRATEGY
 ----------------------------
-If input is complete gibberish or entirely unrelated to a contractor job ->
-{"error":"#{t('input_unclear', default: 'Input unclear - please try again')}"}
-
-If a numeric reduction is ambiguous (no currency or percent indicated) ->
-DEFAULT TO CURRENCY (flat amount). Do not error.
-
-If input empty or silent ->
-{"error":"#{t('input_empty', default: 'Input empty')}"}
-
-If only non-billing talk (no labor/materials/fees/expenses/credits) -> error above.
+- STEP 1: Scan the ENTIRE text for currency totals (e.g., "$2300", "twelve hundred").
+- STEP 2: Map totals to categories (Labor, Materials, Fees).
+- STEP 3: ONLY then gather descriptions and sub-categories.
+- LATE TOTAL RULE: Items listed first + price follows later → consolidate into ONE priced item with parts as sub_categories. Never leave items at $0.
+- SEPARATE PRICES = SEPARATE ITEMS: If two items each have their OWN explicit price, they are ALWAYS separate items. NEVER merge them. "ERP system 45,000" + "3 servers at 8,500 each" = TWO separate items.
 
 ----------------------------
 NATURAL LANGUAGE / SLANG RULESET (pragmatic)
@@ -1044,43 +1041,31 @@ CREDITS:
 - Example: "Add a credit for 50" -> { "amount": 50, "reason": "Courtesy Credit" }.
 
 ----------------------------
-DISCOUNT vs CREDIT RULES (explicit)
+DISCOUNT & CREDIT RULES
 ----------------------------
-- Default: discounts = PRE-TAX. They reduce taxable base and must be applied proportionally or scoped per-category as instructed.
-- If user says "after tax", "off the total", "from the final amount" → treat as CREDIT (post-tax) and do NOT change item taxable flags or prices.
+- Discounts = PRE-TAX by default. They reduce taxable base.
+- "after tax", "off the total", "from the final amount" → treat as CREDIT (post-tax), NOT a discount.
 - Ambiguous "take $X off" with no timing language → default to GLOBAL DISCOUNT (pre-tax).
-- EXCLUSION LOGIC: If input says "discount everything except [category]", you are STRICTLY FORBIDDEN from using "global_discount". You MUST apply the discount to every other item individually (labor, materials, fees) and leave the excluded category 0.
+- EXCLUSION: "discount everything except [category]" → FORBIDDEN to use "global_discount". Apply per-item to every OTHER category, leave excluded at 0.
+- MUTUALLY EXCLUSIVE: each item has EITHER discount_flat OR discount_percent, NEVER BOTH.
+- Percentage discount (e.g., "10% off") → use discount_percent. NEVER compute the flat equivalent.
+- Flat discount (e.g., "$50 off") → use discount_flat.
+- discount_percent ≤ 100. discount_flat ≤ item total price.
+- Same rules apply to global_discount_flat/percent and labor_discount_flat/percent.
+- PERCENTAGE DISCOUNTS ARE NEVER CLARIFICATION CANDIDATES. Just apply them.
 
 ----------------------------
-EXTRACTION STRATEGY (MULTI-PASS)
+TAX RULES
 ----------------------------
-- STEP 1: Scan the ENTIRE text for currency totals (e.g., "$2300", "twelve hundred").#{' '}
-- STEP 2: Map these totals to their functional categories (Labor, Materials, Fees).
-- STEP 3: ONLY then gather descriptions and sub-categories.
-- LATE TOTAL RULE: If items are listed first (e.g. "Condenser, coil, pipe...") and a price follows later (e.g. "...materials were 2300"), you MUST consolidate them. It is strictly forbidden to leave the categorized parts with $0. Create ONE priced item and use the parts as sub-categories.
-- SEPARATE PRICES = SEPARATE ITEMS: If two items each have their OWN explicit price, they are ALWAYS separate items. NEVER merge them. Example: "ERP system 45,000" and "3 servers at 8,500 each" are TWO separate items — ERP is a service (labor_service_items, fixed, price=45000), servers are materials (materials, qty=3, unit_price=8500). The fact that they are mentioned together does NOT mean one includes the other.
-
-----------------------------
-TAXABILITY & PRICES (STRICT)
-----------------------------
-1. TAXABLE FIELD:#{' '}
-   - DEFAULT: Return `taxable: null` to use system defaults.
-   - EXPLICIT "Tax everything except [X]": Set `taxable: false` for X items, and `taxable: true` for ALL other items.
-   - EXPLICIT "Tax [X] only": Set `taxable: true` for X items, `taxable: false` for others.
-   - EXPLICIT "Tax materials" or "Tax parts": Set `taxable: true` for Materials.
-   - EXPLICIT "Don't tax labor" / "No tax on service": You MUST set `labor_taxable: false` AND set `taxable: false` on EVERY labor_service_item. This overrides the user's profile defaults.
-   - EXPLICIT "Don't tax materials" / "No tax on parts": Set `taxable: false` on EVERY material item.
-2. PRICE BUNDLING: Always consolidate. "Labor was 1200" -> ONE fixed labor item, price 1200. "Materials 2300" -> ONE materials item, qty 1, unit_price 2300.
-3. NUMERIC WORDS: "twelve hundred" -> 1200, "twenty-three hundred" -> 2300.
-
-----------------------------
-TAX SCOPE & RATES
-----------------------------
-- DEFAULT SCOPE: Use null if no instruction.#{' '}
-- EXPLICIT SCOPE: If user says "tax ONLY on parts", `tax_scope` MUST be "materials".
-- TAX RATES: "8% tax" -> tax_rate: 8.0.
-- GENERAL TAX INSTRUCTION (e.g., "add 18% tax", "დაამატე 18% დღგ"): Set `tax_rate: 18` on every item. Leave `tax_scope: null` — the system will apply it using the user's profile defaults. Do NOT ask which categories to tax. Do NOT break it apart per category.
-- TAX IS NEVER A CLARIFICATION CANDIDATE. If user says "add X% tax" or "X% VAT", just apply it. Never ask to confirm tax instructions.
+- TAXABLE FIELD DEFAULT: Return `taxable: null` to use system defaults.
+- EXPLICIT "Tax everything except [X]": Set `taxable: false` for X, `taxable: true` for all others.
+- EXPLICIT "Tax [X] only": Set `taxable: true` for X, `taxable: false` for others.
+- EXPLICIT "Don't tax labor": Set `labor_taxable: false` AND `taxable: false` on EVERY labor_service_item.
+- EXPLICIT "Don't tax materials": Set `taxable: false` on EVERY material item.
+- TAX SCOPE: Use null if no instruction. "tax ONLY on parts" → `tax_scope: "materials"`.
+- TAX RATES: "8% tax" → tax_rate: 8.0. Set on every item.
+- GENERAL TAX (e.g., "add 18% tax", "დაამატე 18% დღგ"): Set `tax_rate` on every item. Leave `tax_scope: null`. Do NOT break apart per category.
+- TAX IS NEVER A CLARIFICATION. "add X% tax" or "X% VAT" → just apply it. Never ask.
 
 ----------------------------
 CLARIFICATION QUESTIONS
@@ -1141,31 +1126,6 @@ CONVERSATION CONTEXT AWARENESS (CRITICAL):
 - Each round builds on all previous rounds. Latest answer wins if contradictory.
 
 ----------------------------
-DISAMBIGUATION RULES
-----------------------------
-- If a numeric reduction has no currency or percent -> Default to CURRENCY.
-- If hours are spoken with no rate and no default exists -> return hours with hourly_rate = null (system will apply default).
-
-----------------------------
-OUTPUT & TONE
-----------------------------
-- Professional Tone & Formatting: Use Title Case for the 'desc' field (e.g. "AC Repair", not "Ac repair").
-- **Brevity Extreme**: Choose primary descriptions ('desc'/'name') and subcategory names to be as short as possible without sacrificing informativeness. Use concise, impactful technical terms.
-- Keep descriptions short and free of parentheses/metadata.
-- Put all specific actions/details into the 'sub_categories' array.
-
-----------------------------
-DISCOUNT RULES (CRITICAL)
-----------------------------
-- Discounts are MUTUALLY EXCLUSIVE: each item can have EITHER discount_flat OR discount_percent, NEVER BOTH.
-- If the user mentions a percentage discount (e.g., "10% off"), use discount_percent and leave discount_flat empty. NEVER compute the flat equivalent of a percentage discount. The system calculates it automatically.
-- If the user mentions a flat/fixed discount (e.g., "$50 off"), use discount_flat and leave discount_percent empty.
-- discount_percent MUST NOT exceed 100.
-- discount_flat MUST NOT exceed the item's total price (unit_price * qty, or hours * rate for labor).
-- Same rules apply to global_discount_flat/global_discount_percent and labor_discount_flat/labor_discount_percent.
-- PERCENTAGE DISCOUNTS ARE NEVER CLARIFICATION CANDIDATES. If user says "X% discount on [category]", put discount_percent: X on those items. Do NOT compute the flat amount and ask about it. Do NOT create a clarification for a percentage discount.
-
-----------------------------
 OUTPUT JSON SCHEMA (must match exactly)
 ----------------------------
 Return EXACTLY the JSON structure below (use null for unknown numeric, empty arrays for absent categories):
@@ -1205,16 +1165,22 @@ Return EXACTLY the JSON structure below (use null for unknown numeric, empty arr
   "due_days": null,
   "due_date": null,
   "raw_summary": "",
-  "clarifications": [
-    { "field": "materials.unit_price", "guess": 795, "question": "You said 'just under 800' for parts. What's the exact amount?" }
-  ]
+  "clarifications": []
 }
+
+----------------------------
+ERROR HANDLING (return ONLY JSON on error)
+----------------------------
+- Gibberish or unrelated to a job → {"error":"#{t('input_unclear', default: 'Input unclear - please try again')}"}
+- Empty/silent input → {"error":"#{t('input_empty', default: 'Input empty')}"}
+- Only non-billing talk → same error as gibberish.
 
 ----------------------------
 FINAL REMINDERS (CRITICAL)
 ----------------------------
 - #{lang_context}
 - FREE ITEMS: If user says "უფასოდ", "უფასოდ ჩავუთვლი", "free", "no charge", "on the house" about ANY item, that item MUST have price=0, rate=0, hours=0, mode="fixed", taxable=false. This is NON-NEGOTIABLE.
+- If ALL values are explicit, return clarifications: [] (EMPTY array).
 PROMPT
 
       instruction_for_cache = normalize_gemini_instruction_for_cache(
