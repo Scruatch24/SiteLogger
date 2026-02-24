@@ -5718,6 +5718,7 @@ async function submitAssistantMessage() {
     : "User requested change";
 
   addUserBubble(userMessage);
+  if (input) { input.value = ''; if (typeof autoResize === 'function') autoResize(input); }
   showTypingIndicator();
   triggerAssistantReparse(userMessage, type, questionsText);
 }

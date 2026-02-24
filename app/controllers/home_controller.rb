@@ -1040,7 +1040,10 @@ EXPENSES:
 - BUNDLING: If user gives a TOTAL PRICE for "expenses" (plural), create ONE main item named "Expenses" (or specific group name) with that price. List component details in 'sub_categories'.
 
 FEES:
-- Surcharges, disposal, rush fees. Return `taxable: null` to defer to system settings unless user explicitly says "tax this" or "no tax".
+- Surcharges, disposal, rush fees, rent/lease payments, utility bills, late/penalty charges. Return `taxable: null` to defer to system settings unless user explicitly says "tax this" or "no tax".
+- RENT/LEASE: Monthly rent, lease payments ("ქირა", "იჯარა") → ALWAYS classify as FEES. E.g., "February rent 1200" → Fee item { name: "February Rent", price: 1200 }.
+- UTILITIES: Utility bills, communal payments ("კომუნალური", "კომუნალური გადასახადები") → FEES.
+- PENALTIES: Late fees, fines, penalties ("ჯარიმა", "დაგვიანების ჯარიმა", "საჯარიმო") → FEES.
 - BUNDLING: Same logic as Materials/Expenses. If a total fee amount is given for multiple fee types, bundle them into one main Fee item with sub-categories.
 
 CREDITS:
