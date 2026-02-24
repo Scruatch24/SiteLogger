@@ -1095,7 +1095,9 @@ RULES:
 - Do NOT ask if the value is clear and explicit (e.g., "800 dollars" needs no clarification)
 - Do NOT ask about ANY RATES (hourly rate, team rate, special rate, tax rate) - the system has user-configured defaults
 - ONLY ask about missing PRICES or COSTS (e.g., "parts were expensive" but no dollar amount given)
-- When uncertain about a value, PREFER asking a clarification question over guessing wrong — a question is cheaper than a wrong invoice
+- NEVER ask yes/no or true/false questions. If the user explicitly states something (e.g., "add 18% VAT", "7% discount on hardware"), just DO IT — do not ask for confirmation.
+- NEVER ask about tax applicability, discount applicability, or scope when the user already specified it. "Add 18% VAT at the end" means apply 18% to everything. "7% discount on hardware but not service" means apply 7% only to hardware. Just follow the instruction.
+- When uncertain about a NUMERIC value, PREFER asking a clarification question over guessing wrong — a question is cheaper than a wrong invoice
 - CRITICAL: When you add a clarification with a guess value, you MUST populate the corresponding JSON field with that SAME value. The guess and actual field value must match.
 - MATH CHECK: When computing derived values (discounts, totals, percentages), ALWAYS double-check your arithmetic step by step. Example: 7% of (3 x 8500) = 7% of 25500 = 1785, NOT 7% of 30000. Show the base amount in your question so the user can verify.
 

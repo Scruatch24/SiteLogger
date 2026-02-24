@@ -1,49 +1,71 @@
-<div id="aiAssistantSection" class="hidden mt-8 space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300 overflow-visible p-1">
+<div id="aiAssistantSection" class="hidden mt-8 animate-in fade-in slide-in-from-bottom-2 duration-300 overflow-visible">
   
-  <!-- Chat Conversation -->
-  <div id="assistantConversation" class="space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar pr-1">
-  </div>
-
-  <!-- Chat Input -->
-  <div class="flex gap-2">
-    <div class="flex-1 border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,0.05),4px_4px_0px_0px_rgba(0,0,0,1)] flex flex-col">
-      <textarea id="assistantInput"
-                rows="1"
-                oninput="autoResize(this); updateDynamicCountersCheck(this)"
-                class="w-full bg-transparent border-none text-sm font-bold text-black focus:ring-0 px-4 py-3 outline-none placeholder:text-gray-400 resize-none rounded-xl custom-scrollbar"
-                style="max-height: 8rem; overflow-y: hidden;"
-                placeholder="<%= t('assistant_placeholder') %>"
-                onkeydown="if(event.key==='Enter' && !event.shiftKey) { event.preventDefault(); submitAssistantMessage(); }"></textarea>
-      <div class="flex justify-end px-3 pb-1.5">
-        <span class="text-[9px] font-black text-gray-400 uppercase tracking-widest">
-           <span id="assistantCharCount">0</span> / <span id="assistantMax"><%= @profile.char_limit %></span>
-        </span>
+  <!-- Chat Container -->
+  <div class="border-2 border-black rounded-2xl bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+    
+    <!-- Chat Header -->
+    <div class="flex items-center gap-2.5 px-4 py-2.5 bg-gradient-to-r from-gray-900 to-gray-800 border-b-2 border-black">
+      <div class="w-7 h-7 rounded-lg bg-orange-500 border-2 border-orange-300/30 flex items-center justify-center">
+        <svg class="h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+        </svg>
+      </div>
+      <div class="flex-1">
+        <p class="text-white font-black text-xs uppercase tracking-widest"><%= t('ai_assistant') %></p>
+      </div>
+      <div class="flex items-center gap-1">
+        <span class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
+        <span class="text-emerald-400 text-[9px] font-black uppercase tracking-widest">Online</span>
       </div>
     </div>
-    <div class="flex flex-col gap-1.5">
-      <button type="button" 
-              id="assistantMicBtn"
-              onclick="startAssistantRecording()"
-              class="w-10 h-10 rounded-xl bg-black border-2 border-black flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all hover:bg-gray-800"
-              title="<%= t('answer_placeholder') %>">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-        </svg>
-      </button>
-      <div id="assistantTimer" class="flex flex-col items-center justify-center hidden scale-90">
-        <span class="text-[8px] font-black text-gray-600 uppercase tracking-tighter leading-none">
-          <span id="assistantTimeLeft">0</span>s
-        </span>
+
+    <!-- Chat Messages -->
+    <div id="assistantConversation" class="space-y-3 max-h-[350px] overflow-y-auto custom-scrollbar p-4 bg-gray-50/50">
+    </div>
+
+    <!-- Chat Input Bar -->
+    <div class="border-t-2 border-gray-200 bg-white p-3">
+      <div class="flex gap-2">
+        <div class="flex-1 border-2 border-gray-200 rounded-xl bg-gray-50 focus-within:border-orange-400 focus-within:bg-white transition-colors flex flex-col">
+          <textarea id="assistantInput"
+                    rows="1"
+                    oninput="autoResize(this); updateDynamicCountersCheck(this)"
+                    class="w-full bg-transparent border-none text-sm font-bold text-black focus:ring-0 px-3 py-2.5 outline-none placeholder:text-gray-400 resize-none rounded-xl custom-scrollbar"
+                    style="max-height: 6rem; overflow-y: hidden;"
+                    placeholder="<%= t('assistant_placeholder') %>"
+                    onkeydown="if(event.key==='Enter' && !event.shiftKey) { event.preventDefault(); submitAssistantMessage(); }"></textarea>
+          <div class="flex justify-end px-3 pb-1">
+            <span class="text-[8px] font-black text-gray-300 uppercase tracking-widest">
+               <span id="assistantCharCount">0</span> / <span id="assistantMax"><%= @profile.char_limit %></span>
+            </span>
+          </div>
+        </div>
+        <div class="flex items-end gap-1.5 pb-1">
+          <button type="button" 
+                  id="assistantMicBtn"
+                  onclick="startAssistantRecording()"
+                  class="w-9 h-9 rounded-lg bg-gray-800 flex items-center justify-center active:scale-95 transition-all hover:bg-gray-700"
+                  title="<%= t('answer_placeholder') %>">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+            </svg>
+          </button>
+          <div id="assistantTimer" class="flex flex-col items-center justify-center hidden scale-90">
+            <span class="text-[8px] font-black text-gray-600 uppercase tracking-tighter leading-none">
+              <span id="assistantTimeLeft">0</span>s
+            </span>
+          </div>
+          <button type="button" 
+                  id="assistantSendBtn"
+                  onclick="submitAssistantMessage()"
+                  class="w-9 h-9 rounded-lg bg-orange-500 flex items-center justify-center active:scale-95 transition-all hover:bg-orange-600"
+                  title="Send">
+            <svg class="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+            </svg>
+          </button>
+        </div>
       </div>
-      <button type="button" 
-              id="assistantSendBtn"
-              onclick="submitAssistantMessage()"
-              class="w-10 h-10 rounded-xl bg-orange-500 border-2 border-black flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all hover:bg-orange-600"
-              title="Send">
-        <svg class="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-        </svg>
-      </button>
     </div>
   </div>
 </div>

@@ -5375,6 +5375,7 @@ window.rollbackPendingAnswer = function() {
 
 function handleClarifications(clarifications) {
   const section = document.getElementById('aiAssistantSection');
+  removeTypingIndicator();
 
   // Filter out already-answered clarifications
   const unansweredClarifications = (clarifications || []).filter(c => {
@@ -5390,14 +5391,17 @@ function handleClarifications(clarifications) {
   if (!unansweredClarifications || unansweredClarifications.length === 0) {
     window.pendingClarifications = [];
 
-    // AI "all good" message
-    addAIBubble(window.APP_LANGUAGES.anything_else || "Anything else to change?");
-
-    const assistInput = document.getElementById('assistantInput');
-    if (assistInput) {
-      assistInput.placeholder = window.APP_LANGUAGES.assistant_placeholder || "Tell me what to change...";
-      assistInput.focus();
-    }
+    // AI "all good" message with typing animation
+    showTypingIndicator();
+    setTimeout(() => {
+      removeTypingIndicator();
+      addAIBubble(window.APP_LANGUAGES.anything_else || "Anything else to change?");
+      const assistInput = document.getElementById('assistantInput');
+      if (assistInput) {
+        assistInput.placeholder = window.APP_LANGUAGES.assistant_placeholder || "Tell me what to change...";
+        assistInput.focus();
+      }
+    }, 600);
     return;
   }
 
@@ -5405,25 +5409,47 @@ function handleClarifications(clarifications) {
   window.pendingClarifications = unansweredClarifications;
   window.originalTranscript = document.getElementById('mainTranscript').value;
 
-  // Show each question as its own chat bubble
+  // Show each question as its own chat bubble with typing animation
   unansweredClarifications.forEach((c, index) => {
-    const guessDisplay = (c.guess === 0 || c.guess === "0" || c.guess === "" || c.guess === null || c.guess === undefined)
-      ? (window.APP_LANGUAGES.not_specified || "Not specified")
-      : c.guess;
+    let guessDisplay;
+    if (c.guess === true || c.guess === "true") {
+      guessDisplay = window.APP_LANGUAGES.guess_yes || "Yes";
+    } else if (c.guess === false || c.guess === "false") {
+      guessDisplay = window.APP_LANGUAGES.guess_no || "No";
+    } else if (c.guess === 0 || c.guess === "0" || c.guess === "" || c.guess === null || c.guess === undefined) {
+      guessDisplay = window.APP_LANGUAGES.not_specified || "not specified";
+    } else {
+      guessDisplay = c.guess;
+    }
 
-    const questionText = `${c.question}  (${window.APP_LANGUAGES.current_guess || "Current guess:"} ${guessDisplay})`;
-    addAIBubble(questionText);
+    const questionText = `${c.question}  (${window.APP_LANGUAGES.current_guess || "My guess:"} ${guessDisplay})`;
+
+    // Stagger bubbles with typing indicator
+    setTimeout(() => {
+      removeTypingIndicator();
+      addAIBubble(questionText);
+      // Show typing indicator for next bubble (if not the last)
+      if (index < unansweredClarifications.length - 1) {
+        showTypingIndicator();
+      }
+    }, index * 800 + 400);
   });
 
-  // Clear the input field for fresh answer
-  if (!window._pendingAnswer) {
-    const assistInput = document.getElementById('assistantInput');
-    if (assistInput) {
-      assistInput.value = '';
-      assistInput.placeholder = window.APP_LANGUAGES.answer_placeholder || "Type or speak your answer...";
-      assistInput.focus();
+  // Show typing indicator before first bubble
+  showTypingIndicator();
+
+  // Clear the input field for fresh answer after all bubbles shown
+  const totalDelay = unansweredClarifications.length * 800 + 400;
+  setTimeout(() => {
+    if (!window._pendingAnswer) {
+      const assistInput = document.getElementById('assistantInput');
+      if (assistInput) {
+        assistInput.value = '';
+        assistInput.placeholder = window.APP_LANGUAGES.answer_placeholder || "Type or speak your answer...";
+        assistInput.focus();
+      }
     }
-  }
+  }, totalDelay);
 }
 
 function toggleSection(contentId, arrowId, btn) {
@@ -5440,6 +5466,40 @@ function toggleSection(contentId, arrowId, btn) {
     arrow.classList.add('-rotate-90');
     if (btn) btn.classList.remove('rounded-b-none');
   }
+}
+
+function showTypingIndicator() {
+  const conversation = document.getElementById('assistantConversation');
+  if (!conversation) return;
+
+  // Don't add duplicate
+  if (conversation.querySelector('.typing-indicator')) return;
+
+  const div = document.createElement('div');
+  div.className = "typing-indicator flex items-start gap-2 animate-in fade-in duration-200";
+  div.innerHTML = `
+    <div class="shrink-0 w-7 h-7 rounded-lg bg-orange-500 border-2 border-black flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+      <svg class="h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+      </svg>
+    </div>
+    <div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-2.5 shadow-sm">
+      <div class="flex gap-1 items-center h-4">
+        <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0ms;"></span>
+        <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 150ms;"></span>
+        <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 300ms;"></span>
+      </div>
+    </div>
+  `;
+  conversation.appendChild(div);
+  conversation.scrollTop = conversation.scrollHeight;
+}
+
+function removeTypingIndicator() {
+  const conversation = document.getElementById('assistantConversation');
+  if (!conversation) return;
+  const indicator = conversation.querySelector('.typing-indicator');
+  if (indicator) indicator.remove();
 }
 
 function addAIBubble(text) {
@@ -5652,6 +5712,7 @@ async function submitAssistantMessage() {
     : "User requested change";
 
   addUserBubble(userMessage);
+  showTypingIndicator();
   triggerAssistantReparse(userMessage, type, questionsText);
 }
 
@@ -6000,6 +6061,8 @@ Object.assign(window, {
   updateUI,
   handleClarifications,
   toggleSection,
+  showTypingIndicator,
+  removeTypingIndicator,
   addAIBubble,
   addUserBubble,
   renderConversationHistory,
