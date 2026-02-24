@@ -922,7 +922,7 @@ class HomeController < ApplicationController
     target_is_georgian = (doc_language == "ge" || doc_language == "ka")
 
     lang_context = if target_is_georgian
-      "TARGET LANGUAGE: Georgian. Translate ONLY the text content (item names, descriptions, sub_categories text) to Georgian. The JSON structure (field names, section categories like 'labor', 'materials') stays the same. Do NOT reorganize or bundle items differently due to translation. E.g., 'Nails' becomes 'ლურსმნები', 'Filter Replacement' becomes 'ფილტრის შეცვლა'."
+      "████ TARGET LANGUAGE: GEORGIAN (ქართული) ████ ALL text content in the output JSON MUST be in Georgian. This applies to: \"desc\", \"name\", \"reason\", \"raw_summary\", \"sub_categories\" text, and \"client\". JSON field NAMES and section keys (\"labor\", \"materials\", etc.) stay in English — only VALUES are Georgian. WARNING: The examples in this prompt are in English for readability; you MUST output Georgian text regardless. E.g., 'Filter Replacement' → 'ფილტრის შეცვლა', 'Nails' → 'ლურსმნები', 'AC Repair' → 'კონდიციონერის შეკეთება'. If user input is already Georgian, keep it Georgian. If user input is English, translate values to Georgian."
     else
       "TARGET LANGUAGE: English. All extracted names, descriptions, and sub_categories text MUST be in English. If the input is in Georgian or any other language, you MUST translate ALL text content to English. Do NOT leave any Georgian text in item names or descriptions. E.g., 'ნაჯახი' becomes 'Axe', 'მაცივრის შეკეთება' becomes 'Refrigerator Repair', 'ფანჯრის შეკეთება' becomes 'Window Repair', 'ლურსმანი' becomes 'Nail'."
     end
@@ -1137,7 +1137,8 @@ CONVERSATION CONTEXT AWARENESS (CRITICAL):
 ----------------------------
 OUTPUT JSON SCHEMA (must match exactly)
 ----------------------------
-Return EXACTLY the JSON structure below (use null for unknown numeric, empty arrays for absent categories):
+Return EXACTLY the JSON structure below (use null for unknown numeric, empty arrays for absent categories).
+#{target_is_georgian ? '⚠️ REMINDER: All "desc", "name", "reason", "raw_summary", and "sub_categories" VALUES must be in Georgian (ქართული). Do NOT output English text in these fields.' : ''}
 
 {
   "client": "",
@@ -1187,7 +1188,7 @@ ERROR HANDLING (return ONLY JSON on error)
 ----------------------------
 FINAL REMINDERS (CRITICAL)
 ----------------------------
-- #{lang_context}
+- #{target_is_georgian ? '████ LANGUAGE CHECK: Before returning, verify EVERY "desc", "name", "reason", "raw_summary", and "sub_categories" value is in Georgian (ქართული). If you wrote ANY English text in these fields, REWRITE it to Georgian NOW. ████' : lang_context}
 - FREE ITEMS: If user says "უფასოდ", "უფასოდ ჩავუთვლი", "free", "no charge", "on the house" about ANY item, that item MUST have price=0, rate=0, hours=0, mode="fixed", taxable=false. This is NON-NEGOTIABLE.
 - If ALL values are explicit, return clarifications: [] (EMPTY array).
 PROMPT
