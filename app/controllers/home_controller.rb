@@ -1005,6 +1005,7 @@ LABOR:
 - If multiple distinct services are mentioned, create separate labor entries.
 - If user gives "2 hours, $100 total": treat as fixed $100 (flat). Do NOT infer $50/hr.
 - Hours + rate → mode "hourly", include hours and rate fields. Flat total → mode "fixed", include price field and set hours=1 or include hours as metadata (per your schema).
+- GEORGIAN HOURLY PATTERNS: "2 საათი 150 ლარი საათში" → hours=2, rate=150, mode="hourly". "3 საათი 100-ით" → hours=3, rate=100, mode="hourly". "კონსულტაცია 2 საათი 150 ლარი საათში" → desc="კონსულტაცია", hours=2, rate=150, mode="hourly". NEVER zero out explicit hours or rates.
 - If user sets multiplier like "time and a half" or "double rate", compute the new rate from the default hourly rate only when no explicit hourly was spoken. If explicit hourly rate spoken — use it.
 - Do not propagate explicit rates to other hours. Only apply explicit rates to the hour they are spoken. For any other hour, use the default rate if unspecified.
 - USE SPECIFIC TITLES for the 'desc' field (e.g., "AC Repair", "Emergency Call Out"). ALWAYS use Title Case.
@@ -1070,6 +1071,7 @@ DISCOUNT & CREDIT RULES
 TAX RULES
 ----------------------------
 - TAXABLE FIELD DEFAULT: Return `taxable: null` to use system defaults.
+- EXPLICIT "NO TAX ON ANYTHING" (e.g., "don't add tax", "no VAT", "no tax on the whole thing", "მთლიანს ნუ დაადებ დღგ-ს", "დღგ არ დაადო", "გადასახადი არ", "ნუ დაადებ გადასახადს", "დღგ-ს ნუ დაამატებ"): Set `labor_taxable: false` AND `taxable: false` on EVERY SINGLE item (labor, materials, expenses, fees). No exceptions.
 - EXPLICIT "Tax everything except [X]": Set `taxable: false` for X, `taxable: true` for all others.
 - EXPLICIT "Tax [X] only": Set `taxable: true` for X, `taxable: false` for others.
 - EXPLICIT "Don't tax labor": Set `labor_taxable: false` AND `taxable: false` on EVERY labor_service_item.
@@ -1781,7 +1783,7 @@ PROMPT
   end
 
 
-  def gemini_generate_content(api_key:, model:, prompt_parts:, cached_instruction_name: nil, temperature: 0.1, thinking_budget: 0)
+  def gemini_generate_content(api_key:, model:, prompt_parts:, cached_instruction_name: nil, temperature: 0, thinking_budget: 0)
     uri = URI("https://generativelanguage.googleapis.com/v1beta/models/#{model}:generateContent")
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = true
