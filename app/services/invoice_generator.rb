@@ -1,6 +1,7 @@
 class InvoiceGenerator
   require "prawn"
   require "prawn/table"
+  require "ostruct"
   require_relative "page_manager"
 
   CURRENCIES_DATA = [

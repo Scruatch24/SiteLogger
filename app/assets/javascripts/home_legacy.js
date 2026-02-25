@@ -2206,6 +2206,13 @@ document.addEventListener("DOMContentLoaded", () => {
       if (typeof setPdfStatus === 'function') setPdfStatus('draft');
       if (typeof setPdfCategory === 'function') setPdfCategory('', window.APP_LANGUAGES.no_category || '- No Category -', '');
 
+      // Populate client badge
+      const clientBadge = document.getElementById('pdfClientText');
+      if (clientBadge) {
+        const clientName = (window.invoiceRecipientInfo && window.invoiceRecipientInfo.name) || data.client || '';
+        clientBadge.textContent = clientName || (window.APP_LANGUAGES.no_client || 'No Client');
+      }
+
     } else if (saveBtn && logAlreadySaved) {
       updateSaveButtonToSavedState(saveBtn);
     }

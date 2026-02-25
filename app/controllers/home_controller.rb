@@ -972,7 +972,9 @@ CORE DIRECTIVES (non-negotiable)
    - "Hello, this is Apex Roofing" -> Client: "Apex Roofing"
    - Georgian: "კლიენტი", "კლიენტია" → extract the name that follows.
    - GEORGIAN COMPANY NAMES: In Georgian, the legal form (შპს, სს, შპს-ი) comes BEFORE the quoted company name. Normalize: "ჯეო ლოჯისტიქსი" შპს → შპს "ჯეო ლოჯისტიქსი". Strip trailing periods/extra quotes. Output clean format: შპს "Company Name".
-   - PAYMENT INSTRUCTIONS: If user mentions "bank transfer only" or "საბანკო გადარიცხვით", check if sender payment details contain bank info. If not, ask for bank details via clarification.
+   - CLIENT CONTACT INFO: If user mentions client's phone, email, or address, include them in the output "client_phone", "client_email", "client_address" fields.
+   - SENDER OVERRIDES: If user mentions changing their own business name, phone, email, address, or tax ID, include them in "sender_business_name", "sender_phone", "sender_email", "sender_address", "sender_tax_id" fields.
+   - PAYMENT INSTRUCTIONS: If user mentions "bank transfer only" or "საბანკო გადარიცხვით", check if sender payment details contain bank info. If not, ask for bank details via clarification. If user provides new payment instructions, include in "sender_payment_instructions".
 9. Output STRICT JSON. No extra fields. Use null for unknown numeric values, empty arrays for absent categories.
 10. OUTPUT TONE: Use Title Case for 'desc'/'name' fields. Be extremely brief — short, impactful technical terms. No parentheses/metadata in descriptions. Put specifics into 'sub_categories'.
 11. AMBIGUOUS REDUCTIONS: If no currency or percent indicated, default to CURRENCY (flat amount). Hours with no rate → return hours, hourly_rate = null (system applies default).
@@ -1250,8 +1252,8 @@ PROMPT
 
       user_input_parts = []
 
-      # Inject client list context for client matching
-      if user_signed_in? && current_user.clients.any?
+      # Inject client list context for client matching (paid users only)
+      if user_signed_in? && @profile.paid? && current_user.clients.any?
         client_names = current_user.clients.order(:name).limit(50).pluck(:id, :name).map { |id, name| "#{id}:#{name}" }.join(", ")
         user_input_parts << { text: "EXISTING CLIENTS (for matching — use exact name if match found): #{client_names}" }
       end
@@ -1753,9 +1755,9 @@ PROMPT
         end
       end
 
-      # ── Client Matching Post-Processing ──
+      # ── Client Matching Post-Processing (paid users only) ──
       recipient_info = nil
-      if user_signed_in? && json["client"].present?
+      if user_signed_in? && @profile.paid? && json["client"].present?
         client_name = json["client"].to_s.strip
         # Tier 1: Exact match (case-insensitive)
         exact_match = current_user.clients.where("name ILIKE ?", client_name).first
@@ -1783,6 +1785,32 @@ PROMPT
         end
       end
 
+      # ── Merge AI-extracted contact fields into recipient_info ──
+      if recipient_info
+        recipient_info["email"] ||= json["client_email"] if json["client_email"].present?
+        recipient_info["phone"] ||= json["client_phone"] if json["client_phone"].present?
+        recipient_info["address"] ||= json["client_address"] if json["client_address"].present?
+      elsif json["client_email"].present? || json["client_phone"].present? || json["client_address"].present?
+        recipient_info ||= { "client_id" => nil, "name" => json["client"], "is_new" => true }
+        recipient_info["email"] = json["client_email"] if json["client_email"].present?
+        recipient_info["phone"] = json["client_phone"] if json["client_phone"].present?
+        recipient_info["address"] = json["client_address"] if json["client_address"].present?
+      end
+
+      # ── Build sender_info from AI-extracted sender overrides ──
+      sender_info = nil
+      sender_fields = %w[sender_business_name sender_phone sender_email sender_address sender_tax_id sender_payment_instructions]
+      if sender_fields.any? { |f| json[f].present? }
+        sender_info = {
+          "business_name" => json["sender_business_name"],
+          "phone" => json["sender_phone"],
+          "email" => json["sender_email"],
+          "address" => json["sender_address"],
+          "tax_id" => json["sender_tax_id"],
+          "payment_instructions" => json["sender_payment_instructions"]
+        }.compact
+      end
+
       final_response = {
         "client" => json["client"],
         "time" => json["time"],
@@ -1804,7 +1832,8 @@ PROMPT
         "due_days" => json["due_days"],
         "due_date" => json["due_date"],
         "clarifications" => Array(json["clarifications"]).select { |c| c.is_a?(Hash) && c["question"].present? },
-        "recipient_info" => recipient_info
+        "recipient_info" => recipient_info,
+        "sender_info" => sender_info
       }
 
       Rails.logger.info "FINAL NORMALIZED JSON: #{final_response.to_json}"
@@ -1882,9 +1911,9 @@ PROMPT
     # Serialize current_json properly - it arrives as a hash from params
     json_text = current_json.is_a?(String) ? current_json : current_json.to_json
 
-    # Build client list context for refine
+    # Build client list context for refine (paid users only)
     client_list_context = ""
-    if user_signed_in? && current_user.clients.any?
+    if user_signed_in? && @profile.paid? && current_user.clients.any?
       client_names = current_user.clients.order(:name).limit(50).pluck(:id, :name).map { |id, name| "#{id}:#{name}" }.join(", ")
       client_list_context = "\nEXISTING CLIENTS: #{client_names}"
     end
@@ -1924,7 +1953,7 @@ PROMPT
          - Expenses/Fees: { desc, price, taxable, tax_rate, discount_flat, discount_percent, sub_categories: [] }
          - If adding a new section type, use: { type: "materials"|"expenses"|"fees", title: "#{ui_is_georgian ? 'appropriate Georgian title' : 'appropriate English title'}", items: [...] }
       7. REMOVING ITEMS: Remove from the section's items array. If section becomes empty after removal, remove the entire section object from "sections".
-      8. CLIENT: If user changes client name, update "client" field. Match against EXISTING CLIENTS list if provided. Georgian convention: შპს "Company Name" (legal form before quoted name). If user says "bank transfer only" or "საბანკო გადარიცხვით", check SENDER PAYMENT INSTRUCTIONS — if no bank details found, add a clarification asking for bank account/IBAN.
+      8. CLIENT: If user changes client name, update "client" field. Match against EXISTING CLIENTS list if provided. Georgian convention: შპს "Company Name" (legal form before quoted name). If user mentions client's phone/email/address, include in "client_phone", "client_email", "client_address" fields. If user mentions changing sender business name/phone/email/address/tax ID, include in "sender_business_name", "sender_phone", "sender_email", "sender_address", "sender_tax_id". If user says "bank transfer only" or "საბანკო გადარიცხვით", check SENDER PAYMENT INSTRUCTIONS — if no bank details found, add a clarification. If user provides new payment instructions, include in "sender_payment_instructions".
       9. CLARIFICATION ANSWERS: When user_message contains "[AI asked: ...]" it means the user is answering a previous clarification question. Apply the answer DIRECTLY to the JSON:
          - Warranty/note question answer like "მხოლოდ ქეისი და სერვისი" or "only the iPhone" → add/remove sub_categories on the specified items. Remove from items NOT mentioned, add to items that ARE mentioned.
          - "ყველაფერს"/"ყველას"/"all"/"everything"/"all items" → apply to ALL items in ALL sections (products, services, fees, expenses — everything). Do NOT limit to just one section.
@@ -1988,8 +2017,8 @@ PROMPT
       result["credits"] ||= []
       result["clarifications"] = Array(result["clarifications"]).select { |c| c.is_a?(Hash) && c["question"].present? }
 
-      # Client matching for refine_invoice responses
-      if user_signed_in? && result["client"].present?
+      # Client matching for refine_invoice responses (paid users only)
+      if user_signed_in? && @profile.paid? && result["client"].present?
         client_name = result["client"].to_s.strip
         exact_match = current_user.clients.where("name ILIKE ?", client_name).first
         if exact_match
@@ -2008,6 +2037,30 @@ PROMPT
           end
           result["recipient_info"] = { "client_id" => nil, "name" => client_name, "is_new" => true }
         end
+      end
+
+      # Merge AI-extracted contact fields into recipient_info for refine
+      ri = result["recipient_info"]
+      if ri
+        ri["email"] ||= result["client_email"] if result["client_email"].present?
+        ri["phone"] ||= result["client_phone"] if result["client_phone"].present?
+        ri["address"] ||= result["client_address"] if result["client_address"].present?
+      elsif result["client_email"].present? || result["client_phone"].present? || result["client_address"].present?
+        result["recipient_info"] = { "client_id" => nil, "name" => result["client"], "is_new" => true,
+          "email" => result["client_email"], "phone" => result["client_phone"], "address" => result["client_address"] }.compact
+      end
+
+      # Build sender_info from AI-extracted sender overrides for refine
+      s_fields = %w[sender_business_name sender_phone sender_email sender_address sender_tax_id sender_payment_instructions]
+      if s_fields.any? { |f| result[f].present? }
+        result["sender_info"] = {
+          "business_name" => result["sender_business_name"],
+          "phone" => result["sender_phone"],
+          "email" => result["sender_email"],
+          "address" => result["sender_address"],
+          "tax_id" => result["sender_tax_id"],
+          "payment_instructions" => result["sender_payment_instructions"]
+        }.compact
       end
 
       Rails.logger.info "REFINE RESULT: #{result.to_json}"

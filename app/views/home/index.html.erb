@@ -232,6 +232,7 @@
   window.currentLogDiscountTaxRule = "tax_excluded";
   window.profileCharLimit = <%= @profile.char_limit %>;
   window.userSignedIn = <%= user_signed_in? %>;
+  window.isPaidUser = <%= @profile.paid? %>;
   window.profileTaxScope = "<%= @profile.tax_scope %>";
   window.profileAudioLimit = <%= @profile.audio_limit %>;
   window.currentUserId = <%= user_signed_in? ? current_user.id.to_json : 'null' %>;
@@ -301,6 +302,7 @@
         sent: "<%= j t('sent') %>",
         paid: "<%= j t('paid') %>",
         no_category: "<%= j t('no_category') %>",
+        no_client: "<%= j t('no_client') %>",
         overdue: "<%= j t('overdue') %>",
         ready: "<%= j t('ready') %>",
         saving: "<%= j t('saving') %>",
@@ -431,6 +433,7 @@
     const modal = document.getElementById('fromModal');
     const overlay = document.getElementById('fromModalOverlay');
     const content = document.getElementById('fromModalContent');
+    document.body.classList.add('overflow-hidden');
     modal.classList.remove('hidden');
     requestAnimationFrame(() => {
       overlay.classList.add('opacity-100');
@@ -445,7 +448,10 @@
     overlay.classList.remove('opacity-100');
     content.classList.add('translate-y-full', 'md:translate-y-1/2', 'md:scale-95', 'md:opacity-0');
     content.classList.remove('translate-y-0', 'md:translate-y-[-50%]', 'md:scale-100', 'md:opacity-100');
-    setTimeout(() => document.getElementById('fromModal').classList.add('hidden'), 300);
+    setTimeout(() => {
+      document.getElementById('fromModal').classList.add('hidden');
+      document.body.classList.remove('overflow-hidden');
+    }, 300);
   }
 
   function saveFromModal() {
@@ -486,7 +492,7 @@
 
   // ── BILLED TO Modal Functions ──
   let billedToSearchTimeout = null;
-  let billedToMode = 'select'; // 'select' or 'add'
+  let billedToMode = 'select'; // 'select', 'existing', or 'add'
 
   function openBilledToModal() {
     const modal = document.getElementById('billedToModal');
@@ -494,18 +500,25 @@
     const content = document.getElementById('billedToModalContent');
 
     // Reset search
-    document.getElementById('billedToSearch').value = '';
+    const searchInput = document.getElementById('billedToSearch');
+    if (searchInput) searchInput.value = '';
 
-    // If we have a selected recipient, show fields pre-filled
+    // If we have a selected recipient, go straight to Screen 2
     if (window.invoiceRecipientInfo) {
-      showBilledToFields(window.invoiceRecipientInfo);
+      billedToMode = window.invoiceRecipientInfo.client_id ? 'existing' : 'add';
+      showBilledToScreen2(window.invoiceRecipientInfo);
+    } else if (!window.isPaidUser) {
+      // Free users: skip search, go straight to Add Client form
+      billedToMode = 'add';
+      showBilledToScreen2({ client_id: null, name: '', email: '', phone: '', address: '', notes: '' });
     } else {
-      hideBilledToFields();
+      showBilledToScreen1();
     }
 
-    // Load initial client list
-    searchBilledToClients('');
+    // Load initial client list (only for paid users)
+    if (window.isPaidUser) searchBilledToClients('');
 
+    document.body.classList.add('overflow-hidden');
     modal.classList.remove('hidden');
     requestAnimationFrame(() => {
       overlay.classList.add('opacity-100');
@@ -520,7 +533,58 @@
     overlay.classList.remove('opacity-100');
     content.classList.add('translate-y-full', 'md:translate-y-1/2', 'md:scale-95', 'md:opacity-0');
     content.classList.remove('translate-y-0', 'md:translate-y-[-50%]', 'md:scale-100', 'md:opacity-100');
-    setTimeout(() => document.getElementById('billedToModal').classList.add('hidden'), 300);
+    setTimeout(() => {
+      document.getElementById('billedToModal').classList.add('hidden');
+      document.body.classList.remove('overflow-hidden');
+    }, 300);
+  }
+
+  function showBilledToScreen1() {
+    document.getElementById('billedToSearchSection').classList.remove('hidden');
+    document.getElementById('billedToFields').classList.add('hidden');
+    document.getElementById('billedToFooter').classList.add('hidden');
+    document.getElementById('billedToFooter').classList.remove('flex');
+  }
+
+  function showBilledToScreen2(data) {
+    // Hide search, show fields + footer
+    document.getElementById('billedToSearchSection').classList.add('hidden');
+    document.getElementById('billedToFields').classList.remove('hidden');
+    document.getElementById('billedToFooter').classList.remove('hidden');
+    document.getElementById('billedToFooter').classList.add('flex');
+
+    // Populate fields
+    document.getElementById('billedToName').value = data.name || '';
+    document.getElementById('billedToEmail').value = data.email || '';
+    document.getElementById('billedToPhone').value = data.phone || '';
+    document.getElementById('billedToAddress').value = data.address || '';
+    document.getElementById('billedToNotes').value = data.notes || '';
+
+    if (data.client_id) {
+      // Existing client: read-only with normal black text
+      ['billedToName', 'billedToEmail', 'billedToPhone', 'billedToAddress'].forEach(id => {
+        const el = document.getElementById(id);
+        el.readOnly = true;
+        el.classList.add('bg-gray-50');
+        el.classList.remove('text-gray-500');
+      });
+      document.getElementById('billedToNotesGroup').classList.add('hidden');
+    } else {
+      // New client: editable
+      ['billedToName', 'billedToEmail', 'billedToPhone', 'billedToAddress'].forEach(id => {
+        const el = document.getElementById(id);
+        el.readOnly = false;
+        el.classList.remove('bg-gray-50', 'text-gray-500');
+      });
+      document.getElementById('billedToNotesGroup').classList.remove('hidden');
+    }
+
+    // Store temporary client_id
+    document.getElementById('billedToName').dataset.clientId = data.client_id || '';
+  }
+
+  function goBackBilledTo() {
+    showBilledToScreen1();
   }
 
   function searchBilledToClients(term) {
@@ -574,7 +638,7 @@
 
   function selectBilledToClient(client) {
     billedToMode = 'existing';
-    showBilledToFields({
+    showBilledToScreen2({
       client_id: client.id,
       name: client.name,
       email: client.email || '',
@@ -586,56 +650,13 @@
 
   function selectBilledToAddClient() {
     billedToMode = 'add';
-    showBilledToFields({ client_id: null, name: '', email: '', phone: '', address: '', notes: '' });
-    document.getElementById('billedToName').focus();
-  }
-
-  function showBilledToFields(data) {
-    document.getElementById('billedToFields').classList.remove('hidden');
-    document.getElementById('billedToFooter').classList.remove('hidden');
-    document.getElementById('billedToFooter').classList.add('flex');
-    document.getElementById('billedToName').value = data.name || '';
-    document.getElementById('billedToEmail').value = data.email || '';
-    document.getElementById('billedToPhone').value = data.phone || '';
-    document.getElementById('billedToAddress').value = data.address || '';
-    document.getElementById('billedToNotes').value = data.notes || '';
-
-    const indicator = document.getElementById('billedToSelectedIndicator');
-    if (data.client_id) {
-      indicator.classList.remove('hidden');
-      indicator.classList.add('flex');
-      document.getElementById('billedToSelectedName').textContent = data.name;
-      // Make fields read-only for existing client snapshot
-      ['billedToName', 'billedToEmail', 'billedToPhone', 'billedToAddress'].forEach(id => {
-        document.getElementById(id).readOnly = true;
-        document.getElementById(id).classList.add('bg-gray-50', 'text-gray-500');
-      });
-      document.getElementById('billedToNotesGroup').classList.add('hidden');
-    } else {
-      indicator.classList.add('hidden');
-      indicator.classList.remove('flex');
-      // Make fields editable for new client
-      ['billedToName', 'billedToEmail', 'billedToPhone', 'billedToAddress'].forEach(id => {
-        document.getElementById(id).readOnly = false;
-        document.getElementById(id).classList.remove('bg-gray-50', 'text-gray-500');
-      });
-      document.getElementById('billedToNotesGroup').classList.remove('hidden');
-    }
-
-    // Store temporary client_id
-    document.getElementById('billedToName').dataset.clientId = data.client_id || '';
-  }
-
-  function hideBilledToFields() {
-    document.getElementById('billedToFields').classList.add('hidden');
-    document.getElementById('billedToFooter').classList.add('hidden');
-    document.getElementById('billedToFooter').classList.remove('flex');
+    showBilledToScreen2({ client_id: null, name: '', email: '', phone: '', address: '', notes: '' });
+    setTimeout(() => document.getElementById('billedToName').focus(), 50);
   }
 
   function clearBilledToSelection() {
     window.invoiceRecipientInfo = null;
     billedToMode = 'select';
-    hideBilledToFields();
     // Update display
     const display = document.getElementById('billedToFieldDisplay');
     if (display) {
@@ -645,6 +666,9 @@
     }
     // Update hidden field
     document.getElementById('editClient').value = '';
+    // Update client badge in PDF modal
+    const clientBadge = document.getElementById('pdfClientText');
+    if (clientBadge) clientBadge.textContent = '<%= j t("no_client") %>';
   }
 
   function saveBilledToModal() {
@@ -675,6 +699,9 @@
     }
     // Update hidden field for backward compat
     document.getElementById('editClient').value = name;
+    // Update client badge in PDF modal
+    const clientBadge = document.getElementById('pdfClientText');
+    if (clientBadge) clientBadge.textContent = name;
 
     closeBilledToModal();
   }
@@ -802,6 +829,17 @@
                                 </button>
 <% end %>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Client Display (read-only) -->
+                <div class="flex flex-col gap-1">
+                    <label class="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-1"><%= t('client_label') %></label>
+                    <div class="flex items-center gap-1.5 px-3.5 py-1.5 bg-white border-2 border-gray-200 rounded-lg text-[10px] font-black uppercase tracking-widest text-gray-500 h-[34px]">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        <span id="pdfClientText" class="truncate max-w-[150px]"><%= t('no_client') %></span>
                     </div>
                 </div>
             </div>

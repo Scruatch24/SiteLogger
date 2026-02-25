@@ -212,6 +212,7 @@ en:
   confirm_new_client_similar: "A similar client exists: %{name}. Did you mean them, or create new?"
   use_existing: "Use Existing"
   create_new: "Create New"
+  no_client: "No Client"
   labor: "Labor"
   material: "Products"
   expense: "Reimb."

@@ -1,9 +1,9 @@
 <div id="textSection" class="space-y-3 transition-all duration-500">
   <div class="relative flex items-center justify-between">
-    <label data-nosnippet class="text-xs font-black text-black uppercase tracking-widest"><%= t('live_transcript') %></label>
+    <label data-nosnippet class="text-xs font-black text-black uppercase tracking-widest ml-1.5 md:ml-0"><%= t('live_transcript') %></label>
     
     <!-- Language Selector -->
-    <div class="relative">
+    <div class="relative mr-1.5 md:mr-0">
       <%
         # Determine starting language (localStorage should still be the ultimate source of truth in JS, 
         # but the server can guess the "last set" value from the profile/session to prevent flicker)
