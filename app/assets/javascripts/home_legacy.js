@@ -4,6 +4,16 @@ window._activePopupClose = null;
 window.showPopupBackdrop = function(triggerEl, closeFn) {
   var bd = document.getElementById('popupBackdrop');
   if (!bd) return;
+  /* Close any currently active popup first */
+  if (window._activePopupClose) {
+    var prev = window._activePopupClose;
+    window._activePopupClose = null;
+    prev();
+  }
+  /* Reset previously elevated elements */
+  document.querySelectorAll('[style*="z-index"]').forEach(function(el) {
+    if (el._backdropElevated) { el.style.zIndex = ''; el._backdropElevated = false; }
+  });
   bd.classList.remove('hidden');
   window._activePopupClose = closeFn || null;
   if (triggerEl) {
@@ -13,22 +23,27 @@ window.showPopupBackdrop = function(triggerEl, closeFn) {
   }
   /* Elevate the trigger's nearest popup-bearing ancestor too */
   if (triggerEl) {
-    var parent = triggerEl.closest('.relative');
+    var parent = triggerEl.closest('[data-popup-container]') || triggerEl.parentElement;
     if (parent) { parent.style.zIndex = '99'; parent._backdropElevated = true; }
   }
 };
 
+/* Visual cleanup only – never calls the close callback */
 window.hidePopupBackdrop = function() {
   var bd = document.getElementById('popupBackdrop');
   if (bd) bd.classList.add('hidden');
-  /* Reset elevated elements */
-  document.querySelectorAll('[style*="z-index: 99"]').forEach(function(el) {
+  document.querySelectorAll('[style*="z-index"]').forEach(function(el) {
     if (el._backdropElevated) { el.style.zIndex = ''; el._backdropElevated = false; }
   });
-  if (window._activePopupClose) {
-    window._activePopupClose();
-    window._activePopupClose = null;
-  }
+  window._activePopupClose = null;
+};
+
+/* Called when user clicks the backdrop overlay directly */
+window._dismissPopup = function() {
+  var fn = window._activePopupClose;
+  window._activePopupClose = null;          /* clear FIRST to prevent re-entry */
+  if (fn) fn();                              /* popup-specific close logic */
+  window.hidePopupBackdrop();                /* ensure visual cleanup */
 };
 
 function autoResize(el) {
@@ -178,7 +193,7 @@ window.toggleGlobalCurrencyMenu = function (e) {
   if (!menu.classList.contains('hidden')) {
     document.getElementById('globalCurrencySearch').focus();
     renderGlobalCurrencyList("");
-    window.showPopupBackdrop(btn, function() { menu.classList.add('hidden'); window.hidePopupBackdrop(); });
+    window.showPopupBackdrop(btn, function() { menu.classList.add('hidden'); });
   } else {
     window.hidePopupBackdrop();
   }
@@ -322,7 +337,6 @@ document.addEventListener('DOMContentLoaded', () => {
         window.showPopupBackdrop(langBtn, function() {
           menu?.classList.add('hidden');
           document.getElementById('langChevron')?.classList.remove('rotate-180');
-          window.hidePopupBackdrop();
         });
       } else {
         window.hidePopupBackdrop();

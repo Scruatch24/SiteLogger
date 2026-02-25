@@ -18,7 +18,7 @@
 <div class="text-black font-sans p-2 xl:p-4 pb-32 xl:pb-10" data-nosnippet>
 
   <!-- Global popup backdrop (dim/blur when dropdowns/popups open) -->
-  <div id="popupBackdrop" class="fixed inset-0 z-[98] bg-black/30 backdrop-blur-[2px] hidden pointer-events-auto" onclick="window.hidePopupBackdrop()"></div>
+  <div id="popupBackdrop" class="fixed inset-0 z-[98] bg-black/30 backdrop-blur-[2px] hidden pointer-events-auto" onclick="window._dismissPopup()"></div>
 
   <%= render 'svg_symbols' %>
 
@@ -781,7 +781,9 @@
                 </div>
             </div>
             
-            <div id="pdfHeaderControlsRow" class="flex flex-wrap items-center gap-4 px-6 pb-4">
+            <div id="pdfHeaderControlsRow" class="flex flex-wrap items-start gap-4 px-6 pb-4">
+                <!-- Row 1: Status + Category side by side on mobile -->
+                <div class="flex items-start gap-4 w-full md:w-auto md:contents">
                 <!-- Status Selector -->
                 <div class="flex flex-col gap-1">
                     <label class="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-1"><%= t('status') %></label>
@@ -815,9 +817,8 @@
                     </div>
                 </div>
 
-                <div id="pdfCatClientBar" class="flex items-center gap-4 flex-1">
                 <!-- Category Selector -->
-                <div class="flex flex-col gap-1 flex-1 min-w-[140px]">
+                <div class="flex flex-col gap-1 flex-1 min-w-[100px]">
                     <label class="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-1"><%= t('categories') %></label>
                     <div class="relative">
                         <input type="hidden" id="pdfLogCategory" value="">
@@ -857,9 +858,10 @@
                         </div>
                     </div>
                 </div>
+                </div>
 
-                <!-- Client Display (read-only) -->
-                <div class="flex flex-col gap-1">
+                <!-- Client Display (read-only) — own row on mobile -->
+                <div class="flex flex-col gap-1 w-full md:w-auto">
                     <label class="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-1"><%= t('client_label') %></label>
                     <div class="flex items-center gap-1.5 px-3.5 py-1.5 bg-white border-2 border-gray-200 rounded-lg text-[10px] font-black uppercase tracking-widest text-gray-500 h-[34px]">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -867,7 +869,6 @@
                         </svg>
                         <span id="pdfClientText" class="truncate max-w-[150px]"><%= t('no_client') %></span>
                     </div>
-                </div>
                 </div>
             </div>
         </div>

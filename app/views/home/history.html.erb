@@ -583,7 +583,7 @@
               <button type="button" onclick="selectSort('oldest')" data-sort="oldest" class="hf-dd-option"><%= t('sort_oldest') %></button>
               <button type="button" onclick="selectSort('amount-high')" data-sort="amount-high" class="hf-dd-option"><%= t('sort_amount_high') %> $ ↓</button>
               <button type="button" onclick="selectSort('amount-low')" data-sort="amount-low" class="hf-dd-option"><%= t('sort_amount_low') %> $ ↑</button>
-              <button type="button" onclick="selectSort('client-az')" data-sort="client-az" class="hf-dd-option"><%= t('sort_client_az') %> A→<%= I18n.locale == :ka ? 'ჰ' : 'Z' %></button>
+              <button type="button" onclick="selectSort('client-az')" data-sort="client-az" class="hf-dd-option"><%= t('sort_client_az') %> <%= I18n.locale == :ka ? 'ა→ჰ' : 'A→Z' %></button>
             </div>
           </div>
         </div>

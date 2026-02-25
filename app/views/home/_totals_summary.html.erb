@@ -1,6 +1,6 @@
 <div class="relative">
   <!-- Discount Badge -->
-  <div class="absolute -top-3 left-3 z-[200] w-48">
+  <div class="absolute -top-3 left-3 z-10 w-48" data-popup-container>
     <button type="button" id="discountToggleBtn" onclick="toggleGlobalDiscountPanel(this)" 
             class="flex items-center justify-center gap-1.5 w-full py-1.5 bg-white border-2 border-black rounded-xl text-black transition-all active:scale-95 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px]">
       <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
@@ -9,7 +9,7 @@
       <span class="text-[9px] font-black uppercase tracking-widest"><%= t('invoice_discount') %></span>
     </button>
     
-    <div id="discountInputsPanel" class="hidden absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-full bg-white border-2 border-black rounded-xl p-3 z-[201] animate-in fade-in slide-in-from-bottom-2 duration-200">
+    <div id="discountInputsPanel" class="hidden absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-full bg-white border-2 border-black rounded-xl p-3 z-[100] animate-in fade-in slide-in-from-bottom-2 duration-200">
       <div class="space-y-2.5">
         <div class="flex flex-col gap-2">
           <div>

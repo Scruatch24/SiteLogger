@@ -435,6 +435,24 @@
         z-index: 2;
         background: transparent;
       }
+
+      /* Pulsating glow for highlighted Pro row in premium modal */
+      @keyframes premiumRowPulse {
+        0%, 100% {
+          background: rgba(249,115,22,0.08);
+          box-shadow: 0 0 10px rgba(249,115,22,0.08);
+          border-color: rgba(249,115,22,0.3);
+        }
+        50% {
+          background: rgba(249,115,22,0.2);
+          box-shadow: 0 0 24px rgba(249,115,22,0.25);
+          border-color: rgba(249,115,22,0.6);
+        }
+      }
+      .premium-row-pulse {
+        animation: premiumRowPulse 2s ease-in-out infinite;
+        border-radius: 16px;
+      }
     </style>
 
     <script>
@@ -452,15 +470,16 @@
         'export': 'exports', 'exports': 'exports', 'share': 'exports', 'save': 'exports',
         'preview': 'preview', 'design': null, 'logo': null, 'category': null, 'enhance': null
       };
-      const _premiumReasonLabels = {
-        'voice':      (window.APP_LANGUAGES || {}).limit_voice      || 'Recording Limit Reached',
-        'transcript': (window.APP_LANGUAGES || {}).limit_transcript  || 'Character Limit Reached',
-        'exports':    (window.APP_LANGUAGES || {}).limit_exports     || 'Export Limit Reached',
-        'preview':    (window.APP_LANGUAGES || {}).limit_preview     || 'Preview Limit Reached',
-        'design':     (window.APP_LANGUAGES || {}).limit_design      || 'Pro Feature',
-        'logo':       (window.APP_LANGUAGES || {}).limit_logo        || 'Pro Feature',
-        'category':   (window.APP_LANGUAGES || {}).limit_category    || 'Pro Feature',
-        'enhance':    (window.APP_LANGUAGES || {}).limit_enhance     || 'Enhancement Limit Reached'
+      const _premiumReasonFallbacks = {
+        'voice': 'Recording Limit Reached', 'transcript': 'Character Limit Reached',
+        'exports': 'Export Limit Reached', 'preview': 'Preview Limit Reached',
+        'design': 'Pro Feature', 'logo': 'Pro Feature',
+        'category': 'Pro Feature', 'enhance': 'Enhancement Limit Reached'
+      };
+      function _getPremiumLabel(reason) {
+        var langs = window.APP_LANGUAGES || {};
+        var key = 'limit_' + reason;
+        return langs[key] || _premiumReasonFallbacks[reason] || null;
       };
 
       window.showPremiumModal = (forceOrReason) => {
@@ -476,21 +495,18 @@
               // Update badge text based on reason
               const badgeEl = document.getElementById('premiumBadgeText');
               if (badgeEl) {
-                const label = reason && _premiumReasonLabels[reason]
-                  ? _premiumReasonLabels[reason]
-                  : (_premiumReasonLabels[_premiumReasonMap[reason]] || badgeEl.dataset.defaultText || badgeEl.textContent);
                 if (!badgeEl.dataset.defaultText) badgeEl.dataset.defaultText = badgeEl.textContent.trim();
-                badgeEl.textContent = label;
+                var label = reason ? (_getPremiumLabel(reason) || _getPremiumLabel(_premiumReasonMap[reason])) : null;
+                badgeEl.textContent = label || badgeEl.dataset.defaultText;
               }
 
-              // Highlight the relevant Pro row
-              const highlightStyle = 'background: rgba(249,115,22,0.15); border-color: rgba(249,115,22,0.5); box-shadow: 0 0 20px rgba(249,115,22,0.15);';
-              modal.querySelectorAll('[data-premium-row]').forEach(function(r) { r.style.cssText = ''; });
+              // Highlight the relevant Pro row with pulsating glow
+              modal.querySelectorAll('[data-premium-row]').forEach(function(r) { r.classList.remove('premium-row-pulse'); });
               if (reason) {
                 const rowKey = _premiumReasonMap[reason];
                 if (rowKey) {
-                  const row = modal.querySelector('[data-premium-row="' + rowKey + '"]');
-                  if (row) row.style.cssText = highlightStyle;
+                  const row = modal.querySelector('[data-premium-row="' + rowKey + '"');
+                  if (row) row.classList.add('premium-row-pulse');
                 }
               }
 
