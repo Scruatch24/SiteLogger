@@ -522,7 +522,7 @@ function updateLaborRowModelUI(row, mode) {
                      value="${newPriceValue}" placeholder="0" oninput="updateTotalsSummary()">
             </div>
           </div>
-          <div class="flex flex-col" style="margin-right: -2px;">
+          <div class="flex flex-col" style="margin-left: -1px; margin-right: -2px;">
             <div class="text-[8px] mb-0.5">&nbsp;</div>
             <div class="flex items-center h-10">
               <span class="text-black font-black text-sm select-none">×</span>
@@ -3006,6 +3006,17 @@ function updateDueDate(dueDays, dueDate) {
 
   // Store the selected date for calendar
   window.selectedDueDate = targetDate;
+
+  // Sync NET button selected state
+  if (typeof updateNetButtonState === 'function') {
+    const offset = window.currentDueOffset;
+    // Only highlight if offset matches a standard NET value
+    if (offset === 7 || offset === 14 || offset === 30) {
+      updateNetButtonState(offset);
+    } else {
+      updateNetButtonState(null);
+    }
+  }
 }
 
 // Calendar State
@@ -3140,16 +3151,33 @@ function selectCalendarDate(dateStr) {
 
   // Use specific date pick (clears NET offset)
   updateDueDate(null, selectedDate);
+  // Deselect all NET buttons (manual pick overrides)
+  updateNetButtonState(null);
   setTimeout(() => renderCalendar(), 0); // Defer to prevent "click outside" close
 }
 
 function setQuickDue(days) {
   updateDueDate(days, null);
+  // Highlight the active NET button
+  updateNetButtonState(days);
   // Auto-scroll calendar view to show the new due date's month
   if (window.selectedDueDate) {
     calendarViewDate = new Date(window.selectedDueDate);
   }
   setTimeout(() => renderCalendar(), 0);
+}
+
+function updateNetButtonState(activeDays) {
+  document.querySelectorAll('.net-btn').forEach(btn => {
+    const net = parseInt(btn.getAttribute('data-net'));
+    if (activeDays !== null && net === activeDays) {
+      btn.classList.add('!bg-orange-600', '!text-white', '!shadow-none', 'translate-x-[1px]', 'translate-y-[1px]');
+      btn.classList.remove('bg-white');
+    } else {
+      btn.classList.remove('!bg-orange-600', '!text-white', '!shadow-none', 'translate-x-[1px]', 'translate-y-[1px]');
+      btn.classList.add('bg-white');
+    }
+  });
 }
 
 // Main Date Calendar State
@@ -3255,9 +3283,11 @@ function selectMainCalendarDate(dateStr) {
     });
   }
 
-  // Re-calculate Due Date if it's currently based on a NET offset
+  // Re-calculate Due Date: either re-apply NET offset, or recalc days label for hard-picked date
   if (window.currentDueOffset !== null && window.currentDueOffset !== undefined) {
     updateDueDate(window.currentDueOffset, null);
+  } else if (window.selectedDueDate) {
+    updateDueDate(null, window.selectedDueDate);
   }
 
   setTimeout(() => renderMainCalendar(), 0);
@@ -3856,7 +3886,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
                      value="${laborPriceVal}" placeholder="0" oninput="updateTotalsSummary()">
             </div>
           </div>
-          <div class="flex flex-col" style="margin-right: -2px;">
+          <div class="flex flex-col" style="margin-left: -1px; margin-right: -2px;">
             <div class="text-[8px] mb-0.5">&nbsp;</div>
             <div class="flex items-center h-10">
               <span class="text-black font-black text-sm select-none">×</span>
@@ -5429,7 +5459,16 @@ function handleClarifications(clarifications) {
     } else if (c.guess === 0 || c.guess === "0" || c.guess === "" || c.guess === null || c.guess === undefined) {
       guessDisplay = window.APP_LANGUAGES.not_specified || "not specified";
     } else {
-      guessDisplay = c.guess;
+      // Format comma-separated item names with proper conjunction
+      const guessStr = String(c.guess);
+      const parts = guessStr.split(/\s*,\s*/).filter(p => p.trim());
+      if (parts.length > 1) {
+        const lang = window.currentSystemLanguage || 'en';
+        const conjunction = (lang === 'ka') ? ' და ' : ' and ';
+        guessDisplay = parts.slice(0, -1).join(', ') + conjunction + parts[parts.length - 1];
+      } else {
+        guessDisplay = guessStr;
+      }
     }
 
     const questionText = `${c.question}  (${window.APP_LANGUAGES.current_guess || "My guess:"} ${guessDisplay})`;
@@ -6082,6 +6121,7 @@ Object.assign(window, {
   renderCalendar,
   selectCalendarDate,
   setQuickDue,
+  updateNetButtonState,
   toggleMainCalendar,
   changeMainCalendarMonth,
   renderMainCalendar,

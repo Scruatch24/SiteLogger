@@ -69,7 +69,7 @@ ka:
   confirm: "დადასტურება"
   confirm_all: "ყველას დადასტურება"
   anything_else: "სხვა რამის შეცვლა გსურთ?"
-  current_guess: "ჩემი ვარაუდი:"
+  current_guess: "ჩემი ვარაუდია:"
   guess_yes: "კი"
   guess_no: "არა"
   not_specified: "არ არის მითითებული"
