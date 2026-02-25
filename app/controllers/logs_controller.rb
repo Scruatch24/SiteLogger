@@ -197,8 +197,12 @@ class LogsController < ApplicationController
       status = params[:status]
       if Log::STATUSES.include?(status)
         @log.status = status
+        # Allow adjusting due_date for manual overdue
+        if params[:due_date].present?
+          @log.due_date = params[:due_date]
+        end
         if @log.save
-          render json: { success: true }
+          render json: { success: true, due_date: @log.due_date }
         else
           render json: { success: false, errors: @log.errors.full_messages }, status: :unprocessable_entity
         end

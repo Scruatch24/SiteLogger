@@ -170,6 +170,10 @@ en:
   mark_as_paid_hint: "You won't be able to RENAME the invoice after performing this action."
   confirm_payment: "Yes, Confirm Payment"
   wait_go_back: "Wait, Go Back"
+  manual_overdue_title: "Manual Overdue"
+  manual_overdue_hint: "The due date has not passed yet. How many days has this invoice been overdue?"
+  manual_overdue_days_label: "0 = overdue as of today"
+  confirm_overdue: "Mark as Overdue"
 
   # Home Page
   review_data: "Review Data"
@@ -582,6 +586,7 @@ en:
   error_updating_status: "An error occurred while updating status."
   failed_update_pinning: "Failed to update pinning."
   an_error_occurred: "An error occurred."
+  inv_short: "inv"
   rename_label: "Rename"
   done_label: "Done"
   stop_process: "Stop & Process"

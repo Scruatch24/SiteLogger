@@ -550,7 +550,7 @@ class HomeController < ApplicationController
 
   def history
     @logs = if user_signed_in?
-      current_user.logs.kept.eager_load(:categories).order("logs.pinned DESC NULLS LAST, logs.pinned_at ASC NULLS LAST, logs.invoice_number DESC NULLS LAST")
+      current_user.logs.kept.eager_load(:categories).order(Arel.sql("CASE WHEN logs.pinned = true THEN 0 ELSE 1 END, logs.pinned_at ASC NULLS LAST, logs.invoice_number DESC NULLS LAST"))
     else
       # Guest history is private to the IP adress - return empty as requested
       []

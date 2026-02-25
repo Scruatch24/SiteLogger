@@ -188,14 +188,10 @@ window.toggleGlobalDiscountPanel = function (btn) {
 window.toggleGlobalCurrencyMenu = function (e) {
   e.stopPropagation();
   const menu = document.getElementById('globalCurrencyMenu');
-  const btn = e.currentTarget || e.target;
   menu.classList.toggle('hidden');
   if (!menu.classList.contains('hidden')) {
     document.getElementById('globalCurrencySearch').focus();
     renderGlobalCurrencyList("");
-    window.showPopupBackdrop(btn, function() { menu.classList.add('hidden'); });
-  } else {
-    window.hidePopupBackdrop();
   }
 }
 
@@ -255,14 +251,12 @@ document.addEventListener('click', (e) => {
   // Global Currency Menu
   const menu = document.getElementById('globalCurrencyMenu');
   if (menu && !e.target.closest('#globalCurrencyBtn') && !e.target.closest('#globalCurrencyMenu')) {
-    if (!menu.classList.contains('hidden')) window.hidePopupBackdrop();
     menu.classList.add('hidden');
   }
 
   // Language Menu
   const langMenu = document.getElementById('languageMenu');
   if (langMenu && !e.target.closest('#languageSelectorBtn') && !e.target.closest('#languageMenu')) {
-    if (!langMenu.classList.contains('hidden')) window.hidePopupBackdrop();
     langMenu.classList.add('hidden');
     document.getElementById('langChevron')?.classList.remove('rotate-180');
   }
@@ -333,14 +327,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const isHidden = menu?.classList.contains('hidden');
       menu?.classList.toggle('hidden');
       document.getElementById('langChevron')?.classList.toggle('rotate-180', isHidden);
-      if (isHidden) {
-        window.showPopupBackdrop(langBtn, function() {
-          menu?.classList.add('hidden');
-          document.getElementById('langChevron')?.classList.remove('rotate-180');
-        });
-      } else {
-        window.hidePopupBackdrop();
-      }
     };
   }
 });

@@ -48,7 +48,8 @@
      data-due-range="<%= _due_range %>"
      data-amount="<%= _total_amount %>"
      data-created="<%= log.created_at.to_i %>"
-     data-client-name="<%= log.client.to_s.strip.downcase %>">
+     data-client-name="<%= log.client.to_s.strip.downcase %>"
+     data-due-date="<%= log.due_date %>">
   <!-- Hamburger Menu Button (Top Right Corner) -->
   <div class="absolute -top-3 -right-3 z-[60]">
     <button type="button" 

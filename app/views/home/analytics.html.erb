@@ -785,8 +785,16 @@
   }
   .ana-due-soon-days-num { font-size: 14px; line-height: 1; }
   .ana-due-soon-days-label { font-size: 7px; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.7; }
-  .ana-due-soon-row:not(.urgent) .ana-due-soon-days { background: rgba(96,165,250,0.12); color: #60a5fa; }
+  .ana-due-soon-row:not(.urgent):not(.aging-green):not(.aging-yellow):not(.aging-orange):not(.aging-red) .ana-due-soon-days { background: rgba(96,165,250,0.12); color: #60a5fa; }
   .ana-due-soon-row.urgent .ana-due-soon-days { background: rgba(251,191,36,0.15); color: #fbbf24; }
+  .ana-due-soon-row.aging-green { border-color: rgba(74,222,128,0.2); background: rgba(74,222,128,0.04); }
+  .ana-due-soon-row.aging-green .ana-due-soon-days { background: rgba(74,222,128,0.15); color: #4ade80; }
+  .ana-due-soon-row.aging-yellow { border-color: rgba(251,191,36,0.2); background: rgba(251,191,36,0.04); }
+  .ana-due-soon-row.aging-yellow .ana-due-soon-days { background: rgba(251,191,36,0.15); color: #fbbf24; }
+  .ana-due-soon-row.aging-orange { border-color: rgba(249,115,22,0.2); background: rgba(249,115,22,0.04); }
+  .ana-due-soon-row.aging-orange .ana-due-soon-days { background: rgba(249,115,22,0.15); color: #f97316; }
+  .ana-due-soon-row.aging-red { border-color: rgba(248,113,113,0.2); background: rgba(248,113,113,0.04); }
+  .ana-due-soon-row.aging-red .ana-due-soon-days { background: rgba(248,113,113,0.15); color: #f87171; }
   .ana-due-soon-info { flex: 1; min-width: 0; }
   .ana-due-soon-client {
     font-size: 12px;
@@ -1113,7 +1121,7 @@
         <div class="ana-card <%= @overdue_count > 0 ? 'highlight-danger' : '' %>">
           <div class="ana-card-label"><%= t('analytics_page.overdue_amount') %></div>
           <div class="ana-card-value red"><%= fmt_money.call(@total_overdue_amt) %></div>
-          <div class="ana-card-trend"><%= pluralize(@overdue_count, t('analytics_page.invoice_singular')) %> <%= t('analytics_page.overdue_label') %></div>
+          <div class="ana-card-trend"><%= @overdue_count %> <%= t('analytics_page.invoice_singular') %> <%= t('analytics_page.overdue_label') %></div>
         </div>
         <div class="ana-card">
           <div class="ana-card-label"><%= t('analytics_page.collected_this_month') %></div>
@@ -1228,7 +1236,7 @@
         <div class="ana-aging-expand" id="aging-expand-<%= bucket[:key] %>">
           <div class="ana-aging-expand-header">
             <div class="ana-aging-expand-header-left">
-              <span style="font-size: 12px; font-weight: 800; color: <%= bucket[:link_color] %>;"><%= pluralize(bucket[:count], t('analytics_page.invoice_singular')) %></span>
+              <span style="font-size: 12px; font-weight: 800; color: <%= bucket[:link_color] %>;"><%= bucket[:count] %> <%= t('analytics_page.invoice_singular') %></span>
               <span style="font-size: 11px; color: rgba(255,255,255,0.5); font-weight: 600;"><%= bucket[:label].downcase %> · <%= fmt_money.call(bucket[:total]) %></span>
             </div>
             <a href="<%= history_path %>?due=<%= bucket[:due_param] %>" class="ana-aging-expand-link" style="color: <%= bucket[:link_color] %>;"><%= t('analytics_page.view_in_history') %> →</a>
@@ -1236,7 +1244,7 @@
           <% if bucket[:invoices].any? %>
             <div class="ana-due-soon-list">
               <% bucket[:invoices].first(5).each do |inv| %>
-                <div class="ana-due-soon-row <%= inv[:days] <= 2 ? 'urgent' : '' %>">
+                <div class="ana-due-soon-row aging-<%= bucket[:color] %>">
                   <div class="ana-due-soon-days">
                     <div class="ana-due-soon-days-num"><%= inv[:days] %></div>
                     <div class="ana-due-soon-days-label"><%= t('analytics_page.days_short') %></div>
@@ -1267,7 +1275,7 @@
         <div style="margin-top: 0.7rem; padding: 0.6rem 0.85rem; border-radius: 12px; border: 1px solid rgba(96,165,250,0.25); background: rgba(96,165,250,0.05);">
           <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.4rem;">
             <div style="display: flex; align-items: baseline; gap: 0.3rem; flex-wrap: wrap;">
-              <span style="font-size: 12px; font-weight: 800; color: #60a5fa;"><%= pluralize(@due_soon_count, t('analytics_page.invoice_singular')) %></span>
+              <span style="font-size: 12px; font-weight: 800; color: #60a5fa;"><%= @due_soon_count %> <%= t('analytics_page.invoice_singular') %></span>
               <span style="font-size: 11px; color: rgba(255,255,255,0.5); font-weight: 600;"><%= t('analytics_page.due_next_7_days') %> · <%= fmt_money.call(@due_soon_amount) %></span>
             </div>
             <a href="<%= history_path %>?due=soon" class="ana-aging-expand-link" style="color: #60a5fa;"><%= t('analytics_page.view_due_soon') %> →</a>
@@ -1374,7 +1382,7 @@
               <div class="ana-client-rank"><%= idx + 1 %></div>
               <div class="ana-client-info">
                 <div class="ana-client-name"><%= client[:name] %></div>
-                <div class="ana-client-meta"><%= pluralize(client[:count], t('analytics_page.invoice_singular')) %> · <%= t('analytics_page.last_invoice') %>: <%= client[:last_at] ? l(client[:last_at].to_date, format: :long) : "—" %></div>
+                <div class="ana-client-meta"><%= client[:count] %> <%= t('analytics_page.invoice_singular') %> · <%= t('analytics_page.last_invoice') %>: <%= client[:last_at] ? l(client[:last_at].to_date, format: :long) : "—" %></div>
                 <% if client[:badges].any? %>
                   <div class="ana-client-badges">
                     <% client[:badges].each do |badge| %>

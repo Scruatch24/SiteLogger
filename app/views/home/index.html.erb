@@ -370,6 +370,7 @@
     error_updating_status: "<%= j t('error_updating_status') %>",
     failed_update_pinning: "<%= j t('failed_update_pinning') %>",
     an_error_occurred: "<%= j t('an_error_occurred') %>",
+    inv_short: "<%= j t('inv_short') %>",
     rename_label: "<%= j t('rename_label') %>",
     done_label: "<%= j t('done_label') %>",
     stop_process: "<%= j t('stop_process') %>",
@@ -648,7 +649,7 @@
           <span class="text-sm font-bold text-black block truncate">${c.name}</span>
           ${c.email ? '<span class="text-[10px] text-gray-400 block truncate">' + c.email + '</span>' : ''}
         </div>
-        <span class="text-[9px] font-bold text-gray-300 uppercase flex-shrink-0">${c.invoices_count || 0} inv</span>
+        <span class="text-[9px] font-bold text-gray-300 uppercase flex-shrink-0">${c.invoices_count || 0} ${window.APP_LANGUAGES.inv_short || 'inv'}</span>
       `;
       container.appendChild(btn);
     });
@@ -836,7 +837,7 @@
                         </button>
                         
                         <div id="pdfCategoryDropdown" class="pdf-selector-dropdown absolute left-0 right-0 top-full mt-2 bg-white border-2 border-black rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] max-h-60 overflow-y-auto custom-scrollbar">
-                            <button type="button" onclick="setPdfCategory('', '- No Category -', '')" 
+                            <button type="button" onclick="setPdfCategory('', '<%= j t('no_category') %>', '')" 
                                     class="w-full flex items-center gap-3 px-4 py-3 text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all border-b border-gray-100 text-gray-400">
                                 <%= t('no_category') %>
                             </button>

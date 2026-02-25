@@ -1320,6 +1320,36 @@
   </div>
 </div>
 
+<!-- MANUAL OVERDUE MODAL -->
+<div id="manualOverdueModal" class="modal-backdrop" style="z-index: 2000;" onclick="closeManualOverdueModal(event)">
+  <div class="modal-content text-center" onclick="event.stopPropagation()">
+    <div class="w-16 h-16 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center mx-auto mb-6 border-2 border-red-100">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    </div>
+    
+    <h2 class="text-xl font-black uppercase tracking-tighter mb-2"><%= t('manual_overdue_title', default: 'Manual Overdue') %></h2>
+    <p class="text-xs text-gray-500 mb-4"><%= t('manual_overdue_hint', default: 'The due date has not passed yet. How many days has this invoice been overdue?') %></p>
+    
+    <div class="mb-5">
+      <input type="number" id="manualOverdueDaysInput" min="0" max="9999" value="0" 
+             class="w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-center text-2xl font-black text-black focus:border-red-500 focus:shadow-[4px_4px_0px_0px_#EF4444] outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all"
+             placeholder="0">
+      <p class="text-[10px] text-gray-400 font-bold mt-2 uppercase tracking-widest"><%= t('manual_overdue_days_label', default: '0 = overdue as of today') %></p>
+    </div>
+
+    <div class="flex flex-col gap-2.5">
+      <button id="finalConfirmOverdueBtn" class="w-full py-4 bg-red-600 text-white rounded-xl font-black uppercase tracking-widest hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-red-700 transition-all active:scale-95">
+        <%= t('confirm_overdue', default: 'Mark as Overdue') %>
+      </button>
+      <button onclick="closeManualOverdueModal()" class="w-full py-3.5 bg-gray-100 text-black rounded-xl font-black uppercase tracking-widest hover:bg-gray-200 transition-all active:scale-95 text-[10px]">
+        <%= t('cancel') %>
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- ADD / EDIT CLIENT MODAL -->
 <div id="clientModal" class="modal-backdrop" style="z-index: 300;" onclick="closeClientModal(event)">
   <div class="modal-content" onclick="event.stopPropagation()">
@@ -1453,7 +1483,8 @@
     done_label: "<%= j t('done_label') %>",
     unpin_log: "<%= j t('unpin_log') %>",
     pin_log: "<%= j t('pin_log') %>",
-    save_changes: "<%= j t('save_changes') %>"
+    save_changes: "<%= j t('save_changes') %>",
+    overdue_for_badge: "<%= j t('overdue_for_badge', count: '%{count}') %>"
   };
 
   // State Management
@@ -2456,17 +2487,52 @@
       modal.classList.add('active');
       return;
     }
+    if (newStatus === 'overdue') {
+      // Check if due date is in the future (manual overdue scenario)
+      const card = document.querySelector(`.log-card[data-log-id="${logId}"]`);
+      const dueDateStr = card?.dataset.dueDate;
+      if (dueDateStr) {
+        const dueDate = new Date(dueDateStr + 'T00:00:00');
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (dueDate >= today) {
+          // Due date not passed yet — show manual overdue popup
+          const modal = document.getElementById('manualOverdueModal');
+          const input = document.getElementById('manualOverdueDaysInput');
+          const btn = document.getElementById('finalConfirmOverdueBtn');
+          input.value = '0';
+          btn.onclick = () => {
+            const days = Math.max(0, parseInt(input.value) || 0);
+            // Calculate new due date: today - days
+            const newDue = new Date();
+            newDue.setHours(0, 0, 0, 0);
+            newDue.setDate(newDue.getDate() - days);
+            const yyyy = newDue.getFullYear();
+            const mm = String(newDue.getMonth() + 1).padStart(2, '0');
+            const dd = String(newDue.getDate()).padStart(2, '0');
+            const newDueDateStr = `${yyyy}-${mm}-${dd}`;
+            performStatusUpdate(logId, 'overdue', newDueDateStr);
+            closeManualOverdueModal();
+          };
+          modal.classList.add('active');
+          setTimeout(() => input.focus(), 100);
+          return;
+        }
+      }
+    }
     performStatusUpdate(logId, newStatus);
   }
 
-  function performStatusUpdate(logId, newStatus) {
+  function performStatusUpdate(logId, newStatus, newDueDate) {
+    const payload = { status: newStatus };
+    if (newDueDate) payload.due_date = newDueDate;
     fetch(`/logs/${logId}/update_status`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
         'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content
       },
-      body: JSON.stringify({ status: newStatus })
+      body: JSON.stringify(payload)
     })
     .then(response => response.json())
     .then(res => {
@@ -2527,12 +2593,28 @@
           }
         }
 
-        // Hide due badge when paid or overdue (status already conveys due info)
+        // Update due date on card if changed (manual overdue)
+        if (newDueDate && res.due_date) {
+          document.querySelectorAll(`.log-card[data-log-id="${logId}"]`).forEach(c => {
+            c.dataset.dueDate = res.due_date;
+          });
+        }
+
+        // Handle due badge visibility and content
         const statusBadgeContainer = badge.closest('.flex.items-end');
         if (statusBadgeContainer) {
           const dueBadge = statusBadgeContainer.querySelector('.pointer-events-none');
           if (dueBadge) {
-            if (newStatus === 'paid' || newStatus === 'overdue') {
+            if (newStatus === 'overdue' && newDueDate) {
+              // Show overdue days badge for manual overdue
+              const dueD = new Date(res.due_date + 'T00:00:00');
+              const nowD = new Date(); nowD.setHours(0,0,0,0);
+              const overdueDays = Math.max(0, Math.round((nowD - dueD) / 86400000));
+              dueBadge.className = 'flex items-center gap-1 px-2.5 py-1.5 bg-red-50 border-2 border-red-400 rounded-t-lg rounded-b-none text-[9px] font-black uppercase tracking-widest text-red-600 pointer-events-none';
+              dueBadge.innerHTML = '<div class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></div>' +
+                (window.APP_LANGUAGES.overdue_for_badge || '').replace('%{count}', overdueDays);
+              dueBadge.classList.remove('hidden');
+            } else if (newStatus === 'paid' || newStatus === 'overdue') {
               dueBadge.classList.add('hidden');
             } else {
               dueBadge.classList.remove('hidden');
@@ -2553,6 +2635,11 @@
   function closeConfirmPaidModal(e) {
     if (e && (e.target !== e.currentTarget || !_modalMousedownOnBackdrop)) return;
     document.getElementById('confirmPaidModal').classList.remove('active');
+  }
+
+  function closeManualOverdueModal(e) {
+    if (e && (e.target !== e.currentTarget || !_modalMousedownOnBackdrop)) return;
+    document.getElementById('manualOverdueModal').classList.remove('active');
   }
 
   // Selection Mode Logic
