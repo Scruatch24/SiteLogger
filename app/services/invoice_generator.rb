@@ -69,6 +69,29 @@ class InvoiceGenerator
   def initialize(log, profile, style: nil)
     @log = log
     @profile = profile
+
+    # Per-invoice sender overrides (FROM modal) — fall back to profile
+    si = @log.try(:sender_info)
+    si = si.is_a?(String) ? (JSON.parse(si) rescue nil) : si
+    @sender = OpenStruct.new(
+      business_name: si&.dig("business_name").presence || @profile.business_name,
+      payment_instructions: si&.dig("payment_instructions").presence || @profile.payment_instructions,
+      note: si&.dig("note").presence || @profile.try(:note),
+      email: si&.dig("email").presence || @profile.email,
+      phone: si&.dig("phone").presence || @profile.phone,
+      address: si&.dig("address").presence || @profile.address,
+      tax_id: si&.dig("tax_id").presence || @profile.tax_id
+    )
+
+    # Per-invoice recipient snapshot (BILLED TO modal)
+    ri = @log.try(:recipient_info)
+    ri = ri.is_a?(String) ? (JSON.parse(ri) rescue nil) : ri
+    @recipient = OpenStruct.new(
+      name: ri&.dig("name").presence || @log.client,
+      email: ri&.dig("email").presence,
+      phone: ri&.dig("phone").presence,
+      address: ri&.dig("address").presence
+    )
     @style = (style.presence || @log.try(:invoice_style).presence || @profile.invoice_style.presence || "classic").to_s.downcase
     @document_language = (@profile.try(:document_language).presence || "en").to_s.downcase
     @base_font_name = (@document_language == "ka") ? "NotoSansGeorgian" : "NotoSans"
@@ -291,12 +314,31 @@ class InvoiceGenerator
 
       @pdf.move_down 25
 
-      # Client Content
+      # Client Content (BILLED TO)
       @pdf.fill_color @dark_charcoal
       @pdf.font(@base_font_name, style: :bold, size: 10) do
-        client_name = (@log.client.presence || labels[:valued_client]).upcase
+        client_name = (@recipient.name.presence || labels[:valued_client]).upcase
         @pdf.text client_name, leading: 2
       end
+
+      # Recipient address
+      if @recipient.address.present?
+        @pdf.fill_color @mid_gray
+        @pdf.font(@base_font_name, size: 9) { @pdf.text @recipient.address.to_s, leading: 2 }
+      end
+
+      # Recipient phone • email
+      recipient_contact = []
+      if @recipient.phone.present?
+        recipient_contact << { text: @recipient.phone.to_s, color: @mid_gray }
+      end
+      if @recipient.phone.present? && @recipient.email.present?
+        recipient_contact << { text: "  •  ", color: @mid_gray }
+      end
+      if @recipient.email.present?
+        recipient_contact << { text: @recipient.email.to_s, color: @mid_gray }
+      end
+      @pdf.font(@base_font_name, size: 9) { @pdf.formatted_text recipient_contact, leading: 2 } if recipient_contact.any?
 
       @pdf.move_down 25
 
@@ -318,27 +360,27 @@ class InvoiceGenerator
       @pdf.font(@base_font_name, size: 9) do
         # Company Name + Black Dot + Tax ID
         name_text = []
-        name_text << { text: @profile.business_name, styles: [ :bold ], color: @dark_charcoal }
-        if @profile.tax_id.present?
+        name_text << { text: @sender.business_name, styles: [ :bold ], color: @dark_charcoal }
+        if @sender.tax_id.present?
            name_text << { text: "  ", color: @dark_charcoal }
            name_text << { text: "•", color: "000000" }
            name_text << { text: "  #{labels[:tax_id_label]}: ", color: @dark_charcoal, styles: [ :bold ] }
-           name_text << { text: @profile.tax_id.to_s, color: @dark_charcoal, styles: [ :bold ] }
+           name_text << { text: @sender.tax_id.to_s, color: @dark_charcoal, styles: [ :bold ] }
         end
         @pdf.formatted_text name_text, leading: 2
         @pdf.fill_color @mid_gray
-        @pdf.text @profile.address.to_s, leading: 2
+        @pdf.text @sender.address.to_s, leading: 2
 
         # Phone + Orange Dot + Email (with accent color + underline for visual link cue)
         contact_text = []
-        if @profile.phone.present?
-          contact_text << { text: @profile.phone.to_s, color: @orange_color, link: "tel:#{@profile.phone.to_s.gsub(/\s/, '')}", styles: [:underline] }
+        if @sender.phone.present?
+          contact_text << { text: @sender.phone.to_s, color: @orange_color, link: "tel:#{@sender.phone.to_s.gsub(/\s/, '')}", styles: [:underline] }
           contact_text << { text: "  ", color: @mid_gray }
           contact_text << { text: "•", color: "000000" }
           contact_text << { text: "  ", color: @mid_gray }
         end
-        if @profile.email.present?
-          contact_text << { text: @profile.email.to_s, color: @orange_color, link: "mailto:#{@profile.email}", styles: [:underline] }
+        if @sender.email.present?
+          contact_text << { text: @sender.email.to_s, color: @orange_color, link: "mailto:#{@sender.email}", styles: [:underline] }
         end
 
         @pdf.formatted_text contact_text, leading: 2
@@ -814,15 +856,15 @@ class InvoiceGenerator
     # Calculate instructions height to center it
     instr_block_h = 0
     @pdf.font(@base_font_name) do
-      if @profile.payment_instructions.present?
+      if @sender.payment_instructions.present?
         p_title_h = @pdf.height_of(labels[:payment_details], width: instructions_width, size: 10, style: :bold, character_spacing: 1)
-        p_text_h = @pdf.height_of(@profile.payment_instructions, width: instructions_width, size: 9, leading: 3)
+        p_text_h = @pdf.height_of(@sender.payment_instructions, width: instructions_width, size: 9, leading: 3)
         instr_block_h += p_title_h + 5 + 2 + 10 + p_text_h
       end
 
-      if @profile.respond_to?(:note) && @profile.note.present?
-        note_gap = @profile.payment_instructions.present? ? 20 : 0
-        n_text_h = @pdf.height_of(@profile.note.upcase, width: instructions_width, size: 12, style: :bold, leading: 3)
+      if @sender.note.present?
+        note_gap = @sender.payment_instructions.present? ? 20 : 0
+        n_text_h = @pdf.height_of(@sender.note.upcase, width: instructions_width, size: 12, style: :bold, leading: 3)
         instr_block_h += note_gap + n_text_h
       end
     end
@@ -849,10 +891,10 @@ class InvoiceGenerator
     # 4. Render Bounding Box
     @pdf.bounding_box([ 0, @pdf.cursor ], width: table_width, height: h_final) do
       # -- A. PAYMENT INSTRUCTIONS & NOTE --
-      if @profile.payment_instructions.present? || (@profile.respond_to?(:note) && @profile.note.present?)
+      if @sender.payment_instructions.present? || @sender.note.present?
         # Fixed alignment: follow the top of the summary area
         @pdf.bounding_box([ 0, h_final ], width: instructions_width, height: instr_block_h) do
-          if @profile.payment_instructions.present?
+          if @sender.payment_instructions.present?
             @pdf.fill_color @dark_charcoal
             @pdf.font(@base_font_name, style: :bold, size: 10) { @pdf.text labels[:payment_details], character_spacing: 1 }
             @pdf.move_down 5
@@ -861,14 +903,14 @@ class InvoiceGenerator
             @pdf.stroke_horizontal_line 0, 50
             @pdf.move_down 10
             @pdf.fill_color @mid_gray
-            @pdf.font(@base_font_name, size: 9) { @pdf.text @profile.payment_instructions, leading: 3 }
+            @pdf.font(@base_font_name, size: 9) { @pdf.text @sender.payment_instructions, leading: 3 }
           end
 
-          if @profile.respond_to?(:note) && @profile.note.present?
-            @pdf.move_down 20 if @profile.payment_instructions.present?
+          if @sender.note.present?
+            @pdf.move_down 20 if @sender.payment_instructions.present?
             @pdf.fill_color accent_color
             @pdf.font(@base_font_name, style: :bold, size: 12) do
-              @pdf.text @profile.note.upcase, leading: 3
+              @pdf.text @sender.note.upcase, leading: 3
             end
           end
         end
@@ -1076,12 +1118,12 @@ class InvoiceGenerator
         parts = [
           { text: "#{labels[:page]} მე-", font: "NotoSansGeorgian", styles: [:bold], size: 9, color: @dark_charcoal, character_spacing: 1.2 },
           { text: "#{@pdf.page_number}", font: "NotoSans", styles: [:bold], size: 9, color: @dark_charcoal, character_spacing: 1.2 },
-          { text: "  ·  #{@invoice_number}  ·  #{@profile.business_name.upcase}", font: "NotoSans", styles: [:bold], size: 9, color: @dark_charcoal, character_spacing: 1.2 }
+          { text: "  ·  #{@invoice_number}  ·  #{@sender.business_name.upcase}", font: "NotoSans", styles: [:bold], size: 9, color: @dark_charcoal, character_spacing: 1.2 }
         ]
         @pdf.formatted_text parts
       else
         @pdf.font(@base_font_name, style: :bold, size: 9) do
-          info_text = "#{labels[:page]} #{@pdf.page_number}  ·  #{@invoice_number}  ·  #{@profile.business_name.upcase}"
+          info_text = "#{labels[:page]} #{@pdf.page_number}  ·  #{@invoice_number}  ·  #{@sender.business_name.upcase}"
           @pdf.text info_text, character_spacing: 1.2
         end
       end
@@ -1316,18 +1358,18 @@ class InvoiceGenerator
       @pdf.move_down 8
       @pdf.fill_color "000000"
       @pdf.font(@base_font_name, style: :bold, size: 10) do
-        @pdf.text @profile.business_name, align: :right, leading: 2
+        @pdf.text @sender.business_name, align: :right, leading: 2
       end
       @pdf.font(@base_font_name, size: 8) do
         @pdf.fill_color @mid_gray
-        @pdf.text @profile.address.to_s, align: :right, leading: 1
+        @pdf.text @sender.address.to_s, align: :right, leading: 1
         contact_parts = []
-        if @profile.phone.present?
-          contact_parts << { text: @profile.phone.to_s, color: @orange_color, link: "tel:#{@profile.phone.to_s.gsub(/\s/, '')}", styles: [:underline] }
+        if @sender.phone.present?
+          contact_parts << { text: @sender.phone.to_s, color: @orange_color, link: "tel:#{@sender.phone.to_s.gsub(/\s/, '')}", styles: [:underline] }
           contact_parts << { text: "  |  ", color: @mid_gray }
         end
-        if @profile.email.present?
-          contact_parts << { text: @profile.email.to_s, color: @orange_color, link: "mailto:#{@profile.email}", styles: [:underline] }
+        if @sender.email.present?
+          contact_parts << { text: @sender.email.to_s, color: @orange_color, link: "mailto:#{@sender.email}", styles: [:underline] }
         end
         @pdf.formatted_text contact_parts, align: :right, leading: 1
       end
@@ -1399,15 +1441,15 @@ class InvoiceGenerator
       end
       @pdf.move_down 10
       @pdf.font(@base_font_name, style: :bold, size: 10) do
-        @pdf.text @profile.business_name, align: :right
+        @pdf.text @sender.business_name, align: :right
       end
       @pdf.font(@base_font_name, size: 8) do
         @pdf.fill_color @mid_gray
-        if @profile.email.present?
-          @pdf.formatted_text [{ text: @profile.email.to_s, color: @orange_color, link: "mailto:#{@profile.email}", styles: [:underline] }], align: :right
+        if @sender.email.present?
+          @pdf.formatted_text [{ text: @sender.email.to_s, color: @orange_color, link: "mailto:#{@sender.email}", styles: [:underline] }], align: :right
         end
-        if @profile.phone.present?
-          @pdf.formatted_text [{ text: @profile.phone.to_s, color: @orange_color, link: "tel:#{@profile.phone.to_s.gsub(/\s/, '')}", styles: [:underline] }], align: :right
+        if @sender.phone.present?
+          @pdf.formatted_text [{ text: @sender.phone.to_s, color: @orange_color, link: "tel:#{@sender.phone.to_s.gsub(/\s/, '')}", styles: [:underline] }], align: :right
         end
       end
     end
@@ -1460,7 +1502,7 @@ class InvoiceGenerator
 
     @pdf.bounding_box([ col_width + 40, y_start ], width: col_width) do
       @pdf.font(@base_font_name, size: 8, style: :bold) do
-        @pdf.text "#{labels[:from]}: #{@profile.business_name.upcase}", align: :right, leading: 2
+        @pdf.text "#{labels[:from]}: #{@sender.business_name.upcase}", align: :right, leading: 2
         @pdf.text "INV: #{@invoice_number}", align: :right, leading: 2
         @pdf.text "#{labels[:date]}: #{@invoice_date}", align: :right, leading: 2
         @pdf.text "#{labels[:due]}: #{@due_date}", align: :right, leading: 2, color: @orange_color
@@ -1512,7 +1554,7 @@ class InvoiceGenerator
 
     @pdf.bounding_box([ col_width + 20, y_start ], width: col_width) do
       @pdf.font(@base_font_name, size: 8, style: :bold) do
-        @pdf.text @profile.business_name, align: :right, leading: 2
+        @pdf.text @sender.business_name, align: :right, leading: 2
       end
       @pdf.fill_color @mid_gray
       @pdf.font(@base_font_name, size: 7, style: :bold) do
@@ -1725,7 +1767,7 @@ class InvoiceGenerator
 
         @pdf.fill_color @mid_gray
         @pdf.font(@base_font_name, size: 6.5, style: :bold) do
-          @pdf.text_box @profile.business_name.upcase,
+          @pdf.text_box @sender.business_name.upcase,
             at: [ margin, footer_y ], width: 200, align: :left, character_spacing: 0.5
         end
 

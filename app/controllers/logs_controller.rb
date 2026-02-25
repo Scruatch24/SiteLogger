@@ -50,6 +50,33 @@ class LogsController < ApplicationController
         @log.accent_color = profile.accent_color
       end
 
+      # Auto-create Client record from recipient_info if new client
+      if user_signed_in? && @log.recipient_info.present?
+        ri = @log.recipient_info.is_a?(String) ? (JSON.parse(@log.recipient_info) rescue nil) : @log.recipient_info
+        if ri.is_a?(Hash) && ri["is_new"] == true && ri["name"].present?
+          existing = current_user.clients.where("name ILIKE ?", ri["name"].strip).first
+          if existing
+            @log.client_id = existing.id
+            @log.client = existing.name
+          else
+            new_client = current_user.clients.build(
+              name: ri["name"].strip,
+              email: ri["email"].presence,
+              phone: ri["phone"].presence,
+              address: ri["address"].presence,
+              notes: ri["notes"].presence
+            )
+            if new_client.save
+              @log.client_id = new_client.id
+              @log.client = new_client.name
+            end
+          end
+        elsif ri.is_a?(Hash) && ri["client_id"].present?
+          @log.client_id = ri["client_id"].to_i
+          @log.client = ri["name"] if ri["name"].present?
+        end
+      end
+
       if @log.save
         # Track invoice creation for analytics
         if user_signed_in?
@@ -606,6 +633,6 @@ class LogsController < ApplicationController
     end
 
     def log_params
-      params.require(:log).permit(:client, :time, :date, :due_date, :tasks, :credits, :billing_mode, :discount_tax_rule, :tax_scope, :labor_taxable, :labor_discount_flat, :labor_discount_percent, :global_discount_flat, :global_discount_percent, :global_discount_message, :credit_flat, :credit_reason, :currency, :hourly_rate, :accent_color, :raw_summary, :tax_rate, :status, :session_id, category_ids: [])
+      params.require(:log).permit(:client, :time, :date, :due_date, :tasks, :credits, :billing_mode, :discount_tax_rule, :tax_scope, :labor_taxable, :labor_discount_flat, :labor_discount_percent, :global_discount_flat, :global_discount_percent, :global_discount_message, :credit_flat, :credit_reason, :currency, :hourly_rate, :accent_color, :raw_summary, :tax_rate, :status, :session_id, :sender_info, :recipient_info, category_ids: [])
     end
 end

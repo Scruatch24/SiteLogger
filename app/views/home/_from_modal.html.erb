@@ -1,0 +1,94 @@
+<!-- FROM Modal (Business Information / გამგზავნის ინფორმაცია) -->
+<div id="fromModal" class="fixed inset-0 z-[200] hidden">
+  <div id="fromModalOverlay" class="absolute inset-0 bg-black/50 backdrop-blur-sm opacity-0 transition-opacity duration-300" onclick="closeFromModal()"></div>
+  <div id="fromModalContent" class="absolute inset-x-0 bottom-0 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:max-w-lg md:w-full md:rounded-2xl bg-white border-t-2 md:border-2 border-black md:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] translate-y-full md:translate-y-1/2 md:scale-95 md:opacity-0 transition-all duration-300 max-h-[85vh] flex flex-col">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between px-5 py-4 border-b-2 border-black bg-gray-50 md:rounded-t-2xl flex-shrink-0">
+      <h3 class="text-sm font-black uppercase tracking-widest text-black"><%= t('business_information') %></h3>
+      <button type="button" onclick="closeFromModal()" class="w-8 h-8 rounded-lg border-2 border-black bg-white flex items-center justify-center hover:bg-red-50 hover:border-red-500 transition-all active:scale-95">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Body (Scrollable) -->
+    <div class="overflow-y-auto flex-1 p-5 space-y-4 custom-scrollbar">
+      <!-- Company/Name -->
+      <div>
+        <label class="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5"><%= t('company_name') %></label>
+        <input type="text" id="fromBusinessName"
+               class="w-full px-4 py-3 bg-white border-2 border-black rounded-xl font-bold focus:outline-none focus:border-orange-500 focus:shadow-[4px_4px_0px_0px_#F97316] transition-all"
+               placeholder="<%= t('business_name_placeholder') %>">
+      </div>
+
+      <!-- Payment Instructions -->
+      <div>
+        <label class="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5"><%= t('payment_instructions') %></label>
+        <textarea id="fromPaymentInstructions" rows="3"
+                  onkeydown="return checkFromCharLimit(event, this, 50, 8)"
+                  oninput="limitFromLinesAndChars(this, 50, 8)"
+                  class="w-full px-4 py-3 bg-white border-2 border-black rounded-xl font-medium focus:outline-none focus:border-orange-500 focus:shadow-[4px_4px_0px_0px_#F97316] transition-all resize-none"
+                  style="min-height: 80px; max-height: 200px;"
+                  placeholder="<%= t('payment_instructions_placeholder') %>"></textarea>
+      </div>
+
+      <!-- Note -->
+      <div>
+        <label class="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5"><%= t('invoice_note') %></label>
+        <textarea id="fromNote" rows="2"
+                  onkeydown="return checkFromCharLimit(event, this, 50, 2)"
+                  oninput="limitFromLinesAndChars(this, 50, 2)"
+                  class="w-full px-4 py-3 bg-white border-2 border-black rounded-xl font-medium focus:outline-none focus:border-orange-500 focus:shadow-[4px_4px_0px_0px_#F97316] transition-all resize-none"
+                  style="min-height: 60px; max-height: 120px;"
+                  placeholder="<%= t('invoice_note_placeholder') %>"></textarea>
+      </div>
+
+      <!-- Email -->
+      <div>
+        <label class="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5"><%= t('email') %></label>
+        <input type="email" id="fromEmail"
+               class="w-full px-4 py-3 bg-white border-2 border-black rounded-xl font-bold focus:outline-none focus:border-orange-500 focus:shadow-[4px_4px_0px_0px_#F97316] transition-all"
+               placeholder="<%= t('email_placeholder') %>">
+      </div>
+
+      <!-- Phone -->
+      <div>
+        <label class="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5"><%= t('phone') %></label>
+        <input type="tel" id="fromPhone"
+               class="w-full px-4 py-3 bg-white border-2 border-black rounded-xl font-bold focus:outline-none focus:border-orange-500 focus:shadow-[4px_4px_0px_0px_#F97316] transition-all"
+               placeholder="<%= t('phone_placeholder') %>">
+      </div>
+
+      <!-- Address -->
+      <div>
+        <label class="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5"><%= t('address') %></label>
+        <textarea id="fromAddress" rows="3"
+                  onkeydown="return checkFromCharLimit(event, this, 50, 3)"
+                  oninput="limitFromLinesAndChars(this, 50, 3)"
+                  class="w-full px-4 py-3 bg-white border-2 border-black rounded-xl font-medium focus:outline-none focus:border-orange-500 focus:shadow-[4px_4px_0px_0px_#F97316] transition-all resize-none"
+                  style="min-height: 80px; max-height: 150px;"
+                  placeholder="<%= t('address_placeholder') %>"></textarea>
+      </div>
+
+      <!-- Tax ID -->
+      <div>
+        <label class="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5"><%= t('tax_id') %></label>
+        <input type="text" id="fromTaxId"
+               class="w-full px-4 py-3 bg-white border-2 border-black rounded-xl font-bold focus:outline-none focus:border-orange-500 focus:shadow-[4px_4px_0px_0px_#F97316] transition-all"
+               placeholder="<%= t('tax_id_placeholder') %>">
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="flex items-center gap-3 px-5 py-4 border-t-2 border-gray-200 flex-shrink-0">
+      <button type="button" onclick="resetFromToDefaults()" class="flex-1 py-3 bg-gray-100 text-black rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200 transition-all active:scale-95">
+        <%= t('reset_to_defaults') %>
+      </button>
+      <button type="button" onclick="saveFromModal()" class="flex-1 py-3 bg-orange-600 text-white border-2 border-black rounded-xl font-black uppercase text-[10px] tracking-widest shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-700 transition-all active:scale-95 active:shadow-none active:translate-x-[2px] active:translate-y-[2px]">
+        <%= t('save_changes') %>
+      </button>
+    </div>
+  </div>
+</div>

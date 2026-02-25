@@ -972,6 +972,7 @@ CORE DIRECTIVES (non-negotiable)
    - "Hello, this is Apex Roofing" -> Client: "Apex Roofing"
    - Georgian: "კლიენტი", "კლიენტია" → extract the name that follows.
    - GEORGIAN COMPANY NAMES: In Georgian, the legal form (შპს, სს, შპს-ი) comes BEFORE the quoted company name. Normalize: "ჯეო ლოჯისტიქსი" შპს → შპს "ჯეო ლოჯისტიქსი". Strip trailing periods/extra quotes. Output clean format: შპს "Company Name".
+   - PAYMENT INSTRUCTIONS: If user mentions "bank transfer only" or "საბანკო გადარიცხვით", check if sender payment details contain bank info. If not, ask for bank details via clarification.
 9. Output STRICT JSON. No extra fields. Use null for unknown numeric values, empty arrays for absent categories.
 10. OUTPUT TONE: Use Title Case for 'desc'/'name' fields. Be extremely brief — short, impactful technical terms. No parentheses/metadata in descriptions. Put specifics into 'sub_categories'.
 11. AMBIGUOUS REDUCTIONS: If no currency or percent indicated, default to CURRENCY (flat amount). Hours with no rate → return hours, hourly_rate = null (system applies default).
@@ -1248,6 +1249,18 @@ PROMPT
       model_chain = [ primary_model, fallback_model ].map { |m| m.to_s.strip }.reject(&:blank?).uniq.take(2)
 
       user_input_parts = []
+
+      # Inject client list context for client matching
+      if user_signed_in? && current_user.clients.any?
+        client_names = current_user.clients.order(:name).limit(50).pluck(:id, :name).map { |id, name| "#{id}:#{name}" }.join(", ")
+        user_input_parts << { text: "EXISTING CLIENTS (for matching — use exact name if match found): #{client_names}" }
+      end
+
+      # Inject sender payment instructions for bank transfer intelligence
+      payment_info = @profile.payment_instructions.to_s.strip
+      if payment_info.present?
+        user_input_parts << { text: "SENDER PAYMENT INSTRUCTIONS (for reference): #{payment_info}" }
+      end
 
       if is_manual_text
         user_input_parts << { text: "USER INPUT (MANUAL TEXT):\n#{params[:manual_text]}" }
@@ -1740,6 +1753,36 @@ PROMPT
         end
       end
 
+      # ── Client Matching Post-Processing ──
+      recipient_info = nil
+      if user_signed_in? && json["client"].present?
+        client_name = json["client"].to_s.strip
+        # Tier 1: Exact match (case-insensitive)
+        exact_match = current_user.clients.where("name ILIKE ?", client_name).first
+        if exact_match
+          recipient_info = { "client_id" => exact_match.id, "name" => exact_match.name, "email" => exact_match.email, "phone" => exact_match.phone, "address" => exact_match.address }
+          json["client"] = exact_match.name
+        else
+          # Tier 2: Fuzzy match — find similar names and ask user to confirm
+          similar = current_user.clients.where("name ILIKE ?", "%#{client_name.gsub(/[%_]/, '')}%").limit(3).to_a
+          if similar.any?
+            # Add a clarification asking user to confirm
+            match_names = similar.map(&:name).join(", ")
+            question_text = if I18n.locale.to_s == "ka"
+              "მსგავსი კლიენტი მოიძებნა: #{match_names}. მას გულისხმობდით თუ ახალ კლიენტს ქმნით?"
+            else
+              "Similar client found: #{match_names}. Did you mean one of them, or is this a new client?"
+            end
+            json["clarifications"] ||= []
+            json["clarifications"] << { "field" => "client_match", "guess" => client_name, "question" => question_text, "similar_clients" => similar.map { |c| { "id" => c.id, "name" => c.name } } }
+            recipient_info = { "client_id" => nil, "name" => client_name, "is_new" => true }
+          else
+            # No match at all — treat as new client
+            recipient_info = { "client_id" => nil, "name" => client_name, "is_new" => true }
+          end
+        end
+      end
+
       final_response = {
         "client" => json["client"],
         "time" => json["time"],
@@ -1755,12 +1798,13 @@ PROMPT
         "labor_discount_percent" => json["labor_discount_percent"],
         "global_discount_flat" => json["global_discount_flat"],
         "global_discount_percent" => json["global_discount_percent"],
-        "credits" => json["credits"], # Now the only source of truth
+        "credits" => json["credits"],
         "discount_tax_mode" => json["discount_tax_mode"],
         "date" => json["date"],
         "due_days" => json["due_days"],
         "due_date" => json["due_date"],
-        "clarifications" => Array(json["clarifications"]).select { |c| c.is_a?(Hash) && c["question"].present? }
+        "clarifications" => Array(json["clarifications"]).select { |c| c.is_a?(Hash) && c["question"].present? },
+        "recipient_info" => recipient_info
       }
 
       Rails.logger.info "FINAL NORMALIZED JSON: #{final_response.to_json}"
@@ -1838,9 +1882,22 @@ PROMPT
     # Serialize current_json properly - it arrives as a hash from params
     json_text = current_json.is_a?(String) ? current_json : current_json.to_json
 
+    # Build client list context for refine
+    client_list_context = ""
+    if user_signed_in? && current_user.clients.any?
+      client_names = current_user.clients.order(:name).limit(50).pluck(:id, :name).map { |id, name| "#{id}:#{name}" }.join(", ")
+      client_list_context = "\nEXISTING CLIENTS: #{client_names}"
+    end
+
+    payment_context = ""
+    if @profile.payment_instructions.to_s.strip.present?
+      payment_context = "\nSENDER PAYMENT INSTRUCTIONS: #{@profile.payment_instructions.to_s.strip}"
+    end
+
     prompt = <<~PROMPT
       You are modifying an existing invoice JSON based on the user's chat instruction.
       LANGUAGE RULE: #{lang_rule}
+      #{client_list_context}#{payment_context}
 
       CURRENT INVOICE STATE:
       #{json_text}
@@ -1867,7 +1924,7 @@ PROMPT
          - Expenses/Fees: { desc, price, taxable, tax_rate, discount_flat, discount_percent, sub_categories: [] }
          - If adding a new section type, use: { type: "materials"|"expenses"|"fees", title: "#{ui_is_georgian ? 'appropriate Georgian title' : 'appropriate English title'}", items: [...] }
       7. REMOVING ITEMS: Remove from the section's items array. If section becomes empty after removal, remove the entire section object from "sections".
-      8. CLIENT: If user changes client name, update "client" field. Georgian convention: შპს "Company Name" (legal form before quoted name).
+      8. CLIENT: If user changes client name, update "client" field. Match against EXISTING CLIENTS list if provided. Georgian convention: შპს "Company Name" (legal form before quoted name). If user says "bank transfer only" or "საბანკო გადარიცხვით", check SENDER PAYMENT INSTRUCTIONS — if no bank details found, add a clarification asking for bank account/IBAN.
       9. CLARIFICATION ANSWERS: When user_message contains "[AI asked: ...]" it means the user is answering a previous clarification question. Apply the answer DIRECTLY to the JSON:
          - Warranty/note question answer like "მხოლოდ ქეისი და სერვისი" or "only the iPhone" → add/remove sub_categories on the specified items. Remove from items NOT mentioned, add to items that ARE mentioned.
          - "ყველაფერს"/"ყველას"/"all"/"everything"/"all items" → apply to ALL items in ALL sections (products, services, fees, expenses — everything). Do NOT limit to just one section.
@@ -1930,6 +1987,28 @@ PROMPT
       result["sections"] ||= []
       result["credits"] ||= []
       result["clarifications"] = Array(result["clarifications"]).select { |c| c.is_a?(Hash) && c["question"].present? }
+
+      # Client matching for refine_invoice responses
+      if user_signed_in? && result["client"].present?
+        client_name = result["client"].to_s.strip
+        exact_match = current_user.clients.where("name ILIKE ?", client_name).first
+        if exact_match
+          result["recipient_info"] = { "client_id" => exact_match.id, "name" => exact_match.name, "email" => exact_match.email, "phone" => exact_match.phone, "address" => exact_match.address }
+          result["client"] = exact_match.name
+        else
+          similar = current_user.clients.where("name ILIKE ?", "%#{client_name.gsub(/[%_]/, '')}%").limit(3).to_a
+          if similar.any?
+            match_names = similar.map(&:name).join(", ")
+            question_text = if I18n.locale.to_s == "ka"
+              "მსგავსი კლიენტი მოიძებნა: #{match_names}. მას გულისხმობდით თუ ახალ კლიენტს ქმნით?"
+            else
+              "Similar client found: #{match_names}. Did you mean one of them, or is this a new client?"
+            end
+            result["clarifications"] << { "field" => "client_match", "guess" => client_name, "question" => question_text, "similar_clients" => similar.map { |c| { "id" => c.id, "name" => c.name } } }
+          end
+          result["recipient_info"] = { "client_id" => nil, "name" => client_name, "is_new" => true }
+        end
+      end
 
       Rails.logger.info "REFINE RESULT: #{result.to_json}"
       render json: result

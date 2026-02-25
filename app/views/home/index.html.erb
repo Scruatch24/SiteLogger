@@ -72,6 +72,9 @@
 
 </div>
 
+<%= render 'from_modal' %>
+<%= render 'billed_to_modal' %>
+
 <script>
   // Global Tax & Profile Variables
   let currentLogTaxScope, currentLogBillingMode, currentLogDiscountTaxRule, profileHourlyRate, profileTaxRate, activeCurrencyCode, activeCurrencySymbol, currentLogAccentColor;
@@ -199,6 +202,13 @@
       const inject = () => {
         if (typeof updateUI === 'function') {
           console.log("[Recreate] updateUI function found, injecting data...");
+          // Restore FROM/BILLED TO state before updateUI
+          if (data.sender_info && typeof window.setSenderInfo === 'function') {
+            window.setSenderInfo(data.sender_info);
+          }
+          if (data.recipient_info && typeof window.setRecipientInfo === 'function') {
+            window.setRecipientInfo(data.recipient_info);
+          }
           updateUI(data);
           console.log("[Recreate] Data injection complete.");
         } else {
@@ -361,7 +371,335 @@
     guess_no: "<%= j t('guess_no') %>"
   };
   window.clarificationLimit = <%= @profile.clarification_limit %>;
-  
+
+  // ── FROM / BILLED TO State ──
+  window.profileDefaults = {
+    business_name: "<%= j @profile.business_name.to_s %>",
+    payment_instructions: "<%= j @profile.payment_instructions.to_s %>",
+    note: "<%= j @profile.note.to_s %>",
+    email: "<%= j @profile.email.to_s %>",
+    phone: "<%= j @profile.phone.to_s %>",
+    address: "<%= j @profile.address.to_s %>",
+    tax_id: "<%= j @profile.tax_id.to_s %>"
+  };
+  window.invoiceSenderInfo = null; // null = use profile defaults
+  window.invoiceRecipientInfo = null; // null = no client selected
+
+  // Character limit helpers for modals (same logic as profile page)
+  function checkFromCharLimit(e, el, charMax, lineMax) {
+    const lines = el.value.split('\n');
+    const cursorPosition = el.selectionStart;
+    let currentLineIndex = 0, charsCount = 0;
+    for (let i = 0; i < lines.length; i++) {
+      charsCount += lines[i].length + 1;
+      if (cursorPosition < charsCount) { currentLineIndex = i; break; }
+    }
+    if (e.key === 'Enter') {
+      if (lines.length >= lineMax) { e.preventDefault(); return false; }
+    } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      if (lines[currentLineIndex].length >= charMax) { e.preventDefault(); return false; }
+    }
+    return true;
+  }
+
+  function limitFromLinesAndChars(el, charMax, lineMax) {
+    let lines = el.value.split('\n');
+    let changed = false;
+    if (lines.length > lineMax) { lines = lines.slice(0, lineMax); changed = true; }
+    lines = lines.map(line => {
+      if (line.length > charMax) { changed = true; return line.substring(0, charMax); }
+      return line;
+    });
+    if (changed) {
+      const start = el.selectionStart, end = el.selectionEnd;
+      el.value = lines.join('\n');
+      el.setSelectionRange(start, end);
+    }
+  }
+
+  // ── FROM Modal Functions ──
+  function openFromModal() {
+    const src = window.invoiceSenderInfo || window.profileDefaults;
+    document.getElementById('fromBusinessName').value = src.business_name || '';
+    document.getElementById('fromPaymentInstructions').value = src.payment_instructions || '';
+    document.getElementById('fromNote').value = src.note || '';
+    document.getElementById('fromEmail').value = src.email || '';
+    document.getElementById('fromPhone').value = src.phone || '';
+    document.getElementById('fromAddress').value = src.address || '';
+    document.getElementById('fromTaxId').value = src.tax_id || '';
+
+    const modal = document.getElementById('fromModal');
+    const overlay = document.getElementById('fromModalOverlay');
+    const content = document.getElementById('fromModalContent');
+    modal.classList.remove('hidden');
+    requestAnimationFrame(() => {
+      overlay.classList.add('opacity-100');
+      content.classList.remove('translate-y-full', 'md:translate-y-1/2', 'md:scale-95', 'md:opacity-0');
+      content.classList.add('translate-y-0', 'md:translate-y-[-50%]', 'md:scale-100', 'md:opacity-100');
+    });
+  }
+
+  function closeFromModal() {
+    const overlay = document.getElementById('fromModalOverlay');
+    const content = document.getElementById('fromModalContent');
+    overlay.classList.remove('opacity-100');
+    content.classList.add('translate-y-full', 'md:translate-y-1/2', 'md:scale-95', 'md:opacity-0');
+    content.classList.remove('translate-y-0', 'md:translate-y-[-50%]', 'md:scale-100', 'md:opacity-100');
+    setTimeout(() => document.getElementById('fromModal').classList.add('hidden'), 300);
+  }
+
+  function saveFromModal() {
+    window.invoiceSenderInfo = {
+      business_name: document.getElementById('fromBusinessName').value.trim(),
+      payment_instructions: document.getElementById('fromPaymentInstructions').value.trim(),
+      note: document.getElementById('fromNote').value.trim(),
+      email: document.getElementById('fromEmail').value.trim(),
+      phone: document.getElementById('fromPhone').value.trim(),
+      address: document.getElementById('fromAddress').value.trim(),
+      tax_id: document.getElementById('fromTaxId').value.trim()
+    };
+    // Update display
+    const display = document.getElementById('fromFieldDisplay');
+    if (display) {
+      display.textContent = window.invoiceSenderInfo.business_name || window.profileDefaults.business_name || '';
+      display.classList.remove('text-gray-300');
+      display.classList.add('text-black');
+    }
+    closeFromModal();
+  }
+
+  function resetFromToDefaults() {
+    window.invoiceSenderInfo = null;
+    document.getElementById('fromBusinessName').value = window.profileDefaults.business_name || '';
+    document.getElementById('fromPaymentInstructions').value = window.profileDefaults.payment_instructions || '';
+    document.getElementById('fromNote').value = window.profileDefaults.note || '';
+    document.getElementById('fromEmail').value = window.profileDefaults.email || '';
+    document.getElementById('fromPhone').value = window.profileDefaults.phone || '';
+    document.getElementById('fromAddress').value = window.profileDefaults.address || '';
+    document.getElementById('fromTaxId').value = window.profileDefaults.tax_id || '';
+    // Update display
+    const display = document.getElementById('fromFieldDisplay');
+    if (display) {
+      display.textContent = window.profileDefaults.business_name || '<%= j t("from_placeholder") %>';
+    }
+  }
+
+  // ── BILLED TO Modal Functions ──
+  let billedToSearchTimeout = null;
+  let billedToMode = 'select'; // 'select' or 'add'
+
+  function openBilledToModal() {
+    const modal = document.getElementById('billedToModal');
+    const overlay = document.getElementById('billedToModalOverlay');
+    const content = document.getElementById('billedToModalContent');
+
+    // Reset search
+    document.getElementById('billedToSearch').value = '';
+
+    // If we have a selected recipient, show fields pre-filled
+    if (window.invoiceRecipientInfo) {
+      showBilledToFields(window.invoiceRecipientInfo);
+    } else {
+      hideBilledToFields();
+    }
+
+    // Load initial client list
+    searchBilledToClients('');
+
+    modal.classList.remove('hidden');
+    requestAnimationFrame(() => {
+      overlay.classList.add('opacity-100');
+      content.classList.remove('translate-y-full', 'md:translate-y-1/2', 'md:scale-95', 'md:opacity-0');
+      content.classList.add('translate-y-0', 'md:translate-y-[-50%]', 'md:scale-100', 'md:opacity-100');
+    });
+  }
+
+  function closeBilledToModal() {
+    const overlay = document.getElementById('billedToModalOverlay');
+    const content = document.getElementById('billedToModalContent');
+    overlay.classList.remove('opacity-100');
+    content.classList.add('translate-y-full', 'md:translate-y-1/2', 'md:scale-95', 'md:opacity-0');
+    content.classList.remove('translate-y-0', 'md:translate-y-[-50%]', 'md:scale-100', 'md:opacity-100');
+    setTimeout(() => document.getElementById('billedToModal').classList.add('hidden'), 300);
+  }
+
+  function searchBilledToClients(term) {
+    clearTimeout(billedToSearchTimeout);
+    billedToSearchTimeout = setTimeout(async () => {
+      if (!window.userSignedIn) return;
+      try {
+        const res = await fetch('/clients/search?q=' + encodeURIComponent(term), {
+          headers: { 'Accept': 'application/json' }
+        });
+        const clients = await res.json();
+        renderBilledToClientList(clients);
+      } catch (e) {
+        console.error('[BilledTo] Search error:', e);
+      }
+    }, 200);
+  }
+
+  function renderBilledToClientList(clients) {
+    const container = document.getElementById('billedToClientList');
+    // Keep the "Add Client" button (first child)
+    const addBtn = container.firstElementChild;
+    container.innerHTML = '';
+    container.appendChild(addBtn);
+
+    clients.forEach(c => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left hover:bg-gray-50 transition-colors';
+      btn.onclick = () => selectBilledToClient(c);
+      btn.innerHTML = `
+        <div class="w-8 h-8 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center flex-shrink-0">
+          <span class="text-[10px] font-black text-gray-600">${(c.name || '').split(/\\s+/).map(w => w[0]).join('').toUpperCase().substring(0, 2)}</span>
+        </div>
+        <div class="min-w-0 flex-1">
+          <span class="text-sm font-bold text-black block truncate">${c.name}</span>
+          ${c.email ? '<span class="text-[10px] text-gray-400 block truncate">' + c.email + '</span>' : ''}
+        </div>
+        <span class="text-[9px] font-bold text-gray-300 uppercase flex-shrink-0">${c.invoices_count || 0} inv</span>
+      `;
+      container.appendChild(btn);
+    });
+
+    if (clients.length === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'text-xs text-gray-400 font-bold text-center py-3';
+      empty.textContent = window.APP_LANGUAGES.no_clients_found || '<%= j t("no_clients_found") %>';
+      container.appendChild(empty);
+    }
+  }
+
+  function selectBilledToClient(client) {
+    billedToMode = 'existing';
+    showBilledToFields({
+      client_id: client.id,
+      name: client.name,
+      email: client.email || '',
+      phone: client.phone || '',
+      address: client.address || '',
+      notes: client.notes || ''
+    });
+  }
+
+  function selectBilledToAddClient() {
+    billedToMode = 'add';
+    showBilledToFields({ client_id: null, name: '', email: '', phone: '', address: '', notes: '' });
+    document.getElementById('billedToName').focus();
+  }
+
+  function showBilledToFields(data) {
+    document.getElementById('billedToFields').classList.remove('hidden');
+    document.getElementById('billedToFooter').classList.remove('hidden');
+    document.getElementById('billedToFooter').classList.add('flex');
+    document.getElementById('billedToName').value = data.name || '';
+    document.getElementById('billedToEmail').value = data.email || '';
+    document.getElementById('billedToPhone').value = data.phone || '';
+    document.getElementById('billedToAddress').value = data.address || '';
+    document.getElementById('billedToNotes').value = data.notes || '';
+
+    const indicator = document.getElementById('billedToSelectedIndicator');
+    if (data.client_id) {
+      indicator.classList.remove('hidden');
+      indicator.classList.add('flex');
+      document.getElementById('billedToSelectedName').textContent = data.name;
+      // Make fields read-only for existing client snapshot
+      ['billedToName', 'billedToEmail', 'billedToPhone', 'billedToAddress'].forEach(id => {
+        document.getElementById(id).readOnly = true;
+        document.getElementById(id).classList.add('bg-gray-50', 'text-gray-500');
+      });
+      document.getElementById('billedToNotesGroup').classList.add('hidden');
+    } else {
+      indicator.classList.add('hidden');
+      indicator.classList.remove('flex');
+      // Make fields editable for new client
+      ['billedToName', 'billedToEmail', 'billedToPhone', 'billedToAddress'].forEach(id => {
+        document.getElementById(id).readOnly = false;
+        document.getElementById(id).classList.remove('bg-gray-50', 'text-gray-500');
+      });
+      document.getElementById('billedToNotesGroup').classList.remove('hidden');
+    }
+
+    // Store temporary client_id
+    document.getElementById('billedToName').dataset.clientId = data.client_id || '';
+  }
+
+  function hideBilledToFields() {
+    document.getElementById('billedToFields').classList.add('hidden');
+    document.getElementById('billedToFooter').classList.add('hidden');
+    document.getElementById('billedToFooter').classList.remove('flex');
+  }
+
+  function clearBilledToSelection() {
+    window.invoiceRecipientInfo = null;
+    billedToMode = 'select';
+    hideBilledToFields();
+    // Update display
+    const display = document.getElementById('billedToFieldDisplay');
+    if (display) {
+      display.textContent = '<%= j t("billed_to_placeholder") %>';
+      display.classList.add('text-gray-300');
+      display.classList.remove('text-black');
+    }
+    // Update hidden field
+    document.getElementById('editClient').value = '';
+  }
+
+  function saveBilledToModal() {
+    const name = document.getElementById('billedToName').value.trim();
+    if (!name) {
+      document.getElementById('billedToNameError').classList.remove('hidden');
+      document.getElementById('billedToName').focus();
+      return;
+    }
+    document.getElementById('billedToNameError').classList.add('hidden');
+
+    window.invoiceRecipientInfo = {
+      client_id: document.getElementById('billedToName').dataset.clientId || null,
+      name: name,
+      email: document.getElementById('billedToEmail').value.trim(),
+      phone: document.getElementById('billedToPhone').value.trim(),
+      address: document.getElementById('billedToAddress').value.trim(),
+      notes: document.getElementById('billedToNotes').value.trim(),
+      is_new: billedToMode === 'add'
+    };
+
+    // Update display
+    const display = document.getElementById('billedToFieldDisplay');
+    if (display) {
+      display.textContent = name;
+      display.classList.remove('text-gray-300');
+      display.classList.add('text-black');
+    }
+    // Update hidden field for backward compat
+    document.getElementById('editClient').value = name;
+
+    closeBilledToModal();
+  }
+
+  // Helper to programmatically set recipient (used by AI/updateUI)
+  window.setRecipientInfo = function(info) {
+    window.invoiceRecipientInfo = info;
+    const display = document.getElementById('billedToFieldDisplay');
+    if (display && info && info.name) {
+      display.textContent = info.name;
+      display.classList.remove('text-gray-300');
+      display.classList.add('text-black');
+    }
+    document.getElementById('editClient').value = (info && info.name) || '';
+  };
+
+  // Helper to programmatically set sender (used by AI/updateUI)
+  window.setSenderInfo = function(info) {
+    window.invoiceSenderInfo = info;
+    const display = document.getElementById('fromFieldDisplay');
+    if (display && info && info.business_name) {
+      display.textContent = info.business_name;
+    }
+  };
+
   // Initialize once on load
   document.addEventListener('DOMContentLoaded', () => {
     initGlobalVariables();

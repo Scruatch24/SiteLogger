@@ -79,7 +79,9 @@
                   global_discount_percent: log.global_discount_percent,
                   global_discount_message: log.global_discount_message,
                   credits: log.credits || [],
-                  sections: recreate_sections_for_log(log)
+                  sections: recreate_sections_for_log(log),
+                  sender_info: log.sender_info,
+                  recipient_info: log.recipient_info
                 }.to_json %>'
                 class="flex items-center gap-3 px-4 py-3 text-left hover:bg-green-50 transition-colors border-b border-gray-100 group/item">
           <div class="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center text-green-600 group-hover/item:bg-green-600 group-hover/item:text-white transition-colors">

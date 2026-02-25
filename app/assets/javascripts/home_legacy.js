@@ -2162,7 +2162,9 @@ document.addEventListener("DOMContentLoaded", () => {
       raw_summary: document.getElementById("mainTranscript")?.value || "",
       tax_rate: (typeof profileTaxRate !== 'undefined' ? profileTaxRate : (window.profileTaxRate || 0)).toString(),
       status: document.getElementById("pdfLogStatus")?.value || "draft",
-      category_ids: document.getElementById("pdfLogCategory")?.value ? [document.getElementById("pdfLogCategory").value] : []
+      category_ids: document.getElementById("pdfLogCategory")?.value ? [document.getElementById("pdfLogCategory").value] : [],
+      sender_info: window.invoiceSenderInfo ? JSON.stringify(window.invoiceSenderInfo) : "",
+      recipient_info: window.invoiceRecipientInfo ? JSON.stringify(window.invoiceRecipientInfo) : ""
     };
   }
 
@@ -5138,8 +5140,22 @@ function updateUI(data) {
     }
     window.skipTranscriptUpdate = false; // Reset flag after use
     document.getElementById("editClient").value = data.client || "";
-    // const laborBox removed
 
+    // Populate FROM/BILLED TO displays from AI response
+    if (data.sender_info && typeof window.setSenderInfo === 'function') {
+      window.setSenderInfo(data.sender_info);
+    }
+    if (data.recipient_info && typeof window.setRecipientInfo === 'function') {
+      window.setRecipientInfo(data.recipient_info);
+    } else if (data.client) {
+      // Fallback: if AI only returned a client string, update billed-to display
+      const btDisplay = document.getElementById('billedToFieldDisplay');
+      if (btDisplay) {
+        btDisplay.textContent = data.client;
+        btDisplay.classList.remove('text-gray-300');
+        btDisplay.classList.add('text-black');
+      }
+    }
 
     // Set tax scope (AI-detected or profile default)
     currentLogTaxScope = data.tax_scope || window.profileTaxScope || "tax_excluded";
@@ -5345,7 +5361,7 @@ function updateUI(data) {
     // Scroll to assistant chat if questions exist, otherwise to invoice
     const assistantSection = document.getElementById('aiAssistantSection');
     if (window.pendingClarifications && window.pendingClarifications.length > 0 && assistantSection) {
-      assistantSection.scrollIntoView({ behavior: 'smooth' });
+      assistantSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
     } else {
       document.getElementById("invoicePreview").scrollIntoView({ behavior: 'smooth' });
     }
@@ -5881,6 +5897,21 @@ function updateUIWithoutTranscript(data) {
     // DON'T update transcript - keep it as is
 
     document.getElementById("editClient").value = data.client || document.getElementById("editClient").value || "";
+
+    // Populate FROM/BILLED TO displays from AI response
+    if (data.sender_info && typeof window.setSenderInfo === 'function') {
+      window.setSenderInfo(data.sender_info);
+    }
+    if (data.recipient_info && typeof window.setRecipientInfo === 'function') {
+      window.setRecipientInfo(data.recipient_info);
+    } else if (data.client) {
+      const btDisplay = document.getElementById('billedToFieldDisplay');
+      if (btDisplay) {
+        btDisplay.textContent = data.client;
+        btDisplay.classList.remove('text-gray-300');
+        btDisplay.classList.add('text-black');
+      }
+    }
 
     // Set tax scope (AI-detected or profile default)
     currentLogTaxScope = data.tax_scope || currentLogTaxScope || window.profileTaxScope || "tax_excluded";

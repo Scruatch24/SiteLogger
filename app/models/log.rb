@@ -1,6 +1,8 @@
 class Log < ApplicationRecord
   serialize :tasks, coder: JSON
   serialize :credits, coder: JSON
+  serialize :sender_info, coder: JSON
+  serialize :recipient_info, coder: JSON
   belongs_to :user, optional: true
   belongs_to :client_record, class_name: "Client", foreign_key: "client_id", optional: true, counter_cache: :invoices_count
 

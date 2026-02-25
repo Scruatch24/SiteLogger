@@ -1337,7 +1337,7 @@
     <div class="flex flex-col gap-4">
       <div>
         <div class="flex justify-between items-center mb-1.5">
-          <label class="block text-[10px] font-black uppercase tracking-widest text-gray-500"><%= t('client_name') %> *</label>
+          <label class="block text-[10px] font-black uppercase tracking-widest text-gray-500"><%= t('client_name') %>*</label>
           <span id="clientNameError" class="hidden text-[10px] font-black uppercase tracking-widest text-red-500 animate-pulse"><%= t('please_fill_field') %></span>
         </div>
         <input type="text" id="clientNameInput" placeholder="<%= t('client_placeholder') %>"
@@ -1358,7 +1358,9 @@
 
       <div>
         <label class="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5"><%= t('client_address_label') %></label>
-        <textarea id="clientAddressInput" rows="2" placeholder="<%= t('client_address_placeholder') %>"
+        <textarea id="clientAddressInput" rows="3" placeholder="<%= t('client_address_placeholder') %>"
+                  onkeydown="return checkCharLimit(event, this, 50, 3)"
+                  oninput="limitLinesAndChars(this, 50, 3)"
                   class="w-full px-4 py-3 bg-white border-2 border-black rounded-xl font-bold focus:outline-none focus:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all resize-none"></textarea>
       </div>
 
@@ -1401,6 +1403,40 @@
 </div>
 
 <script>
+  // Character/line limit helpers (shared with profile page)
+  function checkCharLimit(e, el, charMax, lineMax) {
+    const lines = el.value.split('\n');
+    const cursorPosition = el.selectionStart;
+    let currentLineIndex = 0;
+    let charsCount = 0;
+    for(let i=0; i<lines.length; i++) {
+      charsCount += lines[i].length + 1;
+      if(cursorPosition < charsCount) { currentLineIndex = i; break; }
+    }
+    if (e.key === 'Enter') {
+      if (lines.length >= lineMax) { e.preventDefault(); return false; }
+    } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      if (lines[currentLineIndex].length >= charMax) { e.preventDefault(); return false; }
+    }
+    return true;
+  }
+
+  function limitLinesAndChars(el, charMax, lineMax) {
+    let lines = el.value.split('\n');
+    let changed = false;
+    if (lines.length > lineMax) { lines = lines.slice(0, lineMax); changed = true; }
+    lines = lines.map(line => {
+      if (line.length > charMax) { changed = true; return line.substring(0, charMax); }
+      return line;
+    });
+    if (changed) {
+      const start = el.selectionStart;
+      const end = el.selectionEnd;
+      el.value = lines.join('\n');
+      el.setSelectionRange(start, end);
+    }
+  }
+
   window.APP_LANGUAGES = {
     draft: "<%= j t('draft') %>",
     sent: "<%= j t('sent') %>",

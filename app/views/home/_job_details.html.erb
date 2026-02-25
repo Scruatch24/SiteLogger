@@ -24,13 +24,36 @@
   </div>
 </div>
 
+<% is_guest = @profile.guest? && !user_signed_in? %>
+<!-- Hidden field to maintain backward compatibility with gatherLogData -->
+<input type="hidden" id="editClient" value="">
+
+<% unless is_guest %>
 <div class="space-y-6">
-  <div class="space-y-1">
-    <label class="block text-[9px] font-bold text-gray-500 uppercase ml-1"><%= t('client_name') %></label>
-    <div class="border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] relative h-[52px] flex items-center">
-      <input type="text" id="editClient" 
-             class="w-full bg-transparent border-none text-base font-black text-black focus:ring-0 py-3 px-3 outline-none placeholder:text-gray-300"
-             placeholder="<%= t('client_placeholder') %>">
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+    <!-- FROM Field -->
+    <div class="space-y-1">
+      <label class="block text-[9px] font-bold text-gray-500 uppercase ml-1"><%= t('from_label') %></label>
+      <button type="button" id="fromFieldBtn" onclick="openFromModal()"
+              class="w-full border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] h-[52px] flex items-center justify-between px-3 text-left transition-all hover:shadow-[4px_4px_0px_0px_rgba(234,88,12,1)] hover:border-orange-500 group">
+        <span id="fromFieldDisplay" class="text-sm font-black text-black truncate"><%= @profile.business_name.presence || t('from_placeholder') %></span>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 group-hover:text-orange-500 flex-shrink-0 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- BILLED TO Field -->
+    <div class="space-y-1">
+      <label class="block text-[9px] font-bold text-gray-500 uppercase ml-1"><%= t('billed_to_label') %></label>
+      <button type="button" id="billedToFieldBtn" onclick="openBilledToModal()"
+              class="w-full border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] h-[52px] flex items-center justify-between px-3 text-left transition-all hover:shadow-[4px_4px_0px_0px_rgba(234,88,12,1)] hover:border-orange-500 group">
+        <span id="billedToFieldDisplay" class="text-sm font-black text-gray-300 truncate"><%= t('billed_to_placeholder') %></span>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 group-hover:text-orange-500 flex-shrink-0 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+        </svg>
+      </button>
     </div>
   </div>
 </div>
+<% end %>

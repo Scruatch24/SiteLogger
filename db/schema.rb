@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_02_22_021854) do
+ActiveRecord::Schema[8.0].define(version: 2026_02_25_070247) do
   create_schema "auth"
   create_schema "neon_auth"
   create_schema "pgrst"
@@ -138,6 +138,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_02_22_021854) do
     t.bigint "client_id"
     t.datetime "paid_at"
     t.decimal "cached_total_due", precision: 12, scale: 2, default: "0.0"
+    t.text "sender_info"
+    t.text "recipient_info"
     t.index ["client_id"], name: "index_logs_on_client_id"
     t.index ["deleted_at"], name: "index_logs_on_deleted_at"
     t.index ["status"], name: "index_logs_on_status"

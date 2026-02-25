@@ -1,0 +1,117 @@
+<!-- BILLED TO Modal (Client Information / გადამხდელის ინფორმაცია) -->
+<div id="billedToModal" class="fixed inset-0 z-[200] hidden">
+  <div id="billedToModalOverlay" class="absolute inset-0 bg-black/50 backdrop-blur-sm opacity-0 transition-opacity duration-300" onclick="closeBilledToModal()"></div>
+  <div id="billedToModalContent" class="absolute inset-x-0 bottom-0 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:max-w-lg md:w-full md:rounded-2xl bg-white border-t-2 md:border-2 border-black md:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] translate-y-full md:translate-y-1/2 md:scale-95 md:opacity-0 transition-all duration-300 max-h-[85vh] flex flex-col">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between px-5 py-4 border-b-2 border-black bg-gray-50 md:rounded-t-2xl flex-shrink-0">
+      <h3 class="text-sm font-black uppercase tracking-widest text-black"><%= t('client_information') %></h3>
+      <button type="button" onclick="closeBilledToModal()" class="w-8 h-8 rounded-lg border-2 border-black bg-white flex items-center justify-center hover:bg-red-50 hover:border-red-500 transition-all active:scale-95">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Client Search / Select -->
+    <div class="px-5 pt-4 pb-2 border-b border-gray-100 flex-shrink-0">
+      <div class="relative">
+        <svg xmlns="http://www.w3.org/2000/svg" class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+        <input type="text" id="billedToSearch"
+               oninput="searchBilledToClients(this.value)"
+               class="w-full pl-10 pr-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl font-bold text-sm focus:outline-none focus:border-orange-500 focus:bg-white transition-all"
+               placeholder="<%= t('search_clients') %>"
+               autocomplete="off">
+      </div>
+
+      <!-- Client Dropdown Results -->
+      <div id="billedToClientList" class="mt-2 max-h-[200px] overflow-y-auto custom-scrollbar">
+        <!-- Add Client (always first) -->
+        <button type="button" onclick="selectBilledToAddClient()"
+                class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left hover:bg-orange-50 transition-colors group">
+          <div class="w-8 h-8 rounded-lg bg-orange-100 border border-orange-200 flex items-center justify-center flex-shrink-0">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m6-6H6" />
+            </svg>
+          </div>
+          <span class="text-sm font-black text-orange-600 uppercase tracking-wider"><%= t('add_client') %></span>
+        </button>
+        <!-- Dynamic client results inserted here by JS -->
+      </div>
+    </div>
+
+    <!-- Body: Client Detail Fields (Scrollable) -->
+    <div id="billedToFields" class="overflow-y-auto flex-1 p-5 space-y-4 custom-scrollbar hidden">
+      <!-- Selected client indicator -->
+      <div id="billedToSelectedIndicator" class="hidden flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-xl">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-green-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <span id="billedToSelectedName" class="text-xs font-black text-green-700 uppercase tracking-wider truncate"></span>
+        <button type="button" onclick="clearBilledToSelection()" class="ml-auto text-green-500 hover:text-red-500 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Client Name -->
+      <div>
+        <label class="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5">
+          <%= t('client_name') %> <span class="text-red-500">*</span>
+        </label>
+        <input type="text" id="billedToName"
+               class="w-full px-4 py-3 bg-white border-2 border-black rounded-xl font-bold focus:outline-none focus:border-orange-500 focus:shadow-[4px_4px_0px_0px_#F97316] transition-all"
+               placeholder="<%= t('client_placeholder') %>">
+        <p id="billedToNameError" class="hidden text-red-500 text-[10px] font-bold mt-1"><%= t('please_fill_field') %></p>
+      </div>
+
+      <!-- Email -->
+      <div>
+        <label class="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5"><%= t('client_email_label') %></label>
+        <input type="email" id="billedToEmail"
+               class="w-full px-4 py-3 bg-white border-2 border-black rounded-xl font-bold focus:outline-none focus:border-orange-500 focus:shadow-[4px_4px_0px_0px_#F97316] transition-all"
+               placeholder="<%= t('email_placeholder') %>">
+      </div>
+
+      <!-- Phone -->
+      <div>
+        <label class="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5"><%= t('client_phone_label', default: t('phone')) %></label>
+        <input type="tel" id="billedToPhone"
+               class="w-full px-4 py-3 bg-white border-2 border-black rounded-xl font-bold focus:outline-none focus:border-orange-500 focus:shadow-[4px_4px_0px_0px_#F97316] transition-all"
+               placeholder="<%= t('phone_placeholder') %>">
+      </div>
+
+      <!-- Address -->
+      <div>
+        <label class="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5"><%= t('address') %></label>
+        <textarea id="billedToAddress" rows="3"
+                  onkeydown="return checkFromCharLimit(event, this, 50, 3)"
+                  oninput="limitFromLinesAndChars(this, 50, 3)"
+                  class="w-full px-4 py-3 bg-white border-2 border-black rounded-xl font-medium focus:outline-none focus:border-orange-500 focus:shadow-[4px_4px_0px_0px_#F97316] transition-all resize-none"
+                  style="min-height: 80px; max-height: 150px;"
+                  placeholder="<%= t('client_address_placeholder', default: t('address_placeholder')) %>"></textarea>
+      </div>
+
+      <!-- Notes (only in Add Client mode) -->
+      <div id="billedToNotesGroup">
+        <label class="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5"><%= t('client_notes_label', default: 'Notes') %></label>
+        <textarea id="billedToNotes" rows="2"
+                  class="w-full px-4 py-3 bg-white border-2 border-black rounded-xl font-medium focus:outline-none focus:border-orange-500 focus:shadow-[4px_4px_0px_0px_#F97316] transition-all resize-none"
+                  placeholder="<%= t('client_notes_placeholder', default: 'Internal notes...') %>"></textarea>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div id="billedToFooter" class="hidden items-center gap-3 px-5 py-4 border-t-2 border-gray-200 flex-shrink-0">
+      <button type="button" onclick="closeBilledToModal()" class="flex-1 py-3 bg-gray-100 text-black rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200 transition-all active:scale-95">
+        <%= t('go_back') %>
+      </button>
+      <button type="button" onclick="saveBilledToModal()" class="flex-1 py-3 bg-orange-600 text-white border-2 border-black rounded-xl font-black uppercase text-[10px] tracking-widest shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-700 transition-all active:scale-95 active:shadow-none active:translate-x-[2px] active:translate-y-[2px]">
+        <%= t('save_changes') %>
+      </button>
+    </div>
+  </div>
+</div>
