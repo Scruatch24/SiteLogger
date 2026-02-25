@@ -1127,14 +1127,22 @@ Ask ONLY when a category is mentioned but has NO number at all:
    - "warranty 1 year" after listing iPhone + cases → YOU MUST ask which items the warranty applies to (all, iPhone only, cases only, etc.)
    - "გარანტია 1 წელი" after multiple products → YOU MUST ask "რომელ პროდუქტებს ეხება გარანტია?"
    - THIS IS MANDATORY: When 2+ items exist and a note/warranty/guarantee is mentioned without specifying EXACTLY which items it covers, you MUST add a clarification question. Do NOT silently assume it applies to one item.
-   - GUESS FORMAT: The "guess" field MUST contain the ITEM NAME(S) the note is guessed to apply to, NOT the note text itself. E.g., guess: "iPhone 15 Pro" or guess: "ყველა პროდუქტი" (all products). NEVER put the warranty/note text as the guess.
+   - GUESS FORMAT FOR NOTES/WARRANTY:
+     WRONG: { "guess": "1 წლიანი გარანტია" } ← This is the NOTE TEXT, NOT an item name. NEVER DO THIS.
+     WRONG: { "guess": "warranty 1 year" } ← This is the NOTE TEXT. NEVER DO THIS.
+     CORRECT: { "guess": "iPhone 15 Pro" } ← This IS an item name from the invoice.
+     CORRECT: { "guess": "ყველა პროდუქტი" } ← "all products" is acceptable.
+     CORRECT: { "guess": "iPhone 15 Pro, დამცავი ქეისი" } ← Multiple item names.
+     The "guess" field MUST be the ITEM NAME(S) you think the note applies to. NEVER the note/warranty text.
    - GUESS REFLECTS JSON: Your initial JSON MUST reflect the guess — attach the sub_category ONLY to the guessed item(s). If guess is "iPhone 15 Pro", add "1 წლიანი გარანტია" as sub_category ONLY on the iPhone item, NOT on other items.
-   - Once the user clarifies, the corrected answer will be applied on re-parse.
+   - Once the user clarifies, the corrected answer will be applied via chat.
    - If only ONE item exists, do NOT ask — just attach it.
 
 If ALL values are explicit numbers AND no ambiguous notes, return clarifications: [] (empty array).
 
-FORMAT: { "field": "[category].[field_name]", "guess": [best_guess_or_0], "question": "[short direct question]" }
+FORMAT: { "field": "[category].[field_name]", "guess": [best_guess_value], "question": "[short direct question]" }
+- For missing numbers: guess = your best numeric estimate (or 0)
+- For ambiguous notes/warranty: guess = ITEM NAME(S) the note applies to (NEVER the note text itself)
 
 CLARIFICATION LANGUAGE (NON-NEGOTIABLE):
 #{ui_is_georgian ? '- You MUST write ALL clarification question text in Georgian (ქართული). Every single "question" value MUST be in Georgian.' : '- You MUST write ALL clarification question text in English.'}

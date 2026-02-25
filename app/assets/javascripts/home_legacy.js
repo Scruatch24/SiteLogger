@@ -5888,7 +5888,7 @@ function updateUIWithoutTranscript(data) {
     sectionContainer.innerHTML = "";
 
     if (data.sections && data.sections.length > 0) {
-      data.sections.forEach(sec => addFullSection(sec.title, sec.items));
+      data.sections.forEach(sec => addFullSection(sec.title, sec.items, false, sec.type || null));
     }
 
     if (data.labor_service_items && data.labor_service_items.length > 0) {
