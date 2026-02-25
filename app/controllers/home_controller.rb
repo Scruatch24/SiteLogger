@@ -1125,21 +1125,22 @@ Ask ONLY when a category is mentioned but has NO number at all:
 3. APPROXIMATE VALUES with hedging words:
    - "around 500", "just under 800", "about 2 hours" → ask for exact value
 4. AMBIGUOUS NOTES/METADATA — warranty, guarantee, condition, note applies to MULTIPLE possible items:
-   - "warranty 1 year" after listing iPhone + cases → YOU MUST ask which items the warranty applies to (all, iPhone only, cases only, etc.)
-   - "გარანტია 1 წელი" after multiple products → YOU MUST ask "რომელ პროდუქტებს ეხება გარანტია?"
    - THIS IS MANDATORY: When 2+ items exist and a note/warranty/guarantee is mentioned without specifying EXACTLY which items it covers, you MUST add a clarification question. Do NOT silently assume it applies to one item.
-   - GUESS FORMAT FOR NOTES/WARRANTY:
-     WRONG: { "guess": "1 წლიანი გარანტია" } ← This is the NOTE TEXT, NOT an item name. NEVER DO THIS.
-     WRONG: { "guess": "warranty 1 year" } ← This is the NOTE TEXT. NEVER DO THIS.
-     CORRECT: { "guess": "iPhone 15 Pro" } ← This IS an item name from the invoice.
-     CORRECT: { "guess": "ყველა პროდუქტი" } ← "all products" is acceptable.
-     CORRECT: { "guess": "iPhone 15 Pro, დამცავი ქეისი" } ← Multiple item names.
-     The "guess" field MUST be the ITEM NAME(S) you think the note applies to. NEVER the note/warranty text.
-   - GUESS REFLECTS JSON: Your initial JSON MUST reflect the guess — attach the sub_category to ALL guessed item(s).
-     Example: If guess is "iPhone 15 Pro, დამცავი ქეისი, მონაცემთა გადატანის სერვისი" → add "1 წლიანი გარანტია" as sub_category on ALL THREE items.
-     Example: If guess is "iPhone 15 Pro" → add sub_category ONLY on the iPhone item.
-     The JSON must ALWAYS match the guess. If you guess all items, ALL items must have the sub_category.
-   - QUESTION FORMAT: Put the note/warranty INSIDE the question for clarity. Example: "რომელ პროდუქტს ან მომსახურებას ეხება 1 წლიანი გარანტია?" (NOT "გარანტია 1 წელი რომელ პროდუქტს ეხება?")
+   - ONE QUESTION ONLY: Create exactly ONE clarification for each ambiguous note/warranty. NEVER split into multiple questions per item.
+     WRONG (3 separate questions):
+       { "field": "materials.warranty", "guess": "iPhone 15 Pro", "question": "რომელ პროდუქტს ეხება გარანტია?" }
+       { "field": "materials.warranty", "guess": "დამცავი ქეისი", "question": "რომელ პროდუქტს ეხება გარანტია?" }
+       { "field": "materials.warranty", "guess": "სერვისი", "question": "რომელ პროდუქტს ეხება გარანტია?" }
+     CORRECT (1 combined question):
+       { "field": "materials.warranty", "guess": "iPhone 15 Pro, დამცავი ქეისი, მონაცემთა გადატანის სერვისი", "question": "რომელ პროდუქტს ან მომსახურებას ეხება 1 წლიანი გარანტია?" }
+   - GUESS = ITEM NAME(S): The guess field lists which items you think the note applies to (comma-separated if multiple). NEVER the note text itself.
+     WRONG: { "guess": "1 წლიანი გარანტია" } ← note text, NOT item names.
+     CORRECT: { "guess": "iPhone 15 Pro, დამცავი ქეისი" } ← item names.
+   - GUESS REFLECTS JSON: Your initial JSON MUST immediately reflect the guess — attach the sub_category to ALL guessed item(s) right now, not after confirmation.
+     If guess = "iPhone 15 Pro, დამცავი ქეისი, მონაცემთა გადატანის სერვისი" → add "1 წლიანი გარანტია" as sub_category on ALL THREE items in the JSON.
+     If guess = "iPhone 15 Pro" → add sub_category ONLY on iPhone in the JSON.
+     The JSON output must ALWAYS match the guess. Do NOT leave guessed items without the sub_category.
+   - QUESTION FORMAT: Put the note/warranty INSIDE the question. Example: "რომელ პროდუქტს ან მომსახურებას ეხება 1 წლიანი გარანტია?" (NOT "გარანტია 1 წელი რომელ პროდუქტს ეხება?")
    - Once the user clarifies, the corrected answer will be applied via chat.
    - If only ONE item exists, do NOT ask — just attach it.
 

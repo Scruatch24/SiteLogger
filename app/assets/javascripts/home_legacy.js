@@ -5471,12 +5471,14 @@ function handleClarifications(clarifications) {
       }
     }
 
-    const questionText = `${c.question}  (${window.APP_LANGUAGES.current_guess || "My guess:"} ${guessDisplay})`;
+    const questionText = c.question;
+    const guessLabel = window.APP_LANGUAGES.current_guess || "My guess:";
+    const guessHtml = `${escapeHtml(guessLabel)} ${escapeHtml(guessDisplay)}`;
 
     // Stagger bubbles with typing indicator
     setTimeout(() => {
       removeTypingIndicator();
-      addAIBubble(questionText);
+      addAIBubble(questionText, guessHtml);
       // Show typing indicator for next bubble (if not the last)
       if (index < unansweredClarifications.length - 1) {
         showTypingIndicator();
@@ -5547,16 +5549,20 @@ function removeTypingIndicator() {
   if (indicator) indicator.remove();
 }
 
-function addAIBubble(text) {
+function addAIBubble(text, guessHtml) {
   const conversation = document.getElementById('assistantConversation');
   if (!conversation) return;
 
   const div = document.createElement('div');
   div.className = "flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300";
+  const guessBlock = guessHtml ? `<div class="mt-1.5 px-3 py-1 bg-orange-50 border border-dashed border-orange-300 rounded-lg text-[11px] text-orange-700 font-bold">${guessHtml}</div>` : '';
   div.innerHTML = `
     <img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">
-    <div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-2 text-sm font-bold text-gray-800 shadow-sm max-w-[85%]">
-      ${escapeHtml(text)}
+    <div class="max-w-[85%]">
+      <div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-2 text-sm font-bold text-gray-800 shadow-sm">
+        ${escapeHtml(text)}
+      </div>
+      ${guessBlock}
     </div>
   `;
   conversation.appendChild(div);
