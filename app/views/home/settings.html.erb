@@ -204,7 +204,7 @@
                 <% is_active = (@profile.invoice_style.presence || "classic") == style %>
                 <% style_locked = is_design_locked && style != "classic" %>
                 <div onclick="<%= @profile.guest? ? '' : (style_locked ? 'if(window.showPremiumModal) window.showPremiumModal(\"design\")' : "selectInvoiceStyle('#{style}')") %>" id="style_btn_<%= style %>" 
-                     class="invoice-style-btn border-2 border-black rounded-xl p-4 flex items-center justify-between transition-all <%= is_active ? 'bg-orange-600 text-white shadow-none' : 'bg-white text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50' %> <%= 'opacity-50 cursor-not-allowed pointer-events-none' if @profile.guest? %> <%= 'opacity-40' if style_locked %>">
+                     class="invoice-style-btn border-2 border-black rounded-xl p-4 flex items-center justify-between transition-all <%= is_active ? 'bg-orange-600 text-white shadow-none' : 'bg-white text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50' %> <%= 'opacity-50 cursor-not-allowed pointer-events-none' if @profile.guest? %> <%= 'opacity-50 cursor-pointer' if style_locked %>">
                    <div class="flex items-center gap-2">
                      <span class="text-xs font-black uppercase"><%= t(style) %></span>
                      <% if style_locked %>
@@ -230,7 +230,7 @@
                     <% is_active = (@profile.accent_color.presence || '#F97316').upcase == hex.upcase %>
                     <% color_locked = is_design_locked && hex != '#F97316' %>
                     <button type="button" onclick="<%= color_locked ? 'if(window.showPremiumModal) window.showPremiumModal(\"design\")' : "selectAccentColor('#{hex}')" %>" 
-                            class="color-swatch w-6 h-6 rounded-full border-2 border-black transition-all hover:scale-110 active:scale-90 shadow-sm <%= is_active ? 'ring-2 ring-offset-1 ring-black scale-110 z-10' : '' %> <%= 'opacity-30' if color_locked %>"
+                            class="color-swatch w-6 h-6 rounded-full border-2 border-black transition-all hover:scale-110 active:scale-90 shadow-sm <%= is_active ? 'ring-2 ring-offset-1 ring-black scale-110 z-10' : '' %> <%= 'opacity-40 cursor-pointer' if color_locked %>"
                             style="background-color: <%= hex %>;"
                             data-color="<%= hex %>"
                             title="<%= name %>">
@@ -522,6 +522,7 @@
     align-items: center;
     gap: 12px;
     padding-top: 8px;
+    margin-bottom: 16px;
   }
   .settings-divider span {
     font-size: 10px;

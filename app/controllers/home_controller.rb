@@ -1048,6 +1048,8 @@ AMBIGUOUS ITEMS (Labor vs Materials):
 - REDUNDANCY CHECK: Do NOT add a sub_category that just repeats the main title or is a variation of it. (e.g. if desc is "AC Repair", do NOT add "Repaired AC" as a subcategory). Subcategories are ONLY for additional details (e.g. specific part names, location) not implied by the title.
 - Only classify as Materials if the spoken text purely describes the object (e.g. "The filter cost $25", "New filter: $25").
 - If in doubt, prefer Labor/Service for tasks.
+- SECTION TYPE DISAMBIGUATION: When you genuinely cannot determine which section an item belongs to (e.g., "100 ლარი" with no context, or an item that could equally be labor, materials, or fees), add a clarification with field: "section_type", guess: your best guess section name (e.g., "labor"), options: ["labor", "materials", "expenses", "fees"] (only include plausible sections), and question asking the user where to categorize the item. Place the item in your guessed section initially. Example: { "field": "section_type", "guess": "materials", "options": ["labor", "materials", "fees"], "question": "სად ჩავწეროთ ეს ელემენტი?" }
+- CURRENCY DISAMBIGUATION: When the currency is ambiguous (e.g., user says a number with no currency indicator and the context doesn't make it clear, or mixed currency signals), add a clarification with field: "currency", guess: your best guess ISO code (e.g., "GEL"), options: ["GEL", "USD", "EUR"] (plausible currencies), and question asking which currency. Example: { "field": "currency", "guess": "GEL", "options": ["GEL", "USD", "EUR"], "question": "რომელი ვალუტა გამოვიყენოთ?" }
 
 EXPENSES:
 - Pass-through reimbursables (parking, tolls, Uber). Usually not taxed. Price numeric required.
@@ -1967,6 +1969,8 @@ PROMPT
       12. CREDITS: Array of { amount: number, reason: "string" }. Add/remove/modify as instructed.
       13. All clarification questions MUST be in #{question_lang}.
       14. IMPORTANT: Preserve ALL existing fields even if you don't modify them (billing_mode, currency, hourly_rate, labor_tax_rate, tax_scope, etc.).
+      15. SECTION TYPE DISAMBIGUATION: When adding a new item and you genuinely cannot determine which section it belongs to, add a clarification with field: "section_type", guess: your best guess section (e.g., "labor"), options: ["labor", "materials", "expenses", "fees"] (only plausible ones), and question asking the user. Place item in guessed section initially.
+      16. CURRENCY DISAMBIGUATION: When user changes or adds amounts and the currency is ambiguous, add a clarification with field: "currency", guess: best ISO code (e.g., "GEL"), options: ["GEL", "USD", "EUR"], and question asking which currency.
 
       Return ONLY valid JSON. No markdown fences, no explanation text, no preamble.
     PROMPT
@@ -2020,13 +2024,15 @@ PROMPT
       result["clarifications"] = Array(result["clarifications"]).select { |c| c.is_a?(Hash) && c["question"].present? }
 
       # Client matching for refine_invoice responses (paid users only)
+      # Skip fuzzy matching if the user already resolved client_match via interactive card
+      client_match_resolved = params[:client_match_resolved].to_s == "true"
       if user_signed_in? && @profile.paid? && result["client"].present?
         client_name = result["client"].to_s.strip
         exact_match = current_user.clients.where("name ILIKE ?", client_name).first
         if exact_match
           result["recipient_info"] = { "client_id" => exact_match.id, "name" => exact_match.name, "email" => exact_match.email, "phone" => exact_match.phone, "address" => exact_match.address }
           result["client"] = exact_match.name
-        else
+        elsif !client_match_resolved
           similar = current_user.clients.where("name ILIKE ?", "%#{client_name.gsub(/[%_]/, '')}%").limit(5).to_a
           if similar.any?
             similar_with_counts = similar.map { |c| { "id" => c.id, "name" => c.name, "invoices_count" => c.logs.kept.count } }
@@ -2040,6 +2046,8 @@ PROMPT
             end
             result["clarifications"] << { "field" => "client_match", "guess" => best_guess, "question" => question_text, "similar_clients" => similar_with_counts }
           end
+          result["recipient_info"] = { "client_id" => nil, "name" => client_name, "is_new" => true }
+        else
           result["recipient_info"] = { "client_id" => nil, "name" => client_name, "is_new" => true }
         end
       end

@@ -5562,10 +5562,10 @@ function handleClarifications(clarifications) {
   if (!unansweredClarifications || unansweredClarifications.length === 0) {
     window.pendingClarifications = [];
 
-    // Check if the last user answer was "create new client" — show detail options
-    var lastAnswer = (window.previousClarificationAnswers || []).slice(-1)[0];
+    // Check if the CURRENT user answer (being processed right now) was "create new client"
+    var pendingText = (window._pendingAnswer && window._pendingAnswer.text) ? window._pendingAnswer.text : '';
     var createLabel = (window.APP_LANGUAGES.create_new_client || 'Create new').toLowerCase();
-    var wasCreateNew = lastAnswer && lastAnswer.text && lastAnswer.text.toLowerCase() === createLabel;
+    var wasCreateNew = pendingText.toLowerCase() === createLabel;
 
     showTypingIndicator();
     setTimeout(() => {
@@ -5574,6 +5574,7 @@ function handleClarifications(clarifications) {
         renderClientDetailOptions();
       } else {
         addAIBubble(window.APP_LANGUAGES.anything_else || "Anything else to change?");
+        renderQuickActionChips();
       }
       const assistInput = document.getElementById('assistantInput');
       if (assistInput) {
@@ -5619,6 +5620,10 @@ function handleClarifications(clarifications) {
       removeTypingIndicator();
       if (c.field === 'client_match' && c.similar_clients && c.similar_clients.length > 0) {
         renderClientMatchCard(c);
+      } else if (c.field === 'section_type' && c.options && c.options.length > 0) {
+        renderSectionTypeCard(c);
+      } else if (c.field === 'currency' && c.options && c.options.length > 0) {
+        renderCurrencyCard(c);
       } else {
         addAIBubble(questionText, guessHtml);
       }
@@ -5727,7 +5732,7 @@ function renderClientMatchCard(clarification) {
     const countLabel = c.invoices_count === 1
       ? (window.APP_LANGUAGES.invoices_count_one || '1 invoice')
       : (window.APP_LANGUAGES.invoices_count || '%{count} invoices').replace('__COUNT__', c.invoices_count || 0);
-    clientButtons += '<button type="button" onclick="autoSubmitAssistantMessage(\'' + escapeHtml(c.name).replace(/'/g, "\\'") + '\')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-gray-200 bg-white hover:bg-orange-50 hover:border-orange-300 transition-all cursor-pointer active:scale-[0.97] text-left">'
+    clientButtons += '<button type="button" onclick="window.clientMatchResolved=true; autoSubmitAssistantMessage(\'' + escapeHtml(c.name).replace(/'/g, "\\'") + '\')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-gray-200 bg-white hover:bg-orange-50 hover:border-orange-300 transition-all cursor-pointer active:scale-[0.97] text-left">'
       + '<div class="w-7 h-7 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center flex-shrink-0">'
       + '<svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>'
       + '</div>'
@@ -5739,7 +5744,7 @@ function renderClientMatchCard(clarification) {
   });
 
   var createLabel = window.APP_LANGUAGES.create_new_client || 'Create new';
-  var createNewBtn = '<button type="button" onclick="autoSubmitAssistantMessage(\'' + escapeHtml(createLabel).replace(/'/g, "\\'") + '\')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-dashed border-gray-300 bg-white hover:bg-green-50 hover:border-green-400 transition-all cursor-pointer active:scale-[0.97] text-left">'
+  var createNewBtn = '<button type="button" onclick="window.clientMatchResolved=true; autoSubmitAssistantMessage(\'' + escapeHtml(createLabel).replace(/'/g, "\\'") + '\')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-dashed border-gray-300 bg-white hover:bg-green-50 hover:border-green-400 transition-all cursor-pointer active:scale-[0.97] text-left">'
     + '<div class="w-7 h-7 rounded-full bg-green-50 border border-green-200 flex items-center justify-center flex-shrink-0">'
     + '<svg class="w-3.5 h-3.5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m6-6H6"/></svg>'
     + '</div>'
@@ -5753,6 +5758,143 @@ function renderClientMatchCard(clarification) {
     + '<div class="space-y-1.5">' + clientButtons + createNewBtn + '</div>'
     + '</div>'
     + '</div>';
+
+  conversation.appendChild(div);
+  conversation.scrollTop = conversation.scrollHeight;
+}
+
+function renderSectionTypeCard(clarification) {
+  var conversation = document.getElementById('assistantConversation');
+  if (!conversation) return;
+
+  var L = window.APP_LANGUAGES || {};
+  var options = clarification.options || [];
+  var questionText = clarification.question || '';
+  var guess = (clarification.guess || '').toLowerCase();
+
+  var sectionMeta = {
+    labor: { label: L.section_labor || 'Labor / Service', icon: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>', color: 'blue' },
+    materials: { label: L.section_materials || 'Materials', icon: '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>', color: 'orange' },
+    expenses: { label: L.section_expenses || 'Expenses', icon: '<path d="M19 5c-1.5 0-2.8 1.4-3 2-3.5-1.5-11-.3-11 5 0 1.8 0 3 2 4.5V20h4v-2h3v2h4v-4c1-.5 1.7-1 2-2h2v-4h-2c0-1-.5-1.5-1-2"/><path d="M2 9v1c0 1.1.9 2 2 2h1"/><circle cx="16" cy="11" r="1"/>', color: 'green' },
+    fees: { label: L.section_fees || 'Fees', icon: '<rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>', color: 'purple' }
+  };
+
+  var colorMap = {
+    blue: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-500', hover: 'hover:bg-blue-50 hover:border-blue-300' },
+    orange: { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-500', hover: 'hover:bg-orange-50 hover:border-orange-300' },
+    green: { bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-500', hover: 'hover:bg-green-50 hover:border-green-300' },
+    purple: { bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-500', hover: 'hover:bg-purple-50 hover:border-purple-300' }
+  };
+
+  var btns = '';
+  options.forEach(function(opt) {
+    var key = opt.toLowerCase();
+    var meta = sectionMeta[key] || { label: opt, icon: '<circle cx="12" cy="12" r="10"/>', color: 'orange' };
+    var cm = colorMap[meta.color];
+    var isGuess = key === guess;
+    var ringClass = isGuess ? ' ring-2 ring-offset-1 ring-' + meta.color + '-400' : '';
+    btns += '<button type="button" onclick="autoSubmitAssistantMessage(\'' + escapeHtml(opt).replace(/'/g, "\\'") + '\')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-gray-200 bg-white ' + cm.hover + ' transition-all cursor-pointer active:scale-[0.97] text-left' + ringClass + '">'
+      + '<div class="w-7 h-7 rounded-full ' + cm.bg + ' border ' + cm.border + ' flex items-center justify-center flex-shrink-0">'
+      + '<svg class="w-3.5 h-3.5 ' + cm.text + '" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + meta.icon + '</svg>'
+      + '</div>'
+      + '<div class="flex-1 min-w-0">'
+      + '<div class="text-[12px] font-bold text-gray-700">' + escapeHtml(meta.label) + '</div>'
+      + (isGuess ? '<div class="text-[10px] text-gray-400 font-semibold">' + escapeHtml(L.ai_guess || 'AI suggestion') + '</div>' : '')
+      + '</div>'
+      + '</button>';
+  });
+
+  var div = document.createElement('div');
+  div.className = "flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300";
+  div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
+    + '<div class="max-w-[85%]">'
+    + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
+    + '<div class="text-sm font-bold text-gray-800 mb-2.5">' + escapeHtml(questionText) + '</div>'
+    + '<div class="space-y-1.5">' + btns + '</div>'
+    + '</div>'
+    + '</div>';
+
+  conversation.appendChild(div);
+  conversation.scrollTop = conversation.scrollHeight;
+}
+
+function renderCurrencyCard(clarification) {
+  var conversation = document.getElementById('assistantConversation');
+  if (!conversation) return;
+
+  var L = window.APP_LANGUAGES || {};
+  var options = clarification.options || [];
+  var questionText = clarification.question || '';
+  var guess = (clarification.guess || '').toUpperCase();
+
+  var currencyMeta = {
+    GEL: { symbol: '₾', label: 'GEL (₾)', color: 'orange' },
+    USD: { symbol: '$', label: 'USD ($)', color: 'green' },
+    EUR: { symbol: '€', label: 'EUR (€)', color: 'blue' },
+    GBP: { symbol: '£', label: 'GBP (£)', color: 'purple' },
+    TRY: { symbol: '₺', label: 'TRY (₺)', color: 'orange' },
+    RUB: { symbol: '₽', label: 'RUB (₽)', color: 'blue' }
+  };
+
+  var colorMap = {
+    orange: { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-600', hover: 'hover:bg-orange-50 hover:border-orange-300' },
+    green: { bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-600', hover: 'hover:bg-green-50 hover:border-green-300' },
+    blue: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-600', hover: 'hover:bg-blue-50 hover:border-blue-300' },
+    purple: { bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-600', hover: 'hover:bg-purple-50 hover:border-purple-300' }
+  };
+
+  var btns = '';
+  options.forEach(function(opt) {
+    var key = opt.toUpperCase();
+    var meta = currencyMeta[key] || { symbol: key, label: key, color: 'orange' };
+    var cm = colorMap[meta.color];
+    var isGuess = key === guess;
+    var ringClass = isGuess ? ' ring-2 ring-offset-1 ring-' + meta.color + '-400' : '';
+    btns += '<button type="button" onclick="autoSubmitAssistantMessage(\'' + escapeHtml(opt).replace(/'/g, "\\'") + '\')" class="flex-1 min-w-[80px] flex flex-col items-center gap-1 px-3 py-3 rounded-xl border border-gray-200 bg-white ' + cm.hover + ' transition-all cursor-pointer active:scale-[0.97]' + ringClass + '">'
+      + '<div class="w-9 h-9 rounded-full ' + cm.bg + ' border ' + cm.border + ' flex items-center justify-center">'
+      + '<span class="text-base font-black ' + cm.text + '">' + escapeHtml(meta.symbol) + '</span>'
+      + '</div>'
+      + '<div class="text-[11px] font-bold text-gray-700">' + escapeHtml(meta.label) + '</div>'
+      + (isGuess ? '<div class="text-[9px] text-gray-400 font-semibold">' + escapeHtml(L.ai_guess || 'AI suggestion') + '</div>' : '')
+      + '</button>';
+  });
+
+  var div = document.createElement('div');
+  div.className = "flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300";
+  div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
+    + '<div class="max-w-[85%]">'
+    + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
+    + '<div class="text-sm font-bold text-gray-800 mb-2.5">' + escapeHtml(questionText) + '</div>'
+    + '<div class="flex flex-wrap gap-2">' + btns + '</div>'
+    + '</div>'
+    + '</div>';
+
+  conversation.appendChild(div);
+  conversation.scrollTop = conversation.scrollHeight;
+}
+
+function renderQuickActionChips() {
+  var conversation = document.getElementById('assistantConversation');
+  if (!conversation) return;
+
+  var L = window.APP_LANGUAGES || {};
+  var chips = [
+    { label: L.action_change_client || 'Change client', icon: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>' },
+    { label: L.action_add_discount || 'Add discount', icon: '<line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>' },
+    { label: L.action_add_item || 'Add item', icon: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>' }
+  ];
+
+  var chipHtml = '';
+  chips.forEach(function(c) {
+    chipHtml += '<button type="button" onclick="autoSubmitAssistantMessage(\'' + escapeHtml(c.label).replace(/'/g, "\\'") + '\')" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-gray-200 bg-white hover:bg-orange-50 hover:border-orange-300 transition-all cursor-pointer active:scale-[0.95] text-[11px] font-bold text-gray-600 hover:text-orange-600 shadow-sm">'
+      + '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">' + c.icon + '</svg>'
+      + escapeHtml(c.label)
+      + '</button>';
+  });
+
+  var div = document.createElement('div');
+  div.className = "flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300 ml-9";
+  div.innerHTML = '<div class="flex flex-wrap gap-1.5 mt-1">' + chipHtml + '</div>';
 
   conversation.appendChild(div);
   conversation.scrollTop = conversation.scrollHeight;
@@ -6064,7 +6206,8 @@ async function triggerAssistantReparse(userAnswer, type, questionsText) {
             ? `[AI asked: "${currentQuestions}"] User answered: "${userAnswer}"`
             : userAnswer,
           conversation_history: historyText,
-          language: localStorage.getItem('transcriptLanguage') || window.profileSystemLanguage || 'en'
+          language: localStorage.getItem('transcriptLanguage') || window.profileSystemLanguage || 'en',
+          client_match_resolved: window.clientMatchResolved || false
         })
       });
       const data = await res.json();
