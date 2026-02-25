@@ -445,26 +445,64 @@
       
       let lastPremiumShowTime = 0;
 
-      window.showPremiumModal = (force = false) => {
+      // Reason-to-row mapping for context-aware highlighting
+      const _premiumReasonMap = {
+        'voice': 'voice', 'audio': 'voice', 'recording': 'voice',
+        'transcript': 'transcript', 'chars': 'transcript', 'characters': 'transcript',
+        'export': 'exports', 'exports': 'exports', 'share': 'exports', 'save': 'exports',
+        'preview': 'preview', 'design': null, 'logo': null, 'category': null, 'enhance': null
+      };
+      const _premiumReasonLabels = {
+        'voice':      (window.APP_LANGUAGES || {}).limit_voice      || 'Recording Limit Reached',
+        'transcript': (window.APP_LANGUAGES || {}).limit_transcript  || 'Character Limit Reached',
+        'exports':    (window.APP_LANGUAGES || {}).limit_exports     || 'Export Limit Reached',
+        'preview':    (window.APP_LANGUAGES || {}).limit_preview     || 'Preview Limit Reached',
+        'design':     (window.APP_LANGUAGES || {}).limit_design      || 'Pro Feature',
+        'logo':       (window.APP_LANGUAGES || {}).limit_logo        || 'Pro Feature',
+        'category':   (window.APP_LANGUAGES || {}).limit_category    || 'Pro Feature',
+        'enhance':    (window.APP_LANGUAGES || {}).limit_enhance     || 'Enhancement Limit Reached'
+      };
+
+      window.showPremiumModal = (forceOrReason) => {
           const now = Date.now();
-          // Only show if at least 1 minute (60,000ms) has passed since last show
-          // Bypass throttle if force is true (e.g. for hard limit hits)
+          const isString = typeof forceOrReason === 'string';
+          const force = isString || forceOrReason === true;
+          const reason = isString ? forceOrReason.toLowerCase() : null;
+
           if (!force && (now - lastPremiumShowTime < 60000)) return;
 
           const modal = document.getElementById('premiumTierModal');
           if (modal) {
+              // Update badge text based on reason
+              const badgeEl = document.getElementById('premiumBadgeText');
+              if (badgeEl) {
+                const label = reason && _premiumReasonLabels[reason]
+                  ? _premiumReasonLabels[reason]
+                  : (_premiumReasonLabels[_premiumReasonMap[reason]] || badgeEl.dataset.defaultText || badgeEl.textContent);
+                if (!badgeEl.dataset.defaultText) badgeEl.dataset.defaultText = badgeEl.textContent.trim();
+                badgeEl.textContent = label;
+              }
+
+              // Highlight the relevant Pro row
+              const highlightStyle = 'background: rgba(249,115,22,0.15); border-color: rgba(249,115,22,0.5); box-shadow: 0 0 20px rgba(249,115,22,0.15);';
+              modal.querySelectorAll('[data-premium-row]').forEach(function(r) { r.style.cssText = ''; });
+              if (reason) {
+                const rowKey = _premiumReasonMap[reason];
+                if (rowKey) {
+                  const row = modal.querySelector('[data-premium-row="' + rowKey + '"]');
+                  if (row) row.style.cssText = highlightStyle;
+                }
+              }
+
               // Dismiss keyboard on mobile before showing modal
               if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
-              // On mobile, nudge scroll down 1px to collapse browser toolbar if visible
               if (window.innerWidth < 768 && document.documentElement.scrollHeight > window.innerHeight) {
                   window.scrollBy(0, 1);
               }
               modal.classList.remove('hidden');
               modal.classList.add('flex');
-              // Prevent background scrolling without triggering browser toolbar changes
               document.body.classList.add('overflow-hidden', 'touch-none');
               document.documentElement.classList.add('overflow-hidden');
-              // Block touchmove on background (most reliable mobile scroll lock)
               window._premiumPreventScroll = (e) => {
                   if (!e.target.closest('#premiumScrollContainer')) e.preventDefault();
               };
@@ -475,12 +513,12 @@
               if (window.innerWidth < 768) {
                   const scrollContainer = document.getElementById('premiumScrollContainer');
                   if (scrollContainer) {
-                      scrollContainer.scrollTop = 0; // Reset
+                      scrollContainer.scrollTop = 0;
                       
                       setTimeout(() => {
                           let animationId;
                           let startTimestamp = null;
-                          const pixelsPerSecond = 50; // Constant speed ~50px/sec
+                          const pixelsPerSecond = 50;
                           
                           const scrollStep = (timestamp) => {
                               if (!startTimestamp) startTimestamp = timestamp;
@@ -656,7 +694,7 @@
                   <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
                   <span class="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
                 </span>
-                <%= t('limit_reached') %>
+                <span id="premiumBadgeText"><%= t('limit_reached') %></span>
               </div>
               <h2 class="text-3xl md:text-5xl font-black uppercase text-white"><%= t('unlock_power').split(' ').take(t('unlock_power').split(' ').length - 2).join(' ') %> <span class="text-orange-500"><%= t('unlock_power').split(' ').last(2).join(' ') %></span></h2>
             </div>
@@ -794,7 +832,7 @@
               
               <div class="relative space-y-3 flex-1">
                 <!-- Preview Row -->
-                <div class="flex items-center justify-between p-3 bg-orange-500/5 border border-orange-500/10 rounded-2xl min-h-[56px]">
+                <div data-premium-row="preview" class="flex items-center justify-between p-3 bg-orange-500/5 border border-orange-500/10 rounded-2xl min-h-[56px] transition-all duration-300">
                   <div class="flex items-center gap-3">
                     <div class="w-8 h-8 rounded-xl bg-orange-600/20 border border-orange-500/30 text-orange-500 flex items-center justify-center shrink-0">
                       <div class="w-full h-full flex items-center justify-center" style="animation: eyeBlink 4s infinite ease-in-out;">
@@ -833,7 +871,7 @@
                 </div>
 
                 <!-- Transcript Row -->
-                <div class="flex items-center justify-between p-3 bg-orange-500/5 border border-orange-500/10 rounded-2xl min-h-[56px]">
+                <div data-premium-row="transcript" class="flex items-center justify-between p-3 bg-orange-500/5 border border-orange-500/10 rounded-2xl min-h-[56px] transition-all duration-300">
                   <div class="flex items-center gap-3">
                     <div class="w-8 h-8 rounded-xl bg-orange-600/20 border border-orange-500/30 text-orange-500 flex items-center justify-center shrink-0 overflow-hidden">
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -865,7 +903,7 @@
                 </div>
 
                 <!-- Voice record Row -->
-                <div class="flex items-center justify-between p-3 bg-orange-500/5 border border-orange-500/10 rounded-2xl min-h-[56px]">
+                <div data-premium-row="voice" class="flex items-center justify-between p-3 bg-orange-500/5 border border-orange-500/10 rounded-2xl min-h-[56px] transition-all duration-300">
                   <div class="flex items-center gap-3">
                     <div class="w-8 h-8 rounded-xl bg-orange-600/20 border border-orange-500/30 text-orange-500 flex items-center justify-center shrink-0 relative overflow-hidden">
                       <svg viewBox="-4 0 32 24" class="w-6 h-6 relative z-10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -904,7 +942,7 @@
                 </div>
 
                 <!-- Exports Row -->
-                <div class="flex items-center justify-between p-3 bg-orange-500/5 border border-orange-500/10 rounded-2xl min-h-[56px]">
+                <div data-premium-row="exports" class="flex items-center justify-between p-3 bg-orange-500/5 border border-orange-500/10 rounded-2xl min-h-[56px] transition-all duration-300">
                   <div class="flex items-center gap-3">
                     <div class="w-8 h-8 rounded-xl bg-orange-600/20 border border-orange-500/30 text-orange-500 flex items-center justify-center shrink-0 overflow-hidden relative">
                       <svg class="w-4 h-4 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

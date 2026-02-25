@@ -136,6 +136,18 @@
       maxA.innerText = Math.max(0, limit - lenT - lenHistory);
     }
     
+    // Inline nudge: show hint when approaching 80% of limit (non-paid users)
+    const nudge = document.getElementById('charLimitNudge');
+    if (nudge) {
+      const pct = totalUsed / limit;
+      if (pct >= 0.8 && pct < 1) {
+        nudge.textContent = window.APP_LANGUAGES?.upgrade_hint_chars || 'Running low? Upgrade for 10,000 characters';
+        nudge.classList.remove('hidden');
+      } else {
+        nudge.classList.add('hidden');
+      }
+    }
+
     return totalUsed;
   };
   
@@ -169,7 +181,7 @@
        }
        
        window.updateDynamicCounters(); // Re-update after trim
-       if (window.showPremiumModal) window.showPremiumModal();
+       if (window.showPremiumModal) window.showPremiumModal('transcript');
     }
   };
 
@@ -313,6 +325,16 @@
         save: "<%= j t('save') %>",
         saved: "<%= j t('saved') %>",
         limit_reached: "<%= j t('limit_reached') %>",
+        limit_voice: "<%= j t('limit_voice') %>",
+        limit_transcript: "<%= j t('limit_transcript') %>",
+        limit_exports: "<%= j t('limit_exports') %>",
+        limit_preview: "<%= j t('limit_preview') %>",
+        limit_design: "<%= j t('limit_design') %>",
+        limit_logo: "<%= j t('limit_logo') %>",
+        limit_category: "<%= j t('limit_category') %>",
+        limit_enhance: "<%= j t('limit_enhance') %>",
+        upgrade_hint_chars: "<%= j t('upgrade_hint_chars') %>",
+        upgrade_hint_audio: "<%= j t('upgrade_hint_audio') %>",
         description_placeholder: "<%= j t('description_placeholder') %>",
         amount: "<%= j t('amount') %>",
         courtesy_credit: "<%= j t('courtesy_credit') %>",

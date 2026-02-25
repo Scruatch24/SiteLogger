@@ -619,7 +619,7 @@
           <div class="grid grid-cols-2 gap-4">
             <!-- Add Category Tile -->
             <% is_category_locked = user_signed_in? && !current_user.profile&.paid? %>
-            <button onclick="<%= is_category_locked ? 'if(window.showPremiumModal) window.showPremiumModal(true)' : 'openAddCategoryModal()' %>" 
+            <button onclick="<%= is_category_locked ? 'if(window.showPremiumModal) window.showPremiumModal(\"category\")' : 'openAddCategoryModal()' %>" 
                     class="aspect-[4/3] border-4 border-black border-dashed rounded-3xl bg-gray-50 flex flex-col items-center justify-center gap-3 hover:bg-white hover:border-solid hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transition-all group active:scale-95 relative">
               <% if is_category_locked %>
                 <span class="absolute top-3 right-3 bg-black text-white text-[7px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded leading-none">PRO</span>
@@ -2010,7 +2010,7 @@
   function switchView(viewName) {
     <% if @profile.guest? %>
     if (viewName === 'categories') {
-        if (window.showPremiumModal) window.showPremiumModal();
+        if (window.showPremiumModal) window.showPremiumModal('category');
         switchView('all');
         return;
     }

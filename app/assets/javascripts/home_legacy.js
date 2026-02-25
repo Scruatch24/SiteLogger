@@ -1853,13 +1853,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
           if (audioLimit - elapsed <= 5) {
             timerDisplay.classList.add("text-red-600");
+          } else if (!window.isPaidUser && elapsed >= audioLimit * 0.75) {
+            timerDisplay.classList.add("text-orange-500");
           } else {
-            timerDisplay.classList.remove("text-red-600");
+            timerDisplay.classList.remove("text-red-600", "text-orange-500");
           }
 
           if (elapsed >= audioLimit) {
             recordBtn.onclick(); // Auto-stop
-            if (window.showPremiumModal) window.showPremiumModal();
+            if (window.showPremiumModal) window.showPremiumModal('voice');
           }
         }, 1000);
       } catch (e) {
@@ -1946,7 +1948,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const limit = window.profileCharLimit || 2000;
       if (currentText.length >= limit) {
         if (window.showPremiumModal) {
-          window.showPremiumModal();
+          window.showPremiumModal('transcript');
         } else {
           showError((window.APP_LANGUAGES.limit_reached_upgrade || "Limit Reached (%{limit}). Upgrade to add more.").replace('%{limit}', limit));
         }
@@ -2363,7 +2365,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (response.status === 429) {
         const errData = await response.json();
         showError(errData.errors ? errData.errors[0] : (window.APP_LANGUAGES.rate_limit_reached || 'Rate limit reached'));
-        if (window.showPremiumModal) window.showPremiumModal(true);
+        if (window.showPremiumModal) window.showPremiumModal('preview');
         closePdfModal();
         return;
       }
@@ -2777,7 +2779,7 @@ document.addEventListener("DOMContentLoaded", () => {
         };
       } else {
         if (response.status === 429 || resData.message === 'Rate limit reached') {
-          window.showPremiumModal?.();
+          window.showPremiumModal?.('export');
           const err = new Error('Limit reached');
           err.isLimit = true;
           throw err;
@@ -2805,7 +2807,7 @@ document.addEventListener("DOMContentLoaded", () => {
             shareLabel.classList.add('text-red-600');
           }
         }
-        window.showPremiumModal?.();
+        window.showPremiumModal?.('export');
         return { error: 'Limit reached' };
       }
 
@@ -2910,7 +2912,7 @@ document.addEventListener("DOMContentLoaded", () => {
               sLabel.classList.add('text-red-600');
             }
           }
-          window.showPremiumModal?.();
+          window.showPremiumModal?.('export');
           return;
         }
         shareTrackedThisSession = true;
@@ -2957,7 +2959,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (err.isLimit || err.message === 'Limit reached' || err.message.toLowerCase().includes("limit reached")) {
         limitWasHit = true;
         if (saveBtn) updateSaveButtonToLimitState(saveBtn);
-        window.showPremiumModal?.();
+        window.showPremiumModal?.('export');
         return;
       }
       console.error('Sharing failed', err);
@@ -5753,7 +5755,7 @@ async function startAssistantRecording() {
     const timeLeft = audioLimit - (window.totalVoiceUsed || 0);
 
     if (timeLeft <= 0) {
-      if (window.showPremiumModal) window.showPremiumModal();
+      if (window.showPremiumModal) window.showPremiumModal('voice');
       else showError(window.APP_LANGUAGES.voice_limit_reached || "Voice limit reached for this session.");
       return;
     }
@@ -5787,7 +5789,7 @@ async function startAssistantRecording() {
         if (assistantRecorder && assistantRecorder.state === 'recording') {
           window.voiceLimitTriggered = true;
           assistantRecorder.stop();
-          if (window.showPremiumModal) window.showPremiumModal();
+          if (window.showPremiumModal) window.showPremiumModal('voice');
         }
       }
     }, 1000);
