@@ -2214,6 +2214,12 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
     } else if (saveBtn && logAlreadySaved) {
+      // Populate client badge for saved logs too
+      const clientBadge2 = document.getElementById('pdfClientText');
+      if (clientBadge2) {
+        const clientName2 = (window.invoiceRecipientInfo && window.invoiceRecipientInfo.name) || data.client || '';
+        clientBadge2.textContent = clientName2 || (window.APP_LANGUAGES.no_client || 'No Client');
+      }
       updateSaveButtonToSavedState(saveBtn);
     }
     const shareBtn = document.getElementById('pdfModalShareBtn');
@@ -2227,6 +2233,27 @@ document.addEventListener("DOMContentLoaded", () => {
       viewerContainer.scrollTo(0, 0);
       viewerContainer.classList.add('locked');
     }
+
+    // Relocate Category+Client bar: on mobile → above footer, on desktop → in header
+    (function relocateCatClient() {
+      var bar = document.getElementById('pdfCatClientBar');
+      if (!bar) return;
+      var footer = document.getElementById('pdfModalFooter');
+      var headerRow = document.getElementById('pdfHeaderControlsRow');
+      if (window.innerWidth < 768) {
+        if (footer && bar.parentElement !== footer.parentElement) {
+          bar.classList.add('border-t', 'border-gray-200', 'px-6', 'py-3', 'bg-white', 'shrink-0');
+          bar.classList.remove('flex-1');
+          footer.parentElement.insertBefore(bar, footer);
+        }
+      } else {
+        if (headerRow && !headerRow.contains(bar)) {
+          bar.classList.remove('border-t', 'border-gray-200', 'px-6', 'py-3', 'bg-white', 'shrink-0');
+          bar.classList.add('flex-1');
+          headerRow.appendChild(bar);
+        }
+      }
+    })();
 
     modal.classList.remove('hidden');
     modal.offsetHeight; // force reflow
