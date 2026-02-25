@@ -149,176 +149,111 @@
     btn.classList.toggle('open');
   }
 
-  /* ── Priority-Plus Nav: mobile-only overflow + equalized sizing ── */
+  /* ── Priority-Plus Nav: jank-free single-pass fitting ── */
   (function() {
-    const header   = document.getElementById('siteHeaderInner');
-    const logo     = document.getElementById('siteLogo');
-    const navWrap  = document.getElementById('siteNavLinks');
-    const authWrap = document.getElementById('siteAuthLinks');
-    const burger   = document.getElementById('siteHamburger');
-    const menuNav  = document.getElementById('siteMenuNav');
+    var header   = document.getElementById('siteHeaderInner');
+    var logo     = document.getElementById('siteLogo');
+    var navWrap  = document.getElementById('siteNavLinks');
+    var authWrap = document.getElementById('siteAuthLinks');
+    var burger   = document.getElementById('siteHamburger');
+    var menuNav  = document.getElementById('siteMenuNav');
     if (!header || !navWrap || !burger) return;
 
     /*
-     * Display order (when shown in header):
-     *   HOME  HISTORY  PROFILE  SETTINGS  ANALYTICS  PRICING
+     * Display order (visual left→right when shown):
+     *   HOME  HISTORY  SETTINGS  PROFILE  ANALYTICS  PRICING
      *
      * Fitting priority:
      *   1. Home  2. History  (always tried first)
-     *   3. If both fit → PROFILE + SETTINGS
-     *      If only one fits → Settings preferred over Profile
+     *   3. Settings preferred over Profile; show both if budget allows
      *   4. Analytics  5. Pricing
      */
-    const DISPLAY_ORDER = ['home', 'history', 'profile', 'settings', 'analytics', 'pricing'];
-    const M = 10;           /* margin — CSS padding + gap are both this value */
-    const NAV_GAP = 4;      /* gap between nav buttons (CSS .mobile-fit-active gap) */
-
-    /* Measure natural (minimum) widths — always fresh (font loading can change sizes) */
-    var natW = {};
-
-    function measureNatural() {
-      var items = navWrap.querySelectorAll('[data-nav-key]');
-      items.forEach(function(el) {
-        el.classList.remove('nav-hidden');
-        el.style.width = '';
-        el.style.position = 'absolute';
-        el.style.visibility = 'hidden';
-      });
-      items.forEach(function(el) {
-        natW[el.dataset.navKey] = Math.ceil(el.getBoundingClientRect().width);
-      });
-      items.forEach(function(el) {
-        el.style.position = '';
-        el.style.visibility = '';
-        el.classList.add('nav-hidden');
-      });
-    }
+    var DISPLAY_ORDER = ['home', 'history', 'settings', 'profile', 'analytics', 'pricing'];
+    var M = 10;        /* margin per slot (CSS padding + gap) */
+    var NAV_GAP = 4;   /* gap between nav buttons */
+    var BURGER_W = 40; /* 36px + 2px border + 2px shadow = ~40px */
 
     function getEl(key) {
       return navWrap.querySelector('[data-nav-key="' + key + '"]');
     }
 
-    /* Count how many nav items exist in the DOM */
+    var allItems = navWrap.querySelectorAll('[data-nav-key]');
     var totalNavCount = DISPLAY_ORDER.filter(function(k) { return !!getEl(k); }).length;
 
-    /* Run priority fitting against a given budget, returns array of keys */
-    function runFitting(budget) {
+    /* ── Measure natural widths in a single hidden pass (zero visual impact) ── */
+    function measureNatural() {
+      var natW = {};
+      /* Make nav container measurable but invisible */
+      navWrap.style.cssText = 'display:flex !important;position:absolute !important;visibility:hidden !important;pointer-events:none !important;';
+      allItems.forEach(function(el) {
+        el.style.cssText = 'display:inline-flex !important;visibility:hidden !important;width:auto !important;';
+      });
+      /* Single forced layout read */
+      allItems.forEach(function(el) {
+        natW[el.dataset.navKey] = Math.ceil(el.getBoundingClientRect().width);
+      });
+      /* Reset all inline styles */
+      allItems.forEach(function(el) { el.style.cssText = ''; });
+      navWrap.style.cssText = '';
+      return natW;
+    }
+
+    /* ── Priority fitting — returns array of keys that fit in budget ── */
+    function runFitting(budget, natW) {
       var keys = [];
       var used = 0;
       function canFit(key) {
-        var w = natW[key] || 0;
-        var gap = keys.length > 0 ? NAV_GAP : 0;
-        return (used + w + gap <= budget);
+        if (!getEl(key)) return false;
+        return (used + (natW[key] || 0) + (keys.length ? NAV_GAP : 0) <= budget);
       }
       function add(key) {
-        var gap = keys.length > 0 ? NAV_GAP : 0;
+        if (keys.length) used += NAV_GAP;
+        used += (natW[key] || 0);
         keys.push(key);
-        used += (natW[key] || 0) + gap;
       }
 
-      if (!getEl('home') || !canFit('home')) return keys;
+      /* 1-2: Home, History */
+      if (!canFit('home')) return keys;
       add('home');
-
-      if (!(getEl('history') && canFit('history'))) return keys;
+      if (!canFit('history')) return keys;
       add('history');
 
-      var pEl = getEl('profile'), sEl = getEl('settings'), p3 = false;
-      /* Check if both profile + settings fit together */
-      var bothFit = false;
-      if (pEl && sEl) {
-        var need = (natW['profile'] || 0) + NAV_GAP + (natW['settings'] || 0) + NAV_GAP;
-        bothFit = (used + need <= budget);
-      }
-      if (bothFit) {
-        add('profile'); add('settings'); p3 = true;
-      } else if (sEl && canFit('settings')) {
-        add('settings'); p3 = true;
-      } else if (pEl && canFit('profile')) {
-        add('profile'); p3 = true;
-      }
-      if (!p3) return keys;
+      /* 3: Settings > Profile; show both if space allows */
+      var pEl = getEl('profile'), sEl = getEl('settings');
+      var bothNeed = (pEl && sEl)
+        ? (natW['settings'] || 0) + NAV_GAP + (natW['profile'] || 0) + NAV_GAP
+        : Infinity;
 
-      if (getEl('analytics') && canFit('analytics')) {
+      if (used + bothNeed <= budget) {
+        add('settings'); add('profile');
+      } else if (canFit('settings')) {
+        add('settings');
+      } else if (canFit('profile')) {
+        add('profile');
+      } else {
+        return keys;
+      }
+
+      /* 4-5: Analytics, Pricing */
+      if (canFit('analytics')) {
         add('analytics');
-        if (getEl('pricing') && canFit('pricing')) add('pricing');
+        if (canFit('pricing')) add('pricing');
       }
       return keys;
     }
 
-    /* Equalize fitted items + post-render verify loop */
-    function equalizeAndVerify(fitted, budget) {
-      var safe = 10;
-      while (safe-- > 0) {
-        navWrap.querySelectorAll('[data-nav-key]').forEach(function(el) { el.classList.add('nav-hidden'); el.style.width = ''; });
-        for (var j = 0; j < fitted.length; j++) fitted[j].el.classList.remove('nav-hidden');
-        if (fitted.length === 0) break;
-
-        var totalGaps = (fitted.length - 1) * NAV_GAP;
-        var spaceForButtons = budget - totalGaps;
-        var targetW = Math.floor(spaceForButtons / fitted.length);
-
-        var allFit = true;
-        for (var k = 0; k < fitted.length; k++) {
-          if (fitted[k].minW > targetW) { allFit = false; break; }
-        }
-
-        if (allFit) {
-          for (var k = 0; k < fitted.length; k++) fitted[k].el.style.width = targetW + 'px';
-        } else {
-          var locked = [], unlocked = [], lockedTotal = 0;
-          for (var k = 0; k < fitted.length; k++) {
-            if (fitted[k].minW > targetW) locked.push(fitted[k]);
-            else unlocked.push(fitted[k]);
-          }
-          for (var k = 0; k < locked.length; k++) {
-            locked[k].el.style.width = locked[k].minW + 'px';
-            lockedTotal += locked[k].minW;
-          }
-          if (unlocked.length > 0) {
-            var remaining = spaceForButtons - lockedTotal;
-            var eachW = Math.floor(remaining / unlocked.length);
-            for (var k = 0; k < unlocked.length; k++) {
-              unlocked[k].el.style.width = Math.max(eachW, unlocked[k].minW) + 'px';
-            }
-          }
-        }
-
-        var actualTotal = 0;
-        for (var j = 0; j < fitted.length; j++) {
-          actualTotal += fitted[j].el.getBoundingClientRect().width;
-        }
-        actualTotal += totalGaps;
-        if (actualTotal <= budget + 0.5) break;
-
-        var dropped = fitted.pop();
-        dropped.el.classList.add('nav-hidden');
-        dropped.el.style.width = '';
-      }
-      return fitted;
-    }
-
-    /* Convert showKeys → fitted array in DISPLAY_ORDER */
-    function buildFitted(showKeys) {
-      var showSet = {};
-      for (var i = 0; i < showKeys.length; i++) showSet[showKeys[i]] = true;
-      var fitted = [];
-      for (var i = 0; i < DISPLAY_ORDER.length; i++) {
-        var key = DISPLAY_ORDER[i];
-        if (!showSet[key]) continue;
-        var el = getEl(key);
-        if (!el) continue;
-        fitted.push({ key: key, el: el, minW: natW[key] || 0 });
-      }
-      return fitted;
-    }
+    /* ── Cache last result to skip redundant DOM writes ── */
+    var lastResult = '';
 
     function fitNav() {
       var vw = window.innerWidth;
 
-      /* ── Desktop (≥ 1280): CSS handles everything ── */
+      /* Desktop (≥ 1280): CSS handles everything */
       if (vw >= 1280) {
+        if (lastResult === 'desktop') return;
+        lastResult = 'desktop';
         navWrap.classList.remove('mobile-fit-active');
-        navWrap.querySelectorAll('[data-nav-key]').forEach(function(el) {
+        allItems.forEach(function(el) {
           el.classList.remove('nav-hidden');
           el.style.width = '';
         });
@@ -329,80 +264,116 @@
         return;
       }
 
-      /* ── Sub-desktop: fitNav ── */
-      navWrap.classList.add('mobile-fit-active');
-      measureNatural();
+      /* ── Sub-desktop ── */
 
-      navWrap.querySelectorAll('[data-nav-key]').forEach(function(el) {
+      /* Step 1: Measure natural widths while everything is still hidden */
+      var natW = measureNatural();
+
+      /* Step 2: Hide ALL nav items BEFORE making container visible (prevents flash) */
+      allItems.forEach(function(el) {
         el.classList.add('nav-hidden');
         el.style.width = '';
       });
+      navWrap.classList.add('mobile-fit-active');
 
+      /* Step 3: Calculate available budget */
       var isTablet = vw >= 768;
       var logoW = logo.offsetWidth;
-      var burgerW, authW = 0, budget, showKeys, fitted;
-
-      /* Measure burger (may be hidden — temp show) */
-      var prevBurgerDisplay = burger.style.display;
-      burger.style.display = 'flex';
-      burgerW = burger.offsetWidth;
-      burger.style.display = prevBurgerDisplay;
+      var authW = 0;
+      var budget, showKeys;
 
       if (isTablet) {
-        /* ── Tablet: auth visible, hamburger only if overflow ── */
         if (authWrap) authWrap.classList.remove('auth-hidden');
         authW = authWrap ? authWrap.offsetWidth : 0;
         burger.classList.remove('has-overflow');
 
-        /* Pass 1: budget without hamburger — [M] LOGO [M] NAVS [M] AUTH [M] */
+        /* Try without hamburger first */
         budget = header.clientWidth - logoW - authW - (4 * M);
-        if (budget < 0) budget = 0;
-        showKeys = runFitting(budget);
+        showKeys = runFitting(Math.max(budget, 0), natW);
 
         if (showKeys.length < totalNavCount) {
-          /* Some items overflow — show hamburger, refit with reduced budget */
-          /* [M] LOGO [M] NAVS [M] AUTH [M] BURGER [M] = 5 margins */
           burger.classList.add('has-overflow');
-          budget = header.clientWidth - logoW - authW - burgerW - (5 * M);
-          if (budget < 0) budget = 0;
-          showKeys = runFitting(budget);
+          budget = header.clientWidth - logoW - authW - BURGER_W - (5 * M);
+          showKeys = runFitting(Math.max(budget, 0), natW);
         }
       } else {
-        /* ── Mobile: auth hidden, hamburger always ── */
         if (authWrap) authWrap.classList.add('auth-hidden');
         burger.classList.add('has-overflow');
-        burger.style.display = '';
-
-        /* [M] LOGO [M] NAVS [M] BURGER [M] = 4 margins */
-        budget = header.clientWidth - logoW - burgerW - (4 * M);
-        if (budget < 0) budget = 0;
-        showKeys = runFitting(budget);
+        budget = header.clientWidth - logoW - BURGER_W - (4 * M);
+        showKeys = runFitting(Math.max(budget, 0), natW);
       }
 
-      fitted = buildFitted(showKeys);
-      fitted = equalizeAndVerify(fitted, budget);
+      /* Skip DOM writes if result is identical to last run */
+      var resultKey = showKeys.join(',') + '|' + budget;
+      if (resultKey === lastResult) return;
+      lastResult = resultKey;
 
-      /* Menu: show items not in header */
-      var fittedSet = {};
-      for (var j = 0; j < fitted.length; j++) fittedSet[fitted[j].key] = true;
+      /* Step 4: Build fitted list in DISPLAY_ORDER for visual ordering */
+      var showSet = {};
+      showKeys.forEach(function(k) { showSet[k] = true; });
+      var fitted = [];
+      DISPLAY_ORDER.forEach(function(key) {
+        if (!showSet[key]) return;
+        var el = getEl(key);
+        if (el) fitted.push({ key: key, el: el, minW: natW[key] || 0 });
+      });
+
+      /* Step 5: Calculate widths — equalize if all fit, else proportional */
+      if (fitted.length > 0) {
+        var totalGaps = (fitted.length - 1) * NAV_GAP;
+        var space = Math.max(budget - totalGaps, 0);
+        var targetW = Math.floor(space / fitted.length);
+        var maxNat = 0;
+        for (var i = 0; i < fitted.length; i++) {
+          if (fitted[i].minW > maxNat) maxNat = fitted[i].minW;
+        }
+
+        if (maxNat <= targetW) {
+          /* All items fit at equal width — use equalized */
+          for (var i = 0; i < fitted.length; i++) {
+            fitted[i].el.style.width = targetW + 'px';
+          }
+        } else {
+          /* Can't equalize — lock wide items at natural, share remaining among smaller */
+          var locked = 0, lockedW = 0;
+          for (var i = 0; i < fitted.length; i++) {
+            if (fitted[i].minW > targetW) { locked++; lockedW += fitted[i].minW; }
+          }
+          var rest = fitted.length - locked;
+          var restW = rest > 0 ? Math.floor((space - lockedW) / rest) : 0;
+          for (var i = 0; i < fitted.length; i++) {
+            fitted[i].el.style.width = (fitted[i].minW > targetW ? fitted[i].minW : Math.max(restW, fitted[i].minW)) + 'px';
+          }
+        }
+
+        /* Step 6: Reveal fitted items (single paint) */
+        for (var i = 0; i < fitted.length; i++) {
+          fitted[i].el.classList.remove('nav-hidden');
+        }
+      }
+
+      /* Step 7: Update hamburger menu — show items NOT in header */
       menuNav.querySelectorAll('[data-menu-key]').forEach(function(el) {
-        el.classList.toggle('menu-visible', !fittedSet[el.dataset.menuKey]);
+        el.classList.toggle('menu-visible', !showSet[el.dataset.menuKey]);
       });
     }
 
-    /* Run on load + resize (debounced) */
+    /* ── Run on resize (debounced) ── */
     var resizeTimer;
     window.addEventListener('resize', function() {
       clearTimeout(resizeTimer);
+      lastResult = '';          /* force recalc on resize */
       resizeTimer = setTimeout(fitNav, 80);
     });
 
+    /* ── Initial run: once immediately, once after fonts settle ── */
+    fitNav();
     if (document.fonts && document.fonts.ready) {
-      document.fonts.ready.then(function() { requestAnimationFrame(fitNav); });
-    } else {
-      window.addEventListener('load', fitNav);
+      document.fonts.ready.then(function() {
+        lastResult = '';        /* fonts may change measurements */
+        requestAnimationFrame(fitNav);
+      });
     }
-    requestAnimationFrame(fitNav);
 
     /* ── Logo hover animation (unchanged) ── */
     const isMobile = () => window.innerWidth < 1280;
