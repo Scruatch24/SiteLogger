@@ -816,6 +816,10 @@
     flex-shrink: 0;
   }
   .ana-due-soon-row.urgent .ana-due-soon-amount { color: #fbbf24; }
+  .ana-due-soon-row.aging-green .ana-due-soon-amount { color: #4ade80; }
+  .ana-due-soon-row.aging-yellow .ana-due-soon-amount { color: #fbbf24; }
+  .ana-due-soon-row.aging-orange .ana-due-soon-amount { color: #f97316; }
+  .ana-due-soon-row.aging-red .ana-due-soon-amount { color: #f87171; }
 
   /* Top Client Share Warning */
   .ana-client-share-warning {
@@ -917,6 +921,24 @@
     font-weight: 500;
   }
 
+  @media (min-width: 768px) {
+    .ana-card-label { font-size: 12px; }
+    .ana-card-value { font-size: 30px; }
+    .ana-section-title { font-size: 20px; }
+    .ana-health-title { font-size: 16px; }
+    .ana-health-metric-val { font-size: 16px; }
+    .ana-stat-val { font-size: 22px; }
+    .ana-stat-label { font-size: 10px; }
+    .ana-due-soon-client { font-size: 14px; }
+    .ana-due-soon-amount { font-size: 15px; }
+    .ana-due-soon-meta { font-size: 10px; }
+    .ana-aging-count { font-size: 26px; }
+    .ana-aging-label { font-size: 10px; }
+    .ana-client-summary-val { font-size: 24px; }
+    .ana-client-summary-label { font-size: 10px; }
+    .ana-badge { font-size: 9px; }
+    .ana-back { font-size: 11px; }
+  }
   @media (max-width: 880px) {
     .ana-cards { grid-template-columns: repeat(2, 1fr); }
     .ana-stats-grid { grid-template-columns: 1fr; }

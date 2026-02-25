@@ -358,16 +358,16 @@
           <%# Row 1: All 4 category toggles on one line %>
           <div class="flex gap-2 h-12">
             <button type="button" data-scope="labor" onclick="<%= @profile.guest? ? '' : 'toggleScopeToken(this)' %>" class="flex-1 flex items-center justify-center text-[10px] font-black uppercase transition-all border-2 border-black rounded-xl scope-toggle bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 <%= 'opacity-50 cursor-not-allowed pointer-events-none' if @profile.guest? %>">
-              <%= t('labor') %>
+              <span class="hidden md:inline"><%= t('labor') %></span><span class="md:hidden"><%= t('labor_short') %></span>
             </button>
             <button type="button" data-scope="materials_only" onclick="<%= @profile.guest? ? '' : 'toggleScopeToken(this)' %>" class="flex-1 flex items-center justify-center text-[10px] font-black uppercase transition-all border-2 border-black rounded-xl scope-toggle bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 <%= 'opacity-50 cursor-not-allowed pointer-events-none' if @profile.guest? %>">
-              <%= t('materials_only') %>
+              <span class="hidden md:inline"><%= t('materials_only') %></span><span class="md:hidden"><%= t('materials_only_short') %></span>
             </button>
             <button type="button" data-scope="expenses_only" onclick="<%= @profile.guest? ? '' : 'toggleScopeToken(this)' %>" class="flex-1 flex items-center justify-center text-[10px] font-black uppercase transition-all border-2 border-black rounded-xl scope-toggle bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 <%= 'opacity-50 cursor-not-allowed pointer-events-none' if @profile.guest? %>">
-              <%= t('expense') %>
+              <span class="hidden md:inline"><%= t('expense') %></span><span class="md:hidden"><%= t('expense_short') %></span>
             </button>
             <button type="button" data-scope="fees_only" onclick="<%= @profile.guest? ? '' : 'toggleScopeToken(this)' %>" class="flex-1 flex items-center justify-center text-[10px] font-black uppercase transition-all border-2 border-black rounded-xl scope-toggle bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 <%= 'opacity-50 cursor-not-allowed pointer-events-none' if @profile.guest? %>">
-              <%= t('fee') %>
+              <span class="hidden md:inline"><%= t('fee') %></span><span class="md:hidden"><%= t('fee_short') %></span>
             </button>
           </div>
 
@@ -444,7 +444,10 @@
         <!-- ── ANALYTICS ── -->
         <% is_analytics_locked = !@profile.paid? %>
         <div class="settings-divider"><span><%= t('settings_section.analytics') %></span></div>
-        <div class="space-y-6 <%= is_analytics_locked ? 'opacity-40 grayscale pointer-events-none select-none' : '' %>">
+        <div class="relative space-y-6 <%= is_analytics_locked ? 'opacity-40 grayscale select-none' : '' %>">
+      <% if is_analytics_locked && !@profile.guest? %>
+        <div onclick="if(window.showPremiumModal) window.showPremiumModal('analytics')" class="absolute inset-0 z-10 cursor-pointer"></div>
+      <% end %>
 
       <div class="space-y-2">
         <label class="text-[12px] font-black text-black uppercase tracking-widest ml-1"><%= t('settings_info.alert_threshold_title') %><% if user_signed_in? && !@profile.paid? %> <span class="bg-black text-white text-[7px] font-black uppercase tracking-wider px-1 py-0.5 rounded leading-none ml-1" style="vertical-align: middle;">PRO</span><% end %></label>
@@ -535,7 +538,7 @@
     background: #e5e7eb;
   }
   .settings-divider + div {
-    margin-top: 0.75rem !important;
+    margin-top: 0.35rem !important;
   }
 </style>
 

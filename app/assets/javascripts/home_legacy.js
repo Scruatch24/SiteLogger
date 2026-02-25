@@ -3614,6 +3614,7 @@ function updateAddMenuButtons() {
     if (dropup && !dropup.classList.contains('hidden')) {
       dropup.classList.add('hidden');
       if (btn) btn.classList.remove('pop-active');
+      if (window.hidePopupBackdrop) window.hidePopupBackdrop();
     }
   }
 }
@@ -3677,6 +3678,18 @@ function addExpenseSection() {
 
 function addFeeSection() {
   addFullSection(window.APP_LANGUAGES.fees || "Fees", [], true, 'fees');
+}
+
+function addSectionWithScrollLock(addFn) {
+  var btn = document.getElementById('addMenuBtn');
+  var beforeY = btn ? btn.getBoundingClientRect().top : null;
+  addFn();
+  updateAddMenuButtons();
+  if (btn && beforeY !== null) {
+    var afterY = btn.getBoundingClientRect().top;
+    var shift = afterY - beforeY;
+    if (Math.abs(shift) > 1) window.scrollBy(0, shift);
+  }
 }
 
 // --- MISSING SECTION UTILITIES ---
@@ -5549,11 +5562,19 @@ function handleClarifications(clarifications) {
   if (!unansweredClarifications || unansweredClarifications.length === 0) {
     window.pendingClarifications = [];
 
-    // AI "all good" message with typing animation
+    // Check if the last user answer was "create new client" — show detail options
+    var lastAnswer = (window.previousClarificationAnswers || []).slice(-1)[0];
+    var createLabel = (window.APP_LANGUAGES.create_new_client || 'Create new').toLowerCase();
+    var wasCreateNew = lastAnswer && lastAnswer.text && lastAnswer.text.toLowerCase() === createLabel;
+
     showTypingIndicator();
     setTimeout(() => {
       removeTypingIndicator();
-      addAIBubble(window.APP_LANGUAGES.anything_else || "Anything else to change?");
+      if (wasCreateNew) {
+        renderClientDetailOptions();
+      } else {
+        addAIBubble(window.APP_LANGUAGES.anything_else || "Anything else to change?");
+      }
       const assistInput = document.getElementById('assistantInput');
       if (assistInput) {
         assistInput.placeholder = window.APP_LANGUAGES.assistant_placeholder || "Tell me what to change...";
@@ -5596,7 +5617,11 @@ function handleClarifications(clarifications) {
     // Stagger bubbles with typing indicator
     setTimeout(() => {
       removeTypingIndicator();
-      addAIBubble(questionText, guessHtml);
+      if (c.field === 'client_match' && c.similar_clients && c.similar_clients.length > 0) {
+        renderClientMatchCard(c);
+      } else {
+        addAIBubble(questionText, guessHtml);
+      }
       // Show typing indicator for next bubble (if not the last)
       if (index < unansweredClarifications.length - 1) {
         showTypingIndicator();
@@ -5683,6 +5708,114 @@ function addAIBubble(text, guessHtml) {
       ${guessBlock}
     </div>
   `;
+  conversation.appendChild(div);
+  conversation.scrollTop = conversation.scrollHeight;
+}
+
+function renderClientMatchCard(clarification) {
+  const conversation = document.getElementById('assistantConversation');
+  if (!conversation) return;
+
+  const clients = clarification.similar_clients || [];
+  const questionText = clarification.question || '';
+
+  const div = document.createElement('div');
+  div.className = "flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300";
+
+  let clientButtons = '';
+  clients.forEach(function(c) {
+    const countLabel = c.invoices_count === 1
+      ? (window.APP_LANGUAGES.invoices_count_one || '1 invoice')
+      : (window.APP_LANGUAGES.invoices_count || '%{count} invoices').replace('__COUNT__', c.invoices_count || 0);
+    clientButtons += '<button type="button" onclick="autoSubmitAssistantMessage(\'' + escapeHtml(c.name).replace(/'/g, "\\'") + '\')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-gray-200 bg-white hover:bg-orange-50 hover:border-orange-300 transition-all cursor-pointer active:scale-[0.97] text-left">'
+      + '<div class="w-7 h-7 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center flex-shrink-0">'
+      + '<svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>'
+      + '</div>'
+      + '<div class="flex-1 min-w-0">'
+      + '<div class="text-[12px] font-bold text-gray-800 truncate">' + escapeHtml(c.name) + '</div>'
+      + '<div class="text-[10px] text-gray-400 font-semibold">' + escapeHtml(countLabel) + '</div>'
+      + '</div>'
+      + '</button>';
+  });
+
+  var createLabel = window.APP_LANGUAGES.create_new_client || 'Create new';
+  var createNewBtn = '<button type="button" onclick="autoSubmitAssistantMessage(\'' + escapeHtml(createLabel).replace(/'/g, "\\'") + '\')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-dashed border-gray-300 bg-white hover:bg-green-50 hover:border-green-400 transition-all cursor-pointer active:scale-[0.97] text-left">'
+    + '<div class="w-7 h-7 rounded-full bg-green-50 border border-green-200 flex items-center justify-center flex-shrink-0">'
+    + '<svg class="w-3.5 h-3.5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m6-6H6"/></svg>'
+    + '</div>'
+    + '<div class="text-[12px] font-bold text-gray-600">' + escapeHtml(createLabel) + '</div>'
+    + '</button>';
+
+  div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
+    + '<div class="max-w-[85%]">'
+    + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
+    + '<div class="text-sm font-bold text-gray-800 mb-2.5">' + escapeHtml(questionText) + '</div>'
+    + '<div class="space-y-1.5">' + clientButtons + createNewBtn + '</div>'
+    + '</div>'
+    + '</div>';
+
+  conversation.appendChild(div);
+  conversation.scrollTop = conversation.scrollHeight;
+}
+
+function autoSubmitAssistantMessage(text) {
+  var input = document.getElementById('assistantInput');
+  if (input) {
+    input.value = text;
+    submitAssistantMessage();
+  }
+}
+
+function renderClientDetailOptions() {
+  var conversation = document.getElementById('assistantConversation');
+  if (!conversation) return;
+
+  var L = window.APP_LANGUAGES || {};
+  var questionText = L.add_client_details_question || 'Would you like to add details for this client?';
+
+  var details = [
+    { label: L.detail_email || 'Email', icon: '<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>', color: 'blue' },
+    { label: L.detail_phone || 'Phone', icon: '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>', color: 'green' },
+    { label: L.detail_address || 'Address', icon: '<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>', color: 'purple' },
+    { label: L.detail_notes || 'Notes', icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>', color: 'amber' }
+  ];
+
+  var colorMap = {
+    blue: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-500', hover: 'hover:bg-blue-50 hover:border-blue-300' },
+    green: { bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-500', hover: 'hover:bg-green-50 hover:border-green-300' },
+    purple: { bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-500', hover: 'hover:bg-purple-50 hover:border-purple-300' },
+    amber: { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-500', hover: 'hover:bg-amber-50 hover:border-amber-300' }
+  };
+
+  var btns = '';
+  details.forEach(function(d) {
+    var cm = colorMap[d.color];
+    btns += '<button type="button" onclick="autoSubmitAssistantMessage(\'' + escapeHtml(d.label).replace(/'/g, "\\'") + '\')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-gray-200 bg-white ' + cm.hover + ' transition-all cursor-pointer active:scale-[0.97] text-left">'
+      + '<div class="w-7 h-7 rounded-full ' + cm.bg + ' border ' + cm.border + ' flex items-center justify-center flex-shrink-0">'
+      + '<svg class="w-3.5 h-3.5 ' + cm.text + '" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + d.icon + '</svg>'
+      + '</div>'
+      + '<div class="text-[12px] font-bold text-gray-700">' + escapeHtml(d.label) + '</div>'
+      + '</button>';
+  });
+
+  var noLabel = L.detail_no || 'No';
+  btns += '<button type="button" onclick="autoSubmitAssistantMessage(\'' + escapeHtml(noLabel).replace(/'/g, "\\'") + '\')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-dashed border-gray-300 bg-white hover:bg-gray-50 hover:border-gray-400 transition-all cursor-pointer active:scale-[0.97] text-left">'
+    + '<div class="w-7 h-7 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center flex-shrink-0">'
+    + '<svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>'
+    + '</div>'
+    + '<div class="text-[12px] font-bold text-gray-500">' + escapeHtml(noLabel) + '</div>'
+    + '</button>';
+
+  var div = document.createElement('div');
+  div.className = "flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300";
+  div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
+    + '<div class="max-w-[85%]">'
+    + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
+    + '<div class="text-sm font-bold text-gray-800 mb-2.5">' + escapeHtml(questionText) + '</div>'
+    + '<div class="space-y-1.5">' + btns + '</div>'
+    + '</div>'
+    + '</div>';
+
   conversation.appendChild(div);
   conversation.scrollTop = conversation.scrollHeight;
 }

@@ -1766,17 +1766,19 @@ PROMPT
           json["client"] = exact_match.name
         else
           # Tier 2: Fuzzy match — find similar names and ask user to confirm
-          similar = current_user.clients.where("name ILIKE ?", "%#{client_name.gsub(/[%_]/, '')}%").limit(3).to_a
+          similar = current_user.clients.where("name ILIKE ?", "%#{client_name.gsub(/[%_]/, '')}%").limit(5).to_a
           if similar.any?
-            # Add a clarification asking user to confirm
-            match_names = similar.map(&:name).join(", ")
+            similar_with_counts = similar.map { |c| { "id" => c.id, "name" => c.name, "invoices_count" => c.logs.kept.count } }
+              .sort_by { |c| -c["invoices_count"] }
+              .first(3)
+            best_guess = similar_with_counts.first["name"]
             question_text = if I18n.locale.to_s == "ka"
-              "მსგავსი კლიენტი მოიძებნა: #{match_names}. მას გულისხმობდით თუ ახალ კლიენტს ქმნით?"
+              "მოიძებნა რამდენიმე მსგავსი კლიენტი:"
             else
-              "Similar client found: #{match_names}. Did you mean one of them, or is this a new client?"
+              "Multiple similar clients found:"
             end
             json["clarifications"] ||= []
-            json["clarifications"] << { "field" => "client_match", "guess" => client_name, "question" => question_text, "similar_clients" => similar.map { |c| { "id" => c.id, "name" => c.name } } }
+            json["clarifications"] << { "field" => "client_match", "guess" => best_guess, "question" => question_text, "similar_clients" => similar_with_counts }
             recipient_info = { "client_id" => nil, "name" => client_name, "is_new" => true }
           else
             # No match at all — treat as new client
@@ -2025,15 +2027,18 @@ PROMPT
           result["recipient_info"] = { "client_id" => exact_match.id, "name" => exact_match.name, "email" => exact_match.email, "phone" => exact_match.phone, "address" => exact_match.address }
           result["client"] = exact_match.name
         else
-          similar = current_user.clients.where("name ILIKE ?", "%#{client_name.gsub(/[%_]/, '')}%").limit(3).to_a
+          similar = current_user.clients.where("name ILIKE ?", "%#{client_name.gsub(/[%_]/, '')}%").limit(5).to_a
           if similar.any?
-            match_names = similar.map(&:name).join(", ")
+            similar_with_counts = similar.map { |c| { "id" => c.id, "name" => c.name, "invoices_count" => c.logs.kept.count } }
+              .sort_by { |c| -c["invoices_count"] }
+              .first(3)
+            best_guess = similar_with_counts.first["name"]
             question_text = if I18n.locale.to_s == "ka"
-              "მსგავსი კლიენტი მოიძებნა: #{match_names}. მას გულისხმობდით თუ ახალ კლიენტს ქმნით?"
+              "მოიძებნა რამდენიმე მსგავსი კლიენტი:"
             else
-              "Similar client found: #{match_names}. Did you mean one of them, or is this a new client?"
+              "Multiple similar clients found:"
             end
-            result["clarifications"] << { "field" => "client_match", "guess" => client_name, "question" => question_text, "similar_clients" => similar.map { |c| { "id" => c.id, "name" => c.name } } }
+            result["clarifications"] << { "field" => "client_match", "guess" => best_guess, "question" => question_text, "similar_clients" => similar_with_counts }
           end
           result["recipient_info"] = { "client_id" => nil, "name" => client_name, "is_new" => true }
         end
