@@ -17,6 +17,9 @@
 
 <div class="text-black font-sans p-2 xl:p-4 pb-32 xl:pb-10" data-nosnippet>
 
+  <!-- Global popup backdrop (dim/blur when dropdowns/popups open) -->
+  <div id="popupBackdrop" class="fixed inset-0 z-[98] bg-black/30 backdrop-blur-[2px] hidden pointer-events-auto" onclick="window.hidePopupBackdrop()"></div>
+
   <%= render 'svg_symbols' %>
 
   <div class="max-w-md xl:max-w-6xl mx-auto">

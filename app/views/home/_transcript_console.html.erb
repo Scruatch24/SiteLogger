@@ -1,6 +1,6 @@
-<div id="textSection" class="space-y-3 transition-all duration-500">
+<div id="textSection" class="space-y-2 transition-all duration-500">
   <div class="relative flex items-center justify-between">
-    <label data-nosnippet class="text-xs font-black text-black uppercase tracking-widest ml-1.5 md:ml-0"><%= t('live_transcript') %></label>
+    <label data-nosnippet class="text-xs font-black text-black uppercase tracking-widest ml-2.5 md:ml-0"><%= t('live_transcript') %></label>
     
     <!-- Language Selector -->
     <div class="relative mr-1.5 md:mr-0">
@@ -19,26 +19,18 @@
         </svg>
       </button>
       
-      <div id="languageMenu" class="hidden absolute right-1/2 translate-x-1/2 z-[100] mt-2 w-40 bg-white border-2 border-black rounded-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div id="languageMenu" class="hidden absolute right-0 z-[100] mt-2 w-auto min-w-[140px] bg-white border-2 border-black rounded-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <button type="button" onclick="setTranscriptLanguage('en')" 
-                class="w-full flex items-center justify-between px-4 py-3 text-xs font-black hover:bg-orange-50 transition-colors border-b-2 border-black group">
-          <div class="flex items-center gap-2.5">
-            <span class="fi fi-us rounded-sm scale-110"></span> 
+                class="w-full flex items-center gap-2.5 px-4 py-3 text-xs font-black hover:bg-orange-50 transition-colors border-b-2 border-black group whitespace-nowrap">
+            <span class="fi fi-us rounded-sm scale-110 shrink-0"></span> 
             <span><%= t('english') %></span>
-          </div>
-          <div id="check-en" class="hidden">
-            <svg class="h-4 w-4 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="4"><path d="M5 13l4 4L19 7" /></svg>
-          </div>
+            <svg id="check-en" class="h-3.5 w-3.5 text-orange-600 shrink-0 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="4"><path d="M5 13l4 4L19 7" /></svg>
         </button>
         <button type="button" onclick="setTranscriptLanguage('ge')" 
-                class="w-full flex items-center justify-between px-4 py-3 text-xs font-black hover:bg-orange-50 transition-colors group">
-          <div class="flex items-center gap-2.5">
-            <span class="fi fi-ge rounded-sm scale-110"></span> 
+                class="w-full flex items-center gap-2.5 px-4 py-3 text-xs font-black hover:bg-orange-50 transition-colors group whitespace-nowrap">
+            <span class="fi fi-ge rounded-sm scale-110 shrink-0"></span> 
             <span><%= t('georgian') %></span>
-          </div>
-          <div id="check-ge" class="hidden">
-            <svg class="h-4 w-4 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="4"><path d="M5 13l4 4L19 7" /></svg>
-          </div>
+            <svg id="check-ge" class="h-3.5 w-3.5 text-orange-600 shrink-0 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="4"><path d="M5 13l4 4L19 7" /></svg>
         </button>
       </div>
     </div>
@@ -58,7 +50,7 @@
   </div>
   
   <!-- Transcript Actions -->
-  <div class="flex items-center justify-between pr-1 gap-3">
+  <div class="flex items-center justify-between gap-3 ml-2 md:ml-0 mr-1.5 md:mr-0">
     <button id="enhanceTranscriptBtn" type="button" data-nosnippet data-label-default="<%= t('enhance_text') %>" data-label-loading="<%= t('enhancing_text') %>" class="flex items-center gap-2 px-3.5 py-2 bg-white border-2 border-black text-black rounded-xl transition-all shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 active:shadow-none active:translate-x-[2px] active:translate-y-[2px]" title="<%= t('enhance_text_title') %>">
       <%= image_tag "icons/wand.svg", alt: "", class: "h-3.5 w-3.5" %>
       <span class="text-[10px] font-black uppercase tracking-widest"><%= t('enhance_text') %></span>

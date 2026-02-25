@@ -1,3 +1,36 @@
+/* ── Global Popup Backdrop ── */
+window._activePopupClose = null;
+
+window.showPopupBackdrop = function(triggerEl, closeFn) {
+  var bd = document.getElementById('popupBackdrop');
+  if (!bd) return;
+  bd.classList.remove('hidden');
+  window._activePopupClose = closeFn || null;
+  if (triggerEl) {
+    triggerEl.style.position = triggerEl.style.position || 'relative';
+    triggerEl.style.zIndex = '99';
+    triggerEl._backdropElevated = true;
+  }
+  /* Elevate the trigger's nearest popup-bearing ancestor too */
+  if (triggerEl) {
+    var parent = triggerEl.closest('.relative');
+    if (parent) { parent.style.zIndex = '99'; parent._backdropElevated = true; }
+  }
+};
+
+window.hidePopupBackdrop = function() {
+  var bd = document.getElementById('popupBackdrop');
+  if (bd) bd.classList.add('hidden');
+  /* Reset elevated elements */
+  document.querySelectorAll('[style*="z-index: 99"]').forEach(function(el) {
+    if (el._backdropElevated) { el.style.zIndex = ''; el._backdropElevated = false; }
+  });
+  if (window._activePopupClose) {
+    window._activePopupClose();
+    window._activePopupClose = null;
+  }
+};
+
 function autoResize(el) {
   if (!el) return;
   el.style.height = 'auto';
@@ -117,9 +150,11 @@ window.toggleGlobalDiscountPanel = function (btn) {
   if (isHidden) {
     panel.classList.remove('hidden');
     btn.classList.add('pop-active');
+    window.showPopupBackdrop(btn, function() { window.toggleGlobalDiscountPanel(btn); });
   } else {
     panel.classList.add('hidden');
     btn.classList.remove('pop-active');
+    window.hidePopupBackdrop();
 
     const flat = parseFloat(document.getElementById('globalDiscountFlat')?.value) || 0;
     const pct = parseFloat(document.getElementById('globalDiscountPercent')?.value) || 0;
@@ -138,10 +173,14 @@ window.toggleGlobalDiscountPanel = function (btn) {
 window.toggleGlobalCurrencyMenu = function (e) {
   e.stopPropagation();
   const menu = document.getElementById('globalCurrencyMenu');
+  const btn = e.currentTarget || e.target;
   menu.classList.toggle('hidden');
   if (!menu.classList.contains('hidden')) {
     document.getElementById('globalCurrencySearch').focus();
     renderGlobalCurrencyList("");
+    window.showPopupBackdrop(btn, function() { menu.classList.add('hidden'); window.hidePopupBackdrop(); });
+  } else {
+    window.hidePopupBackdrop();
   }
 }
 
@@ -201,12 +240,14 @@ document.addEventListener('click', (e) => {
   // Global Currency Menu
   const menu = document.getElementById('globalCurrencyMenu');
   if (menu && !e.target.closest('#globalCurrencyBtn') && !e.target.closest('#globalCurrencyMenu')) {
+    if (!menu.classList.contains('hidden')) window.hidePopupBackdrop();
     menu.classList.add('hidden');
   }
 
   // Language Menu
   const langMenu = document.getElementById('languageMenu');
   if (langMenu && !e.target.closest('#languageSelectorBtn') && !e.target.closest('#languageMenu')) {
+    if (!langMenu.classList.contains('hidden')) window.hidePopupBackdrop();
     langMenu.classList.add('hidden');
     document.getElementById('langChevron')?.classList.remove('rotate-180');
   }
@@ -225,6 +266,7 @@ window.setTranscriptLanguage = function (lang) {
   updateLanguageUI(normalizedLang);
   document.getElementById('languageMenu')?.classList.add('hidden');
   document.getElementById('langChevron')?.classList.remove('rotate-180');
+  window.hidePopupBackdrop();
 
   // Restart live recognition with new language if currently active
   if (window.liveRecognition) {
@@ -276,6 +318,15 @@ document.addEventListener('DOMContentLoaded', () => {
       const isHidden = menu?.classList.contains('hidden');
       menu?.classList.toggle('hidden');
       document.getElementById('langChevron')?.classList.toggle('rotate-180', isHidden);
+      if (isHidden) {
+        window.showPopupBackdrop(langBtn, function() {
+          menu?.classList.add('hidden');
+          document.getElementById('langChevron')?.classList.remove('rotate-180');
+          window.hidePopupBackdrop();
+        });
+      } else {
+        window.hidePopupBackdrop();
+      }
     };
   }
 });
@@ -1536,7 +1587,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Close menus when clicking outside
   document.addEventListener('click', (e) => {
     if (!e.target.closest('.item-menu-container')) {
+      let hadOpen = false;
       document.querySelectorAll('.item-menu-dropdown.show').forEach(d => {
+        hadOpen = true;
         d.classList.remove('show');
         const btn = d.previousElementSibling;
         if (btn) {
@@ -1550,6 +1603,7 @@ document.addEventListener("DOMContentLoaded", () => {
           container.style.borderBottomRightRadius = '';
         }
       });
+      if (hadOpen) window.hidePopupBackdrop();
     }
     // Close global discount popup when clicking outside
     const gPanel = document.getElementById('discountInputsPanel');
@@ -1558,6 +1612,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!gPanel.classList.contains('hidden')) {
         gPanel.classList.add('hidden');
         gBtn.classList.remove('pop-active'); // Ensure pop-active is removed
+        window.hidePopupBackdrop();
 
         const flat = parseFloat(document.getElementById('globalDiscountFlat')?.value) || 0;
         const pct = parseFloat(document.getElementById('globalDiscountPercent')?.value) || 0;
@@ -3068,11 +3123,13 @@ function toggleCalendar(btn) {
     renderCalendar();
     popup.classList.remove('hidden');
     if (btn) btn.classList.add('pop-active');
+    window.showPopupBackdrop(btn, function() { toggleCalendar(btn); });
   } else {
     popup.classList.add('hidden');
     // If we don't have btn, find it
     const targetBtn = btn || document.querySelector('button[onclick*="toggleCalendar"]');
     if (targetBtn) targetBtn.classList.remove('pop-active');
+    window.hidePopupBackdrop();
   }
 }
 
@@ -3086,6 +3143,7 @@ document.addEventListener('click', (e) => {
       popup.classList.add('hidden');
       const btn = document.querySelector('button[onclick*="toggleCalendar"]');
       if (btn) btn.classList.remove('pop-active');
+      window.hidePopupBackdrop();
     }
   }
 
@@ -3097,6 +3155,7 @@ document.addEventListener('click', (e) => {
       mainPopup.classList.add('hidden');
       const btn = document.querySelector('button[onclick*="toggleMainCalendar"]');
       if (btn) btn.classList.remove('pop-active');
+      window.hidePopupBackdrop();
     }
   }
 });
@@ -3229,10 +3288,12 @@ function toggleMainCalendar(btn) {
     renderMainCalendar();
     popup.classList.remove('hidden');
     if (btn) btn.classList.add('pop-active');
+    window.showPopupBackdrop(btn, function() { toggleMainCalendar(btn); });
   } else {
     popup.classList.add('hidden');
     const targetBtn = btn || document.querySelector('button[onclick*="toggleMainCalendar"]');
     if (targetBtn) targetBtn.classList.remove('pop-active');
+    window.hidePopupBackdrop();
   }
 }
 
@@ -3562,15 +3623,16 @@ function toggleAddMenu(btn) {
   if (isOpening) {
     if (btn) btn.classList.add('pop-active');
     updateAddMenuButtons();
+    dropup.classList.remove('hidden');
+    window.showPopupBackdrop(btn, function() { toggleAddMenu(btn); });
   } else {
     const targetBtn = btn || document.getElementById('addMenuBtn');
     if (targetBtn) targetBtn.classList.remove('pop-active');
+    dropup.classList.add('hidden');
+    window.hidePopupBackdrop();
   }
-
-  dropup.classList.toggle('hidden');
 }
 
-// Close add menu when clicking outside
 // Close add menu when clicking outside
 document.addEventListener('click', (e) => {
   const dropup = document.getElementById('addMenuDropup');
@@ -3579,6 +3641,7 @@ document.addEventListener('click', (e) => {
     if (!dropup.classList.contains('hidden')) {
       dropup.classList.add('hidden');
       btn.classList.remove('pop-active');
+      window.hidePopupBackdrop();
     }
   }
 });
@@ -4255,6 +4318,8 @@ function toggleMenu(btn) {
       container.style.borderBottomLeftRadius = '0';
     }
 
+    window.showPopupBackdrop(btn, function() { toggleMenu(btn); });
+
   } else {
     // Already open, so close it
     dropdown.classList.remove('show');
@@ -4266,6 +4331,7 @@ function toggleMenu(btn) {
     if (container) {
       container.style.borderBottomLeftRadius = '';
     }
+    window.hidePopupBackdrop();
   }
 }
 

@@ -177,24 +177,36 @@
       return navWrap.querySelector('[data-nav-key="' + key + '"]');
     }
 
-    var allItems = navWrap.querySelectorAll('[data-nav-key]');
     var totalNavCount = DISPLAY_ORDER.filter(function(k) { return !!getEl(k); }).length;
 
     /* ── Measure natural widths in a single hidden pass (zero visual impact) ── */
     function measureNatural() {
       var natW = {};
+      var items = navWrap.querySelectorAll('[data-nav-key]');
       /* Make nav container measurable but invisible */
-      navWrap.style.cssText = 'display:flex !important;position:absolute !important;visibility:hidden !important;pointer-events:none !important;';
-      allItems.forEach(function(el) {
-        el.style.cssText = 'display:inline-flex !important;visibility:hidden !important;width:auto !important;';
+      navWrap.style.setProperty('display', 'flex', 'important');
+      navWrap.style.setProperty('position', 'absolute', 'important');
+      navWrap.style.setProperty('visibility', 'hidden', 'important');
+      navWrap.style.setProperty('pointer-events', 'none', 'important');
+      items.forEach(function(el) {
+        el.style.setProperty('display', 'inline-flex', 'important');
+        el.style.setProperty('visibility', 'hidden', 'important');
+        el.style.setProperty('width', 'auto', 'important');
       });
       /* Single forced layout read */
-      allItems.forEach(function(el) {
+      items.forEach(function(el) {
         natW[el.dataset.navKey] = Math.ceil(el.getBoundingClientRect().width);
       });
-      /* Reset all inline styles */
-      allItems.forEach(function(el) { el.style.cssText = ''; });
-      navWrap.style.cssText = '';
+      /* Reset — remove only the properties we set */
+      items.forEach(function(el) {
+        el.style.removeProperty('display');
+        el.style.removeProperty('visibility');
+        el.style.removeProperty('width');
+      });
+      navWrap.style.removeProperty('display');
+      navWrap.style.removeProperty('position');
+      navWrap.style.removeProperty('visibility');
+      navWrap.style.removeProperty('pointer-events');
       return natW;
     }
 
@@ -246,6 +258,7 @@
     var lastResult = '';
 
     function fitNav() {
+      var allItems = navWrap.querySelectorAll('[data-nav-key]');
       var vw = window.innerWidth;
 
       /* Desktop (≥ 1280): CSS handles everything */
@@ -265,6 +278,7 @@
       }
 
       /* ── Sub-desktop ── */
+      try {
 
       /* Step 1: Measure natural widths while everything is still hidden */
       var natW = measureNatural();
@@ -356,6 +370,16 @@
       menuNav.querySelectorAll('[data-menu-key]').forEach(function(el) {
         el.classList.toggle('menu-visible', !showSet[el.dataset.menuKey]);
       });
+
+      } catch(e) {
+        /* Fallback: show all items without width constraints */
+        navWrap.classList.add('mobile-fit-active');
+        navWrap.querySelectorAll('[data-nav-key]').forEach(function(el) {
+          el.classList.remove('nav-hidden');
+          el.style.width = '';
+        });
+        burger.classList.add('has-overflow');
+      }
     }
 
     /* ── Run on resize (debounced) ── */
