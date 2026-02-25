@@ -1862,11 +1862,16 @@ PROMPT
          - If adding a new section type, use: { type: "materials"|"expenses"|"fees", title: "#{ui_is_georgian ? 'appropriate Georgian title' : 'appropriate English title'}", items: [...] }
       7. REMOVING ITEMS: Remove from the section's items array. If section becomes empty after removal, remove the entire section object from "sections".
       8. CLIENT: If user changes client name, update "client" field. Georgian convention: შპს "Company Name" (legal form before quoted name).
-      9. Return "clarifications": [] (empty) unless the instruction is genuinely ambiguous.
-      10. Keep "raw_summary" unchanged.
-      11. CREDITS: Array of { amount: number, reason: "string" }. Add/remove/modify as instructed.
-      12. All clarification questions MUST be in #{question_lang}.
-      13. IMPORTANT: Preserve ALL existing fields even if you don't modify them (billing_mode, currency, hourly_rate, labor_tax_rate, tax_scope, etc.).
+      9. CLARIFICATION ANSWERS: When user_message contains "[AI asked: ...]" it means the user is answering a previous clarification question. Apply the answer DIRECTLY to the JSON:
+         - Warranty/note question answer like "მხოლოდ ქეისი და სერვისი" or "only the iPhone" → add/remove sub_categories on the specified items. Remove from items NOT mentioned, add to items that ARE mentioned.
+         - Numeric answer → update the corresponding field.
+         - "yes"/"კი"/"correct"/"სწორია"/"სწორი ვარაუდი"/"დადასტურება" → keep JSON as-is (the guess was correct).
+         Do NOT re-ask the same question. Return "clarifications": [] after applying.
+      10. Return "clarifications": [] (empty) unless the instruction is genuinely NEW and ambiguous. NEVER re-ask a question that was just answered.
+      11. Keep "raw_summary" unchanged.
+      12. CREDITS: Array of { amount: number, reason: "string" }. Add/remove/modify as instructed.
+      13. All clarification questions MUST be in #{question_lang}.
+      14. IMPORTANT: Preserve ALL existing fields even if you don't modify them (billing_mode, currency, hourly_rate, labor_tax_rate, tax_scope, etc.).
 
       Return ONLY valid JSON. No markdown fences, no explanation text, no preamble.
     PROMPT

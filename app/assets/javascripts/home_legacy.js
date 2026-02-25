@@ -5809,7 +5809,9 @@ async function triggerAssistantReparse(userAnswer, type, questionsText) {
         },
         body: JSON.stringify({
           current_json: window.lastAiResult,
-          user_message: userAnswer,
+          user_message: (type === 'clarification' && currentQuestions && currentQuestions !== "User requested change")
+            ? `[AI asked: "${currentQuestions}"] User answered: "${userAnswer}"`
+            : userAnswer,
           conversation_history: historyText,
           language: localStorage.getItem('transcriptLanguage') || window.profileSystemLanguage || 'en'
         })
