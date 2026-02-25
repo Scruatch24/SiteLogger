@@ -706,6 +706,7 @@ class HomeController < ApplicationController
       2. Broken sentences from speech recognition (missing punctuation, run-on text)
       3. Obvious typos and misspellings
       4. If text is a messy stream-of-consciousness, add line breaks between distinct items
+      5. Space-separated thousands in prices: "4 599" → "4599", "12 000" → "12000", "1 200 000" → "1200000". These are common in Georgian speech and cause parsing errors. Collapse them into single numbers.
 
       NEVER do these:
       - NEVER rewrite, rephrase, or restructure already-clear sentences
@@ -990,6 +991,11 @@ NATURAL LANGUAGE / SLANG RULESET (pragmatic)
 - Accept trade slang: "bucks", "quid" → count as currency; "knock off", "hook him up" → credit/discount intent; "trip charge", "service call" → fee; common part names ("P-Trap", "SharkBite") → materials.
 - MEASUREMENTS vs QUANTITY: "25 feet of pipe" → Qty: 1, Name/Desc: "25 feet of pipe". Do NOT extract '25' as quantity unless it refers to discrete units (e.g. "25 pipes").
 - If explicit currency word omitted (e.g., "Take 20 off"), treat as CURRENCY (flat amount). Only infer percent if "percent" or "%" is explicitly used.
+- THOUSANDS SEPARATOR: Spaces in numbers are thousands separators. "4 599" = 4599, "12 000" = 12000, "1 200 000" = 1200000. NEVER split "4 599" into qty=4 and price=599.
+- LINE ITEM NUMBERING: When items are listed with leading numbers (e.g., "1 iPhone 15 Pro", "2 დამცავი ქეისი"), these are often LIST/LINE NUMBERS, not quantities. Use context to decide:
+  - "1 iPhone 15 Pro 4 599 ლარი" → line #1, qty=1, price=4599 (NOT qty=1, price=4599 — but also NOT qty=4, price=599).
+  - "2 დამცავი ქეისი 90 ლარად თითო" → line #2, qty=2, price=90 each (the word "თითო"/"each" confirms qty=2).
+  - If "თითო"/"each"/"per unit" follows the price, the leading number IS the quantity. Otherwise, it's likely a line number with qty=1.
 - AMBIGUOUS QUANTITY: If user implies a range or uncertainty (e.g. "3 or 4", "maybe 5 or 6"), ALWAYS extract the HIGHER number.
 - If user mentions a rate earlier (e.g., “$90 an hour”) assume it persists for subsequent hourly items until explicitly changed.
 - If user says "usual rate", "standard rate", or "same rate", leave rate fields as NULL (system will apply defaults).
