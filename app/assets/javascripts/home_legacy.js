@@ -5533,68 +5533,14 @@ window.resetAssistantState = function() {
   if (assistInput) { assistInput.value = ''; assistInput.disabled = false; }
 };
 
-// ── INVOICE MANUAL CHANGE INDICATOR ──
-(function() {
-  var debounceTimer = null;
-  var lastNotifyTime = 0;
-  var THROTTLE_MS = 30000;
-  var DEBOUNCE_MS = 2000;
-
-  function onInvoiceManualChange() {
-    if (window.isAutoUpdating) return;
-    if (!window._analysisSucceeded) return;
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(function() {
-      var now = Date.now();
-      if (now - lastNotifyTime < THROTTLE_MS) return;
-      lastNotifyTime = now;
-      var conversation = document.getElementById('assistantConversation');
-      if (!conversation) return;
-      var L = window.APP_LANGUAGES || {};
-      var note = document.createElement('div');
-      note.className = 'flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300 ml-9';
-      note.innerHTML = '<div class="text-[10px] font-semibold text-gray-400 bg-gray-50 border border-gray-200 rounded-full px-3 py-1">'
-        + escapeHtml(L.invoice_manual_update || 'Invoice manually updated') + '</div>';
-      conversation.appendChild(note);
-      conversation.scrollTop = conversation.scrollHeight;
-    }, DEBOUNCE_MS);
-  }
-
-  function initInvoiceObserver() {
-    var targets = [
-      document.getElementById('laborItemsContainer'),
-      document.getElementById('dynamicSections'),
-      document.getElementById('creditItemsContainer')
-    ].filter(Boolean);
-    if (targets.length === 0) return;
-    var observer = new MutationObserver(onInvoiceManualChange);
-    targets.forEach(function(t) {
-      observer.observe(t, { childList: true, subtree: true, characterData: true, attributes: false });
-    });
-    // Also listen for input events on discount/price fields
-    document.addEventListener('input', function(e) {
-      if (window.isAutoUpdating) return;
-      var el = e.target;
-      if (el && (el.classList.contains('price-menu-input') || el.classList.contains('labor-price-input') ||
-                 el.classList.contains('item-input') || el.classList.contains('labor-item-input') ||
-                 el.id === 'globalDiscountFlat' || el.id === 'globalDiscountPercent')) {
-        onInvoiceManualChange();
-      }
-    });
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initInvoiceObserver);
-  } else {
-    initInvoiceObserver();
-  }
-})();
 
 window.disablePreviousInteractiveElements = function() {
   var conversation = document.getElementById('assistantConversation');
   if (!conversation) return;
   var allBtns = conversation.querySelectorAll('button:not([disabled])');
   allBtns.forEach(function(btn) {
+    // Skip buttons inside active accordion/multi-choice cards
+    if (btn.closest('#discountAccordionCard') || btn.closest('#multiChoiceAccordionCard')) return;
     btn.disabled = true;
     btn.classList.add('opacity-50', 'pointer-events-none');
   });
@@ -5739,9 +5685,19 @@ function showNextQueueItem() {
   var total = window._queueTotal;
   var L = window.APP_LANGUAGES || {};
 
-  // Show progress indicator + shortcuts for 2+ total items
+  // Inject progress counter into the clarification question text for 2+ items
   if (total > 1) {
-    renderQueueProgress(current, total);
+    var progressText = (L.question_progress || 'Question __CURRENT__ of __TOTAL__')
+      .replace('__CURRENT__', current).replace('__TOTAL__', total);
+    c._progressTag = ' <span class="text-[10px] font-medium text-gray-400 ml-1 whitespace-nowrap">' + escapeHtml(progressText) + '</span>';
+
+    // Also show Confirm All shortcut if applicable
+    var allHaveGuesses = window._clarificationQueue && window._clarificationQueue.every(function(q) {
+      return q.guess !== null && q.guess !== undefined && q.guess !== '' && q.guess !== 0 && q.guess !== '0';
+    });
+    if (allHaveGuesses && window._clarificationQueue.length > 0) {
+      renderQueueProgress(current, total);
+    }
   }
 
   // Route to type-specific renderer by field first, then by type
@@ -5777,7 +5733,7 @@ function showNextQueueItem() {
       var guessLabel = L.current_guess || 'My guess:';
       guessHtml = escapeHtml(guessLabel) + ' ' + escapeHtml(String(c.guess));
     }
-    addAIBubble(c.question, guessHtml);
+    addAIBubble(c.question, guessHtml, c._progressTag);
 
     // Show "Use best guess" link for text-type questions with a guess
     if (c.guess !== null && c.guess !== undefined && c.guess !== '' && c.guess !== 0 && c.guess !== '0') {
@@ -5901,9 +5857,7 @@ function renderQueueProgress(current, total) {
   });
   if (allHaveGuesses && window._clarificationQueue.length > 0) {
     btnsHtml += '<button type="button" onclick="confirmAllQueueGuesses()" class="text-[10px] font-bold text-orange-600 hover:text-orange-700 underline">' + escapeHtml(L.confirm_all_guesses || 'Confirm All') + '</button>';
-    btnsHtml += '<span class="text-gray-300">·</span>';
   }
-  btnsHtml += '<button type="button" onclick="confirmAllQueueGuesses()" class="text-[10px] font-bold text-gray-400 hover:text-gray-600 underline">' + escapeHtml(L.show_invoice || 'Just show me the invoice') + '</button>';
 
   div.innerHTML = '<span class="text-[10px] font-bold text-gray-400 bg-gray-100 px-2.5 py-0.5 rounded-full">' + escapeHtml(progressText) + '</span>' + btnsHtml;
 
@@ -5957,18 +5911,19 @@ function removeTypingIndicator() {
   if (indicator) indicator.remove();
 }
 
-function addAIBubble(text, guessHtml) {
+function addAIBubble(text, guessHtml, progressTag) {
   const conversation = document.getElementById('assistantConversation');
   if (!conversation) return;
 
   const div = document.createElement('div');
   div.className = "flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300";
   const guessBlock = guessHtml ? `<div class="mt-1.5 px-3 py-1 bg-orange-50 border border-dashed border-orange-300 rounded-lg text-[11px] text-orange-700 font-bold">${guessHtml}</div>` : '';
+  const tagHtml = progressTag || '';
   div.innerHTML = `
     <img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">
     <div class="max-w-[85%]">
       <div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-2 text-sm font-bold text-gray-800 shadow-sm">
-        ${escapeHtml(text)}
+        ${escapeHtml(text)}${tagHtml}
       </div>
       ${guessBlock}
     </div>
@@ -6004,11 +5959,11 @@ function renderClientMatchCard(clarification) {
   });
 
   var createLabel = window.APP_LANGUAGES.create_new_client || 'Create new';
-  var createNewBtn = '<button type="button" onclick="window.clientMatchResolved=true; autoSubmitAssistantMessage(\'' + escapeHtml(createLabel).replace(/'/g, "\\'") + '\')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-dashed border-gray-300 bg-white hover:bg-green-50 hover:border-green-400 transition-all cursor-pointer active:scale-[0.97] text-left">'
-    + '<div class="w-7 h-7 rounded-full bg-green-50 border border-green-200 flex items-center justify-center flex-shrink-0">'
-    + '<svg class="w-3.5 h-3.5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m6-6H6"/></svg>'
+  var createNewBtn = '<button type="button" onclick="window.clientMatchResolved=true; autoSubmitAssistantMessage(\'' + escapeHtml(createLabel).replace(/'/g, "\\'") + '\')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-dashed border-orange-300 bg-white hover:bg-orange-50 hover:border-orange-400 transition-all cursor-pointer active:scale-[0.97] text-left">'
+    + '<div class="w-7 h-7 rounded-full bg-orange-50 border border-orange-200 flex items-center justify-center flex-shrink-0">'
+    + '<svg class="w-3.5 h-3.5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m6-6H6"/></svg>'
     + '</div>'
-    + '<div class="text-[12px] font-bold text-gray-600">' + escapeHtml(createLabel) + '</div>'
+    + '<div class="text-[12px] font-bold text-orange-600">' + escapeHtml(createLabel) + '</div>'
     + '</button>';
 
   div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
@@ -6148,8 +6103,8 @@ function renderGenericChoiceCard(clarification) {
     var isGuess = opt.toString().toLowerCase() === guess;
     var ringClass = isGuess ? ' ring-2 ring-offset-1 ring-orange-400' : '';
     btns += '<button type="button" onclick="autoSubmitAssistantMessage(\'' + escapeHtml(opt).replace(/'/g, "\\'") + '\')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-gray-200 bg-white hover:bg-orange-50 hover:border-orange-300 transition-all cursor-pointer active:scale-[0.97] text-left' + ringClass + '">'
-      + '<div class="w-7 h-7 rounded-full bg-orange-50 border border-orange-200 flex items-center justify-center flex-shrink-0">'
-      + '<svg class="w-3.5 h-3.5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><circle cx="12" cy="12" r="1"/></svg>'
+      + '<div class="w-5 h-5 rounded-full border-2 border-orange-400 flex items-center justify-center flex-shrink-0">'
+      + (isGuess ? '<div class="w-2.5 h-2.5 rounded-full bg-orange-500"></div>' : '')
       + '</div>'
       + '<div class="flex-1 min-w-0">'
       + '<div class="text-[12px] font-bold text-gray-700">' + escapeHtml(opt) + '</div>'
@@ -6163,7 +6118,7 @@ function renderGenericChoiceCard(clarification) {
   div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
     + '<div class="max-w-[85%]">'
     + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
-    + '<div class="text-sm font-bold text-gray-800 mb-2.5">' + escapeHtml(questionText) + '</div>'
+    + '<div class="text-sm font-bold text-gray-800 mb-2.5">' + escapeHtml(questionText) + (clarification._progressTag || '') + '</div>'
     + '<div class="space-y-1.5">' + btns + '</div>'
     + '</div>'
     + '</div>';
@@ -6181,13 +6136,74 @@ function renderMultiChoiceCard(clarification) {
   var questionText = clarification.question || '';
   var guessItems = (clarification.guess || '').toString().split(/\s*,\s*/).filter(function(p) { return p.trim(); }).map(function(p) { return p.trim().toLowerCase(); });
 
+  // Try to group options by invoice category using live DOM
+  var domCats = typeof getInvoiceSectionsFromDOM === 'function' ? getInvoiceSectionsFromDOM() : [];
+  var grouped = [];
+  var ungrouped = [];
+
+  if (domCats.length > 0) {
+    // Build item→category map (lowercase name → category)
+    var itemCatMap = {};
+    domCats.forEach(function(cat) {
+      cat.items.forEach(function(itemName) {
+        itemCatMap[itemName.toLowerCase()] = cat;
+      });
+    });
+
+    // Assign options to categories
+    var catBuckets = {};
+    options.forEach(function(opt) {
+      var cat = itemCatMap[opt.toLowerCase()];
+      if (cat) {
+        if (!catBuckets[cat.key]) catBuckets[cat.key] = { key: cat.key, label: cat.label, color: cat.color, icon: cat.icon, items: [] };
+        catBuckets[cat.key].items.push(opt);
+      } else {
+        ungrouped.push(opt);
+      }
+    });
+    Object.keys(catBuckets).forEach(function(k) { grouped.push(catBuckets[k]); });
+  }
+
+  // If grouping found categories, render as accordion
+  if (grouped.length > 0) {
+    // Add ungrouped items to an "Other" category if any
+    if (ungrouped.length > 0) {
+      grouped.push({ key: 'other', label: L.section_other || 'Other', color: 'orange', icon: '<circle cx="12" cy="12" r="10"/>', items: ungrouped });
+    }
+    // Pre-select guessed items
+    window._multiChoiceAccordionOptions = options;
+    window._multiChoiceAccordionGuess = guessItems;
+
+    var accordionHtml = buildAccordionHtml(grouped, L);
+
+    var div = document.createElement('div');
+    div.className = "flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300";
+    div.id = 'multiChoiceAccordionCard';
+    div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
+      + '<div class="max-w-[85%] w-full">'
+      + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
+      + '<div class="text-sm font-bold text-gray-800 mb-2.5">' + escapeHtml(questionText) + '</div>'
+      + '<div class="space-y-2">' + accordionHtml + '</div>'
+      + '</div></div>';
+    conversation.appendChild(div);
+
+    // Override confirm button to use multi-choice submit
+    var confirmBtn = div.querySelector('.accordion-global-toggle + button');
+    if (confirmBtn) {
+      confirmBtn.setAttribute('onclick', 'confirmMultiChoiceAccordion()');
+    }
+
+    conversation.scrollTop = conversation.scrollHeight;
+    return;
+  }
+
+  // Fallback: flat checkbox list (no grouping possible)
   var btns = '';
   options.forEach(function(opt) {
     var isPreSelected = guessItems.indexOf(opt.toLowerCase()) !== -1;
-    var selectedBorder = isPreSelected ? 'bg-orange-50 border-orange-300 ring-2 ring-orange-300' : 'bg-white border-gray-200';
-    var checkBg = isPreSelected ? 'bg-orange-500 border-orange-500' : 'bg-white border-gray-300';
+    var checkBg = isPreSelected ? 'bg-orange-500 border-orange-400' : 'bg-white border-orange-400';
     var checkIcon = isPreSelected ? '<svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>' : '';
-    btns += '<button type="button" data-multi-opt="' + escapeHtml(opt) + '" data-selected="' + isPreSelected + '" onclick="toggleMultiChoice(this)" class="multi-choice-btn w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border ' + selectedBorder + ' hover:bg-orange-50 hover:border-orange-300 transition-all cursor-pointer active:scale-[0.97] text-left">'
+    btns += '<button type="button" data-multi-opt="' + escapeHtml(opt) + '" data-selected="' + isPreSelected + '" onclick="toggleMultiChoice(this)" class="multi-choice-btn w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-gray-200 bg-white hover:bg-orange-50 hover:border-orange-300 transition-all cursor-pointer active:scale-[0.97] text-left">'
       + '<div class="w-5 h-5 rounded border-2 ' + checkBg + ' flex items-center justify-center flex-shrink-0 multi-check">' + checkIcon + '</div>'
       + '<div class="text-[12px] font-bold text-gray-700">' + escapeHtml(opt) + '</div>'
       + '</button>';
@@ -6213,29 +6229,36 @@ function renderMultiChoiceCard(clarification) {
   conversation.scrollTop = conversation.scrollHeight;
 }
 
+function confirmMultiChoiceAccordion() {
+  var card = document.getElementById('multiChoiceAccordionCard');
+  if (!card) return;
+  var selected = [];
+  card.querySelectorAll('.accordion-item-btn[data-selected="true"]').forEach(function(btn) {
+    var label = btn.querySelector('span');
+    if (label) selected.push(label.textContent.trim());
+  });
+  var answer = selected.length > 0 ? selected.join(', ') : 'none';
+  autoSubmitAssistantMessage(answer);
+}
+
 function toggleMultiChoice(btn) {
   var isSelected = btn.dataset.selected === 'true';
   btn.dataset.selected = String(!isSelected);
 
   var check = btn.querySelector('.multi-check');
   if (!isSelected) {
-    btn.classList.add('bg-orange-50', 'border-orange-300', 'ring-2', 'ring-orange-300');
-    btn.classList.remove('bg-white', 'border-gray-200');
-    check.classList.add('bg-orange-500', 'border-orange-500');
-    check.classList.remove('bg-white', 'border-gray-300');
+    check.classList.add('bg-orange-500', 'border-orange-400');
+    check.classList.remove('bg-white');
     check.innerHTML = '<svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
   } else {
-    btn.classList.remove('bg-orange-50', 'border-orange-300', 'ring-2', 'ring-orange-300');
-    btn.classList.add('bg-white', 'border-gray-200');
-    check.classList.remove('bg-orange-500', 'border-orange-500');
-    check.classList.add('bg-white', 'border-gray-300');
+    check.classList.remove('bg-orange-500');
+    check.classList.add('bg-white', 'border-orange-400');
     check.innerHTML = '';
   }
 }
 
 function submitMultiChoice(btn) {
   var selected = [];
-  // Scope to current card only (Bug 3 fix: avoid picking up stale cards)
   var card = btn ? btn.closest('.bg-gray-50') : null;
   var scope = card || document;
   var btns = scope.querySelectorAll('.multi-choice-btn[data-selected="true"]');
@@ -6295,9 +6318,9 @@ function renderQuickActionChips() {
 
   var L = window.APP_LANGUAGES || {};
   var chips = [
-    { label: L.action_change_client || 'Change client', handler: 'handleChipChangeClient', icon: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>' },
-    { label: L.action_add_discount || 'Add discount', handler: 'handleChipAddDiscount', icon: '<line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>' },
-    { label: L.action_add_item || 'Add item', handler: 'handleChipAddItem', icon: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>' }
+    { label: L.action_change_client || 'Change client', handler: 'handleChipChangeClient', icon: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>', color: 'default' },
+    { label: L.action_add_discount || 'Add discount', handler: 'handleChipAddDiscount', icon: '<line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>', color: 'green' },
+    { label: L.action_add_item || 'Add item', handler: 'handleChipAddItem', icon: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>', color: 'orange' }
   ];
 
   // Add undo chip if snapshot exists
@@ -6306,11 +6329,16 @@ function renderQuickActionChips() {
   }
 
   var chipHtml = '';
+  var CHIP_COLORS = {
+    'default': 'border-gray-200 bg-white hover:bg-orange-50 hover:border-orange-300 text-gray-600 hover:text-orange-600',
+    'green': 'border-green-200 bg-white hover:bg-green-50 hover:border-green-300 text-green-600 hover:text-green-700',
+    'orange': 'border-orange-200 bg-white hover:bg-orange-50 hover:border-orange-300 text-orange-600 hover:text-orange-700',
+    'red': 'border-red-200 bg-white hover:bg-red-50 hover:border-red-300 text-red-500 hover:text-red-600'
+  };
   chips.forEach(function(c) {
     var isUndo = c.handler === 'handleChipUndo';
-    var cls = isUndo
-      ? 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-red-200 bg-white hover:bg-red-50 hover:border-red-300 transition-all cursor-pointer active:scale-[0.95] text-[11px] font-bold text-red-500 hover:text-red-600 shadow-sm'
-      : 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-gray-200 bg-white hover:bg-orange-50 hover:border-orange-300 transition-all cursor-pointer active:scale-[0.95] text-[11px] font-bold text-gray-600 hover:text-orange-600 shadow-sm';
+    var colorCls = isUndo ? CHIP_COLORS.red : (CHIP_COLORS[c.color] || CHIP_COLORS['default']);
+    var cls = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-all cursor-pointer active:scale-[0.95] text-[11px] font-bold shadow-sm ' + colorCls;
     chipHtml += '<button type="button" onclick="' + c.handler + '()" class="' + cls + '">'
       + '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">' + c.icon + '</svg>'
       + escapeHtml(c.label)
@@ -6391,8 +6419,18 @@ function handleChipUndo() {
   showTypingIndicator();
   setTimeout(function() {
     removeTypingIndicator();
-    addAIBubble(L.undo_confirmed || 'Change reverted.');
-    renderQuickActionChips();
+    // Show undo confirmation as red-styled message, no action chips
+    var conversation = document.getElementById('assistantConversation');
+    if (conversation) {
+      var note = document.createElement('div');
+      note.className = 'flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300';
+      note.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
+        + '<div class="bg-red-50 border-2 border-red-200 rounded-2xl rounded-tl-none px-4 py-2 shadow-sm">'
+        + '<span class="text-sm font-bold text-red-600">' + escapeHtml(L.undo_confirmed || 'Change reverted.') + '</span>'
+        + '</div>';
+      conversation.appendChild(note);
+      conversation.scrollTop = conversation.scrollHeight;
+    }
     var assistInput = document.getElementById('assistantInput');
     if (assistInput) {
       assistInput.disabled = false;
@@ -6578,55 +6616,10 @@ function renderDiscountCategorySelect() {
     return;
   }
 
-  var COLOR_MAP = {
-    orange: { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-600', headerBg: 'bg-orange-50', headerBorder: 'border-orange-200', checkBorder: 'border-orange-500', checkBg: 'bg-orange-50', checkText: 'text-orange-600', itemHover: 'hover:bg-orange-50' },
-    blue:   { bg: 'bg-blue-50',   border: 'border-blue-200',   text: 'text-blue-600',   headerBg: 'bg-blue-50',   headerBorder: 'border-blue-200',   checkBorder: 'border-blue-500',   checkBg: 'bg-blue-50',   checkText: 'text-blue-600',   itemHover: 'hover:bg-blue-50' },
-    red:    { bg: 'bg-red-50',    border: 'border-red-200',    text: 'text-red-600',    headerBg: 'bg-red-50',    headerBorder: 'border-red-200',    checkBorder: 'border-red-500',    checkBg: 'bg-red-50',    checkText: 'text-red-600',    itemHover: 'hover:bg-red-50' }
-  };
-
   // Store cats reference
   window._discountFlow._cats = cats;
 
-  var accordionHtml = '';
-  var autoExpand = cats.length === 1;
-
-  cats.forEach(function(cat, catIdx) {
-    var cm = COLOR_MAP[cat.color] || COLOR_MAP.orange;
-    var isExpanded = autoExpand || catIdx === 0;
-    var chevron = isExpanded ? '▼' : '▶';
-
-    // Category header
-    accordionHtml += '<div class="accordion-cat" data-cat-idx="' + catIdx + '">'
-      + '<button type="button" onclick="toggleAccordionCategory(' + catIdx + ')" class="w-full flex items-center gap-2 px-3 py-2 rounded-xl border ' + cm.headerBorder + ' ' + cm.headerBg + ' transition-all cursor-pointer active:scale-[0.98]">'
-      + '<span class="accordion-chevron text-[10px] text-gray-400 w-4 shrink-0" data-cat-idx="' + catIdx + '">' + chevron + '</span>'
-      + '<div class="w-5 h-5 rounded-md ' + cm.bg + ' border ' + cm.border + ' flex items-center justify-center shrink-0">'
-      + '<svg class="w-3 h-3 ' + cm.text + '" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + cat.icon + '</svg>'
-      + '</div>'
-      + '<span class="text-[12px] font-bold ' + cm.text + ' flex-1 text-left">' + escapeHtml(cat.label) + ' (' + cat.items.length + ')</span>'
-      + '<button type="button" onclick="event.stopPropagation(); toggleAccordionCatAll(' + catIdx + ')" class="text-[9px] font-bold text-gray-400 hover:text-gray-600 px-1.5 py-0.5 rounded border border-gray-200 bg-white accordion-cat-toggle" data-cat-idx="' + catIdx + '">' + escapeHtml(L.select_all_btn || 'All') + '</button>'
-      + '</button>';
-
-    // Items container (collapsible)
-    accordionHtml += '<div class="accordion-items pl-6 space-y-1 mt-1' + (isExpanded ? '' : ' hidden') + '" data-cat-idx="' + catIdx + '">';
-    cat.items.forEach(function(itemName, itemIdx) {
-      accordionHtml += '<button type="button" data-cat-idx="' + catIdx + '" data-item-idx="' + itemIdx + '" data-selected="true" onclick="toggleAccordionItem(this)" class="accordion-item-btn w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg border ' + cm.border + ' ' + cm.bg + ' ' + cm.itemHover + ' transition-all cursor-pointer active:scale-[0.97] text-left">'
-        + '<div class="w-4 h-4 rounded border-2 ' + cm.checkBorder + ' ' + cm.checkBg + ' flex items-center justify-center shrink-0 accordion-item-check">'
-        + '<svg class="w-2.5 h-2.5 ' + cm.checkText + '" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>'
-        + '</div>'
-        + '<div class="w-3.5 h-3.5 flex items-center justify-center shrink-0 opacity-40">'
-        + '<svg class="w-3 h-3 ' + cm.text + '" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + cat.icon + '</svg>'
-        + '</div>'
-        + '<span class="text-[11px] font-semibold text-gray-700">' + escapeHtml(itemName) + '</span>'
-        + '</button>';
-    });
-    accordionHtml += '</div></div>';
-  });
-
-  // Bottom buttons: Select All + Confirm
-  accordionHtml += '<div class="flex gap-2 mt-2">'
-    + '<button type="button" onclick="toggleAccordionSelectAll()" class="flex-1 px-3 py-1.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition-all cursor-pointer active:scale-[0.97] text-[11px] font-bold text-gray-500">' + escapeHtml(L.select_all_btn || 'Select All') + '</button>'
-    + '<button type="button" onclick="confirmAccordionSelection()" class="flex-1 px-3 py-1.5 rounded-xl border-2 border-orange-300 bg-orange-50 hover:bg-orange-100 transition-all cursor-pointer active:scale-[0.97] text-[11px] font-bold text-orange-700">' + escapeHtml(L.confirm_btn || 'Confirm') + '</button>'
-    + '</div>';
+  var accordionHtml = buildAccordionHtml(cats, L);
 
   var div = document.createElement('div');
   div.className = 'flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300';
@@ -6641,32 +6634,87 @@ function renderDiscountCategorySelect() {
   conversation.scrollTop = conversation.scrollHeight;
 }
 
+function buildAccordionHtml(cats, L) {
+  var ACCORDION_COLORS = {
+    orange: { headerBg: 'bg-orange-50', headerBorder: 'border-orange-200', text: 'text-orange-600', allActiveBg: 'bg-orange-500', allActiveText: 'text-white' },
+    blue:   { headerBg: 'bg-blue-50',   headerBorder: 'border-blue-200',   text: 'text-blue-600',   allActiveBg: 'bg-blue-500',   allActiveText: 'text-white' },
+    red:    { headerBg: 'bg-red-50',    headerBorder: 'border-red-200',    text: 'text-red-600',    allActiveBg: 'bg-red-500',    allActiveText: 'text-white' }
+  };
+
+  var accordionHtml = '';
+  var autoExpand = cats.length === 1;
+
+  cats.forEach(function(cat, catIdx) {
+    var cm = ACCORDION_COLORS[cat.color] || ACCORDION_COLORS.orange;
+    var isExpanded = autoExpand || catIdx === 0;
+
+    // Category header with "All" button inside, chevron as SVG
+    accordionHtml += '<div class="accordion-cat" data-cat-idx="' + catIdx + '">'
+      + '<button type="button" onclick="toggleAccordionCategory(' + catIdx + ')" class="w-full flex items-center gap-2 px-3 py-2 rounded-xl border ' + cm.headerBorder + ' ' + cm.headerBg + ' transition-all cursor-pointer active:scale-[0.98]">'
+      + '<svg class="accordion-chevron w-3.5 h-3.5 ' + cm.text + ' shrink-0 transition-transform duration-200' + (isExpanded ? '' : ' -rotate-90') + '" data-cat-idx="' + catIdx + '" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>'
+      + '<div class="w-5 h-5 rounded-md ' + cm.headerBg + ' border ' + cm.headerBorder + ' flex items-center justify-center shrink-0">'
+      + '<svg class="w-3 h-3 ' + cm.text + '" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + cat.icon + '</svg>'
+      + '</div>'
+      + '<span class="text-[12px] font-bold ' + cm.text + ' flex-1 text-left">' + escapeHtml(cat.label) + ' (' + cat.items.length + ')</span>'
+      + '<span onclick="event.stopPropagation(); toggleAccordionCatAll(' + catIdx + ')" class="accordion-cat-toggle text-[9px] font-bold px-2 py-0.5 rounded-full border transition-all cursor-pointer ' + cm.allActiveBg + ' ' + cm.allActiveText + ' border-transparent" data-cat-idx="' + catIdx + '">' + escapeHtml(L.select_all_btn || 'All') + '</span>'
+      + '</button>';
+
+    // Items container (collapsible)
+    accordionHtml += '<div class="accordion-items pl-4 space-y-1 mt-1' + (isExpanded ? '' : ' hidden') + '" data-cat-idx="' + catIdx + '">';
+    cat.items.forEach(function(itemName, itemIdx) {
+      // Checked: orange bg + white check icon; Unchecked: white bg + orange border
+      accordionHtml += '<button type="button" data-cat-idx="' + catIdx + '" data-item-idx="' + itemIdx + '" data-selected="true" onclick="toggleAccordionItem(this)" class="accordion-item-btn w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white hover:bg-gray-50 transition-all cursor-pointer active:scale-[0.97] text-left">'
+        + '<div class="w-4 h-4 rounded border-2 border-orange-400 bg-orange-500 flex items-center justify-center shrink-0 accordion-item-check">'
+        + '<svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>'
+        + '</div>'
+        + '<span class="text-[11px] font-semibold text-gray-700">' + escapeHtml(itemName) + '</span>'
+        + '</button>';
+    });
+    accordionHtml += '</div></div>';
+  });
+
+  // Bottom buttons: Select All + Confirm
+  accordionHtml += '<div class="flex gap-2 mt-2">'
+    + '<button type="button" onclick="toggleAccordionSelectAll()" class="accordion-global-toggle flex-1 px-3 py-1.5 rounded-xl transition-all cursor-pointer active:scale-[0.97] text-[11px] font-bold bg-orange-500 text-white border-2 border-orange-500">' + escapeHtml(L.select_all_btn || 'All') + '</button>'
+    + '<button type="button" onclick="confirmAccordionSelection()" class="flex-1 px-3 py-1.5 rounded-xl border-2 border-orange-300 bg-orange-50 hover:bg-orange-100 transition-all cursor-pointer active:scale-[0.97] text-[11px] font-bold text-orange-700">' + escapeHtml(L.confirm_btn || 'Confirm') + '</button>'
+    + '</div>';
+
+  return accordionHtml;
+}
+
 function toggleAccordionCategory(catIdx) {
   var itemsDiv = document.querySelector('.accordion-items[data-cat-idx="' + catIdx + '"]');
   var chevron = document.querySelector('.accordion-chevron[data-cat-idx="' + catIdx + '"]');
   if (itemsDiv) {
     var isHidden = itemsDiv.classList.contains('hidden');
     itemsDiv.classList.toggle('hidden');
-    if (chevron) chevron.textContent = isHidden ? '▼' : '▶';
+    if (chevron) {
+      if (isHidden) {
+        chevron.classList.remove('-rotate-90');
+      } else {
+        chevron.classList.add('-rotate-90');
+      }
+    }
   }
 }
 
 function toggleAccordionCatAll(catIdx) {
   var items = document.querySelectorAll('.accordion-item-btn[data-cat-idx="' + catIdx + '"]');
   if (!items.length) return;
-  // Check if all are selected — if so, deselect all; otherwise select all
   var allSelected = true;
   items.forEach(function(btn) { if (btn.dataset.selected !== 'true') allSelected = false; });
   items.forEach(function(btn) {
     btn.dataset.selected = allSelected ? 'false' : 'true';
     updateAccordionItemVisual(btn);
   });
+  syncAccordionToggleStates();
 }
 
 function toggleAccordionItem(btn) {
   var isSelected = btn.dataset.selected === 'true';
   btn.dataset.selected = isSelected ? 'false' : 'true';
   updateAccordionItemVisual(btn);
+  syncAccordionToggleStates();
 }
 
 function updateAccordionItemVisual(btn) {
@@ -6674,18 +6722,57 @@ function updateAccordionItemVisual(btn) {
   var check = btn.querySelector('.accordion-item-check');
   if (!check) return;
   if (isSelected) {
-    check.innerHTML = '<svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
-    check.classList.remove('border-gray-300', 'bg-white');
+    check.innerHTML = '<svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
+    check.classList.remove('border-orange-400', 'bg-white');
+    check.classList.add('border-orange-400', 'bg-orange-500');
     btn.style.opacity = '1';
   } else {
     check.innerHTML = '';
-    check.classList.add('border-gray-300', 'bg-white');
-    btn.style.opacity = '0.5';
+    check.classList.remove('bg-orange-500');
+    check.classList.add('border-orange-400', 'bg-white');
+    btn.style.opacity = '0.6';
+  }
+}
+
+function syncAccordionToggleStates() {
+  // Sync per-category "All" toggle states
+  var catToggles = document.querySelectorAll('.accordion-cat-toggle');
+  catToggles.forEach(function(toggle) {
+    var catIdx = toggle.dataset.catIdx;
+    var items = document.querySelectorAll('.accordion-item-btn[data-cat-idx="' + catIdx + '"]');
+    if (!items.length) return;
+    var allSelected = true;
+    items.forEach(function(btn) { if (btn.dataset.selected !== 'true') allSelected = false; });
+    // Get category color from parent
+    var catDiv = toggle.closest('.accordion-cat');
+    var headerBtn = catDiv ? catDiv.querySelector('button') : null;
+    var isBlue = headerBtn && headerBtn.className.indexOf('border-blue') !== -1;
+    var isRed = headerBtn && headerBtn.className.indexOf('border-red') !== -1;
+    if (allSelected) {
+      toggle.className = 'accordion-cat-toggle text-[9px] font-bold px-2 py-0.5 rounded-full border transition-all cursor-pointer border-transparent ' + (isBlue ? 'bg-blue-500 text-white' : isRed ? 'bg-red-500 text-white' : 'bg-orange-500 text-white');
+    } else {
+      toggle.className = 'accordion-cat-toggle text-[9px] font-bold px-2 py-0.5 rounded-full border transition-all cursor-pointer border-gray-200 bg-white text-gray-400';
+    }
+    toggle.dataset.catIdx = catIdx;
+  });
+  // Sync global "All" button
+  var globalToggle = document.querySelector('.accordion-global-toggle');
+  if (globalToggle) {
+    var card = globalToggle.closest('.bg-gray-50') || document;
+    var allItemBtns = card.querySelectorAll('.accordion-item-btn');
+    var globalAllSelected = true;
+    allItemBtns.forEach(function(btn) { if (btn.dataset.selected !== 'true') globalAllSelected = false; });
+    if (globalAllSelected && allItemBtns.length > 0) {
+      globalToggle.className = 'accordion-global-toggle flex-1 px-3 py-1.5 rounded-xl transition-all cursor-pointer active:scale-[0.97] text-[11px] font-bold bg-orange-500 text-white border-2 border-orange-500';
+    } else {
+      globalToggle.className = 'accordion-global-toggle flex-1 px-3 py-1.5 rounded-xl transition-all cursor-pointer active:scale-[0.97] text-[11px] font-bold bg-white text-gray-500 border-2 border-gray-200';
+    }
   }
 }
 
 function toggleAccordionSelectAll() {
-  var allBtns = document.querySelectorAll('#discountAccordionCard .accordion-item-btn');
+  var card = document.getElementById('discountAccordionCard') || document.getElementById('multiChoiceAccordionCard');
+  var allBtns = card ? card.querySelectorAll('.accordion-item-btn') : document.querySelectorAll('.accordion-item-btn');
   if (!allBtns.length) return;
   var allSelected = true;
   allBtns.forEach(function(btn) { if (btn.dataset.selected !== 'true') allSelected = false; });
@@ -6693,6 +6780,7 @@ function toggleAccordionSelectAll() {
     btn.dataset.selected = allSelected ? 'false' : 'true';
     updateAccordionItemVisual(btn);
   });
+  syncAccordionToggleStates();
 }
 
 function confirmAccordionSelection() {
@@ -7441,6 +7529,32 @@ function updateUIWithoutTranscript(data) {
       }
     }
 
+    // Date handling (mirror from updateUI)
+    let dateVal = data.date;
+    if (dateVal && dateVal !== "N/A" && !dateVal.toLowerCase().includes("specified")) {
+      const parsedDate = new Date(dateVal);
+      if (!isNaN(parsedDate.getTime())) {
+        window.selectedMainDate = parsedDate;
+        const lang = window.currentSystemLanguage || 'en';
+        if (lang === 'ka') {
+          const monthsKa = [
+            window.APP_LANGUAGES.jan, window.APP_LANGUAGES.feb, window.APP_LANGUAGES.mar,
+            window.APP_LANGUAGES.apr, window.APP_LANGUAGES.may, window.APP_LANGUAGES.jun,
+            window.APP_LANGUAGES.jul, window.APP_LANGUAGES.aug, window.APP_LANGUAGES.sep,
+            window.APP_LANGUAGES.oct, window.APP_LANGUAGES.nov, window.APP_LANGUAGES.dec
+          ];
+          document.getElementById("dateDisplay").innerText = `${monthsKa[parsedDate.getMonth()]} ${parsedDate.getDate()}, ${parsedDate.getFullYear()}`;
+        } else {
+          document.getElementById("dateDisplay").innerText = parsedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+      }
+    }
+
+    // Due Date handling
+    if (data.due_days !== undefined || data.due_date !== undefined) {
+      updateDueDate(data.due_days, data.due_date);
+    }
+
     updateTotalsSummary();
 
     document.getElementById("invoicePreview").classList.remove("hidden");
@@ -7452,7 +7566,7 @@ function updateUIWithoutTranscript(data) {
       window.setupSaveButton();
     }
 
-    // Scroll to assistant chat if questions exist, otherwise scroll to invoice
+    // Scroll to assistant chat if questions exist — don't force scroll to invoice during chat
     var assistantSection = document.getElementById('aiAssistantSection');
     if (window.pendingClarifications && window.pendingClarifications.length > 0 && assistantSection) {
       assistantSection.scrollIntoView({ behavior: 'smooth', block: 'center' });

@@ -1081,6 +1081,12 @@ DISCOUNT & CREDIT RULES
 - discount_percent ≤ 100. discount_flat ≤ item total price.
 - Same rules apply to global_discount_flat/percent and labor_discount_flat/percent.
 - PERCENTAGE DISCOUNTS ARE NEVER CLARIFICATION CANDIDATES. Just apply them.
+- DISCOUNT CLARIFICATION ORDER: When user mentions a discount but does NOT specify the amount:
+  1. FIRST ask "რა ოდენობის ფასდაკლებაა?" / "What is the discount amount?" (type: "text"). Do NOT assume percentage.
+  2. If user gives a number without % sign and it could be either flat or percentage, THEN ask "რა ტიპის ფასდაკლებაა?" / "What type of discount?" (type: "choice", options: ["FIXED", "PERCENTAGE"]).
+  3. NEVER ask "რომელი პროცენტით?" — always ask for amount first, then type if ambiguous.
+  4. If user explicitly says "X%" → just apply discount_percent=X. No clarification needed.
+  5. If user explicitly says "$X off" or "X ლარი ფასდაკლება" → just apply discount_flat=X. No clarification needed.
 
 ----------------------------
 TAX RULES
@@ -1091,6 +1097,7 @@ TAX RULES
 - EXPLICIT "Tax [X] only": Set `taxable: true` for X, `taxable: false` for others.
 - EXPLICIT "Don't tax labor": Set `labor_taxable: false` AND `taxable: false` on EVERY labor_service_item.
 - EXPLICIT "Don't tax materials": Set `taxable: false` on EVERY material item.
+- PER-ITEM TAX EXEMPTION: When user says specific items are not taxable (e.g., "კექსი და ნამცხვარი არ იბეგრება", "iPhone is tax-free", "X და Y არ იბეგრება", "X-ზე დღგ არ დაადო"), find those items BY NAME across ALL sections and set `taxable: false` on each matching item. Leave all other items unchanged.
 - TAX SCOPE: Use null if no instruction. "tax ONLY on parts" → `tax_scope: "materials"`.
 - TAX RATES: "8% tax" → tax_rate: 8.0. Set on every item.
 - GENERAL TAX (e.g., "add 18% tax", "დაამატე 18% დღგ"): Set `tax_rate` on every item. Leave `tax_scope: null`. Do NOT break apart per category.
@@ -1983,6 +1990,10 @@ PROMPT
       - discount_percent ≤ 100. discount_flat ≤ item total price.
       - "discount everything except [category]" → apply per-item to every OTHER category, leave excluded at 0. Do NOT use global_discount.
       - PERCENTAGE DISCOUNTS AND DISCOUNT SCOPE ARE NEVER CLARIFICATION CANDIDATES. Just apply them.
+      - DISCOUNT CLARIFICATION ORDER: When user mentions a discount but does NOT specify the amount:
+        1. FIRST ask "#{ui_is_georgian ? 'რა ოდენობის ფასდაკლებაა?' : 'What is the discount amount?'}" (type: "text"). Do NOT assume percentage.
+        2. If user gives a number without % sign and it could be either flat or percentage, THEN ask "#{ui_is_georgian ? 'რა ტიპის ფასდაკლებაა?' : 'What type of discount?'}" (type: "choice", options: ["FIXED", "PERCENTAGE"]).
+        3. NEVER ask "რომელი პროცენტით?" — always ask for amount first, then type if ambiguous.
 
       TAX RULES:
       - Default: taxable = null (system applies defaults). Only set explicitly when user says so.
@@ -1990,6 +2001,7 @@ PROMPT
       - "tax everything except [X]" → taxable:false for X, taxable:true for all others.
       - "tax [X] only" → taxable:true for X, taxable:false for others.
       - "don't tax labor" → labor_taxable:false AND taxable:false on every labor item.
+      - PER-ITEM TAX EXEMPTION: "X და Y არ იბეგრება" / "X is tax-free" / "X-ზე დღგ არ დაადო" → find items BY NAME, set taxable:false on each. Leave others unchanged.
       - Tax scope: null by default. "tax ONLY on parts" → tax_scope:"materials".
       - TAX IS NEVER A CLARIFICATION. "add X% tax" / "X% VAT" → just apply it. Never ask.
 

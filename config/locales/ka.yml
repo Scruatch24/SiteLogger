@@ -247,7 +247,7 @@ ka:
   section_fees: "საკომისიო"
   action_change_client: "კლიენტის შეცვლა"
   action_add_discount: "ფასდაკლება"
-  action_add_item: "დამატება"
+  action_add_item: "+ დამატება"
   change_client_prompt: "ვინ არის ახალი კლიენტი?"
   add_item_what_prompt: "რისი დამატება გსურთ?"
   add_item_price_prompt: "რა ღირს %{item}?"
