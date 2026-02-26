@@ -5527,6 +5527,7 @@ window.resetAssistantState = function() {
   window._recentQuestions = [];
   window.clientMatchResolved = false;
   window._undoSnapshot = null;
+  window._userClosedInvoice = false;
   var conversation = document.getElementById('assistantConversation');
   if (conversation) conversation.innerHTML = '';
   var assistInput = document.getElementById('assistantInput');
@@ -5537,6 +5538,8 @@ window.resetAssistantState = function() {
 window.disablePreviousInteractiveElements = function() {
   var conversation = document.getElementById('assistantConversation');
   if (!conversation) return;
+  // Remove quick action chip containers entirely (not grey out)
+  conversation.querySelectorAll('.quick-action-chips').forEach(function(el) { el.remove(); });
   var allBtns = conversation.querySelectorAll('button:not([disabled])');
   allBtns.forEach(function(btn) {
     // Skip buttons inside active accordion/multi-choice cards
@@ -5690,18 +5693,12 @@ function showNextQueueItem() {
     var progressText = (L.question_progress || 'Question __CURRENT__ of __TOTAL__')
       .replace('__CURRENT__', current).replace('__TOTAL__', total);
     c._progressTag = ' <span class="text-[10px] font-medium text-gray-400 ml-1 whitespace-nowrap">' + escapeHtml(progressText) + '</span>';
-
-    // Also show Confirm All shortcut if applicable
-    var allHaveGuesses = window._clarificationQueue && window._clarificationQueue.every(function(q) {
-      return q.guess !== null && q.guess !== undefined && q.guess !== '' && q.guess !== 0 && q.guess !== '0';
-    });
-    if (allHaveGuesses && window._clarificationQueue.length > 0) {
-      renderQueueProgress(current, total);
-    }
   }
 
   // Route to type-specific renderer by field first, then by type
-  if (c.field === 'client_match' && c.similar_clients && c.similar_clients.length > 0) {
+  if (c.field === 'add_client_to_list') {
+    renderAddClientToListCard(c);
+  } else if (c.field === 'client_match' && c.similar_clients && c.similar_clients.length > 0) {
     renderClientMatchCard(c);
   } else if (c.field === 'section_type' && c.options && c.options.length > 0) {
     renderSectionTypeCard(c);
@@ -5714,17 +5711,13 @@ function showNextQueueItem() {
   } else if (c.type === 'yes_no') {
     renderYesNoCard(c);
   } else if (c.type === 'info') {
-    addAIBubble(c.question);
-    // Auto-advance info type after 2500ms OR user clicks "Got it"
-    var infoTimer = setTimeout(function() {
+    addAIBubble(c.question, null, c._progressTag);
+    // Auto-advance info type after 1500ms
+    setTimeout(function() {
       if (window._clarificationQueue && window._clarificationQueue.length > 0 && window._clarificationQueue[0] === c) {
         handleQueueAnswer('[acknowledged]');
       }
-    }, 2500);
-    var gotItDiv = document.createElement('div');
-    gotItDiv.className = 'ml-9 mt-1 animate-in fade-in duration-300';
-    gotItDiv.innerHTML = '<button type="button" class="text-[10px] font-bold text-gray-400 hover:text-orange-500 underline transition-colors" onclick="clearTimeout(' + infoTimer + '); this.parentElement.remove(); handleQueueAnswer(\'[acknowledged]\')">' + escapeHtml((window.APP_LANGUAGES || {}).got_it || 'Got it ✓') + '</button>';
-    conversation.appendChild(gotItDiv);
+    }, 1500);
     return;
   } else {
     // Default: text type or unknown — show bubble with optional guess
@@ -5734,15 +5727,6 @@ function showNextQueueItem() {
       guessHtml = escapeHtml(guessLabel) + ' ' + escapeHtml(String(c.guess));
     }
     addAIBubble(c.question, guessHtml, c._progressTag);
-
-    // Show "Use best guess" link for text-type questions with a guess
-    if (c.guess !== null && c.guess !== undefined && c.guess !== '' && c.guess !== 0 && c.guess !== '0') {
-      var guessLink = document.createElement('div');
-      guessLink.className = 'ml-9 mt-1 animate-in fade-in duration-300';
-      var safeGuess = escapeHtml(String(c.guess)).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-      guessLink.innerHTML = '<button type="button" onclick="autoSubmitAssistantMessage(\'' + safeGuess + '\')" class="text-[10px] font-bold text-gray-400 hover:text-orange-500 underline transition-colors">' + escapeHtml(L.use_best_guess || 'Use best guess') + '</button>';
-      conversation.appendChild(guessLink);
-    }
   }
 
   // Focus input for answer (except info type which auto-advances)
@@ -5808,62 +5792,6 @@ function batchSubmitQueueAnswers() {
   triggerAssistantReparse(batchMessage, 'refinement', 'User answered batch clarifications');
 }
 
-function confirmAllQueueGuesses() {
-  if (!window._clarificationQueue) return;
-
-  // Use guesses for all remaining items in queue
-  window._clarificationQueue.forEach(function(c) {
-    var guessStr = (c.guess !== null && c.guess !== undefined && c.guess !== '') ? String(c.guess) : 'confirmed';
-    addUserBubble(guessStr);
-    window._queueAnswers.push({
-      field: c.field,
-      question: c.question,
-      answer: guessStr,
-      guess: c.guess
-    });
-  });
-
-  window._clarificationQueue = [];
-
-  // Remove progress indicator
-  var conversation = document.getElementById('assistantConversation');
-  if (conversation) {
-    var progress = conversation.querySelector('.queue-progress-indicator');
-    if (progress) progress.remove();
-  }
-
-  batchSubmitQueueAnswers();
-}
-
-function renderQueueProgress(current, total) {
-  var conversation = document.getElementById('assistantConversation');
-  if (!conversation) return;
-
-  // Remove existing progress indicator
-  var existing = conversation.querySelector('.queue-progress-indicator');
-  if (existing) existing.remove();
-
-  var L = window.APP_LANGUAGES || {};
-  var progressText = (L.question_progress || 'Question __CURRENT__ of __TOTAL__')
-    .replace('__CURRENT__', current).replace('__TOTAL__', total);
-
-  var div = document.createElement('div');
-  div.className = 'queue-progress-indicator flex items-center justify-center gap-2 py-1.5 animate-in fade-in duration-200';
-
-  var btnsHtml = '';
-  // "Confirm All" if remaining items all have guesses
-  var allHaveGuesses = window._clarificationQueue && window._clarificationQueue.every(function(c) {
-    return c.guess !== null && c.guess !== undefined && c.guess !== '' && c.guess !== 0 && c.guess !== '0';
-  });
-  if (allHaveGuesses && window._clarificationQueue.length > 0) {
-    btnsHtml += '<button type="button" onclick="confirmAllQueueGuesses()" class="text-[10px] font-bold text-orange-600 hover:text-orange-700 underline">' + escapeHtml(L.confirm_all_guesses || 'Confirm All') + '</button>';
-  }
-
-  div.innerHTML = '<span class="text-[10px] font-bold text-gray-400 bg-gray-100 px-2.5 py-0.5 rounded-full">' + escapeHtml(progressText) + '</span>' + btnsHtml;
-
-  conversation.appendChild(div);
-  conversation.scrollTop = conversation.scrollHeight;
-}
 
 function toggleSection(contentId, arrowId, btn) {
   const content = document.getElementById(contentId);
@@ -5909,6 +5837,7 @@ function removeTypingIndicator() {
   if (!conversation) return;
   const indicator = conversation.querySelector('.typing-indicator');
   if (indicator) indicator.remove();
+  conversation.scrollTop = conversation.scrollHeight;
 }
 
 function addAIBubble(text, guessHtml, progressTag) {
@@ -5928,6 +5857,36 @@ function addAIBubble(text, guessHtml, progressTag) {
       ${guessBlock}
     </div>
   `;
+  conversation.appendChild(div);
+  conversation.scrollTop = conversation.scrollHeight;
+}
+
+function renderAddClientToListCard(clarification) {
+  var conversation = document.getElementById('assistantConversation');
+  if (!conversation) return;
+  var L = window.APP_LANGUAGES || {};
+  var questionText = clarification.question || '';
+  var createLabel = L.create_new_client || 'Create new';
+  var noLabel = L.no_btn || 'No';
+
+  var div = document.createElement('div');
+  div.className = "flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300";
+  div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
+    + '<div class="max-w-[85%]">'
+    + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
+    + '<div class="text-sm font-bold text-gray-800 mb-2.5">' + escapeHtml(questionText) + '</div>'
+    + '<div class="flex gap-2">'
+    + '<button type="button" onclick="window.clientMatchResolved=true; autoSubmitAssistantMessage(\'' + escapeHtml(createLabel).replace(/'/g, "\\'") + '\')" class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border-2 border-orange-300 bg-orange-50 hover:bg-orange-100 transition-all cursor-pointer active:scale-[0.97] text-[12px] font-bold text-orange-600">'
+    + '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m6-6H6"/></svg>'
+    + escapeHtml(createLabel)
+    + '</button>'
+    + '<button type="button" onclick="autoSubmitAssistantMessage(\'' + escapeHtml(noLabel).replace(/'/g, "\\'") + '\')" class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border-2 border-gray-200 bg-white hover:bg-gray-50 transition-all cursor-pointer active:scale-[0.97] text-[12px] font-bold text-gray-500">'
+    + '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
+    + escapeHtml(noLabel)
+    + '</button>'
+    + '</div>'
+    + '</div>'
+    + '</div>';
   conversation.appendChild(div);
   conversation.scrollTop = conversation.scrollHeight;
 }
@@ -6103,8 +6062,8 @@ function renderGenericChoiceCard(clarification) {
     var isGuess = opt.toString().toLowerCase() === guess;
     var ringClass = isGuess ? ' ring-2 ring-offset-1 ring-orange-400' : '';
     btns += '<button type="button" onclick="autoSubmitAssistantMessage(\'' + escapeHtml(opt).replace(/'/g, "\\'") + '\')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-gray-200 bg-white hover:bg-orange-50 hover:border-orange-300 transition-all cursor-pointer active:scale-[0.97] text-left' + ringClass + '">'
-      + '<div class="w-5 h-5 rounded-full border-2 border-orange-400 flex items-center justify-center flex-shrink-0">'
-      + (isGuess ? '<div class="w-2.5 h-2.5 rounded-full bg-orange-500"></div>' : '')
+      + '<div class="w-5 h-5 rounded-full border-2 border-orange-400 flex items-center justify-center flex-shrink-0" style="position:relative">'
+      + (isGuess ? '<div class="w-2.5 h-2.5 rounded-full bg-orange-500" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)"></div>' : '')
       + '</div>'
       + '<div class="flex-1 min-w-0">'
       + '<div class="text-[12px] font-bold text-gray-700">' + escapeHtml(opt) + '</div>'
@@ -6346,7 +6305,7 @@ function renderQuickActionChips() {
   });
 
   var div = document.createElement('div');
-  div.className = "flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300 ml-9";
+  div.className = "quick-action-chips flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300 ml-9";
   div.innerHTML = '<div class="flex flex-wrap gap-1.5 mt-0">' + chipHtml + '</div>';
 
   conversation.appendChild(div);
@@ -6975,6 +6934,20 @@ function handleClientDetailInput(value) {
 
   // ── ADD ITEM: smart detection ──
   if (field === 'add_item_name') {
+    // Cancel intent detection
+    var cancelPatterns = /^(აღარ\s*მინდა|არა|გაუქმება|გაუქმე|შეწყვიტე|არ მინდა|cancel|never\s*mind|no|stop)$/i;
+    if (cancelPatterns.test(value.trim())) {
+      window._collectingClientDetail = null;
+      window._addItemName = null;
+      showTypingIndicator();
+      setTimeout(function() {
+        removeTypingIndicator();
+        addAIBubble(L.anything_else || 'Anything else to change?');
+        renderQuickActionChips();
+      }, 400);
+      return;
+    }
+
     var hasNumbers = /\d/.test(value);
     var hasMultiple = /\s+და\s+|,/.test(value);
 
@@ -7007,6 +6980,20 @@ function handleClientDetailInput(value) {
 
   // ── ADD ITEM STEP 2: price answer ──
   if (field === 'add_item_price') {
+    // Cancel intent detection
+    var cancelPatterns2 = /^(აღარ\s*მინდა|არა|გაუქმება|გაუქმე|შეწყვიტე|არ მინდა|cancel|never\s*mind|no|stop)$/i;
+    if (cancelPatterns2.test(value.trim())) {
+      window._collectingClientDetail = null;
+      window._addItemName = null;
+      showTypingIndicator();
+      setTimeout(function() {
+        removeTypingIndicator();
+        addAIBubble(L.anything_else || 'Anything else to change?');
+        renderQuickActionChips();
+      }, 400);
+      return;
+    }
+
     window._collectingClientDetail = null;
     var itemName = window._addItemName || 'item';
     window._addItemName = null;
@@ -7555,9 +7542,23 @@ function updateUIWithoutTranscript(data) {
       updateDueDate(data.due_days, data.due_date);
     }
 
+    // Sender/FROM info updates
+    if (data.sender_info) {
+      var si = data.sender_info;
+      if (si.business_name) { var el = document.getElementById('fromBusinessName'); if (el) el.value = si.business_name; }
+      if (si.phone) { var el = document.getElementById('fromPhone'); if (el) el.value = si.phone; }
+      if (si.email) { var el = document.getElementById('fromEmail'); if (el) el.value = si.email; }
+      if (si.address) { var el = document.getElementById('fromAddress'); if (el) el.value = si.address; }
+      if (si.tax_id) { var el = document.getElementById('fromTaxId'); if (el) el.value = si.tax_id; }
+      if (si.payment_instructions) { var el = document.getElementById('fromPaymentInstructions'); if (el) el.value = si.payment_instructions; }
+    }
+
     updateTotalsSummary();
 
-    document.getElementById("invoicePreview").classList.remove("hidden");
+    // Only show invoice preview if user hasn't manually closed it
+    if (!window._userClosedInvoice) {
+      document.getElementById("invoicePreview").classList.remove("hidden");
+    }
 
     // Handle AI Clarification Questions (shown as chat bubbles alongside invoice)
     handleClarifications(data.clarifications || []);
@@ -7566,9 +7567,9 @@ function updateUIWithoutTranscript(data) {
       window.setupSaveButton();
     }
 
-    // Scroll to assistant chat if questions exist — don't force scroll to invoice during chat
+    // Always scroll to assistant chat area during refinement
     var assistantSection = document.getElementById('aiAssistantSection');
-    if (window.pendingClarifications && window.pendingClarifications.length > 0 && assistantSection) {
+    if (assistantSection) {
       assistantSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 

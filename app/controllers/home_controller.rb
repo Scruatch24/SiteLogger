@@ -1092,7 +1092,7 @@ DISCOUNT & CREDIT RULES
 TAX RULES
 ----------------------------
 - TAXABLE FIELD DEFAULT: Return `taxable: null` to use system defaults.
-- EXPLICIT "NO TAX ON ANYTHING" (e.g., "don't add tax", "no VAT", "no tax on the whole thing", "მთლიანს ნუ დაადებ დღგ-ს", "დღგ არ დაადო", "გადასახადი არ", "ნუ დაადებ გადასახადს", "დღგ-ს ნუ დაამატებ"): Set `labor_taxable: false` AND `taxable: false` on EVERY SINGLE item (labor, materials, expenses, fees). No exceptions.
+- REMOVE TAX / NO TAX: "no tax" / "remove tax" / "მოაშორე გადასახადი" / "გადასახადი მოაშორე" / "ნუ დაადებ დღგ-ს" / "დღგ არ დაადო" / "დღგ არ მინდა" / "გადასახადი არ" / "გადასახადი არ მინდა" / "ნუ დაამატებ გადასახადს" / "tax off" → Set `labor_taxable: false` AND `taxable: false` on EVERY SINGLE item (labor, materials, expenses, fees). Also set tax_rate: null and tax_scope: null. No exceptions. This is a COMMAND.
 - EXPLICIT "Tax everything except [X]": Set `taxable: false` for X, `taxable: true` for all others.
 - EXPLICIT "Tax [X] only": Set `taxable: true` for X, `taxable: false` for others.
 - EXPLICIT "Don't tax labor": Set `labor_taxable: false` AND `taxable: false` on EVERY labor_service_item.
@@ -1101,7 +1101,7 @@ TAX RULES
 - TAX SCOPE: Use null if no instruction. "tax ONLY on parts" → `tax_scope: "materials"`.
 - TAX RATES: "8% tax" → tax_rate: 8.0. Set on every item.
 - GENERAL TAX (e.g., "add 18% tax", "დაამატე 18% დღგ"): Set `tax_rate` on every item. Leave `tax_scope: null`. Do NOT break apart per category.
-- TAX IS NEVER A CLARIFICATION. "add X% tax" or "X% VAT" → just apply it. Never ask.
+- TAX IS NEVER A CLARIFICATION. "add X% tax" / "X% VAT" / "remove tax" → just apply it. Never ask.
 
 ----------------------------
 CLARIFICATION QUESTIONS
@@ -1932,10 +1932,11 @@ PROMPT
     lang_rule = if target_is_georgian
       "ALL text values (desc, name, reason, sub_categories) MUST be in Georgian (ქართული). JSON keys and section type values stay in English."
     else
-      "ALL text values MUST be in English. Translate Georgian text to English if needed."
+      "ALL text values (desc, name, reason, sub_categories) MUST be in English. Translate Georgian text to English if needed. JSON keys and section type values stay in English."
     end
 
-    question_lang = ui_is_georgian ? "Georgian (ქართული)" : "English"
+    # AI Assistant ALWAYS communicates in Georgian regardless of transcript language
+    question_lang = "Georgian (ქართული)"
     conversation_history = params[:conversation_history].to_s
 
     # Serialize current_json properly - it arrives as a hash from params
@@ -1997,13 +1998,13 @@ PROMPT
 
       TAX RULES:
       - Default: taxable = null (system applies defaults). Only set explicitly when user says so.
-      - "no tax on anything" / "ნუ დაადებ დღგ-ს" / "დღგ არ დაადო" → labor_taxable:false AND taxable:false on EVERY item.
+      - REMOVE TAX / NO TAX: "no tax" / "remove tax" / "მოაშორე გადასახადი" / "გადასახადი მოაშორე" / "ნუ დაადებ დღგ-ს" / "დღგ არ დაადო" / "დღგ არ მინდა" / "გადასახადი არ" / "გადასახადი არ მინდა" / "ნუ დაამატებ გადასახადს" / "tax off" → Set labor_taxable:false AND taxable:false on EVERY SINGLE item. Also set tax_rate:null and tax_scope:null. This is a COMMAND, not a question.
       - "tax everything except [X]" → taxable:false for X, taxable:true for all others.
       - "tax [X] only" → taxable:true for X, taxable:false for others.
       - "don't tax labor" → labor_taxable:false AND taxable:false on every labor item.
       - PER-ITEM TAX EXEMPTION: "X და Y არ იბეგრება" / "X is tax-free" / "X-ზე დღგ არ დაადო" → find items BY NAME, set taxable:false on each. Leave others unchanged.
       - Tax scope: null by default. "tax ONLY on parts" → tax_scope:"materials".
-      - TAX IS NEVER A CLARIFICATION. "add X% tax" / "X% VAT" → just apply it. Never ask.
+      - TAX IS NEVER A CLARIFICATION. "add X% tax" / "X% VAT" / "remove tax" → just apply it. Never ask.
 
       FREE ITEMS: "free" / "no charge" / "უფასოდ" / "უფასო" → price=0, hours=0, rate=0, mode="fixed", taxable=false.
 
@@ -2035,8 +2036,16 @@ PROMPT
          - Materials: { desc, qty (default 1), price, taxable, tax_rate, discount_flat, discount_percent, sub_categories: [] }
          - Expenses/Fees: { desc, price, taxable, tax_rate, discount_flat, discount_percent, sub_categories: [] }
          - If adding a new section type, use: { type: "materials"|"expenses"|"fees", title: "#{ui_is_georgian ? 'appropriate Georgian title' : 'appropriate English title'}", items: [...] }
+      6b. SUB_CATEGORIES RULE: sub_categories is an array of strings for additional details on an item. Use sub_categories for:
+         - WARRANTY / GUARANTEE: "გარანტია დაამატე" / "add warranty" / "გარანტია" → add to sub_categories of relevant items (e.g., "გარანტია: 1 წელი" or "Warranty: 1 Year"). Do NOT create a separate line item for warranty.
+         - NOTES / DESCRIPTION: "აღწერა დაუმატე" / "add description" / "აღწერა" → add to sub_categories of the target item. Not a new line item.
+         - DELIVERY/COMPLETION DATES: "მიწოდების თარიღი" / "დასრულების თარიღი" → add as sub_category, NOT as invoice date.
+         - BUNDLED PARTS: When a category total is given, individual part names go in sub_categories.
+         - REDUNDANCY CHECK: Do NOT add a sub_category that just repeats the main item name.
+         - If user says "add description X to item Y" or "ლეღვს აღწერა დაუმატე 'მწიფე'", find item Y and add X to its sub_categories array. Keep the item name unchanged.
       7. REMOVING ITEMS: Remove from the section's items array. If section becomes empty after removal, remove the entire section object from "sections".
-      8. CLIENT: If user changes client name, update "client" field. Match against EXISTING CLIENTS list if provided. Georgian convention: შპს "Company Name" (legal form before quoted name). If user mentions client's phone/email/address, include in "client_phone", "client_email", "client_address" fields. If user mentions changing sender business name/phone/email/address/tax ID, include in "sender_business_name", "sender_phone", "sender_email", "sender_address", "sender_tax_id". If user says "bank transfer only" or "საბანკო გადარიცხვით", check SENDER PAYMENT INSTRUCTIONS — if no bank details found, add a clarification. If user provides new payment instructions, include in "sender_payment_instructions".
+      8. CLIENT: If user changes client name, update "client" field. Match against EXISTING CLIENTS list if provided. Georgian convention: შპს "Company Name" (legal form before quoted name, e.g., user says "აპოჰეპა შპს" → client: "შპს \"აპოჰეპა\""). English: "Apoheba LTD" → client: "Apoheba LTD" (preserve user's casing for company names). If user mentions client's phone/email/address, include in "client_phone", "client_email", "client_address" fields.
+      8b. SENDER/FROM FIELDS: If user mentions changing their own business name ("ჩემი ბიზნესის სახელი შეცვალე", "change my business name", "გამგზავნის სახელი"), phone, email, address, or tax ID, include the changed values in "sender_business_name", "sender_phone", "sender_email", "sender_address", "sender_tax_id" fields. Georgian convention applies: "აპოჰეპა შპს" → sender_business_name: "შპს \"აპოჰეპა\"". IMPORTANT: Only modify the specific field the user asked to change. Do NOT clear other sender fields. If user says "bank transfer only" or "საბანკო გადარიცხვით", check SENDER PAYMENT INSTRUCTIONS — if no bank details found, add a clarification. If user provides new payment instructions, include in "sender_payment_instructions".
       9. CLARIFICATION ANSWERS: When user_message contains "[AI asked: ...]" it means the user is answering a previous clarification question. Apply the answer DIRECTLY to the JSON:
          - Warranty/note question answer like "მხოლოდ ქეისი და სერვისი" or "only the iPhone" → add/remove sub_categories on the specified items. Remove from items NOT mentioned, add to items that ARE mentioned.
          - "ყველაფერს"/"ყველას"/"all"/"everything"/"all items" → apply to ALL items in ALL sections (products, services, fees, expenses — everything). Do NOT limit to just one section.
@@ -2116,31 +2125,39 @@ PROMPT
       result["clarifications"].reject! { |c| c["field"].to_s.match?(/\bclient\b/i) && c["field"] != "client_match" }
 
       # Client matching for refine_invoice responses (paid users only)
-      # Skip fuzzy matching if the user already resolved client_match via interactive card
-      client_match_resolved = params[:client_match_resolved].to_s == "true"
       if user_signed_in? && @profile.paid? && result["client"].present?
         client_name = result["client"].to_s.strip
+        current_client_name = params.dig(:current_json, :client).to_s.strip
+
         exact_match = current_user.clients.where("name ILIKE ?", client_name).first
         if exact_match
           result["recipient_info"] = { "client_id" => exact_match.id, "name" => exact_match.name, "email" => exact_match.email, "phone" => exact_match.phone, "address" => exact_match.address }
           result["client"] = exact_match.name
-        elsif !client_match_resolved
-          similar = current_user.clients.where("name ILIKE ?", "%#{client_name.gsub(/[%_]/, '')}%").limit(5).to_a
-          if similar.any?
+        else
+          # Fuzzy match — exclude the current invoice client from results
+          similar = current_user.clients.where("name ILIKE ?", "%#{client_name.gsub(/[%_]/, '')}%").limit(10).to_a
+          similar.reject! { |c| c.name.downcase == current_client_name.downcase } if current_client_name.present?
+
+          if similar.length == 1
+            # Only 1 match after excluding current → auto-set
+            match = similar.first
+            result["recipient_info"] = { "client_id" => match.id, "name" => match.name, "email" => match.email, "phone" => match.phone, "address" => match.address }
+            result["client"] = match.name
+          elsif similar.length > 1
+            # Multiple matches → show picker
             similar_with_counts = similar.map { |c| { "id" => c.id, "name" => c.name, "invoices_count" => c.logs.kept.count } }
               .sort_by { |c| -c["invoices_count"] }
               .first(3)
             best_guess = similar_with_counts.first["name"]
-            question_text = if I18n.locale.to_s == "ka"
-              "მოიძებნა რამდენიმე მსგავსი კლიენტი:"
-            else
-              "Multiple similar clients found:"
-            end
+            question_text = I18n.locale.to_s == "ka" ? "მოიძებნა რამდენიმე მსგავსი კლიენტი:" : "Multiple similar clients found:"
             result["clarifications"] << { "field" => "client_match", "guess" => best_guess, "question" => question_text, "similar_clients" => similar_with_counts }
+            result["recipient_info"] = { "client_id" => nil, "name" => client_name, "is_new" => true }
+          else
+            # No match at all — set as new client, ask if user wants to save to list
+            result["recipient_info"] = { "client_id" => nil, "name" => client_name, "is_new" => true }
+            add_q = I18n.locale.to_s == "ka" ? "გსურთ ამ კლიენტის სიაში დამატება?" : "Would you like to add this client to your list?"
+            result["clarifications"] << { "field" => "add_client_to_list", "type" => "yes_no", "question" => add_q, "guess" => nil }
           end
-          result["recipient_info"] = { "client_id" => nil, "name" => client_name, "is_new" => true }
-        else
-          result["recipient_info"] = { "client_id" => nil, "name" => client_name, "is_new" => true }
         end
       end
 
