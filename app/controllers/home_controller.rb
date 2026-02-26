@@ -1958,6 +1958,56 @@ PROMPT
 
       #{conversation_history.present? ? "CONVERSATION CONTEXT:\n#{conversation_history}" : ""}
 
+      ████ DOMAIN RULES REFERENCE (apply these when adding/modifying items) ████
+
+      CATEGORY CLASSIFICATION:
+      - LABOR/SERVICE: Implementation, deployment, installation, configuration, consulting, training, repair, cleaning — any ACTION. Georgian: "დანერგვა", "ინსტალაცია", "კონფიგურაცია", "შეკეთება", "გაწმენდა" = ALWAYS SERVICE.
+      - MATERIALS/PRODUCTS: Physical goods the client keeps (servers, parts, equipment, supplies). NOT services/actions.
+      - EXPENSES: Pass-through reimbursables (parking, tolls, Uber). Usually not taxed.
+      - FEES: Surcharges, disposal, rush fees, rent/lease ("ქირა", "იჯარა"), utilities ("კომუნალური"), penalties ("ჯარიმა"). RENT/LEASE → ALWAYS FEES.
+      - CREDITS: Each credit = { amount, reason }. Default reason: "Courtesy Credit". Post-tax reductions ("off the total") = CREDIT, not discount.
+      - AMBIGUOUS: "Action + Object + Price" (e.g., "Replaced filter $25") → LABOR. If genuinely unclear, ask with field: "section_type".
+      - If in doubt, prefer Labor/Service for tasks, Materials for physical objects.
+
+      ITEM NAMING:
+      - Title Case for all desc/name fields (e.g., "Filter Replacement", "ფილტრის შეცვლა").
+      - Strip action verbs from material names: "used nails" → "Nails". Only keep descriptive adjectives.
+      - Georgian: Use NOMINATIVE/dictionary form for item names, NOT genitive or other cases. "ველოსიპედის" (genitive) → "ველოსიპედი" (nominative). Singular form for any quantity.
+      - When user answers a question conversationally (e.g., "ველოსიპედის" answering "რისი დამატება გსურთ?"), normalize to proper item name form.
+
+      DISCOUNT RULES:
+      - Discounts are PRE-TAX by default. They reduce the taxable base.
+      - "after tax" / "off the total" / "from the final amount" → treat as CREDIT (post-tax), NOT discount.
+      - MUTUALLY EXCLUSIVE: each item has EITHER discount_flat OR discount_percent, NEVER BOTH.
+      - Percentage → discount_percent. Flat amount → discount_flat. NEVER compute the flat equivalent of a percentage.
+      - discount_percent ≤ 100. discount_flat ≤ item total price.
+      - "discount everything except [category]" → apply per-item to every OTHER category, leave excluded at 0. Do NOT use global_discount.
+      - PERCENTAGE DISCOUNTS AND DISCOUNT SCOPE ARE NEVER CLARIFICATION CANDIDATES. Just apply them.
+
+      TAX RULES:
+      - Default: taxable = null (system applies defaults). Only set explicitly when user says so.
+      - "no tax on anything" / "ნუ დაადებ დღგ-ს" / "დღგ არ დაადო" → labor_taxable:false AND taxable:false on EVERY item.
+      - "tax everything except [X]" → taxable:false for X, taxable:true for all others.
+      - "tax [X] only" → taxable:true for X, taxable:false for others.
+      - "don't tax labor" → labor_taxable:false AND taxable:false on every labor item.
+      - Tax scope: null by default. "tax ONLY on parts" → tax_scope:"materials".
+      - TAX IS NEVER A CLARIFICATION. "add X% tax" / "X% VAT" → just apply it. Never ask.
+
+      FREE ITEMS: "free" / "no charge" / "უფასოდ" / "უფასო" → price=0, hours=0, rate=0, mode="fixed", taxable=false.
+
+      NEVER-ASK RULES:
+      - NEVER ask about tax rates, tax scope, tax applicability — these are COMMANDS. Execute them.
+      - NEVER ask about discount percentages or discount scope — these are COMMANDS. Execute them.
+      - NEVER ask about ANY value that has an explicit number next to it.
+      - NEVER ask about hourly rates, team rates, special rates — system has defaults.
+      - NEVER confirm something the user already stated.
+
+      QUESTION FORMATTING:
+      - All questions MUST end with "?" (question mark). Never end with "." or nothing.
+      - Keep questions SHORT and conversational.
+
+      ████ END DOMAIN RULES ████
+
       MODIFICATION RULES:
       1. Only change what the user explicitly asks for. Keep everything else EXACTLY as-is.
       2. Return the COMPLETE modified JSON in the SAME structure as the input above.
@@ -1966,11 +2016,9 @@ PROMPT
          - Due date: "ბოლო ვადა", "ვადა", "გადახდის ვადა", "due date" → modify "due_date" field. Format: "MMM DD, YYYY".
          - Delivery/completion/start date: "მიწოდების თარიღი", "დაწყების თარიღი", "დასრულების თარიღი", "შესრულების თარიღი", "ჩაბარების თარიღი", "საქმის დასრულების თარიღი", "სამსახურის დასრულების თარიღი" → add as sub_category on the most relevant main item. Do NOT put in "date" or "due_date" fields.
          - Sub_category date FORMAT must match document language. Georgian: "შესრულება: 15 მარტი, 2026". English: "Completion: Mar 15, 2026". NEVER mix (WRONG: "შესრულების თარიღი: Mar 15, 2026").
-      4. TAX:
-         - "ნუ დაადებ დღგ-ს" / "no tax" / "მთლიანს ნუ დაადებ დღგ-ს" → set taxable:false on ALL items in ALL sections AND set "labor_taxable": false.
-         - "დაამატე X% დღგ" / "add X% tax" → set tax_rate:X on all items, taxable:true.
-      5. DISCOUNTS: Apply to the correct scope (global_discount_flat/percent, labor_discount_flat/percent, or per-item discount_flat/percent).
-      6. ADDING ITEMS: Place in the appropriate section by type.
+      4. TAX: Apply per TAX RULES above.
+      5. DISCOUNTS: Apply per DISCOUNT RULES above. Use correct scope (global_discount_flat/percent, labor_discount_flat/percent, or per-item discount_flat/percent).
+      6. ADDING ITEMS: Classify per CATEGORY CLASSIFICATION above. Name per ITEM NAMING above.
          - Labor: { desc, price, rate, mode: "hourly"|"fixed", taxable, tax_rate, discount_flat, discount_percent, sub_categories: [] }
          - Materials: { desc, qty (default 1), price, taxable, tax_rate, discount_flat, discount_percent, sub_categories: [] }
          - Expenses/Fees: { desc, price, taxable, tax_rate, discount_flat, discount_percent, sub_categories: [] }
@@ -1985,8 +2033,8 @@ PROMPT
          Do NOT re-ask the same question. Return "clarifications": [] after applying.
       10. Return "clarifications": [] (empty) unless the instruction is genuinely NEW and ambiguous. NEVER re-ask a question that was just answered.
       11. Keep "raw_summary" unchanged.
-      12. CREDITS: Array of { amount: number, reason: "string" }. Add/remove/modify as instructed.
-      13. All clarification questions MUST be in #{question_lang}.
+      12. CREDITS: Apply per CREDITS rule above. Default reason: "Courtesy Credit" if none given.
+      13. All clarification questions MUST be in #{question_lang}. Questions MUST end with "?".
       14. IMPORTANT: Preserve ALL existing fields even if you don't modify them (billing_mode, currency, hourly_rate, labor_tax_rate, tax_scope, etc.).
       15. SECTION TYPE DISAMBIGUATION: When adding a new item and you genuinely cannot determine which section it belongs to, add a clarification with field: "section_type", guess: your best guess section (e.g., "labor"), options: ["labor", "materials", "expenses", "fees"] (only plausible ones), and question asking the user. Place item in guessed section initially.
       16. CURRENCY DISAMBIGUATION: When user changes or adds amounts and the currency is ambiguous, add a clarification with field: "currency", guess: best ISO code (e.g., "GEL"), options: ["GEL", "USD", "EUR"], and question asking which currency.
@@ -1999,7 +2047,7 @@ PROMPT
           - "info": you are telling the user something, NO answer expected. Example: confirming action, assumption summary.
       19. SAFETY: If you cannot understand the instruction, return UNCHANGED JSON + empty clarifications. If the instruction is not about invoice modification, return unchanged JSON + one clarification with type: "info" politely redirecting.
       20. Maximum 2 answer-requiring clarifications per response. If more issues exist, guess the rest and add a type: "info" clarification explaining your assumptions.
-      21. Keep questions SHORT and conversational. End with ":" not "." when expecting input.
+      21. Keep questions SHORT and conversational.
 
       Return ONLY valid JSON. No markdown fences, no explanation text, no preamble.
     PROMPT

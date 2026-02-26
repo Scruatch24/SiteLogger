@@ -1794,17 +1794,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (!isRecording) {
-      // Fix: Clear previous text when starting a new recording
+      // Clear ALL previous state when starting a new recording
       if (transcriptArea) {
         transcriptArea.value = "";
-        window.previousClarificationAnswers = [];
-        window.clarificationHistory = [];
-        window._pendingAnswer = null;
-        window._analysisSucceeded = false;
-        window.lastAiResult = null;
-        renderConversationHistory();
-        const assistInput = document.getElementById('assistantInput');
-        if (assistInput) { assistInput.value = ''; assistInput.disabled = false; }
+        window.resetAssistantState();
         if (window.updateDynamicCounters) window.updateDynamicCounters();
         window.totalVoiceUsed = 0; // Reset bank on new main recording
 
@@ -2073,6 +2066,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const text = transcriptArea.value;
     if (!text || text.trim().length < 2) return; // Ignore empty/barely legible input
     const limit = window.profileCharLimit || 2000;
+
+    // Clear all previous AI assistant state before re-analysis
+    window.resetAssistantState();
 
     startAnalysisUI();
 
@@ -5509,6 +5505,32 @@ window._queueAnswers = null;
 window._queueTotal = 0;
 window._collectingClientDetail = null;
 window._newClientDetails = {};
+window._discountFlow = null;
+window._recentQuestions = [];
+
+window.resetAssistantState = function() {
+  window.skipTranscriptUpdate = false;
+  window.pendingClarifications = [];
+  window.originalTranscript = "";
+  window.previousClarificationAnswers = [];
+  window.clarificationHistory = [];
+  window._pendingAnswer = null;
+  window._analysisSucceeded = false;
+  window.lastAiResult = null;
+  window._clarificationQueue = null;
+  window._queueAnswers = null;
+  window._queueTotal = 0;
+  window._collectingClientDetail = null;
+  window._newClientDetails = {};
+  window._discountFlow = null;
+  window._addItemName = null;
+  window._recentQuestions = [];
+  window.clientMatchResolved = false;
+  var conversation = document.getElementById('assistantConversation');
+  if (conversation) conversation.innerHTML = '';
+  var assistInput = document.getElementById('assistantInput');
+  if (assistInput) { assistInput.value = ''; assistInput.disabled = false; }
+};
 
 window.calculateHistoricalChars = function() {
   if (!window.clarificationHistory || window.clarificationHistory.length === 0) return 0;
@@ -5590,14 +5612,43 @@ function handleClarifications(clarifications) {
     return;
   }
 
+  // Bug 6: Loop protection — filter out questions AI already asked recently
+  var recentQs = window._recentQuestions || [];
+  var filtered = [];
+  unansweredClarifications.forEach(function(c) {
+    var qNorm = (c.question || '').trim().toLowerCase();
+    if (recentQs.indexOf(qNorm) !== -1) {
+      // Already asked — auto-answer with guess silently
+      console.warn('[Loop protection] Skipping re-asked question:', c.question);
+    } else {
+      filtered.push(c);
+      recentQs.push(qNorm);
+    }
+  });
+  // Keep only last 10 recent questions
+  window._recentQuestions = recentQs.slice(-10);
+
+  if (filtered.length === 0) {
+    // All questions were duplicates — treat as no clarifications
+    window.pendingClarifications = [];
+    showTypingIndicator();
+    setTimeout(function() {
+      removeTypingIndicator();
+      addAIBubble(window.APP_LANGUAGES.anything_else || "Anything else to change?");
+      renderQuickActionChips();
+      window.setupSaveButton();
+    }, 600);
+    return;
+  }
+
   // Store for later submission
-  window.pendingClarifications = unansweredClarifications;
+  window.pendingClarifications = filtered;
   window.originalTranscript = document.getElementById('mainTranscript').value;
 
   // ── SEQUENTIAL QUESTION QUEUE ──
-  window._clarificationQueue = unansweredClarifications.slice();
+  window._clarificationQueue = filtered.slice();
   window._queueAnswers = [];
-  window._queueTotal = unansweredClarifications.length;
+  window._queueTotal = filtered.length;
 
   showTypingIndicator();
   setTimeout(function() {
@@ -5637,10 +5688,16 @@ function showNextQueueItem() {
     renderYesNoCard(c);
   } else if (c.type === 'info') {
     addAIBubble(c.question);
-    // Auto-advance info type after 1200ms
-    setTimeout(function() {
-      handleQueueAnswer('[acknowledged]');
-    }, 1200);
+    // Auto-advance info type after 2500ms OR user clicks "Got it"
+    var infoTimer = setTimeout(function() {
+      if (window._clarificationQueue && window._clarificationQueue.length > 0 && window._clarificationQueue[0] === c) {
+        handleQueueAnswer('[acknowledged]');
+      }
+    }, 2500);
+    var gotItDiv = document.createElement('div');
+    gotItDiv.className = 'ml-9 mt-1 animate-in fade-in duration-300';
+    gotItDiv.innerHTML = '<button type="button" class="text-[10px] font-bold text-gray-400 hover:text-orange-500 underline transition-colors" onclick="clearTimeout(' + infoTimer + '); this.parentElement.remove(); handleQueueAnswer(\'[acknowledged]\')">' + escapeHtml((window.APP_LANGUAGES || {}).got_it || 'Got it ✓') + '</button>';
+    conversation.appendChild(gotItDiv);
     return;
   } else {
     // Default: text type or unknown — show bubble with optional guess
@@ -5655,7 +5712,8 @@ function showNextQueueItem() {
     if (c.guess !== null && c.guess !== undefined && c.guess !== '' && c.guess !== 0 && c.guess !== '0') {
       var guessLink = document.createElement('div');
       guessLink.className = 'ml-9 mt-1 animate-in fade-in duration-300';
-      guessLink.innerHTML = '<button type="button" onclick="autoSubmitAssistantMessage(\'' + escapeHtml(String(c.guess)).replace(/'/g, "\\'") + '\')" class="text-[10px] font-bold text-gray-400 hover:text-orange-500 underline transition-colors">' + escapeHtml(L.use_best_guess || 'Use best guess') + '</button>';
+      var safeGuess = escapeHtml(String(c.guess)).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      guessLink.innerHTML = '<button type="button" onclick="autoSubmitAssistantMessage(\'' + safeGuess + '\')" class="text-[10px] font-bold text-gray-400 hover:text-orange-500 underline transition-colors">' + escapeHtml(L.use_best_guess || 'Use best guess') + '</button>';
       conversation.appendChild(guessLink);
     }
   }
@@ -6064,7 +6122,7 @@ function renderMultiChoiceCard(clarification) {
   });
 
   var doneLabel = L.done_btn || 'Done';
-  btns += '<button type="button" onclick="submitMultiChoice()" class="w-full flex items-center justify-center gap-1.5 px-3 py-2 mt-1 rounded-xl border-2 border-orange-400 bg-orange-50 hover:bg-orange-100 transition-all cursor-pointer active:scale-[0.97] text-[12px] font-bold text-orange-700">'
+  btns += '<button type="button" onclick="submitMultiChoice(this)" class="w-full flex items-center justify-center gap-1.5 px-3 py-2 mt-1 rounded-xl border-2 border-orange-400 bg-orange-50 hover:bg-orange-100 transition-all cursor-pointer active:scale-[0.97] text-[12px] font-bold text-orange-700">'
     + '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>'
     + escapeHtml(doneLabel)
     + '</button>';
@@ -6103,9 +6161,12 @@ function toggleMultiChoice(btn) {
   }
 }
 
-function submitMultiChoice() {
+function submitMultiChoice(btn) {
   var selected = [];
-  var btns = document.querySelectorAll('.multi-choice-btn[data-selected="true"]');
+  // Scope to current card only (Bug 3 fix: avoid picking up stale cards)
+  var card = btn ? btn.closest('.bg-gray-50') : null;
+  var scope = card || document;
+  var btns = scope.querySelectorAll('.multi-choice-btn[data-selected="true"]');
   for (var i = 0; i < btns.length; i++) {
     selected.push(btns[i].dataset.multiOpt);
   }
@@ -6160,14 +6221,14 @@ function renderQuickActionChips() {
 
   var L = window.APP_LANGUAGES || {};
   var chips = [
-    { label: L.action_change_client || 'Change client', icon: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>' },
-    { label: L.action_add_discount || 'Add discount', icon: '<line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>' },
-    { label: L.action_add_item || 'Add item', icon: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>' }
+    { label: L.action_change_client || 'Change client', handler: 'handleChipChangeClient', icon: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>' },
+    { label: L.action_add_discount || 'Add discount', handler: 'handleChipAddDiscount', icon: '<line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>' },
+    { label: L.action_add_item || 'Add item', handler: 'handleChipAddItem', icon: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>' }
   ];
 
   var chipHtml = '';
   chips.forEach(function(c) {
-    chipHtml += '<button type="button" onclick="autoSubmitAssistantMessage(\'' + escapeHtml(c.label).replace(/'/g, "\\'") + '\')" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-gray-200 bg-white hover:bg-orange-50 hover:border-orange-300 transition-all cursor-pointer active:scale-[0.95] text-[11px] font-bold text-gray-600 hover:text-orange-600 shadow-sm">'
+    chipHtml += '<button type="button" onclick="' + c.handler + '()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-gray-200 bg-white hover:bg-orange-50 hover:border-orange-300 transition-all cursor-pointer active:scale-[0.95] text-[11px] font-bold text-gray-600 hover:text-orange-600 shadow-sm">'
       + '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">' + c.icon + '</svg>'
       + escapeHtml(c.label)
       + '</button>';
@@ -6179,6 +6240,390 @@ function renderQuickActionChips() {
 
   conversation.appendChild(div);
   conversation.scrollTop = conversation.scrollHeight;
+}
+
+// ── CHIP HANDLER: CHANGE CLIENT (1-step frontend flow) ──
+function handleChipChangeClient() {
+  if (window._pendingAnswer) return;
+  window._collectingClientDetail = null;
+  window._discountFlow = null;
+  var L = window.APP_LANGUAGES || {};
+
+  addUserBubble(L.action_change_client || 'Change client');
+  window.clientMatchResolved = false; // Reset so backend re-runs matching
+
+  showTypingIndicator();
+  setTimeout(function() {
+    removeTypingIndicator();
+    addAIBubble(L.change_client_prompt || 'Who is the new client?');
+    window._collectingClientDetail = 'change_client';
+    var assistInput = document.getElementById('assistantInput');
+    if (assistInput) {
+      assistInput.value = '';
+      assistInput.placeholder = L.change_client_prompt || 'Who is the new client?';
+      assistInput.focus();
+    }
+  }, 400);
+}
+
+// ── CHIP HANDLER: ADD DISCOUNT (multi-step frontend flow) ──
+function handleChipAddDiscount() {
+  if (window._pendingAnswer) return;
+  window._collectingClientDetail = null;
+  window._discountFlow = null;
+  var L = window.APP_LANGUAGES || {};
+
+  addUserBubble(L.action_add_discount || 'Add discount');
+
+  window._discountFlow = { step: 'amount', amount: null, type: null, categories: [], items: {} };
+
+  showTypingIndicator();
+  setTimeout(function() {
+    removeTypingIndicator();
+    addAIBubble(L.discount_amount_prompt || 'How much discount?');
+    var assistInput = document.getElementById('assistantInput');
+    if (assistInput) {
+      assistInput.value = '';
+      assistInput.placeholder = L.discount_amount_prompt || 'How much discount?';
+      assistInput.focus();
+    }
+  }, 400);
+}
+
+// ── CHIP HANDLER: ADD ITEM (2-step frontend flow) ──
+function handleChipAddItem() {
+  if (window._pendingAnswer) return;
+  window._collectingClientDetail = null;
+  window._discountFlow = null;
+  var L = window.APP_LANGUAGES || {};
+
+  addUserBubble(L.action_add_item || 'Add item');
+
+  window._collectingClientDetail = 'add_item_name';
+
+  showTypingIndicator();
+  setTimeout(function() {
+    removeTypingIndicator();
+    addAIBubble(L.add_item_what_prompt || 'What do you want to add?');
+    var assistInput = document.getElementById('assistantInput');
+    if (assistInput) {
+      assistInput.value = '';
+      assistInput.placeholder = L.add_item_what_prompt || 'What do you want to add?';
+      assistInput.focus();
+    }
+  }, 400);
+}
+
+// ── DISCOUNT FLOW: multi-step handler ──
+function handleDiscountFlowInput(value) {
+  var flow = window._discountFlow;
+  if (!flow) return;
+  var L = window.APP_LANGUAGES || {};
+
+  if (flow.step === 'amount') {
+    // Parse number — strip currency symbols, %, spaces
+    var num = parseFloat(value.replace(/[^0-9.,]/g, '').replace(',', '.'));
+    if (isNaN(num) || num <= 0) {
+      addAIBubble(L.discount_invalid_amount || 'Please enter a valid number.');
+      return;
+    }
+    flow.amount = num;
+
+    // Auto-detect type: if > 100, must be fixed (can't be percentage)
+    if (num > 100) {
+      flow.type = 'fixed';
+      flow.step = 'category';
+      showTypingIndicator();
+      setTimeout(function() { removeTypingIndicator(); renderDiscountCategorySelect(); }, 400);
+    } else {
+      // Could be either — check if user typed "%" explicitly
+      if (value.indexOf('%') !== -1) {
+        flow.type = 'percentage';
+        flow.step = 'category';
+        showTypingIndicator();
+        setTimeout(function() { removeTypingIndicator(); renderDiscountCategorySelect(); }, 400);
+      } else {
+        flow.step = 'type';
+        showTypingIndicator();
+        setTimeout(function() { removeTypingIndicator(); renderDiscountTypeChoice(); }, 400);
+      }
+    }
+    return;
+  }
+
+  if (flow.step === 'type') {
+    var lower = value.toLowerCase().trim();
+    if (lower === '%' || lower === 'percentage' || lower === 'პროცენტული' || lower === 'percent') {
+      flow.type = 'percentage';
+    } else {
+      flow.type = 'fixed';
+    }
+    flow.step = 'category';
+    showTypingIndicator();
+    setTimeout(function() { removeTypingIndicator(); renderDiscountCategorySelect(); }, 400);
+    return;
+  }
+
+  // Steps 'category' and 'items' are handled by button clicks, not text input
+}
+
+function renderDiscountTypeChoice() {
+  var conversation = document.getElementById('assistantConversation');
+  if (!conversation) return;
+  var L = window.APP_LANGUAGES || {};
+
+  var div = document.createElement('div');
+  div.className = 'flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300';
+  div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
+    + '<div class="max-w-[85%]">'
+    + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
+    + '<div class="text-sm font-bold text-gray-800 mb-2">' + escapeHtml(L.discount_type_prompt || 'Fixed or percentage?') + '</div>'
+    + '<div class="flex gap-2">'
+    + '<button type="button" onclick="selectDiscountType(\'fixed\')" class="flex-1 px-3 py-2 rounded-xl border-2 border-gray-200 bg-white hover:bg-blue-50 hover:border-blue-300 transition-all cursor-pointer active:scale-[0.97] text-[12px] font-bold text-gray-700 text-center">' + escapeHtml(L.discount_type_fixed || 'Fixed amount') + '</button>'
+    + '<button type="button" onclick="selectDiscountType(\'percentage\')" class="flex-1 px-3 py-2 rounded-xl border-2 border-gray-200 bg-white hover:bg-blue-50 hover:border-blue-300 transition-all cursor-pointer active:scale-[0.97] text-[12px] font-bold text-gray-700 text-center">' + escapeHtml(L.discount_type_percentage || 'Percentage') + '</button>'
+    + '</div></div></div>';
+  conversation.appendChild(div);
+  conversation.scrollTop = conversation.scrollHeight;
+}
+
+function selectDiscountType(type) {
+  var flow = window._discountFlow;
+  if (!flow) return;
+  var L = window.APP_LANGUAGES || {};
+  addUserBubble(type === 'percentage' ? (L.discount_type_percentage || 'Percentage') : (L.discount_type_fixed || 'Fixed amount'));
+  flow.type = type;
+  flow.step = 'category';
+  showTypingIndicator();
+  setTimeout(function() { removeTypingIndicator(); renderDiscountCategorySelect(); }, 400);
+}
+
+function renderDiscountCategorySelect() {
+  var conversation = document.getElementById('assistantConversation');
+  if (!conversation || !window.lastAiResult) return;
+  var L = window.APP_LANGUAGES || {};
+  var data = window.lastAiResult;
+
+  // Build available categories from current invoice
+  var cats = [];
+  if (data.labor_service_items && data.labor_service_items.length > 0) {
+    cats.push({ key: 'labor', label: L.discount_cat_services || 'Services', items: data.labor_service_items.map(function(i) { return i.desc || i.name || ''; }).filter(Boolean) });
+  }
+  if (data.sections) {
+    data.sections.forEach(function(sec) {
+      if (!sec.items || sec.items.length === 0) return;
+      var t = (sec.type || '').toLowerCase();
+      var label = t === 'materials' ? (L.discount_cat_products || 'Products')
+        : t === 'expenses' ? (L.discount_cat_expenses || 'Expenses')
+        : t === 'fees' ? (L.discount_cat_fees || 'Fees') : sec.title || t;
+      cats.push({ key: t, label: label, items: sec.items.map(function(i) { return i.name || i.desc || ''; }).filter(Boolean) });
+    });
+  }
+
+  if (cats.length === 0) {
+    // No sections — apply globally
+    finishDiscountFlow([]);
+    return;
+  }
+
+  if (cats.length === 1) {
+    // Only one category — auto-select it
+    window._discountFlow.categories = [cats[0]];
+    checkDiscountItemSelection();
+    return;
+  }
+
+  var btns = '';
+  cats.forEach(function(cat, idx) {
+    btns += '<button type="button" data-cat-idx="' + idx + '" data-selected="false" onclick="toggleDiscountCategory(this)" class="discount-cat-btn w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-gray-200 bg-white hover:bg-blue-50 hover:border-blue-300 transition-all cursor-pointer active:scale-[0.97] text-left">'
+      + '<div class="w-5 h-5 rounded border-2 border-gray-300 flex items-center justify-center flex-shrink-0 cat-check"></div>'
+      + '<div class="text-[12px] font-bold text-gray-700">' + escapeHtml(cat.label) + ' (' + cat.items.length + ')</div>'
+      + '</button>';
+  });
+  btns += '<button type="button" onclick="confirmDiscountCategories()" class="w-full px-3 py-2 rounded-xl border-2 border-orange-300 bg-orange-50 hover:bg-orange-100 transition-all cursor-pointer active:scale-[0.97] text-[12px] font-bold text-orange-700 text-center mt-1">' + escapeHtml(L.confirm_btn || 'Confirm') + '</button>';
+
+  // Store cats for later reference
+  window._discountFlow._cats = cats;
+
+  var div = document.createElement('div');
+  div.className = 'flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300';
+  div.id = 'discountCategoryCard';
+  div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
+    + '<div class="max-w-[85%]">'
+    + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
+    + '<div class="text-sm font-bold text-gray-800 mb-2">' + escapeHtml(L.discount_category_prompt || 'Which categories?') + '</div>'
+    + '<div class="space-y-1.5">' + btns + '</div>'
+    + '</div></div>';
+  conversation.appendChild(div);
+  conversation.scrollTop = conversation.scrollHeight;
+}
+
+function toggleDiscountCategory(btn) {
+  var sel = btn.getAttribute('data-selected') === 'true';
+  btn.setAttribute('data-selected', sel ? 'false' : 'true');
+  var check = btn.querySelector('.cat-check');
+  if (check) {
+    check.innerHTML = sel ? '' : '<svg class="w-3 h-3 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
+    check.classList.toggle('border-orange-500', !sel);
+    check.classList.toggle('bg-orange-50', !sel);
+    check.classList.toggle('border-gray-300', sel);
+  }
+}
+
+function confirmDiscountCategories() {
+  var flow = window._discountFlow;
+  if (!flow || !flow._cats) return;
+  var L = window.APP_LANGUAGES || {};
+  var card = document.getElementById('discountCategoryCard');
+  var btns = card ? card.querySelectorAll('.discount-cat-btn[data-selected="true"]') : [];
+  var selectedCats = [];
+  btns.forEach(function(btn) {
+    var idx = parseInt(btn.getAttribute('data-cat-idx'));
+    if (!isNaN(idx) && flow._cats[idx]) selectedCats.push(flow._cats[idx]);
+  });
+
+  if (selectedCats.length === 0) {
+    // Nothing selected — apply to all
+    selectedCats = flow._cats.slice();
+  }
+
+  flow.categories = selectedCats;
+  var labels = selectedCats.map(function(c) { return c.label; });
+  addUserBubble(labels.join(', '));
+
+  checkDiscountItemSelection();
+}
+
+function checkDiscountItemSelection() {
+  var flow = window._discountFlow;
+  if (!flow) return;
+
+  // For each category with 2+ items, ask which specific items
+  var catsNeedingItems = flow.categories.filter(function(c) { return c.items.length > 1; });
+
+  if (catsNeedingItems.length === 0) {
+    // All categories have 0 or 1 item — no need to ask
+    finishDiscountFlow(flow.categories);
+    return;
+  }
+
+  // Ask per-category item selection sequentially
+  flow._itemQueue = catsNeedingItems.slice();
+  flow.step = 'items';
+  showTypingIndicator();
+  setTimeout(function() { removeTypingIndicator(); renderDiscountItemSelect(); }, 400);
+}
+
+function renderDiscountItemSelect() {
+  var flow = window._discountFlow;
+  if (!flow || !flow._itemQueue || flow._itemQueue.length === 0) {
+    finishDiscountFlow(flow.categories);
+    return;
+  }
+
+  var conversation = document.getElementById('assistantConversation');
+  if (!conversation) return;
+  var L = window.APP_LANGUAGES || {};
+  var cat = flow._itemQueue[0]; // peek
+
+  var prompt = (L.discount_items_prompt || 'Which %{category} items?').replace('%{category}', cat.label.toLowerCase());
+
+  var btns = '';
+  cat.items.forEach(function(itemName, idx) {
+    btns += '<button type="button" data-item-idx="' + idx + '" data-selected="true" onclick="toggleDiscountItem(this)" class="discount-item-btn w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-green-200 bg-green-50 hover:bg-green-100 transition-all cursor-pointer active:scale-[0.97] text-left">'
+      + '<div class="w-5 h-5 rounded border-2 border-green-500 bg-green-50 flex items-center justify-center flex-shrink-0 item-check"><svg class="w-3 h-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>'
+      + '<div class="text-[12px] font-bold text-gray-700">' + escapeHtml(itemName) + '</div>'
+      + '</button>';
+  });
+  btns += '<button type="button" onclick="confirmDiscountItems()" class="w-full px-3 py-2 rounded-xl border-2 border-orange-300 bg-orange-50 hover:bg-orange-100 transition-all cursor-pointer active:scale-[0.97] text-[12px] font-bold text-orange-700 text-center mt-1">' + escapeHtml(L.confirm_btn || 'Confirm') + '</button>';
+
+  var div = document.createElement('div');
+  div.className = 'flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300';
+  div.id = 'discountItemCard';
+  div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
+    + '<div class="max-w-[85%]">'
+    + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
+    + '<div class="text-sm font-bold text-gray-800 mb-2">' + escapeHtml(prompt) + '</div>'
+    + '<div class="space-y-1.5">' + btns + '</div>'
+    + '</div></div>';
+  conversation.appendChild(div);
+  conversation.scrollTop = conversation.scrollHeight;
+}
+
+function toggleDiscountItem(btn) {
+  var sel = btn.getAttribute('data-selected') === 'true';
+  btn.setAttribute('data-selected', sel ? 'false' : 'true');
+  var check = btn.querySelector('.item-check');
+  if (check) {
+    if (sel) {
+      check.innerHTML = '';
+      check.classList.remove('border-green-500', 'bg-green-50');
+      check.classList.add('border-gray-300');
+      btn.classList.remove('border-green-200', 'bg-green-50');
+      btn.classList.add('border-gray-200', 'bg-white');
+    } else {
+      check.innerHTML = '<svg class="w-3 h-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
+      check.classList.add('border-green-500', 'bg-green-50');
+      check.classList.remove('border-gray-300');
+      btn.classList.add('border-green-200', 'bg-green-50');
+      btn.classList.remove('border-gray-200', 'bg-white');
+    }
+  }
+}
+
+function confirmDiscountItems() {
+  var flow = window._discountFlow;
+  if (!flow || !flow._itemQueue) return;
+  var cat = flow._itemQueue.shift();
+  var card = document.getElementById('discountItemCard');
+  var btns = card ? card.querySelectorAll('.discount-item-btn[data-selected="true"]') : [];
+  var selected = [];
+  btns.forEach(function(btn) {
+    var idx = parseInt(btn.getAttribute('data-item-idx'));
+    if (!isNaN(idx) && cat.items[idx]) selected.push(cat.items[idx]);
+  });
+  if (selected.length === 0) selected = cat.items.slice(); // none selected = all
+  if (!flow.items) flow.items = {};
+  flow.items[cat.key] = selected;
+  addUserBubble(selected.join(', '));
+
+  // Remove the card
+  if (card) card.remove();
+
+  if (flow._itemQueue.length > 0) {
+    showTypingIndicator();
+    setTimeout(function() { removeTypingIndicator(); renderDiscountItemSelect(); }, 400);
+  } else {
+    finishDiscountFlow(flow.categories);
+  }
+}
+
+function finishDiscountFlow(categories) {
+  var flow = window._discountFlow;
+  if (!flow) return;
+
+  // Build clear instruction for AI
+  var typeStr = flow.type === 'percentage' ? (flow.amount + '%') : flow.amount;
+  var parts = [];
+
+  if (categories && categories.length > 0) {
+    categories.forEach(function(cat) {
+      var items = (flow.items && flow.items[cat.key]) ? flow.items[cat.key] : cat.items;
+      if (items && items.length > 0) {
+        parts.push(items.join(', ') + ' (' + cat.key + ')');
+      } else {
+        parts.push(cat.label + ' (' + cat.key + ')');
+      }
+    });
+  }
+
+  var instruction = 'Apply ' + typeStr + ' discount';
+  if (parts.length > 0) {
+    instruction += ' on ' + parts.join(' and ');
+  }
+
+  window._discountFlow = null;
+  showTypingIndicator();
+  triggerAssistantReparse(instruction, 'refinement', 'User requested change');
 }
 
 function autoSubmitAssistantMessage(text) {
@@ -6299,6 +6744,45 @@ function handleClientDetailInput(value) {
   if (!field) return;
 
   var L = window.APP_LANGUAGES || {};
+
+  // ── CHANGE CLIENT: send to AI as refinement ──
+  if (field === 'change_client') {
+    window._collectingClientDetail = null;
+    showTypingIndicator();
+    triggerAssistantReparse('Change client to ' + value, 'refinement', 'User requested change');
+    return;
+  }
+
+  // ── ADD ITEM STEP 1: item name → ask for price ──
+  if (field === 'add_item_name') {
+    window._addItemName = value;
+    window._collectingClientDetail = 'add_item_price';
+    showTypingIndicator();
+    setTimeout(function() {
+      removeTypingIndicator();
+      var priceQ = (L.add_item_price_prompt || 'How much does %{item} cost?').replace('%{item}', value);
+      addAIBubble(priceQ);
+      var assistInput = document.getElementById('assistantInput');
+      if (assistInput) {
+        assistInput.value = '';
+        assistInput.placeholder = priceQ;
+        assistInput.focus();
+      }
+    }, 400);
+    return;
+  }
+
+  // ── ADD ITEM STEP 2: price → send to AI ──
+  if (field === 'add_item_price') {
+    window._collectingClientDetail = null;
+    var itemName = window._addItemName || 'item';
+    window._addItemName = null;
+    showTypingIndicator();
+    triggerAssistantReparse('Add item: ' + itemName + ', price: ' + value, 'refinement', 'User requested change');
+    return;
+  }
+
+  // ── STANDARD CLIENT DETAIL FIELDS ──
   var isEmailPattern = /[^@\s]+@[^@\s]+\.[^@\s]+/.test(value);
 
   // Smart input detection: email entered when phone was asked
@@ -6560,15 +7044,27 @@ async function processAssistantAudio() {
 }
 
 async function submitAssistantMessage() {
-  if (window._pendingAnswer) return; // Prevent spam clicks while reparse in flight
   const input = document.getElementById('assistantInput');
+  if (window._pendingAnswer) {
+    // Bug 4 fix: Show brief feedback instead of silent click swallow
+    if (input) { input.classList.add('animate-pulse'); setTimeout(function() { input.classList.remove('animate-pulse'); }, 600); }
+    return;
+  }
   const userMessage = input ? input.value.trim() : '';
 
   if (!userMessage || userMessage.length < 2) {
     return; // Silently ignore empty/barely legible input
   }
 
-  // INTERCEPT 1: Frontend-only client detail collection
+  // INTERCEPT 0: Discount flow (multi-step, entirely frontend)
+  if (window._discountFlow) {
+    addUserBubble(userMessage);
+    if (input) { input.value = ''; if (typeof autoResize === 'function') autoResize(input); }
+    handleDiscountFlowInput(userMessage);
+    return;
+  }
+
+  // INTERCEPT 1: Frontend-only detail/flow collection
   if (window._collectingClientDetail) {
     addUserBubble(userMessage);
     if (input) { input.value = ''; if (typeof autoResize === 'function') autoResize(input); }
@@ -6609,12 +7105,13 @@ async function triggerAssistantReparse(userAnswer, type, questionsText) {
   window._pendingAnswer = { text: userAnswer, type: type, historyEntry: historyEntry };
   if (input) input.disabled = true;
 
-  // Build conversation history text
+  // Build conversation history text (Bug 7: cap to last 8 entries to prevent token bloat)
   const allEntries = [...(window.clarificationHistory || []), historyEntry];
+  const cappedEntries = allEntries.length > 8 ? allEntries.slice(-8) : allEntries;
   let historyText = "";
-  if (allEntries.length > 1) {
+  if (cappedEntries.length > 1) {
     historyText = "--- PREVIOUS Q&A CONTEXT ---";
-    allEntries.slice(0, -1).forEach((h, i) => {
+    cappedEntries.slice(0, -1).forEach((h, i) => {
       if (h.questions === "User requested change") {
         historyText += `\n[Round ${i + 1} - User correction/addition: "${h.answer}"]`;
       } else {
