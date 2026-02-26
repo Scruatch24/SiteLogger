@@ -5504,6 +5504,11 @@ window.clarificationHistory = [];
 window._pendingAnswer = null;
 window._analysisSucceeded = false;
 window.lastAiResult = null;
+window._clarificationQueue = null;
+window._queueAnswers = null;
+window._queueTotal = 0;
+window._collectingClientDetail = null;
+window._newClientDetails = {};
 
 window.calculateHistoricalChars = function() {
   if (!window.clarificationHistory || window.clarificationHistory.length === 0) return 0;
@@ -5540,11 +5545,11 @@ window.rollbackPendingAnswer = function() {
 };
 
 function handleClarifications(clarifications) {
-  const section = document.getElementById('aiAssistantSection');
+  var section = document.getElementById('aiAssistantSection');
   removeTypingIndicator();
 
   // Filter out already-answered clarifications
-  const unansweredClarifications = (clarifications || []).filter(c => {
+  var unansweredClarifications = (clarifications || []).filter(function(c) {
     return c.question && c.question.trim();
   });
 
@@ -5552,9 +5557,8 @@ function handleClarifications(clarifications) {
   if (section) section.classList.remove('hidden');
 
   // Only rebuild conversation from scratch on FIRST call (fresh analysis)
-  // Subsequent calls (after user answers) just append — bubbles already in DOM
-  const conversation = document.getElementById('assistantConversation');
-  const isFirstCall = !conversation || conversation.children.length === 0;
+  var conversation = document.getElementById('assistantConversation');
+  var isFirstCall = !conversation || conversation.children.length === 0;
   if (isFirstCall) {
     renderConversationHistory();
   }
@@ -5568,15 +5572,16 @@ function handleClarifications(clarifications) {
     var wasCreateNew = pendingText.toLowerCase() === createLabel;
 
     showTypingIndicator();
-    setTimeout(() => {
+    setTimeout(function() {
       removeTypingIndicator();
       if (wasCreateNew) {
         renderClientDetailOptions();
       } else {
         addAIBubble(window.APP_LANGUAGES.anything_else || "Anything else to change?");
         renderQuickActionChips();
+        window.setupSaveButton();
       }
-      const assistInput = document.getElementById('assistantInput');
+      var assistInput = document.getElementById('assistantInput');
       if (assistInput) {
         assistInput.placeholder = window.APP_LANGUAGES.assistant_placeholder || "Tell me what to change...";
         assistInput.focus();
@@ -5589,66 +5594,192 @@ function handleClarifications(clarifications) {
   window.pendingClarifications = unansweredClarifications;
   window.originalTranscript = document.getElementById('mainTranscript').value;
 
-  // Show each question as its own chat bubble with typing animation
-  unansweredClarifications.forEach((c, index) => {
-    let guessDisplay;
-    if (c.guess === true || c.guess === "true") {
-      guessDisplay = window.APP_LANGUAGES.guess_yes || "Yes";
-    } else if (c.guess === false || c.guess === "false") {
-      guessDisplay = window.APP_LANGUAGES.guess_no || "No";
-    } else if (c.guess === 0 || c.guess === "0" || c.guess === "" || c.guess === null || c.guess === undefined) {
-      guessDisplay = window.APP_LANGUAGES.not_specified || "not specified";
-    } else {
-      // Format comma-separated item names with proper conjunction
-      const guessStr = String(c.guess);
-      const parts = guessStr.split(/\s*,\s*/).filter(p => p.trim());
-      if (parts.length > 1) {
-        const lang = window.currentSystemLanguage || 'en';
-        const conjunction = (lang === 'ka') ? ' და ' : ' and ';
-        guessDisplay = parts.slice(0, -1).join(', ') + conjunction + parts[parts.length - 1];
-      } else {
-        guessDisplay = guessStr;
-      }
+  // ── SEQUENTIAL QUESTION QUEUE ──
+  window._clarificationQueue = unansweredClarifications.slice();
+  window._queueAnswers = [];
+  window._queueTotal = unansweredClarifications.length;
+
+  showTypingIndicator();
+  setTimeout(function() {
+    removeTypingIndicator();
+    showNextQueueItem();
+  }, 400);
+}
+
+function showNextQueueItem() {
+  if (!window._clarificationQueue || window._clarificationQueue.length === 0) return;
+
+  var conversation = document.getElementById('assistantConversation');
+  if (!conversation) return;
+
+  var c = window._clarificationQueue[0]; // peek — don't shift yet
+  var current = window._queueTotal - window._clarificationQueue.length + 1;
+  var total = window._queueTotal;
+  var L = window.APP_LANGUAGES || {};
+
+  // Show progress indicator + shortcuts for 2+ total items
+  if (total > 1) {
+    renderQueueProgress(current, total);
+  }
+
+  // Route to type-specific renderer by field first, then by type
+  if (c.field === 'client_match' && c.similar_clients && c.similar_clients.length > 0) {
+    renderClientMatchCard(c);
+  } else if (c.field === 'section_type' && c.options && c.options.length > 0) {
+    renderSectionTypeCard(c);
+  } else if (c.field === 'currency' && c.options && c.options.length > 0) {
+    renderCurrencyCard(c);
+  } else if (c.type === 'choice' && c.options && c.options.length > 0) {
+    renderGenericChoiceCard(c);
+  } else if (c.type === 'multi_choice' && c.options && c.options.length > 0) {
+    renderMultiChoiceCard(c);
+  } else if (c.type === 'yes_no') {
+    renderYesNoCard(c);
+  } else if (c.type === 'info') {
+    addAIBubble(c.question);
+    // Auto-advance info type after 1200ms
+    setTimeout(function() {
+      handleQueueAnswer('[acknowledged]');
+    }, 1200);
+    return;
+  } else {
+    // Default: text type or unknown — show bubble with optional guess
+    var guessHtml = null;
+    if (c.guess !== null && c.guess !== undefined && c.guess !== '' && c.guess !== 0 && c.guess !== '0') {
+      var guessLabel = L.current_guess || 'My guess:';
+      guessHtml = escapeHtml(guessLabel) + ' ' + escapeHtml(String(c.guess));
     }
+    addAIBubble(c.question, guessHtml);
 
-    const questionText = c.question;
-    const guessLabel = window.APP_LANGUAGES.current_guess || "My guess:";
-    const guessHtml = `${escapeHtml(guessLabel)} ${escapeHtml(guessDisplay)}`;
+    // Show "Use best guess" link for text-type questions with a guess
+    if (c.guess !== null && c.guess !== undefined && c.guess !== '' && c.guess !== 0 && c.guess !== '0') {
+      var guessLink = document.createElement('div');
+      guessLink.className = 'ml-9 mt-1 animate-in fade-in duration-300';
+      guessLink.innerHTML = '<button type="button" onclick="autoSubmitAssistantMessage(\'' + escapeHtml(String(c.guess)).replace(/'/g, "\\'") + '\')" class="text-[10px] font-bold text-gray-400 hover:text-orange-500 underline transition-colors">' + escapeHtml(L.use_best_guess || 'Use best guess') + '</button>';
+      conversation.appendChild(guessLink);
+    }
+  }
 
-    // Stagger bubbles with typing indicator
-    setTimeout(() => {
-      removeTypingIndicator();
-      if (c.field === 'client_match' && c.similar_clients && c.similar_clients.length > 0) {
-        renderClientMatchCard(c);
-      } else if (c.field === 'section_type' && c.options && c.options.length > 0) {
-        renderSectionTypeCard(c);
-      } else if (c.field === 'currency' && c.options && c.options.length > 0) {
-        renderCurrencyCard(c);
-      } else {
-        addAIBubble(questionText, guessHtml);
-      }
-      // Show typing indicator for next bubble (if not the last)
-      if (index < unansweredClarifications.length - 1) {
-        showTypingIndicator();
-      }
-    }, index * 800 + 400);
+  // Focus input for answer (except info type which auto-advances)
+  var assistInput = document.getElementById('assistantInput');
+  if (assistInput) {
+    assistInput.value = '';
+    assistInput.placeholder = L.answer_placeholder || 'Type or speak your answer...';
+    assistInput.focus();
+  }
+}
+
+function handleQueueAnswer(answer) {
+  if (!window._clarificationQueue || window._clarificationQueue.length === 0) return;
+
+  var currentItem = window._clarificationQueue.shift();
+  window._queueAnswers.push({
+    field: currentItem.field,
+    question: currentItem.question,
+    answer: answer,
+    guess: currentItem.guess
   });
 
-  // Show typing indicator before first bubble
-  showTypingIndicator();
+  // Remove progress indicator
+  var conversation = document.getElementById('assistantConversation');
+  if (conversation) {
+    var progress = conversation.querySelector('.queue-progress-indicator');
+    if (progress) progress.remove();
+  }
 
-  // Clear the input field for fresh answer after all bubbles shown
-  const totalDelay = unansweredClarifications.length * 800 + 400;
-  setTimeout(() => {
-    if (!window._pendingAnswer) {
-      const assistInput = document.getElementById('assistantInput');
-      if (assistInput) {
-        assistInput.value = '';
-        assistInput.placeholder = window.APP_LANGUAGES.answer_placeholder || "Type or speak your answer...";
-        assistInput.focus();
-      }
-    }
-  }, totalDelay);
+  if (window._clarificationQueue.length > 0) {
+    showTypingIndicator();
+    setTimeout(function() {
+      removeTypingIndicator();
+      showNextQueueItem();
+    }, 400);
+  } else {
+    // All answered — batch submit to AI
+    batchSubmitQueueAnswers();
+  }
+}
+
+function batchSubmitQueueAnswers() {
+  var answers = window._queueAnswers ? window._queueAnswers.slice() : [];
+
+  // Clean up queue state
+  window._clarificationQueue = null;
+  window._queueAnswers = null;
+  window._queueTotal = 0;
+  window.pendingClarifications = [];
+
+  if (answers.length === 0) return;
+
+  // Format batch as individual Q&A pairs for the AI
+  var batchMessage = answers.map(function(qa) {
+    return '[AI asked: "' + qa.question + '" → User answered: "' + qa.answer + '"]';
+  }).join('\n');
+
+  showTypingIndicator();
+  var input = document.getElementById('assistantInput');
+  if (input) input.disabled = true;
+
+  // Use refinement type so the message isn't double-wrapped
+  triggerAssistantReparse(batchMessage, 'refinement', 'User answered batch clarifications');
+}
+
+function confirmAllQueueGuesses() {
+  if (!window._clarificationQueue) return;
+
+  // Use guesses for all remaining items in queue
+  window._clarificationQueue.forEach(function(c) {
+    var guessStr = (c.guess !== null && c.guess !== undefined && c.guess !== '') ? String(c.guess) : 'confirmed';
+    addUserBubble(guessStr);
+    window._queueAnswers.push({
+      field: c.field,
+      question: c.question,
+      answer: guessStr,
+      guess: c.guess
+    });
+  });
+
+  window._clarificationQueue = [];
+
+  // Remove progress indicator
+  var conversation = document.getElementById('assistantConversation');
+  if (conversation) {
+    var progress = conversation.querySelector('.queue-progress-indicator');
+    if (progress) progress.remove();
+  }
+
+  batchSubmitQueueAnswers();
+}
+
+function renderQueueProgress(current, total) {
+  var conversation = document.getElementById('assistantConversation');
+  if (!conversation) return;
+
+  // Remove existing progress indicator
+  var existing = conversation.querySelector('.queue-progress-indicator');
+  if (existing) existing.remove();
+
+  var L = window.APP_LANGUAGES || {};
+  var progressText = (L.question_progress || 'Question __CURRENT__ of __TOTAL__')
+    .replace('__CURRENT__', current).replace('__TOTAL__', total);
+
+  var div = document.createElement('div');
+  div.className = 'queue-progress-indicator flex items-center justify-center gap-2 py-1.5 animate-in fade-in duration-200';
+
+  var btnsHtml = '';
+  // "Confirm All" if remaining items all have guesses
+  var allHaveGuesses = window._clarificationQueue && window._clarificationQueue.every(function(c) {
+    return c.guess !== null && c.guess !== undefined && c.guess !== '' && c.guess !== 0 && c.guess !== '0';
+  });
+  if (allHaveGuesses && window._clarificationQueue.length > 0) {
+    btnsHtml += '<button type="button" onclick="confirmAllQueueGuesses()" class="text-[10px] font-bold text-orange-600 hover:text-orange-700 underline">' + escapeHtml(L.confirm_all_guesses || 'Confirm All') + '</button>';
+    btnsHtml += '<span class="text-gray-300">·</span>';
+  }
+  btnsHtml += '<button type="button" onclick="confirmAllQueueGuesses()" class="text-[10px] font-bold text-gray-400 hover:text-gray-600 underline">' + escapeHtml(L.show_invoice || 'Just show me the invoice') + '</button>';
+
+  div.innerHTML = '<span class="text-[10px] font-bold text-gray-400 bg-gray-100 px-2.5 py-0.5 rounded-full">' + escapeHtml(progressText) + '</span>' + btnsHtml;
+
+  conversation.appendChild(div);
+  conversation.scrollTop = conversation.scrollHeight;
 }
 
 function toggleSection(contentId, arrowId, btn) {
@@ -5873,6 +6004,156 @@ function renderCurrencyCard(clarification) {
   conversation.scrollTop = conversation.scrollHeight;
 }
 
+function renderGenericChoiceCard(clarification) {
+  var conversation = document.getElementById('assistantConversation');
+  if (!conversation) return;
+
+  var L = window.APP_LANGUAGES || {};
+  var options = clarification.options || [];
+  var questionText = clarification.question || '';
+  var guess = (clarification.guess || '').toString().toLowerCase();
+
+  var btns = '';
+  options.forEach(function(opt) {
+    var isGuess = opt.toString().toLowerCase() === guess;
+    var ringClass = isGuess ? ' ring-2 ring-offset-1 ring-orange-400' : '';
+    btns += '<button type="button" onclick="autoSubmitAssistantMessage(\'' + escapeHtml(opt).replace(/'/g, "\\'") + '\')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-gray-200 bg-white hover:bg-orange-50 hover:border-orange-300 transition-all cursor-pointer active:scale-[0.97] text-left' + ringClass + '">'
+      + '<div class="w-7 h-7 rounded-full bg-orange-50 border border-orange-200 flex items-center justify-center flex-shrink-0">'
+      + '<svg class="w-3.5 h-3.5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><circle cx="12" cy="12" r="1"/></svg>'
+      + '</div>'
+      + '<div class="flex-1 min-w-0">'
+      + '<div class="text-[12px] font-bold text-gray-700">' + escapeHtml(opt) + '</div>'
+      + (isGuess ? '<div class="text-[10px] text-gray-400 font-semibold">' + escapeHtml(L.ai_guess || 'AI suggestion') + '</div>' : '')
+      + '</div>'
+      + '</button>';
+  });
+
+  var div = document.createElement('div');
+  div.className = "flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300";
+  div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
+    + '<div class="max-w-[85%]">'
+    + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
+    + '<div class="text-sm font-bold text-gray-800 mb-2.5">' + escapeHtml(questionText) + '</div>'
+    + '<div class="space-y-1.5">' + btns + '</div>'
+    + '</div>'
+    + '</div>';
+
+  conversation.appendChild(div);
+  conversation.scrollTop = conversation.scrollHeight;
+}
+
+function renderMultiChoiceCard(clarification) {
+  var conversation = document.getElementById('assistantConversation');
+  if (!conversation) return;
+
+  var L = window.APP_LANGUAGES || {};
+  var options = clarification.options || [];
+  var questionText = clarification.question || '';
+  var guessItems = (clarification.guess || '').toString().split(/\s*,\s*/).filter(function(p) { return p.trim(); }).map(function(p) { return p.trim().toLowerCase(); });
+
+  var btns = '';
+  options.forEach(function(opt) {
+    var isPreSelected = guessItems.indexOf(opt.toLowerCase()) !== -1;
+    var selectedBorder = isPreSelected ? 'bg-orange-50 border-orange-300 ring-2 ring-orange-300' : 'bg-white border-gray-200';
+    var checkBg = isPreSelected ? 'bg-orange-500 border-orange-500' : 'bg-white border-gray-300';
+    var checkIcon = isPreSelected ? '<svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>' : '';
+    btns += '<button type="button" data-multi-opt="' + escapeHtml(opt) + '" data-selected="' + isPreSelected + '" onclick="toggleMultiChoice(this)" class="multi-choice-btn w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border ' + selectedBorder + ' hover:bg-orange-50 hover:border-orange-300 transition-all cursor-pointer active:scale-[0.97] text-left">'
+      + '<div class="w-5 h-5 rounded border-2 ' + checkBg + ' flex items-center justify-center flex-shrink-0 multi-check">' + checkIcon + '</div>'
+      + '<div class="text-[12px] font-bold text-gray-700">' + escapeHtml(opt) + '</div>'
+      + '</button>';
+  });
+
+  var doneLabel = L.done_btn || 'Done';
+  btns += '<button type="button" onclick="submitMultiChoice()" class="w-full flex items-center justify-center gap-1.5 px-3 py-2 mt-1 rounded-xl border-2 border-orange-400 bg-orange-50 hover:bg-orange-100 transition-all cursor-pointer active:scale-[0.97] text-[12px] font-bold text-orange-700">'
+    + '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>'
+    + escapeHtml(doneLabel)
+    + '</button>';
+
+  var div = document.createElement('div');
+  div.className = "flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300";
+  div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
+    + '<div class="max-w-[85%]">'
+    + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
+    + '<div class="text-sm font-bold text-gray-800 mb-2.5">' + escapeHtml(questionText) + '</div>'
+    + '<div class="space-y-1.5">' + btns + '</div>'
+    + '</div>'
+    + '</div>';
+
+  conversation.appendChild(div);
+  conversation.scrollTop = conversation.scrollHeight;
+}
+
+function toggleMultiChoice(btn) {
+  var isSelected = btn.dataset.selected === 'true';
+  btn.dataset.selected = String(!isSelected);
+
+  var check = btn.querySelector('.multi-check');
+  if (!isSelected) {
+    btn.classList.add('bg-orange-50', 'border-orange-300', 'ring-2', 'ring-orange-300');
+    btn.classList.remove('bg-white', 'border-gray-200');
+    check.classList.add('bg-orange-500', 'border-orange-500');
+    check.classList.remove('bg-white', 'border-gray-300');
+    check.innerHTML = '<svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
+  } else {
+    btn.classList.remove('bg-orange-50', 'border-orange-300', 'ring-2', 'ring-orange-300');
+    btn.classList.add('bg-white', 'border-gray-200');
+    check.classList.remove('bg-orange-500', 'border-orange-500');
+    check.classList.add('bg-white', 'border-gray-300');
+    check.innerHTML = '';
+  }
+}
+
+function submitMultiChoice() {
+  var selected = [];
+  var btns = document.querySelectorAll('.multi-choice-btn[data-selected="true"]');
+  for (var i = 0; i < btns.length; i++) {
+    selected.push(btns[i].dataset.multiOpt);
+  }
+  var answer = selected.length > 0 ? selected.join(', ') : 'none';
+  autoSubmitAssistantMessage(answer);
+}
+
+function renderYesNoCard(clarification) {
+  var conversation = document.getElementById('assistantConversation');
+  if (!conversation) return;
+
+  var L = window.APP_LANGUAGES || {};
+  var questionText = clarification.question || '';
+  var guess = clarification.guess;
+
+  var guessBlock = '';
+  if (guess !== null && guess !== undefined && guess !== '' && guess !== 0 && guess !== '0') {
+    var guessLabel = L.current_guess || 'My guess:';
+    guessBlock = '<div class="mt-1.5 mb-2 px-3 py-1 bg-orange-50 border border-dashed border-orange-300 rounded-lg text-[11px] text-orange-700 font-bold">' + escapeHtml(guessLabel) + ' ' + escapeHtml(String(guess)) + '</div>';
+  }
+
+  var yesLabel = L.yes_btn || 'Yes';
+  var noLabel = L.no_btn || 'No';
+
+  var div = document.createElement('div');
+  div.className = "flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300";
+  div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
+    + '<div class="max-w-[85%]">'
+    + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
+    + '<div class="text-sm font-bold text-gray-800">' + escapeHtml(questionText) + '</div>'
+    + guessBlock
+    + '<div class="flex gap-2 mt-2">'
+    + '<button type="button" onclick="autoSubmitAssistantMessage(\'' + escapeHtml(yesLabel).replace(/'/g, "\\'") + '\')" class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border-2 border-green-300 bg-green-50 hover:bg-green-100 transition-all cursor-pointer active:scale-[0.97] text-[12px] font-bold text-green-700">'
+    + '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>'
+    + escapeHtml(yesLabel)
+    + '</button>'
+    + '<button type="button" onclick="autoSubmitAssistantMessage(\'' + escapeHtml(noLabel).replace(/'/g, "\\'") + '\')" class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border-2 border-red-200 bg-red-50 hover:bg-red-100 transition-all cursor-pointer active:scale-[0.97] text-[12px] font-bold text-red-600">'
+    + '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
+    + escapeHtml(noLabel)
+    + '</button>'
+    + '</div>'
+    + '</div>'
+    + '</div>';
+
+  conversation.appendChild(div);
+  conversation.scrollTop = conversation.scrollHeight;
+}
+
 function renderQuickActionChips() {
   var conversation = document.getElementById('assistantConversation');
   if (!conversation) return;
@@ -5908,19 +6189,27 @@ function autoSubmitAssistantMessage(text) {
   }
 }
 
-function renderClientDetailOptions() {
+function getDetailFieldDefs() {
+  var L = window.APP_LANGUAGES || {};
+  return {
+    email: { key: 'email', label: L.detail_email || 'Email', prompt: L.detail_prompt_email || "Please tell me the client's email:", icon: '<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>', color: 'blue' },
+    phone: { key: 'phone', label: L.detail_phone || 'Phone', prompt: L.detail_prompt_phone || "Please tell me the client's phone number:", icon: '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>', color: 'green' },
+    address: { key: 'address', label: L.detail_address || 'Address', prompt: L.detail_prompt_address || "Please tell me the client's address:", icon: '<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>', color: 'purple' },
+    notes: { key: 'notes', label: L.detail_notes || 'Notes', prompt: L.detail_prompt_notes || 'Any notes about this client?', icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>', color: 'amber' }
+  };
+}
+
+function renderClientDetailOptions(excludeFields) {
   var conversation = document.getElementById('assistantConversation');
   if (!conversation) return;
 
   var L = window.APP_LANGUAGES || {};
-  var questionText = L.add_client_details_question || 'Would you like to add details for this client?';
+  var defs = getDetailFieldDefs();
+  var exclude = excludeFields || [];
 
-  var details = [
-    { label: L.detail_email || 'Email', icon: '<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>', color: 'blue' },
-    { label: L.detail_phone || 'Phone', icon: '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>', color: 'green' },
-    { label: L.detail_address || 'Address', icon: '<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>', color: 'purple' },
-    { label: L.detail_notes || 'Notes', icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>', color: 'amber' }
-  ];
+  var questionText = exclude.length > 0
+    ? (L.detail_more_options || 'Would you like to add anything else?')
+    : (L.add_client_details_question || 'Would you like to add details for this client?');
 
   var colorMap = {
     blue: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-500', hover: 'hover:bg-blue-50 hover:border-blue-300' },
@@ -5930,9 +6219,14 @@ function renderClientDetailOptions() {
   };
 
   var btns = '';
-  details.forEach(function(d) {
+  var fields = ['email', 'phone', 'address', 'notes'];
+  var hasOptions = false;
+  fields.forEach(function(key) {
+    if (exclude.indexOf(key) !== -1) return;
+    hasOptions = true;
+    var d = defs[key];
     var cm = colorMap[d.color];
-    btns += '<button type="button" onclick="autoSubmitAssistantMessage(\'' + escapeHtml(d.label).replace(/'/g, "\\'") + '\')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-gray-200 bg-white ' + cm.hover + ' transition-all cursor-pointer active:scale-[0.97] text-left">'
+    btns += '<button type="button" onclick="startDetailCollection(\'' + key + '\')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-gray-200 bg-white ' + cm.hover + ' transition-all cursor-pointer active:scale-[0.97] text-left">'
       + '<div class="w-7 h-7 rounded-full ' + cm.bg + ' border ' + cm.border + ' flex items-center justify-center flex-shrink-0">'
       + '<svg class="w-3.5 h-3.5 ' + cm.text + '" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + d.icon + '</svg>'
       + '</div>'
@@ -5940,10 +6234,26 @@ function renderClientDetailOptions() {
       + '</button>';
   });
 
-  var noLabel = L.detail_no || 'No';
-  btns += '<button type="button" onclick="autoSubmitAssistantMessage(\'' + escapeHtml(noLabel).replace(/'/g, "\\'") + '\')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-dashed border-gray-300 bg-white hover:bg-gray-50 hover:border-gray-400 transition-all cursor-pointer active:scale-[0.97] text-left">'
+  // Show collected fields as confirmed items
+  exclude.forEach(function(key) {
+    var d = defs[key];
+    if (!d) return;
+    var val = window._newClientDetails[key] || '';
+    var cm = colorMap[d.color];
+    btns += '<div class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-green-200 bg-green-50 text-left opacity-70">'
+      + '<div class="w-7 h-7 rounded-full bg-green-100 border border-green-300 flex items-center justify-center flex-shrink-0">'
+      + '<svg class="w-3.5 h-3.5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>'
+      + '</div>'
+      + '<div class="flex-1 min-w-0">'
+      + '<div class="text-[11px] font-bold text-green-700 truncate">' + escapeHtml(d.label) + ': ' + escapeHtml(val) + '</div>'
+      + '</div>'
+      + '</div>';
+  });
+
+  var noLabel = L.detail_done || 'Done';
+  btns += '<button type="button" onclick="finishClientDetailCollection()" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-dashed border-gray-300 bg-white hover:bg-gray-50 hover:border-gray-400 transition-all cursor-pointer active:scale-[0.97] text-left">'
     + '<div class="w-7 h-7 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center flex-shrink-0">'
-    + '<svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>'
+    + '<svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
     + '</div>'
     + '<div class="text-[12px] font-bold text-gray-500">' + escapeHtml(noLabel) + '</div>'
     + '</button>';
@@ -5960,6 +6270,113 @@ function renderClientDetailOptions() {
 
   conversation.appendChild(div);
   conversation.scrollTop = conversation.scrollHeight;
+}
+
+function startDetailCollection(field) {
+  var defs = getDetailFieldDefs();
+  var def = defs[field];
+  if (!def) return;
+
+  window._collectingClientDetail = field;
+  addUserBubble(def.label);
+
+  showTypingIndicator();
+  setTimeout(function() {
+    removeTypingIndicator();
+    addAIBubble(def.prompt);
+
+    var assistInput = document.getElementById('assistantInput');
+    if (assistInput) {
+      assistInput.value = '';
+      assistInput.placeholder = def.prompt;
+      assistInput.focus();
+    }
+  }, 400);
+}
+
+function handleClientDetailInput(value) {
+  var field = window._collectingClientDetail;
+  if (!field) return;
+
+  var L = window.APP_LANGUAGES || {};
+  var isEmailPattern = /[^@\s]+@[^@\s]+\.[^@\s]+/.test(value);
+
+  // Smart input detection: email entered when phone was asked
+  if (field === 'phone' && isEmailPattern) {
+    window._newClientDetails['email'] = value;
+    window._collectingClientDetail = null;
+
+    showTypingIndicator();
+    setTimeout(function() {
+      removeTypingIndicator();
+      addAIBubble(L.detail_detected_email || "That looks like an email — saved it. Now please enter the phone number:");
+
+      // Re-ask for phone
+      window._collectingClientDetail = 'phone';
+      var assistInput = document.getElementById('assistantInput');
+      if (assistInput) {
+        assistInput.value = '';
+        assistInput.placeholder = L.detail_prompt_phone || "Phone number:";
+        assistInput.focus();
+      }
+    }, 400);
+    return;
+  }
+
+  // Save the value
+  window._newClientDetails[field] = value;
+  window._collectingClientDetail = null;
+
+  // Show confirmation
+  showTypingIndicator();
+  setTimeout(function() {
+    removeTypingIndicator();
+    addAIBubble((L.detail_saved || 'Saved ✓') + ' ' + value);
+
+    // Show remaining options
+    var collected = Object.keys(window._newClientDetails);
+    renderClientDetailOptions(collected);
+  }, 400);
+}
+
+function finishClientDetailCollection() {
+  window._collectingClientDetail = null;
+  var details = window._newClientDetails || {};
+
+  // Merge collected details into lastAiResult.recipient_info
+  if (window.lastAiResult) {
+    if (!window.lastAiResult.recipient_info) {
+      window.lastAiResult.recipient_info = {};
+    }
+    if (details.email) window.lastAiResult.recipient_info.email = details.email;
+    if (details.phone) window.lastAiResult.recipient_info.phone = details.phone;
+    if (details.address) window.lastAiResult.recipient_info.address = details.address;
+    if (details.notes) window.lastAiResult.recipient_info.notes = details.notes;
+
+    // Update the billed-to display with new details
+    var ri = window.lastAiResult.recipient_info;
+    var billedName = document.getElementById('billedToName');
+    var billedDetails = document.getElementById('billedToDetails');
+    if (billedDetails) {
+      var parts = [];
+      if (ri.email) parts.push(ri.email);
+      if (ri.phone) parts.push(ri.phone);
+      if (ri.address) parts.push(ri.address);
+      billedDetails.textContent = parts.join(' · ');
+    }
+  }
+
+  // Reset detail collection state
+  window._newClientDetails = {};
+
+  addUserBubble(window.APP_LANGUAGES.detail_done || 'Done');
+  showTypingIndicator();
+  setTimeout(function() {
+    removeTypingIndicator();
+    addAIBubble(window.APP_LANGUAGES.anything_else || 'Anything else to change?');
+    renderQuickActionChips();
+    window.setupSaveButton();
+  }, 400);
 }
 
 function addUserBubble(text) {
@@ -6149,6 +6566,22 @@ async function submitAssistantMessage() {
 
   if (!userMessage || userMessage.length < 2) {
     return; // Silently ignore empty/barely legible input
+  }
+
+  // INTERCEPT 1: Frontend-only client detail collection
+  if (window._collectingClientDetail) {
+    addUserBubble(userMessage);
+    if (input) { input.value = ''; if (typeof autoResize === 'function') autoResize(input); }
+    handleClientDetailInput(userMessage);
+    return;
+  }
+
+  // INTERCEPT 2: Sequential question queue — save answer locally, advance queue
+  if (window._clarificationQueue && window._clarificationQueue.length > 0) {
+    addUserBubble(userMessage);
+    if (input) { input.value = ''; if (typeof autoResize === 'function') autoResize(input); }
+    handleQueueAnswer(userMessage);
+    return;
   }
 
   // Determine type: if there are pending clarifications, it's a clarification answer; otherwise it's a user-initiated change
@@ -6365,6 +6798,12 @@ function updateUIWithoutTranscript(data) {
 
     if (window.pendingClarifications && window.pendingClarifications.length === 0) {
       window.setupSaveButton();
+    }
+
+    // Scroll to assistant chat if questions exist, otherwise scroll to invoice
+    var assistantSection = document.getElementById('aiAssistantSection');
+    if (window.pendingClarifications && window.pendingClarifications.length > 0 && assistantSection) {
+      assistantSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
     window._analysisSucceeded = true;

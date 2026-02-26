@@ -1123,6 +1123,7 @@ NEVER create clarifications about:
 - ANY value that has a number next to it, regardless of language.
 - ANY rate (hourly rate, team rate, special rate) → system has defaults.
 - Confirmation of something the user already stated (NEVER ask yes/no or true/false).
+- CLIENT NAMES or CLIENT MATCHING. The system handles client matching automatically with interactive selection buttons. Just use the best matching name from EXISTING CLIENTS or the spoken name as-is. NEVER ask "which client?" or "which [name]?" in clarifications.
 
 ████ WHEN TO ASK (ONLY these narrow cases) ████
 
@@ -1157,15 +1158,28 @@ Ask ONLY when a category is mentioned but has NO number at all:
 
 If ALL values are explicit numbers AND no ambiguous notes, return clarifications: [] (empty array).
 
-FORMAT: { "field": "[category].[field_name]", "guess": [best_guess_value], "question": "[short direct question]" }
+FORMAT: { "field": "[category].[field_name]", "guess": [best_guess_value], "question": "[short direct question]", "type": "[response_type]" }
 - For missing numbers: guess = your best numeric estimate (or 0)
 - For ambiguous notes/warranty: guess = ITEM NAME(S) the note applies to (NEVER the note text itself)
+
+RESPONSE TYPE TAXONOMY (every clarification MUST include a "type" field):
+- "choice": user picks ONE option from a list. MUST include "options": ["opt1", "opt2", ...]. Example: section_type, currency.
+- "multi_choice": user picks ONE OR MORE from a list. MUST include "options": [...]. Example: warranty scope across items.
+- "yes_no": user confirms or denies. Example: approximate value confirmation.
+- "text": user provides free-text input (number, name, date, etc.). Example: missing price, vague descriptor.
+- "info": you are telling the user something, NO answer expected. Example: confirming an action, redirecting off-topic.
+
+SAFETY RULES:
+- If you cannot understand the input → return UNCHANGED values + empty clarifications array.
+- NEVER re-ask a question. If user gave unexpected input, work with what they gave.
+- Keep questions SHORT and conversational. End with ":" not "." when expecting input.
+- If you have more than 2 issues, guess the rest with your best estimate and use a "type": "info" clarification to tell the user what you assumed (e.g., "ვივარაუდე: მასალები, 2 ცალი"). Maximum 2 questions that need answers per response.
 
 CLARIFICATION LANGUAGE (NON-NEGOTIABLE):
 #{ui_is_georgian ? '- You MUST write ALL clarification question text in Georgian (ქართული). Every single "question" value MUST be in Georgian.' : '- You MUST write ALL clarification question text in English.'}
 
 ADDITIONAL RULES:
-- Limit to #{@profile.clarification_limit} clarifications maximum (prioritize most impactful)
+- Limit to 2 answer-requiring clarifications maximum (prioritize most impactful). You may add additional "type": "info" clarifications to tell the user about your assumptions.
 - When you DO add a clarification with a guess, populate the corresponding JSON field with that SAME value
 - MATH CHECK: Always double-check arithmetic. 7% of (3 × 8500) = 7% of 25500 = 1785.
 
@@ -1757,6 +1771,11 @@ PROMPT
         end
       end
 
+      # ── Strip AI-generated client clarifications (backend handles client matching) ──
+      if json["clarifications"].is_a?(Array)
+        json["clarifications"].reject! { |c| c.is_a?(Hash) && c["field"].to_s.match?(/\bclient\b/i) && c["field"] != "client_match" }
+      end
+
       # ── Client Matching Post-Processing (paid users only) ──
       recipient_info = nil
       if user_signed_in? && @profile.paid? && json["client"].present?
@@ -1971,6 +1990,16 @@ PROMPT
       14. IMPORTANT: Preserve ALL existing fields even if you don't modify them (billing_mode, currency, hourly_rate, labor_tax_rate, tax_scope, etc.).
       15. SECTION TYPE DISAMBIGUATION: When adding a new item and you genuinely cannot determine which section it belongs to, add a clarification with field: "section_type", guess: your best guess section (e.g., "labor"), options: ["labor", "materials", "expenses", "fees"] (only plausible ones), and question asking the user. Place item in guessed section initially.
       16. CURRENCY DISAMBIGUATION: When user changes or adds amounts and the currency is ambiguous, add a clarification with field: "currency", guess: best ISO code (e.g., "GEL"), options: ["GEL", "USD", "EUR"], and question asking which currency.
+      17. NEVER generate clarifications about CLIENT NAMES or CLIENT MATCHING. The system handles client matching automatically with interactive buttons. Just use the best matching name from EXISTING CLIENTS or the spoken name as-is.
+      18. RESPONSE TYPE TAXONOMY — every clarification MUST include a "type" field:
+          - "choice": user picks ONE option from a list. MUST include "options": [...]. Example: section_type, currency.
+          - "multi_choice": user picks ONE OR MORE from a list. MUST include "options": [...]. Example: warranty/note scope.
+          - "yes_no": user confirms or denies. Example: approximate value confirmation.
+          - "text": user provides free-text input (number, name, date). Example: missing price.
+          - "info": you are telling the user something, NO answer expected. Example: confirming action, assumption summary.
+      19. SAFETY: If you cannot understand the instruction, return UNCHANGED JSON + empty clarifications. If the instruction is not about invoice modification, return unchanged JSON + one clarification with type: "info" politely redirecting.
+      20. Maximum 2 answer-requiring clarifications per response. If more issues exist, guess the rest and add a type: "info" clarification explaining your assumptions.
+      21. Keep questions SHORT and conversational. End with ":" not "." when expecting input.
 
       Return ONLY valid JSON. No markdown fences, no explanation text, no preamble.
     PROMPT
@@ -2022,6 +2051,9 @@ PROMPT
       result["sections"] ||= []
       result["credits"] ||= []
       result["clarifications"] = Array(result["clarifications"]).select { |c| c.is_a?(Hash) && c["question"].present? }
+
+      # Strip AI-generated client clarifications (backend handles client matching exclusively)
+      result["clarifications"].reject! { |c| c["field"].to_s.match?(/\bclient\b/i) && c["field"] != "client_match" }
 
       # Client matching for refine_invoice responses (paid users only)
       # Skip fuzzy matching if the user already resolved client_match via interactive card
