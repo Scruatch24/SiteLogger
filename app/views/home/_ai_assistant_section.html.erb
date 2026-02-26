@@ -1,4 +1,4 @@
-<div id="aiAssistantSection" class="hidden mt-8 animate-in fade-in slide-in-from-bottom-2 duration-300 overflow-visible">
+<div id="aiAssistantSection" class="hidden mt-8 animate-in fade-in slide-in-from-bottom-2 duration-300 overflow-visible xl:w-[520px]">
   
   <!-- Chat Container -->
   <div class="border-2 border-black rounded-2xl bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
@@ -25,7 +25,7 @@
           <textarea id="assistantInput"
                     rows="1"
                     oninput="autoResize(this); updateDynamicCountersCheck(this)"
-                    class="w-full bg-transparent border-none text-sm font-bold text-black focus:ring-0 px-3 py-2.5 outline-none placeholder:text-gray-400 placeholder:text-xs resize-none rounded-xl custom-scrollbar"
+                    class="w-full bg-transparent border-none text-xs font-bold text-black focus:ring-0 px-3 py-2.5 outline-none placeholder:text-gray-400 placeholder:text-[10px] resize-none rounded-xl custom-scrollbar"
                     style="max-height: 6rem; overflow-y: hidden;"
                     placeholder="<%= t('assistant_placeholder') %>"
                     onkeydown="if(event.key==='Enter' && !event.shiftKey) { event.preventDefault(); submitAssistantMessage(); }"></textarea>

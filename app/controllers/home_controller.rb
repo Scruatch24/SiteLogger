@@ -1992,9 +1992,11 @@ PROMPT
       - "discount everything except [category]" → apply per-item to every OTHER category, leave excluded at 0. Do NOT use global_discount.
       - PERCENTAGE DISCOUNTS AND DISCOUNT SCOPE ARE NEVER CLARIFICATION CANDIDATES. Just apply them.
       - DISCOUNT CLARIFICATION ORDER: When user mentions a discount but does NOT specify the amount:
-        1. FIRST ask "#{ui_is_georgian ? 'რა ოდენობის ფასდაკლებაა?' : 'What is the discount amount?'}" (type: "text"). Do NOT assume percentage.
-        2. If user gives a number without % sign and it could be either flat or percentage, THEN ask "#{ui_is_georgian ? 'რა ტიპის ფასდაკლებაა?' : 'What type of discount?'}" (type: "choice", options: ["FIXED", "PERCENTAGE"]).
-        3. NEVER ask "რომელი პროცენტით?" — always ask for amount first, then type if ambiguous.
+        1. FIRST ask "#{ui_is_georgian ? 'რა ოდენობის ფასდაკლება გსურთ?' : 'How much discount?'}" with field: "discount_amount", type: "text". Do NOT assume percentage.
+        2. If user gives a number without % sign and it could be either flat or percentage, return a clarification with field: "discount_type", type: "choice", options: ["fixed", "percentage"]. The frontend will render the built-in type selector widget automatically.
+        3. NEVER ask about discount scope/categories in clarifications — the frontend handles scope selection via its built-in accordion widget after type is determined.
+        4. NEVER ask "რომელი პროცენტით?" — always ask for amount first, then type if ambiguous.
+        5. IMPORTANT: Use EXACTLY these field names: "discount_amount", "discount_type". The frontend uses these to trigger built-in UI widgets instead of generic text/choice inputs.
 
       TAX RULES:
       - Default: taxable = null (system applies defaults). Only set explicitly when user says so.
@@ -2155,8 +2157,8 @@ PROMPT
           else
             # No match at all — set as new client, ask if user wants to save to list
             result["recipient_info"] = { "client_id" => nil, "name" => client_name, "is_new" => true }
-            add_q = I18n.locale.to_s == "ka" ? "გსურთ ამ კლიენტის სიაში დამატება?" : "Would you like to add this client to your list?"
-            result["clarifications"] << { "field" => "add_client_to_list", "type" => "yes_no", "question" => add_q, "guess" => nil }
+            add_q = I18n.locale.to_s == "ka" ? "გსურთ \"#{client_name}\"-ს დამატება?" : "Would you like to add \"#{client_name}\"?"
+            result["clarifications"] << { "field" => "add_client_to_list", "type" => "yes_no", "question" => add_q, "guess" => nil, "client_name" => client_name }
           end
         end
       end

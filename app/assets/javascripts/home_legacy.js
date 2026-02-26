@@ -5605,10 +5605,9 @@ function handleClarifications(clarifications) {
   if (!unansweredClarifications || unansweredClarifications.length === 0) {
     window.pendingClarifications = [];
 
-    // Check if the CURRENT user answer (being processed right now) was "create new client"
-    var pendingText = (window._pendingAnswer && window._pendingAnswer.text) ? window._pendingAnswer.text : '';
-    var createLabel = (window.APP_LANGUAGES.create_new_client || 'Create new').toLowerCase();
-    var wasCreateNew = pendingText.toLowerCase() === createLabel;
+    // Check if the CURRENT user answer (being processed right now) was "add client to list" confirmation
+    var wasCreateNew = !!window._wasAddClientYes;
+    window._wasAddClientYes = false;
 
     showTypingIndicator();
     setTimeout(function() {
@@ -5700,6 +5699,20 @@ function showNextQueueItem() {
     renderAddClientToListCard(c);
   } else if (c.field === 'client_match' && c.similar_clients && c.similar_clients.length > 0) {
     renderClientMatchCard(c);
+  } else if (c.field === 'discount_type') {
+    // AI asked about discount type → use built-in discount type choice UI
+    var amt = c._discount_amount || (c.question.match(/\d+/) ? c.question.match(/\d+/)[0] : '0');
+    window._discountFlow = { step: 'type', amount: amt, type: null, categories: [], items: {} };
+    // Drain remaining queue items — discount flow will handle the rest
+    window._clarificationQueue = [];
+    renderDiscountTypeChoice();
+  } else if (c.field === 'discount_scope') {
+    // AI asked about discount scope → use built-in accordion UI
+    var amt2 = c._discount_amount || '0';
+    var typ2 = c._discount_type || 'percentage';
+    window._discountFlow = { step: 'category', amount: amt2, type: typ2, categories: [], items: {} };
+    window._clarificationQueue = [];
+    renderDiscountCategorySelect();
   } else if (c.field === 'section_type' && c.options && c.options.length > 0) {
     renderSectionTypeCard(c);
   } else if (c.field === 'currency' && c.options && c.options.length > 0) {
@@ -5851,7 +5864,7 @@ function addAIBubble(text, guessHtml, progressTag) {
   div.innerHTML = `
     <img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">
     <div class="max-w-[85%]">
-      <div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-2 text-sm font-bold text-gray-800 shadow-sm">
+      <div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-2 text-xs font-bold text-gray-800 shadow-sm">
         ${escapeHtml(text)}${tagHtml}
       </div>
       ${guessBlock}
@@ -5866,7 +5879,7 @@ function renderAddClientToListCard(clarification) {
   if (!conversation) return;
   var L = window.APP_LANGUAGES || {};
   var questionText = clarification.question || '';
-  var createLabel = L.create_new_client || 'Create new';
+  var yesLabel = L.yes_btn || 'Yes';
   var noLabel = L.no_btn || 'No';
 
   var div = document.createElement('div');
@@ -5874,11 +5887,11 @@ function renderAddClientToListCard(clarification) {
   div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
     + '<div class="max-w-[85%]">'
     + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
-    + '<div class="text-sm font-bold text-gray-800 mb-2.5">' + escapeHtml(questionText) + '</div>'
+    + '<div class="text-xs font-bold text-gray-800 mb-2.5">' + escapeHtml(questionText) + '</div>'
     + '<div class="flex gap-2">'
-    + '<button type="button" onclick="window.clientMatchResolved=true; autoSubmitAssistantMessage(\'' + escapeHtml(createLabel).replace(/'/g, "\\'") + '\')" class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border-2 border-orange-300 bg-orange-50 hover:bg-orange-100 transition-all cursor-pointer active:scale-[0.97] text-[12px] font-bold text-orange-600">'
-    + '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m6-6H6"/></svg>'
-    + escapeHtml(createLabel)
+    + '<button type="button" onclick="window.clientMatchResolved=true; window._wasAddClientYes=true; autoSubmitAssistantMessage(\'' + escapeHtml(yesLabel).replace(/'/g, "\\'") + '\')" class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border-2 border-green-300 bg-green-50 hover:bg-green-100 transition-all cursor-pointer active:scale-[0.97] text-[12px] font-bold text-green-600">'
+    + '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>'
+    + escapeHtml(yesLabel)
     + '</button>'
     + '<button type="button" onclick="autoSubmitAssistantMessage(\'' + escapeHtml(noLabel).replace(/'/g, "\\'") + '\')" class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border-2 border-gray-200 bg-white hover:bg-gray-50 transition-all cursor-pointer active:scale-[0.97] text-[12px] font-bold text-gray-500">'
     + '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
@@ -5928,7 +5941,7 @@ function renderClientMatchCard(clarification) {
   div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
     + '<div class="max-w-[85%]">'
     + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
-    + '<div class="text-sm font-bold text-gray-800 mb-2.5">' + escapeHtml(questionText) + '</div>'
+    + '<div class="text-xs font-bold text-gray-800 mb-2.5">' + escapeHtml(questionText) + '</div>'
     + '<div class="space-y-1.5">' + clientButtons + createNewBtn + '</div>'
     + '</div>'
     + '</div>';
@@ -5984,7 +5997,7 @@ function renderSectionTypeCard(clarification) {
   div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
     + '<div class="max-w-[85%]">'
     + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
-    + '<div class="text-sm font-bold text-gray-800 mb-2.5">' + escapeHtml(questionText) + '</div>'
+    + '<div class="text-xs font-bold text-gray-800 mb-2.5">' + escapeHtml(questionText) + '</div>'
     + '<div class="space-y-1.5">' + btns + '</div>'
     + '</div>'
     + '</div>';
@@ -6039,7 +6052,7 @@ function renderCurrencyCard(clarification) {
   div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
     + '<div class="max-w-[85%]">'
     + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
-    + '<div class="text-sm font-bold text-gray-800 mb-2.5">' + escapeHtml(questionText) + '</div>'
+    + '<div class="text-xs font-bold text-gray-800 mb-2.5">' + escapeHtml(questionText) + '</div>'
     + '<div class="flex flex-wrap gap-2">' + btns + '</div>'
     + '</div>'
     + '</div>';
@@ -6077,7 +6090,7 @@ function renderGenericChoiceCard(clarification) {
   div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
     + '<div class="max-w-[85%]">'
     + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
-    + '<div class="text-sm font-bold text-gray-800 mb-2.5">' + escapeHtml(questionText) + (clarification._progressTag || '') + '</div>'
+    + '<div class="text-xs font-bold text-gray-800 mb-2.5">' + escapeHtml(questionText) + (clarification._progressTag || '') + '</div>'
     + '<div class="space-y-1.5">' + btns + '</div>'
     + '</div>'
     + '</div>';
@@ -6141,7 +6154,7 @@ function renderMultiChoiceCard(clarification) {
     div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
       + '<div class="max-w-[85%] w-full">'
       + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
-      + '<div class="text-sm font-bold text-gray-800 mb-2.5">' + escapeHtml(questionText) + '</div>'
+      + '<div class="text-xs font-bold text-gray-800 mb-2.5">' + escapeHtml(questionText) + '</div>'
       + '<div class="space-y-2">' + accordionHtml + '</div>'
       + '</div></div>';
     conversation.appendChild(div);
@@ -6179,7 +6192,7 @@ function renderMultiChoiceCard(clarification) {
   div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
     + '<div class="max-w-[85%]">'
     + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
-    + '<div class="text-sm font-bold text-gray-800 mb-2.5">' + escapeHtml(questionText) + '</div>'
+    + '<div class="text-xs font-bold text-gray-800 mb-2.5">' + escapeHtml(questionText) + '</div>'
     + '<div class="space-y-1.5">' + btns + '</div>'
     + '</div>'
     + '</div>';
@@ -6250,7 +6263,7 @@ function renderYesNoCard(clarification) {
   div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
     + '<div class="max-w-[85%]">'
     + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
-    + '<div class="text-sm font-bold text-gray-800">' + escapeHtml(questionText) + '</div>'
+    + '<div class="text-xs font-bold text-gray-800">' + escapeHtml(questionText) + '</div>'
     + guessBlock
     + '<div class="flex gap-2 mt-2">'
     + '<button type="button" onclick="autoSubmitAssistantMessage(\'' + escapeHtml(yesLabel).replace(/'/g, "\\'") + '\')" class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border-2 border-green-300 bg-green-50 hover:bg-green-100 transition-all cursor-pointer active:scale-[0.97] text-[12px] font-bold text-green-700">'
@@ -6279,8 +6292,22 @@ function renderQuickActionChips() {
   var chips = [
     { label: L.action_change_client || 'Change client', handler: 'handleChipChangeClient', icon: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>', color: 'default' },
     { label: L.action_add_discount || 'Add discount', handler: 'handleChipAddDiscount', icon: '<line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>', color: 'green' },
-    { label: L.action_add_item || 'Add item', handler: 'handleChipAddItem', icon: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>', color: 'orange' }
+    { label: L.action_add_item || 'Add item', handler: 'handleChipAddItem', icon: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>', color: 'orange' },
+    { label: L.action_change_date || 'Change date', handler: 'handleChipChangeDate', icon: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>', color: 'default' }
   ];
+
+  // Contextual: Remove Tax chip — show only if invoice has taxable items
+  var hasTax = false;
+  if (window.lastAiResult && window.lastAiResult.sections) {
+    window.lastAiResult.sections.forEach(function(s) {
+      (s.items || []).forEach(function(item) {
+        if (item.taxable === true || item.tax_rate > 0) hasTax = true;
+      });
+    });
+  }
+  if (hasTax) {
+    chips.push({ label: L.action_remove_tax || 'Remove tax', handler: 'handleChipRemoveTax', icon: '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>', color: 'red' });
+  }
 
   // Add undo chip if snapshot exists
   if (window._undoSnapshot) {
@@ -6399,6 +6426,73 @@ function handleChipUndo() {
   }, 400);
 }
 
+// ── CHIP HANDLER: CHANGE DATE (2-step: pick date type → enter date) ──
+function handleChipChangeDate() {
+  if (window._pendingAnswer) return;
+  window._collectingClientDetail = null;
+  window._discountFlow = null;
+  var L = window.APP_LANGUAGES || {};
+
+  addUserBubble(L.action_change_date || 'Change date');
+
+  showTypingIndicator();
+  setTimeout(function() {
+    removeTypingIndicator();
+    // Show date type choice: Invoice date vs Due date
+    var conversation = document.getElementById('assistantConversation');
+    if (!conversation) return;
+    window.disablePreviousInteractiveElements();
+
+    var div = document.createElement('div');
+    div.className = 'flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300';
+    div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
+      + '<div class="max-w-[85%]">'
+      + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
+      + '<div class="text-xs font-bold text-gray-800 mb-2">' + escapeHtml(L.date_type_prompt || 'Which date?') + '</div>'
+      + '<div class="flex gap-2">'
+      + '<button type="button" onclick="selectDateType(\'invoice\')" class="flex-1 flex flex-col items-center gap-1 px-3 py-3 rounded-xl border-2 border-gray-200 bg-white hover:bg-orange-50 hover:border-orange-300 transition-all cursor-pointer active:scale-[0.97]">'
+      + '<div class="w-8 h-8 rounded-full bg-orange-50 border border-orange-200 flex items-center justify-center"><svg class="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>'
+      + '<span class="text-[11px] font-bold text-gray-700">' + escapeHtml(L.date_type_invoice || 'Invoice date') + '</span></button>'
+      + '<button type="button" onclick="selectDateType(\'due\')" class="flex-1 flex flex-col items-center gap-1 px-3 py-3 rounded-xl border-2 border-gray-200 bg-white hover:bg-blue-50 hover:border-blue-300 transition-all cursor-pointer active:scale-[0.97]">'
+      + '<div class="w-8 h-8 rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center"><svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg></div>'
+      + '<span class="text-[11px] font-bold text-gray-700">' + escapeHtml(L.date_type_due || 'Due date') + '</span></button>'
+      + '</div></div></div>';
+    conversation.appendChild(div);
+    conversation.scrollTop = conversation.scrollHeight;
+  }, 400);
+}
+
+function selectDateType(type) {
+  var L = window.APP_LANGUAGES || {};
+  var label = type === 'due' ? (L.date_type_due || 'Due date') : (L.date_type_invoice || 'Invoice date');
+  addUserBubble(label);
+  window._dateFlowType = type;
+  showTypingIndicator();
+  setTimeout(function() {
+    removeTypingIndicator();
+    addAIBubble(L.date_enter_prompt || 'Enter the new date:');
+    window._collectingClientDetail = 'change_date';
+    var assistInput = document.getElementById('assistantInput');
+    if (assistInput) {
+      assistInput.value = '';
+      assistInput.placeholder = L.date_enter_prompt || 'Enter the new date:';
+      assistInput.focus();
+    }
+  }, 400);
+}
+
+// ── CHIP HANDLER: REMOVE TAX (1-click command) ──
+function handleChipRemoveTax() {
+  if (window._pendingAnswer) return;
+  window._collectingClientDetail = null;
+  window._discountFlow = null;
+  var L = window.APP_LANGUAGES || {};
+
+  addUserBubble(L.action_remove_tax || 'Remove tax');
+  showTypingIndicator();
+  triggerAssistantReparse('Remove all tax from every item. Set taxable:false, labor_taxable:false, tax_rate:null, tax_scope:null on everything.', 'refinement', 'User requested change');
+}
+
 // ── CHIP HANDLER: ADD ITEM (2-step frontend flow) ──
 function handleChipAddItem() {
   if (window._pendingAnswer) return;
@@ -6487,13 +6581,13 @@ function renderDiscountTypeChoice() {
   div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
     + '<div class="max-w-[85%]">'
     + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
-    + '<div class="text-sm font-bold text-gray-800 mb-2">' + escapeHtml(L.discount_type_prompt || 'Fixed or percentage?') + '</div>'
+    + '<div class="text-xs font-bold text-gray-800 mb-2">' + escapeHtml(L.discount_type_prompt || 'Fixed or percentage?') + '</div>'
     + '<div class="flex gap-2">'
-    + '<button type="button" onclick="selectDiscountType(\'fixed\')" class="flex-1 flex flex-col items-center gap-1 px-3 py-3 rounded-xl border-2 border-gray-200 bg-white hover:bg-orange-50 hover:border-orange-300 transition-all cursor-pointer active:scale-[0.97]">'
-    + '<div class="w-8 h-8 rounded-full bg-orange-50 border border-orange-200 flex items-center justify-center"><span class="text-sm font-black text-orange-600">' + escapeHtml(getCurrencySym()) + '</span></div>'
+    + '<button type="button" onclick="selectDiscountType(\'fixed\')" class="flex-1 flex flex-col items-center gap-1 px-3 py-3 rounded-xl border-2 border-gray-200 bg-white hover:bg-green-50 hover:border-green-300 transition-all cursor-pointer active:scale-[0.97]">'
+    + '<div class="w-8 h-8 rounded-full bg-green-50 border border-green-200 flex items-center justify-center"><span class="text-sm font-black text-green-600">' + escapeHtml(getCurrencySym()) + '</span></div>'
     + '<span class="text-[11px] font-bold text-gray-700">' + escapeHtml(L.discount_type_fixed || 'Fixed amount') + '</span></button>'
-    + '<button type="button" onclick="selectDiscountType(\'percentage\')" class="flex-1 flex flex-col items-center gap-1 px-3 py-3 rounded-xl border-2 border-gray-200 bg-white hover:bg-blue-50 hover:border-blue-300 transition-all cursor-pointer active:scale-[0.97]">'
-    + '<div class="w-8 h-8 rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center"><span class="text-sm font-black text-blue-600">%</span></div>'
+    + '<button type="button" onclick="selectDiscountType(\'percentage\')" class="flex-1 flex flex-col items-center gap-1 px-3 py-3 rounded-xl border-2 border-gray-200 bg-white hover:bg-green-50 hover:border-green-300 transition-all cursor-pointer active:scale-[0.97]">'
+    + '<div class="w-8 h-8 rounded-full bg-green-50 border border-green-200 flex items-center justify-center"><span class="text-sm font-black text-green-600">%</span></div>'
     + '<span class="text-[11px] font-bold text-gray-700">' + escapeHtml(L.discount_type_percentage || 'Percentage') + '</span></button>'
     + '</div></div></div>';
   conversation.appendChild(div);
@@ -6586,7 +6680,7 @@ function renderDiscountCategorySelect() {
   div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
     + '<div class="max-w-[85%] w-full">'
     + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
-    + '<div class="text-sm font-bold text-gray-800 mb-2.5">' + escapeHtml(L.discount_accordion_prompt || 'What does this discount apply to?') + '</div>'
+    + '<div class="text-xs font-bold text-gray-800 mb-2.5">' + escapeHtml(L.discount_accordion_prompt || 'What does this discount apply to?') + '</div>'
     + '<div class="space-y-2">' + accordionHtml + '</div>'
     + '</div></div>';
   conversation.appendChild(div);
@@ -6605,7 +6699,7 @@ function buildAccordionHtml(cats, L) {
 
   cats.forEach(function(cat, catIdx) {
     var cm = ACCORDION_COLORS[cat.color] || ACCORDION_COLORS.orange;
-    var isExpanded = autoExpand || catIdx === 0;
+    var isExpanded = true;
 
     // Category header with "All" button inside, chevron as SVG
     accordionHtml += '<div class="accordion-cat" data-cat-idx="' + catIdx + '">'
@@ -6631,6 +6725,12 @@ function buildAccordionHtml(cats, L) {
     });
     accordionHtml += '</div></div>';
   });
+
+  // Invoice Discount exclusive button (below categories, above bottom buttons)
+  accordionHtml += '<button type="button" id="invoiceDiscountBtn" data-active="false" onclick="toggleInvoiceDiscount()" class="w-full flex items-center justify-center gap-2 px-3 py-2.5 mt-2 rounded-xl border-2 border-green-400 bg-white hover:bg-green-50 transition-all cursor-pointer active:scale-[0.97] text-[12px] font-bold text-green-600">'
+    + '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2v16z"/></svg>'
+    + escapeHtml(L.discount_invoice_discount || 'Invoice Discount')
+    + '</button>';
 
   // Bottom buttons: Select All + Confirm
   accordionHtml += '<div class="flex gap-2 mt-2">'
@@ -6673,6 +6773,8 @@ function toggleAccordionItem(btn) {
   var isSelected = btn.dataset.selected === 'true';
   btn.dataset.selected = isSelected ? 'false' : 'true';
   updateAccordionItemVisual(btn);
+  // If selecting a category item, deactivate invoice discount (mutually exclusive)
+  if (btn.dataset.selected === 'true') deactivateInvoiceDiscount();
   syncAccordionToggleStates();
 }
 
@@ -6729,7 +6831,38 @@ function syncAccordionToggleStates() {
   }
 }
 
+function toggleInvoiceDiscount() {
+  var btn = document.getElementById('invoiceDiscountBtn');
+  if (!btn) return;
+  var isActive = btn.dataset.active === 'true';
+  if (isActive) {
+    // Deactivate invoice discount
+    btn.dataset.active = 'false';
+    btn.className = 'w-full flex items-center justify-center gap-2 px-3 py-2.5 mt-2 rounded-xl border-2 border-green-400 bg-white hover:bg-green-50 transition-all cursor-pointer active:scale-[0.97] text-[12px] font-bold text-green-600';
+  } else {
+    // Activate invoice discount — deselect all category items
+    btn.dataset.active = 'true';
+    btn.className = 'w-full flex items-center justify-center gap-2 px-3 py-2.5 mt-2 rounded-xl border-2 border-green-500 bg-green-500 transition-all cursor-pointer active:scale-[0.97] text-[12px] font-bold text-white';
+    var card = document.getElementById('discountAccordionCard') || document;
+    card.querySelectorAll('.accordion-item-btn').forEach(function(item) {
+      item.dataset.selected = 'false';
+      updateAccordionItemVisual(item);
+    });
+    syncAccordionToggleStates();
+  }
+}
+
+function deactivateInvoiceDiscount() {
+  var btn = document.getElementById('invoiceDiscountBtn');
+  if (btn && btn.dataset.active === 'true') {
+    btn.dataset.active = 'false';
+    btn.className = 'w-full flex items-center justify-center gap-2 px-3 py-2.5 mt-2 rounded-xl border-2 border-green-400 bg-white hover:bg-green-50 transition-all cursor-pointer active:scale-[0.97] text-[12px] font-bold text-green-600';
+  }
+}
+
 function toggleAccordionSelectAll() {
+  // "Select All" does NOT select Invoice Discount — deactivate it
+  deactivateInvoiceDiscount();
   var card = document.getElementById('discountAccordionCard') || document.getElementById('multiChoiceAccordionCard');
   var allBtns = card ? card.querySelectorAll('.accordion-item-btn') : document.querySelectorAll('.accordion-item-btn');
   if (!allBtns.length) return;
@@ -6745,6 +6878,16 @@ function toggleAccordionSelectAll() {
 function confirmAccordionSelection() {
   var flow = window._discountFlow;
   if (!flow || !flow._cats) return;
+
+  // Check if Invoice Discount is active (exclusive mode)
+  var invoiceBtn = document.getElementById('invoiceDiscountBtn');
+  if (invoiceBtn && invoiceBtn.dataset.active === 'true') {
+    flow._invoiceDiscount = true;
+    var L = window.APP_LANGUAGES || {};
+    addUserBubble(L.discount_invoice_discount || 'Invoice Discount');
+    finishDiscountFlow([]);
+    return;
+  }
 
   var selectedByCategory = {};
   var card = document.getElementById('discountAccordionCard');
@@ -6782,22 +6925,32 @@ function finishDiscountFlow(categories) {
 
   // Build clear instruction for AI
   var typeStr = flow.type === 'percentage' ? (flow.amount + '%') : flow.amount;
-  var parts = [];
+  var instruction;
 
-  if (categories && categories.length > 0) {
-    categories.forEach(function(cat) {
-      var items = (flow.items && flow.items[cat.key]) ? flow.items[cat.key] : cat.items;
-      if (items && items.length > 0) {
-        parts.push(items.join(', ') + ' (' + cat.key + ')');
-      } else {
-        parts.push(cat.label + ' (' + cat.key + ')');
-      }
-    });
-  }
+  if (flow._invoiceDiscount) {
+    // Invoice-level discount (global_discount)
+    if (flow.type === 'percentage') {
+      instruction = 'Apply ' + flow.amount + '% invoice-level discount (global_discount_percent). Do NOT apply per-item. Set global_discount_percent: ' + flow.amount;
+    } else {
+      instruction = 'Apply ' + flow.amount + ' invoice-level discount (global_discount_flat). Do NOT apply per-item. Set global_discount_flat: ' + flow.amount;
+    }
+  } else {
+    var parts = [];
+    if (categories && categories.length > 0) {
+      categories.forEach(function(cat) {
+        var items = (flow.items && flow.items[cat.key]) ? flow.items[cat.key] : cat.items;
+        if (items && items.length > 0) {
+          parts.push(items.join(', ') + ' (' + cat.key + ')');
+        } else {
+          parts.push(cat.label + ' (' + cat.key + ')');
+        }
+      });
+    }
 
-  var instruction = 'Apply ' + typeStr + ' discount';
-  if (parts.length > 0) {
-    instruction += ' on ' + parts.join(' and ');
+    instruction = 'Apply ' + typeStr + ' discount';
+    if (parts.length > 0) {
+      instruction += ' on ' + parts.join(' and ');
+    }
   }
 
   window._discountFlow = null;
@@ -6887,7 +7040,7 @@ function renderClientDetailOptions(excludeFields) {
   div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
     + '<div class="max-w-[85%]">'
     + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
-    + '<div class="text-sm font-bold text-gray-800 mb-2.5">' + escapeHtml(questionText) + '</div>'
+    + '<div class="text-xs font-bold text-gray-800 mb-2.5">' + escapeHtml(questionText) + '</div>'
     + '<div class="space-y-1.5">' + btns + '</div>'
     + '</div>'
     + '</div>';
@@ -6929,6 +7082,16 @@ function handleClientDetailInput(value) {
     window._collectingClientDetail = null;
     showTypingIndicator();
     triggerAssistantReparse('Change client to ' + value, 'refinement', 'User requested change');
+    return;
+  }
+
+  // ── CHANGE DATE: send to AI as refinement ──
+  if (field === 'change_date') {
+    window._collectingClientDetail = null;
+    var dateField = window._dateFlowType === 'due' ? 'due date' : 'invoice date';
+    window._dateFlowType = null;
+    showTypingIndicator();
+    triggerAssistantReparse('Change ' + dateField + ' to ' + value, 'refinement', 'User requested change');
     return;
   }
 
@@ -7094,7 +7257,7 @@ function addUserBubble(text) {
   const div = document.createElement('div');
   div.className = "flex justify-end animate-in fade-in slide-in-from-right-2 duration-300";
   div.innerHTML = `
-    <div class="bg-orange-50 border-2 border-orange-200 rounded-2xl rounded-tr-none px-4 py-2 text-sm font-bold text-orange-800 shadow-sm max-w-[80%]">
+    <div class="bg-orange-50 border-2 border-orange-200 rounded-2xl rounded-tr-none px-4 py-2 text-xs font-bold text-orange-800 shadow-sm max-w-[80%]">
       ${escapeHtml(text)}
     </div>
   `;
@@ -7283,6 +7446,13 @@ async function submitAssistantMessage() {
     addUserBubble(userMessage);
     if (input) { input.value = ''; if (typeof autoResize === 'function') autoResize(input); }
     handleDiscountFlowInput(userMessage);
+    return;
+  }
+
+  // INTERCEPT 0b: Detect discount-related free-text and redirect to built-in discount flow
+  if (!window._discountFlow && !window._collectingClientDetail && /^(ფასდაკლება|ფასდაკლებ|add\s*discount|discount)/i.test(userMessage.trim())) {
+    if (input) { input.value = ''; if (typeof autoResize === 'function') autoResize(input); }
+    handleChipAddDiscount();
     return;
   }
 
