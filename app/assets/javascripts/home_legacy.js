@@ -6290,14 +6290,19 @@ function renderQuickActionChips() {
     { label: L.action_change_date || 'Change date', handler: 'handleChipChangeDate', icon: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>', color: 'default' }
   ];
 
-  // Contextual: Remove Tax chip — show only if invoice has taxable items
+  // Contextual tax chips — show Manage Taxes when items exist, Remove Tax when taxable items exist
   var hasTax = false;
+  var hasItems = false;
   if (window.lastAiResult && window.lastAiResult.sections) {
     window.lastAiResult.sections.forEach(function(s) {
       (s.items || []).forEach(function(item) {
+        hasItems = true;
         if (item.taxable === true || item.tax_rate > 0) hasTax = true;
       });
     });
+  }
+  if (hasItems) {
+    chips.push({ label: L.action_manage_tax || 'Manage Taxes', handler: 'handleChipManageTax', icon: '<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>', color: 'default' });
   }
   if (hasTax) {
     chips.push({ label: L.action_remove_tax || 'Remove tax', handler: 'handleChipRemoveTax', icon: '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>', color: 'red' });
@@ -6448,7 +6453,7 @@ function selectDateType(type) {
   showTypingIndicator();
   setTimeout(function() {
     removeTypingIndicator();
-    addAIBubble(L.date_enter_prompt || 'Enter the new date:');
+    renderDatePickerCard();
     window._collectingClientDetail = 'change_date';
     var assistInput = document.getElementById('assistantInput');
     if (assistInput) {
@@ -6457,6 +6462,113 @@ function selectDateType(type) {
       assistInput.focus();
     }
   }, 400);
+}
+
+function renderDatePickerCard() {
+  var conversation = document.getElementById('assistantConversation');
+  if (!conversation) return;
+  window.disablePreviousInteractiveElements();
+
+  var L = window.APP_LANGUAGES || {};
+  var MONTHS = [
+    L.month_january || 'January', L.month_february || 'February', L.month_march || 'March',
+    L.month_april || 'April', L.month_may || 'May', L.month_june || 'June',
+    L.month_july || 'July', L.month_august || 'August', L.month_september || 'September',
+    L.month_october || 'October', L.month_november || 'November', L.month_december || 'December'
+  ];
+  var DAYS = [
+    L.day_mon || 'Mon', L.day_tue || 'Tue', L.day_wed || 'Wed', L.day_thu || 'Thu',
+    L.day_fri || 'Fri', L.day_sat || 'Sat', L.day_sun || 'Sun'
+  ];
+
+  var now = new Date();
+  window._calendarYear = now.getFullYear();
+  window._calendarMonth = now.getMonth();
+
+  var div = document.createElement('div');
+  div.className = 'flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300';
+  div.id = 'datePickerCard';
+  div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
+    + '<div class="max-w-[85%] w-full">'
+    + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
+    + '<div class="text-xs font-bold text-gray-800 mb-1">' + escapeHtml(L.date_enter_prompt || 'Enter the new date:') + '</div>'
+    + '<div class="text-[10px] text-gray-400 font-semibold mb-2">' + escapeHtml(L.date_or_pick || 'or pick from calendar:') + '</div>'
+    + '<div id="calendarWidget">' + buildCalendarGrid(window._calendarYear, window._calendarMonth, MONTHS, DAYS) + '</div>'
+    + '</div></div>';
+  conversation.appendChild(div);
+  conversation.scrollTop = conversation.scrollHeight;
+}
+
+function buildCalendarGrid(year, month, MONTHS, DAYS) {
+  var now = new Date();
+  var todayStr = now.getFullYear() + '-' + (now.getMonth() + 1) + '-' + now.getDate();
+
+  var firstDay = new Date(year, month, 1).getDay(); // 0=Sun
+  var startOffset = (firstDay === 0 ? 6 : firstDay - 1); // Mon=0
+  var daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  var html = '<div class="flex items-center justify-between mb-2">'
+    + '<button type="button" onclick="navigateCalendar(-1)" class="w-6 h-6 rounded-md bg-white border border-gray-200 hover:bg-orange-50 flex items-center justify-center cursor-pointer active:scale-95 transition-all">'
+    + '<svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path d="M15 19l-7-7 7-7"/></svg></button>'
+    + '<span class="text-[11px] font-bold text-gray-700">' + MONTHS[month] + ' ' + year + '</span>'
+    + '<button type="button" onclick="navigateCalendar(1)" class="w-6 h-6 rounded-md bg-white border border-gray-200 hover:bg-orange-50 flex items-center justify-center cursor-pointer active:scale-95 transition-all">'
+    + '<svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path d="M9 5l7 7-7 7"/></svg></button>'
+    + '</div>';
+
+  // Day headers
+  html += '<div class="grid grid-cols-7 gap-0.5 mb-1">';
+  DAYS.forEach(function(d) {
+    html += '<div class="text-center text-[8px] font-bold text-gray-400 uppercase">' + d + '</div>';
+  });
+  html += '</div>';
+
+  // Day cells
+  html += '<div class="grid grid-cols-7 gap-0.5">';
+  for (var i = 0; i < startOffset; i++) {
+    html += '<div></div>';
+  }
+  for (var d = 1; d <= daysInMonth; d++) {
+    var dateStr = year + '-' + (month + 1) + '-' + d;
+    var isToday = dateStr === todayStr;
+    var todayCls = isToday ? 'ring-2 ring-orange-400 bg-orange-50 font-black' : 'bg-white hover:bg-orange-50';
+    html += '<button type="button" onclick="pickCalendarDate(' + year + ',' + month + ',' + d + ')" class="w-full aspect-square rounded-md border border-gray-100 text-[10px] font-semibold text-gray-700 ' + todayCls + ' hover:border-orange-300 transition-all cursor-pointer active:scale-90 flex items-center justify-center">' + d + '</button>';
+  }
+  html += '</div>';
+
+  return html;
+}
+
+function navigateCalendar(delta) {
+  var L = window.APP_LANGUAGES || {};
+  var MONTHS = [
+    L.month_january || 'January', L.month_february || 'February', L.month_march || 'March',
+    L.month_april || 'April', L.month_may || 'May', L.month_june || 'June',
+    L.month_july || 'July', L.month_august || 'August', L.month_september || 'September',
+    L.month_october || 'October', L.month_november || 'November', L.month_december || 'December'
+  ];
+  var DAYS = [
+    L.day_mon || 'Mon', L.day_tue || 'Tue', L.day_wed || 'Wed', L.day_thu || 'Thu',
+    L.day_fri || 'Fri', L.day_sat || 'Sat', L.day_sun || 'Sun'
+  ];
+
+  window._calendarMonth += delta;
+  if (window._calendarMonth > 11) { window._calendarMonth = 0; window._calendarYear++; }
+  if (window._calendarMonth < 0) { window._calendarMonth = 11; window._calendarYear--; }
+
+  var widget = document.getElementById('calendarWidget');
+  if (widget) widget.innerHTML = buildCalendarGrid(window._calendarYear, window._calendarMonth, MONTHS, DAYS);
+}
+
+function pickCalendarDate(year, month, day) {
+  // Format as "MMM DD, YYYY" for the AI (always English month abbreviations for JSON)
+  var MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var formatted = MONTH_ABBR[month] + ' ' + (day < 10 ? '0' + day : day) + ', ' + year;
+
+  // Submit as if user typed it
+  window._collectingClientDetail = 'change_date';
+  var assistInput = document.getElementById('assistantInput');
+  if (assistInput) assistInput.value = formatted;
+  submitAssistantMessage();
 }
 
 // ── CHIP HANDLER: REMOVE TAX (1-click command) ──
@@ -6468,6 +6580,152 @@ function handleChipRemoveTax() {
   addUserBubble(L.action_remove_tax || 'Remove tax');
   showTypingIndicator();
   triggerAssistantReparse('Remove all tax from every item. Set taxable:false, labor_taxable:false, tax_rate:null, tax_scope:null on everything.', 'refinement', 'User requested change');
+}
+
+// ── CHIP HANDLER: MANAGE TAXES (per-item toggle widget) ──
+function handleChipManageTax() {
+  if (window._pendingAnswer) return;
+  window._collectingClientDetail = null;
+  var L = window.APP_LANGUAGES || {};
+
+  addUserBubble(L.action_manage_tax || 'Manage Taxes');
+
+  showTypingIndicator();
+  setTimeout(function() {
+    removeTypingIndicator();
+    renderTaxManagementCard();
+  }, 400);
+}
+
+function renderTaxManagementCard() {
+  var conversation = document.getElementById('assistantConversation');
+  if (!conversation) return;
+  window.disablePreviousInteractiveElements();
+
+  var L = window.APP_LANGUAGES || {};
+  var items = [];
+
+  // Gather all items from invoice sections
+  if (window.lastAiResult && window.lastAiResult.sections) {
+    window.lastAiResult.sections.forEach(function(sec) {
+      (sec.items || []).forEach(function(item) {
+        var name = item.desc || item.name || '?';
+        var isTaxed = item.taxable === true || (item.tax_rate && item.tax_rate > 0);
+        items.push({ name: name, taxed: isTaxed, section: sec.type || 'labor' });
+      });
+    });
+  }
+
+  if (items.length === 0) return;
+
+  var itemsHtml = '';
+  items.forEach(function(item, idx) {
+    var onCls = item.taxed
+      ? 'bg-green-500 border-green-500 text-white'
+      : 'bg-white border-gray-300 text-gray-400 hover:border-green-300 hover:bg-green-50';
+    var label = item.taxed ? (L.tax_on || 'Taxed') : (L.tax_off || 'Not taxed');
+    itemsHtml += '<div class="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-white hover:bg-gray-50 transition-all">'
+      + '<span class="text-[11px] font-semibold text-gray-700 truncate flex-1">' + escapeHtml(item.name) + '</span>'
+      + '<button type="button" data-tax-idx="' + idx + '" data-taxed="' + item.taxed + '" onclick="toggleTaxItem(this)" class="tax-toggle-btn shrink-0 px-2.5 py-1 rounded-lg border-2 text-[10px] font-bold transition-all cursor-pointer active:scale-[0.95] ' + onCls + '">'
+      + escapeHtml(label) + '</button>'
+      + '</div>';
+  });
+
+  // Store items for confirm
+  window._taxManagementItems = items;
+
+  var div = document.createElement('div');
+  div.className = 'flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300';
+  div.id = 'taxManagementCard';
+  div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
+    + '<div class="max-w-[85%] w-full">'
+    + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
+    + '<div class="text-xs font-bold text-gray-800 mb-2.5">' + escapeHtml(L.tax_management_prompt || 'Which items should be taxed?') + '</div>'
+    + '<div class="space-y-1">' + itemsHtml + '</div>'
+    + '<div class="flex gap-2 mt-2.5">'
+    + '<button type="button" onclick="taxBulkAction(false)" class="flex-1 px-2 py-1.5 rounded-xl border-2 border-red-200 bg-red-50 hover:bg-red-100 transition-all cursor-pointer active:scale-[0.97] text-[10px] font-bold text-red-600">' + escapeHtml(L.tax_remove_all || 'Remove All') + '</button>'
+    + '<button type="button" onclick="taxBulkAction(true)" class="flex-1 px-2 py-1.5 rounded-xl border-2 border-green-200 bg-green-50 hover:bg-green-100 transition-all cursor-pointer active:scale-[0.97] text-[10px] font-bold text-green-600">' + escapeHtml(L.tax_apply_all || 'Apply All') + '</button>'
+    + '<button type="button" onclick="confirmTaxManagement()" class="flex-1 px-2 py-1.5 rounded-xl border-2 border-orange-300 bg-orange-50 hover:bg-orange-100 transition-all cursor-pointer active:scale-[0.97] text-[10px] font-bold text-orange-700">' + escapeHtml(L.tax_apply_btn || 'Apply') + '</button>'
+    + '</div>'
+    + '</div></div>';
+  conversation.appendChild(div);
+  conversation.scrollTop = conversation.scrollHeight;
+}
+
+function toggleTaxItem(btn) {
+  var isTaxed = btn.dataset.taxed === 'true';
+  var newState = !isTaxed;
+  btn.dataset.taxed = String(newState);
+
+  var L = window.APP_LANGUAGES || {};
+  var label = newState ? (L.tax_on || 'Taxed') : (L.tax_off || 'Not taxed');
+  btn.textContent = label;
+
+  if (newState) {
+    btn.className = 'tax-toggle-btn shrink-0 px-2.5 py-1 rounded-lg border-2 text-[10px] font-bold transition-all cursor-pointer active:scale-[0.95] bg-green-500 border-green-500 text-white';
+  } else {
+    btn.className = 'tax-toggle-btn shrink-0 px-2.5 py-1 rounded-lg border-2 text-[10px] font-bold transition-all cursor-pointer active:scale-[0.95] bg-white border-gray-300 text-gray-400 hover:border-green-300 hover:bg-green-50';
+  }
+
+  // Update stored state
+  var idx = parseInt(btn.dataset.taxIdx);
+  if (window._taxManagementItems && window._taxManagementItems[idx]) {
+    window._taxManagementItems[idx].taxed = newState;
+  }
+}
+
+function taxBulkAction(taxAll) {
+  var card = document.getElementById('taxManagementCard');
+  if (!card) return;
+  var L = window.APP_LANGUAGES || {};
+
+  card.querySelectorAll('.tax-toggle-btn').forEach(function(btn) {
+    btn.dataset.taxed = String(taxAll);
+    btn.textContent = taxAll ? (L.tax_on || 'Taxed') : (L.tax_off || 'Not taxed');
+    if (taxAll) {
+      btn.className = 'tax-toggle-btn shrink-0 px-2.5 py-1 rounded-lg border-2 text-[10px] font-bold transition-all cursor-pointer active:scale-[0.95] bg-green-500 border-green-500 text-white';
+    } else {
+      btn.className = 'tax-toggle-btn shrink-0 px-2.5 py-1 rounded-lg border-2 text-[10px] font-bold transition-all cursor-pointer active:scale-[0.95] bg-white border-gray-300 text-gray-400 hover:border-green-300 hover:bg-green-50';
+    }
+    var idx = parseInt(btn.dataset.taxIdx);
+    if (window._taxManagementItems && window._taxManagementItems[idx]) {
+      window._taxManagementItems[idx].taxed = taxAll;
+    }
+  });
+}
+
+function confirmTaxManagement() {
+  var items = window._taxManagementItems;
+  if (!items || items.length === 0) return;
+
+  var taxedNames = [];
+  var untaxedNames = [];
+  items.forEach(function(item) {
+    if (item.taxed) {
+      taxedNames.push(item.name);
+    } else {
+      untaxedNames.push(item.name);
+    }
+  });
+
+  var instruction = '';
+  if (untaxedNames.length === items.length) {
+    instruction = 'Remove all tax from every item. Set taxable:false, labor_taxable:false, tax_rate:null, tax_scope:null on everything.';
+  } else if (taxedNames.length === items.length) {
+    instruction = 'Apply tax to every item. Set taxable:true on all items.';
+  } else {
+    if (taxedNames.length > 0) instruction += 'Set taxable:true on: ' + taxedNames.join(', ') + '. ';
+    if (untaxedNames.length > 0) instruction += 'Set taxable:false on: ' + untaxedNames.join(', ') + '.';
+  }
+
+  var summary = taxedNames.length > 0
+    ? (taxedNames.length + ' taxed, ' + untaxedNames.length + ' untaxed')
+    : 'All tax removed';
+  addUserBubble(summary);
+
+  window._taxManagementItems = null;
+  showTypingIndicator();
+  triggerAssistantReparse(instruction.trim(), 'refinement', 'User requested change');
 }
 
 // ── CHIP HANDLER: ADD ITEM (conversation starter → AI) ──
@@ -7641,4 +7899,13 @@ Object.assign(window, {
   showError,
   toggleLaborGroup,
   toggleLaborRate,
+  handleChipManageTax,
+  renderTaxManagementCard,
+  toggleTaxItem,
+  taxBulkAction,
+  confirmTaxManagement,
+  renderDatePickerCard,
+  buildCalendarGrid,
+  navigateCalendar,
+  pickCalendarDate,
 });
