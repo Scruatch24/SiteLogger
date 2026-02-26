@@ -5526,10 +5526,78 @@ window.resetAssistantState = function() {
   window._addItemName = null;
   window._recentQuestions = [];
   window.clientMatchResolved = false;
+  window._undoSnapshot = null;
   var conversation = document.getElementById('assistantConversation');
   if (conversation) conversation.innerHTML = '';
   var assistInput = document.getElementById('assistantInput');
   if (assistInput) { assistInput.value = ''; assistInput.disabled = false; }
+};
+
+// ── INVOICE MANUAL CHANGE INDICATOR ──
+(function() {
+  var debounceTimer = null;
+  var lastNotifyTime = 0;
+  var THROTTLE_MS = 30000;
+  var DEBOUNCE_MS = 2000;
+
+  function onInvoiceManualChange() {
+    if (window.isAutoUpdating) return;
+    if (!window._analysisSucceeded) return;
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(function() {
+      var now = Date.now();
+      if (now - lastNotifyTime < THROTTLE_MS) return;
+      lastNotifyTime = now;
+      var conversation = document.getElementById('assistantConversation');
+      if (!conversation) return;
+      var L = window.APP_LANGUAGES || {};
+      var note = document.createElement('div');
+      note.className = 'flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300 ml-9';
+      note.innerHTML = '<div class="text-[10px] font-semibold text-gray-400 bg-gray-50 border border-gray-200 rounded-full px-3 py-1">'
+        + escapeHtml(L.invoice_manual_update || 'Invoice manually updated') + '</div>';
+      conversation.appendChild(note);
+      conversation.scrollTop = conversation.scrollHeight;
+    }, DEBOUNCE_MS);
+  }
+
+  function initInvoiceObserver() {
+    var targets = [
+      document.getElementById('laborItemsContainer'),
+      document.getElementById('dynamicSections'),
+      document.getElementById('creditItemsContainer')
+    ].filter(Boolean);
+    if (targets.length === 0) return;
+    var observer = new MutationObserver(onInvoiceManualChange);
+    targets.forEach(function(t) {
+      observer.observe(t, { childList: true, subtree: true, characterData: true, attributes: false });
+    });
+    // Also listen for input events on discount/price fields
+    document.addEventListener('input', function(e) {
+      if (window.isAutoUpdating) return;
+      var el = e.target;
+      if (el && (el.classList.contains('price-menu-input') || el.classList.contains('labor-price-input') ||
+                 el.classList.contains('item-input') || el.classList.contains('labor-item-input') ||
+                 el.id === 'globalDiscountFlat' || el.id === 'globalDiscountPercent')) {
+        onInvoiceManualChange();
+      }
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initInvoiceObserver);
+  } else {
+    initInvoiceObserver();
+  }
+})();
+
+window.disablePreviousInteractiveElements = function() {
+  var conversation = document.getElementById('assistantConversation');
+  if (!conversation) return;
+  var allBtns = conversation.querySelectorAll('button:not([disabled])');
+  allBtns.forEach(function(btn) {
+    btn.disabled = true;
+    btn.classList.add('opacity-50', 'pointer-events-none');
+  });
 };
 
 window.calculateHistoricalChars = function() {
@@ -5605,6 +5673,7 @@ function handleClarifications(clarifications) {
       }
       var assistInput = document.getElementById('assistantInput');
       if (assistInput) {
+        assistInput.disabled = false;
         assistInput.placeholder = window.APP_LANGUAGES.assistant_placeholder || "Tell me what to change...";
         assistInput.focus();
       }
@@ -5662,6 +5731,8 @@ function showNextQueueItem() {
 
   var conversation = document.getElementById('assistantConversation');
   if (!conversation) return;
+
+  window.disablePreviousInteractiveElements();
 
   var c = window._clarificationQueue[0]; // peek — don't shift yet
   var current = window._queueTotal - window._clarificationQueue.length + 1;
@@ -5962,16 +6033,17 @@ function renderSectionTypeCard(clarification) {
   var guess = (clarification.guess || '').toLowerCase();
 
   var sectionMeta = {
-    labor: { label: L.section_labor || 'Labor / Service', icon: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>', color: 'blue' },
+    labor: { label: L.section_labor || 'Labor / Service', icon: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>', color: 'orange' },
     materials: { label: L.section_materials || 'Materials', icon: '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>', color: 'orange' },
-    expenses: { label: L.section_expenses || 'Expenses', icon: '<path d="M19 5c-1.5 0-2.8 1.4-3 2-3.5-1.5-11-.3-11 5 0 1.8 0 3 2 4.5V20h4v-2h3v2h4v-4c1-.5 1.7-1 2-2h2v-4h-2c0-1-.5-1.5-1-2"/><path d="M2 9v1c0 1.1.9 2 2 2h1"/><circle cx="16" cy="11" r="1"/>', color: 'green' },
-    fees: { label: L.section_fees || 'Fees', icon: '<rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>', color: 'purple' }
+    expenses: { label: L.section_expenses || 'Expenses', icon: '<path d="M19 5c-1.5 0-2.8 1.4-3 2-3.5-1.5-11-.3-11 5 0 1.8 0 3 2 4.5V20h4v-2h3v2h4v-4c1-.5 1.7-1 2-2h2v-4h-2c0-1-.5-1.5-1-2"/><path d="M2 9v1c0 1.1.9 2 2 2h1"/><circle cx="16" cy="11" r="1"/>', color: 'red' },
+    fees: { label: L.section_fees || 'Fees', icon: '<rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>', color: 'blue' }
   };
 
   var colorMap = {
     blue: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-500', hover: 'hover:bg-blue-50 hover:border-blue-300' },
     orange: { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-500', hover: 'hover:bg-orange-50 hover:border-orange-300' },
     green: { bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-500', hover: 'hover:bg-green-50 hover:border-green-300' },
+    red: { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-500', hover: 'hover:bg-red-50 hover:border-red-300' },
     purple: { bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-500', hover: 'hover:bg-purple-50 hover:border-purple-300' }
   };
 
@@ -6219,6 +6291,8 @@ function renderQuickActionChips() {
   var conversation = document.getElementById('assistantConversation');
   if (!conversation) return;
 
+  window.disablePreviousInteractiveElements();
+
   var L = window.APP_LANGUAGES || {};
   var chips = [
     { label: L.action_change_client || 'Change client', handler: 'handleChipChangeClient', icon: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>' },
@@ -6226,9 +6300,18 @@ function renderQuickActionChips() {
     { label: L.action_add_item || 'Add item', handler: 'handleChipAddItem', icon: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>' }
   ];
 
+  // Add undo chip if snapshot exists
+  if (window._undoSnapshot) {
+    chips.unshift({ label: L.undo_btn || 'Undo', handler: 'handleChipUndo', icon: '<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>' });
+  }
+
   var chipHtml = '';
   chips.forEach(function(c) {
-    chipHtml += '<button type="button" onclick="' + c.handler + '()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-gray-200 bg-white hover:bg-orange-50 hover:border-orange-300 transition-all cursor-pointer active:scale-[0.95] text-[11px] font-bold text-gray-600 hover:text-orange-600 shadow-sm">'
+    var isUndo = c.handler === 'handleChipUndo';
+    var cls = isUndo
+      ? 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-red-200 bg-white hover:bg-red-50 hover:border-red-300 transition-all cursor-pointer active:scale-[0.95] text-[11px] font-bold text-red-500 hover:text-red-600 shadow-sm'
+      : 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-gray-200 bg-white hover:bg-orange-50 hover:border-orange-300 transition-all cursor-pointer active:scale-[0.95] text-[11px] font-bold text-gray-600 hover:text-orange-600 shadow-sm';
+    chipHtml += '<button type="button" onclick="' + c.handler + '()" class="' + cls + '">'
       + '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">' + c.icon + '</svg>'
       + escapeHtml(c.label)
       + '</button>';
@@ -6236,7 +6319,7 @@ function renderQuickActionChips() {
 
   var div = document.createElement('div');
   div.className = "flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300 ml-9";
-  div.innerHTML = '<div class="flex flex-wrap gap-1.5 mt-1">' + chipHtml + '</div>';
+  div.innerHTML = '<div class="flex flex-wrap gap-1.5 mt-0">' + chipHtml + '</div>';
 
   conversation.appendChild(div);
   conversation.scrollTop = conversation.scrollHeight;
@@ -6285,6 +6368,35 @@ function handleChipAddDiscount() {
     if (assistInput) {
       assistInput.value = '';
       assistInput.placeholder = L.discount_amount_prompt || 'How much discount?';
+      assistInput.focus();
+    }
+  }, 400);
+}
+
+// ── CHIP HANDLER: UNDO LAST AI CHANGE ──
+function handleChipUndo() {
+  if (window._pendingAnswer) return;
+  if (!window._undoSnapshot) return;
+  var L = window.APP_LANGUAGES || {};
+
+  addUserBubble(L.undo_btn || 'Undo');
+  window._collectingClientDetail = null;
+  window._discountFlow = null;
+
+  // Restore snapshot
+  updateUIWithoutTranscript(window._undoSnapshot);
+  window.lastAiResult = window._undoSnapshot;
+  window._undoSnapshot = null;
+
+  showTypingIndicator();
+  setTimeout(function() {
+    removeTypingIndicator();
+    addAIBubble(L.undo_confirmed || 'Change reverted.');
+    renderQuickActionChips();
+    var assistInput = document.getElementById('assistantInput');
+    if (assistInput) {
+      assistInput.disabled = false;
+      assistInput.placeholder = L.assistant_placeholder || 'Tell me what to change...';
       assistInput.focus();
     }
   }, 400);
@@ -6370,6 +6482,7 @@ function handleDiscountFlowInput(value) {
 function renderDiscountTypeChoice() {
   var conversation = document.getElementById('assistantConversation');
   if (!conversation) return;
+  window.disablePreviousInteractiveElements();
   var L = window.APP_LANGUAGES || {};
 
   var div = document.createElement('div');
@@ -6379,8 +6492,12 @@ function renderDiscountTypeChoice() {
     + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
     + '<div class="text-sm font-bold text-gray-800 mb-2">' + escapeHtml(L.discount_type_prompt || 'Fixed or percentage?') + '</div>'
     + '<div class="flex gap-2">'
-    + '<button type="button" onclick="selectDiscountType(\'fixed\')" class="flex-1 px-3 py-2 rounded-xl border-2 border-gray-200 bg-white hover:bg-blue-50 hover:border-blue-300 transition-all cursor-pointer active:scale-[0.97] text-[12px] font-bold text-gray-700 text-center">' + escapeHtml(L.discount_type_fixed || 'Fixed amount') + '</button>'
-    + '<button type="button" onclick="selectDiscountType(\'percentage\')" class="flex-1 px-3 py-2 rounded-xl border-2 border-gray-200 bg-white hover:bg-blue-50 hover:border-blue-300 transition-all cursor-pointer active:scale-[0.97] text-[12px] font-bold text-gray-700 text-center">' + escapeHtml(L.discount_type_percentage || 'Percentage') + '</button>'
+    + '<button type="button" onclick="selectDiscountType(\'fixed\')" class="flex-1 flex flex-col items-center gap-1 px-3 py-3 rounded-xl border-2 border-gray-200 bg-white hover:bg-orange-50 hover:border-orange-300 transition-all cursor-pointer active:scale-[0.97]">'
+    + '<div class="w-8 h-8 rounded-full bg-orange-50 border border-orange-200 flex items-center justify-center"><span class="text-sm font-black text-orange-600">' + escapeHtml(getCurrencySym()) + '</span></div>'
+    + '<span class="text-[11px] font-bold text-gray-700">' + escapeHtml(L.discount_type_fixed || 'Fixed amount') + '</span></button>'
+    + '<button type="button" onclick="selectDiscountType(\'percentage\')" class="flex-1 flex flex-col items-center gap-1 px-3 py-3 rounded-xl border-2 border-gray-200 bg-white hover:bg-blue-50 hover:border-blue-300 transition-all cursor-pointer active:scale-[0.97]">'
+    + '<div class="w-8 h-8 rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center"><span class="text-sm font-black text-blue-600">%</span></div>'
+    + '<span class="text-[11px] font-bold text-gray-700">' + escapeHtml(L.discount_type_percentage || 'Percentage') + '</span></button>'
     + '</div></div></div>';
   conversation.appendChild(div);
   conversation.scrollTop = conversation.scrollHeight;
@@ -6397,204 +6514,219 @@ function selectDiscountType(type) {
   setTimeout(function() { removeTypingIndicator(); renderDiscountCategorySelect(); }, 400);
 }
 
+// ── LIVE DOM READER: reads invoice sections/items directly from DOM ──
+function getInvoiceSectionsFromDOM() {
+  var L = window.APP_LANGUAGES || {};
+  var SECTION_META = {
+    labor:     { label: L.discount_cat_services || 'Services',       color: 'orange', icon: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>' },
+    materials: { label: L.discount_cat_products || 'Products',       color: 'orange', icon: '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>' },
+    fees:      { label: L.discount_cat_fees || 'Fees',               color: 'blue',   icon: '<rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>' },
+    expenses:  { label: L.discount_cat_expenses || 'Reimbursements', color: 'red',    icon: '<path d="M19 5c-1.5 0-2.8 1.4-3 2-3.5-1.5-11-.3-11 5 0 1.8 0 3 2 4.5V20h4v-2h3v2h4v-4c1-.5 1.7-1 2-2h2v-4h-2c0-1-.5-1.5-1-2"/><path d="M2 9v1c0 1.1.9 2 2 2h1"/><circle cx="16" cy="11" r="1"/>' }
+  };
+  var cats = [];
+
+  // Labor section
+  var laborContainer = document.getElementById('laborItemsContainer');
+  var laborGroup = document.getElementById('laborGroup');
+  if (laborContainer && (!laborGroup || !laborGroup.classList.contains('hidden'))) {
+    var laborItems = [];
+    laborContainer.querySelectorAll('.labor-item-row').forEach(function(row) {
+      var desc = (row.querySelector('.labor-item-input') || {}).value || '';
+      if (desc.trim()) laborItems.push(desc.trim());
+    });
+    if (laborItems.length > 0) {
+      var m = SECTION_META.labor;
+      cats.push({ key: 'labor', label: m.label, color: m.color, icon: m.icon, items: laborItems });
+    }
+  }
+
+  // Dynamic sections (materials, expenses, fees)
+  document.querySelectorAll('.dynamic-section').forEach(function(sec) {
+    var prot = (sec.dataset.protected || '').toLowerCase();
+    var items = [];
+    sec.querySelectorAll('.item-row').forEach(function(row) {
+      var desc = (row.querySelector('.item-input') || {}).value || '';
+      if (desc.trim()) items.push(desc.trim());
+    });
+    if (items.length > 0 && SECTION_META[prot]) {
+      var m = SECTION_META[prot];
+      cats.push({ key: prot, label: m.label, color: m.color, icon: m.icon, items: items });
+    }
+  });
+
+  return cats;
+}
+
+// ── ACCORDION PICKER: single-step category+item selection ──
 function renderDiscountCategorySelect() {
   var conversation = document.getElementById('assistantConversation');
-  if (!conversation || !window.lastAiResult) return;
+  if (!conversation) return;
+  window.disablePreviousInteractiveElements();
   var L = window.APP_LANGUAGES || {};
-  var data = window.lastAiResult;
 
-  // Build available categories from current invoice
-  var cats = [];
-  if (data.labor_service_items && data.labor_service_items.length > 0) {
-    cats.push({ key: 'labor', label: L.discount_cat_services || 'Services', items: data.labor_service_items.map(function(i) { return i.desc || i.name || ''; }).filter(Boolean) });
-  }
-  if (data.sections) {
-    data.sections.forEach(function(sec) {
-      if (!sec.items || sec.items.length === 0) return;
-      var t = (sec.type || '').toLowerCase();
-      var label = t === 'materials' ? (L.discount_cat_products || 'Products')
-        : t === 'expenses' ? (L.discount_cat_expenses || 'Expenses')
-        : t === 'fees' ? (L.discount_cat_fees || 'Fees') : sec.title || t;
-      cats.push({ key: t, label: label, items: sec.items.map(function(i) { return i.name || i.desc || ''; }).filter(Boolean) });
-    });
-  }
+  var cats = getInvoiceSectionsFromDOM();
 
   if (cats.length === 0) {
-    // No sections — apply globally
     finishDiscountFlow([]);
     return;
   }
 
-  if (cats.length === 1) {
-    // Only one category — auto-select it
-    window._discountFlow.categories = [cats[0]];
-    checkDiscountItemSelection();
+  // If only 1 category with 1 item — auto-apply, skip UI entirely
+  if (cats.length === 1 && cats[0].items.length <= 1) {
+    window._discountFlow.categories = cats;
+    finishDiscountFlow(cats);
     return;
   }
 
-  var btns = '';
-  cats.forEach(function(cat, idx) {
-    btns += '<button type="button" data-cat-idx="' + idx + '" data-selected="false" onclick="toggleDiscountCategory(this)" class="discount-cat-btn w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-gray-200 bg-white hover:bg-blue-50 hover:border-blue-300 transition-all cursor-pointer active:scale-[0.97] text-left">'
-      + '<div class="w-5 h-5 rounded border-2 border-gray-300 flex items-center justify-center flex-shrink-0 cat-check"></div>'
-      + '<div class="text-[12px] font-bold text-gray-700">' + escapeHtml(cat.label) + ' (' + cat.items.length + ')</div>'
-      + '</button>';
-  });
-  btns += '<button type="button" onclick="confirmDiscountCategories()" class="w-full px-3 py-2 rounded-xl border-2 border-orange-300 bg-orange-50 hover:bg-orange-100 transition-all cursor-pointer active:scale-[0.97] text-[12px] font-bold text-orange-700 text-center mt-1">' + escapeHtml(L.confirm_btn || 'Confirm') + '</button>';
+  var COLOR_MAP = {
+    orange: { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-600', headerBg: 'bg-orange-50', headerBorder: 'border-orange-200', checkBorder: 'border-orange-500', checkBg: 'bg-orange-50', checkText: 'text-orange-600', itemHover: 'hover:bg-orange-50' },
+    blue:   { bg: 'bg-blue-50',   border: 'border-blue-200',   text: 'text-blue-600',   headerBg: 'bg-blue-50',   headerBorder: 'border-blue-200',   checkBorder: 'border-blue-500',   checkBg: 'bg-blue-50',   checkText: 'text-blue-600',   itemHover: 'hover:bg-blue-50' },
+    red:    { bg: 'bg-red-50',    border: 'border-red-200',    text: 'text-red-600',    headerBg: 'bg-red-50',    headerBorder: 'border-red-200',    checkBorder: 'border-red-500',    checkBg: 'bg-red-50',    checkText: 'text-red-600',    itemHover: 'hover:bg-red-50' }
+  };
 
-  // Store cats for later reference
+  // Store cats reference
   window._discountFlow._cats = cats;
 
+  var accordionHtml = '';
+  var autoExpand = cats.length === 1;
+
+  cats.forEach(function(cat, catIdx) {
+    var cm = COLOR_MAP[cat.color] || COLOR_MAP.orange;
+    var isExpanded = autoExpand || catIdx === 0;
+    var chevron = isExpanded ? '▼' : '▶';
+
+    // Category header
+    accordionHtml += '<div class="accordion-cat" data-cat-idx="' + catIdx + '">'
+      + '<button type="button" onclick="toggleAccordionCategory(' + catIdx + ')" class="w-full flex items-center gap-2 px-3 py-2 rounded-xl border ' + cm.headerBorder + ' ' + cm.headerBg + ' transition-all cursor-pointer active:scale-[0.98]">'
+      + '<span class="accordion-chevron text-[10px] text-gray-400 w-4 shrink-0" data-cat-idx="' + catIdx + '">' + chevron + '</span>'
+      + '<div class="w-5 h-5 rounded-md ' + cm.bg + ' border ' + cm.border + ' flex items-center justify-center shrink-0">'
+      + '<svg class="w-3 h-3 ' + cm.text + '" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + cat.icon + '</svg>'
+      + '</div>'
+      + '<span class="text-[12px] font-bold ' + cm.text + ' flex-1 text-left">' + escapeHtml(cat.label) + ' (' + cat.items.length + ')</span>'
+      + '<button type="button" onclick="event.stopPropagation(); toggleAccordionCatAll(' + catIdx + ')" class="text-[9px] font-bold text-gray-400 hover:text-gray-600 px-1.5 py-0.5 rounded border border-gray-200 bg-white accordion-cat-toggle" data-cat-idx="' + catIdx + '">' + escapeHtml(L.select_all_btn || 'All') + '</button>'
+      + '</button>';
+
+    // Items container (collapsible)
+    accordionHtml += '<div class="accordion-items pl-6 space-y-1 mt-1' + (isExpanded ? '' : ' hidden') + '" data-cat-idx="' + catIdx + '">';
+    cat.items.forEach(function(itemName, itemIdx) {
+      accordionHtml += '<button type="button" data-cat-idx="' + catIdx + '" data-item-idx="' + itemIdx + '" data-selected="true" onclick="toggleAccordionItem(this)" class="accordion-item-btn w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg border ' + cm.border + ' ' + cm.bg + ' ' + cm.itemHover + ' transition-all cursor-pointer active:scale-[0.97] text-left">'
+        + '<div class="w-4 h-4 rounded border-2 ' + cm.checkBorder + ' ' + cm.checkBg + ' flex items-center justify-center shrink-0 accordion-item-check">'
+        + '<svg class="w-2.5 h-2.5 ' + cm.checkText + '" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>'
+        + '</div>'
+        + '<div class="w-3.5 h-3.5 flex items-center justify-center shrink-0 opacity-40">'
+        + '<svg class="w-3 h-3 ' + cm.text + '" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + cat.icon + '</svg>'
+        + '</div>'
+        + '<span class="text-[11px] font-semibold text-gray-700">' + escapeHtml(itemName) + '</span>'
+        + '</button>';
+    });
+    accordionHtml += '</div></div>';
+  });
+
+  // Bottom buttons: Select All + Confirm
+  accordionHtml += '<div class="flex gap-2 mt-2">'
+    + '<button type="button" onclick="toggleAccordionSelectAll()" class="flex-1 px-3 py-1.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition-all cursor-pointer active:scale-[0.97] text-[11px] font-bold text-gray-500">' + escapeHtml(L.select_all_btn || 'Select All') + '</button>'
+    + '<button type="button" onclick="confirmAccordionSelection()" class="flex-1 px-3 py-1.5 rounded-xl border-2 border-orange-300 bg-orange-50 hover:bg-orange-100 transition-all cursor-pointer active:scale-[0.97] text-[11px] font-bold text-orange-700">' + escapeHtml(L.confirm_btn || 'Confirm') + '</button>'
+    + '</div>';
+
   var div = document.createElement('div');
   div.className = 'flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300';
-  div.id = 'discountCategoryCard';
+  div.id = 'discountAccordionCard';
   div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
-    + '<div class="max-w-[85%]">'
+    + '<div class="max-w-[85%] w-full">'
     + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
-    + '<div class="text-sm font-bold text-gray-800 mb-2">' + escapeHtml(L.discount_category_prompt || 'Which categories?') + '</div>'
-    + '<div class="space-y-1.5">' + btns + '</div>'
+    + '<div class="text-sm font-bold text-gray-800 mb-2.5">' + escapeHtml(L.discount_accordion_prompt || 'What does this discount apply to?') + '</div>'
+    + '<div class="space-y-2">' + accordionHtml + '</div>'
     + '</div></div>';
   conversation.appendChild(div);
   conversation.scrollTop = conversation.scrollHeight;
 }
 
-function toggleDiscountCategory(btn) {
-  var sel = btn.getAttribute('data-selected') === 'true';
-  btn.setAttribute('data-selected', sel ? 'false' : 'true');
-  var check = btn.querySelector('.cat-check');
-  if (check) {
-    check.innerHTML = sel ? '' : '<svg class="w-3 h-3 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
-    check.classList.toggle('border-orange-500', !sel);
-    check.classList.toggle('bg-orange-50', !sel);
-    check.classList.toggle('border-gray-300', sel);
+function toggleAccordionCategory(catIdx) {
+  var itemsDiv = document.querySelector('.accordion-items[data-cat-idx="' + catIdx + '"]');
+  var chevron = document.querySelector('.accordion-chevron[data-cat-idx="' + catIdx + '"]');
+  if (itemsDiv) {
+    var isHidden = itemsDiv.classList.contains('hidden');
+    itemsDiv.classList.toggle('hidden');
+    if (chevron) chevron.textContent = isHidden ? '▼' : '▶';
   }
 }
 
-function confirmDiscountCategories() {
+function toggleAccordionCatAll(catIdx) {
+  var items = document.querySelectorAll('.accordion-item-btn[data-cat-idx="' + catIdx + '"]');
+  if (!items.length) return;
+  // Check if all are selected — if so, deselect all; otherwise select all
+  var allSelected = true;
+  items.forEach(function(btn) { if (btn.dataset.selected !== 'true') allSelected = false; });
+  items.forEach(function(btn) {
+    btn.dataset.selected = allSelected ? 'false' : 'true';
+    updateAccordionItemVisual(btn);
+  });
+}
+
+function toggleAccordionItem(btn) {
+  var isSelected = btn.dataset.selected === 'true';
+  btn.dataset.selected = isSelected ? 'false' : 'true';
+  updateAccordionItemVisual(btn);
+}
+
+function updateAccordionItemVisual(btn) {
+  var isSelected = btn.dataset.selected === 'true';
+  var check = btn.querySelector('.accordion-item-check');
+  if (!check) return;
+  if (isSelected) {
+    check.innerHTML = '<svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
+    check.classList.remove('border-gray-300', 'bg-white');
+    btn.style.opacity = '1';
+  } else {
+    check.innerHTML = '';
+    check.classList.add('border-gray-300', 'bg-white');
+    btn.style.opacity = '0.5';
+  }
+}
+
+function toggleAccordionSelectAll() {
+  var allBtns = document.querySelectorAll('#discountAccordionCard .accordion-item-btn');
+  if (!allBtns.length) return;
+  var allSelected = true;
+  allBtns.forEach(function(btn) { if (btn.dataset.selected !== 'true') allSelected = false; });
+  allBtns.forEach(function(btn) {
+    btn.dataset.selected = allSelected ? 'false' : 'true';
+    updateAccordionItemVisual(btn);
+  });
+}
+
+function confirmAccordionSelection() {
   var flow = window._discountFlow;
   if (!flow || !flow._cats) return;
-  var L = window.APP_LANGUAGES || {};
-  var card = document.getElementById('discountCategoryCard');
-  var btns = card ? card.querySelectorAll('.discount-cat-btn[data-selected="true"]') : [];
-  var selectedCats = [];
-  btns.forEach(function(btn) {
-    var idx = parseInt(btn.getAttribute('data-cat-idx'));
-    if (!isNaN(idx) && flow._cats[idx]) selectedCats.push(flow._cats[idx]);
+
+  var selectedByCategory = {};
+  var card = document.getElementById('discountAccordionCard');
+  if (!card) return;
+
+  card.querySelectorAll('.accordion-item-btn[data-selected="true"]').forEach(function(btn) {
+    var catIdx = parseInt(btn.dataset.catIdx);
+    var itemIdx = parseInt(btn.dataset.itemIdx);
+    if (isNaN(catIdx) || isNaN(itemIdx)) return;
+    var cat = flow._cats[catIdx];
+    if (!cat || !cat.items[itemIdx]) return;
+    if (!selectedByCategory[cat.key]) selectedByCategory[cat.key] = { key: cat.key, label: cat.label, items: [] };
+    selectedByCategory[cat.key].items.push(cat.items[itemIdx]);
   });
 
-  if (selectedCats.length === 0) {
-    // Nothing selected — apply to all
-    selectedCats = flow._cats.slice();
-  }
+  var categories = [];
+  Object.keys(selectedByCategory).forEach(function(key) { categories.push(selectedByCategory[key]); });
 
-  flow.categories = selectedCats;
-  var labels = selectedCats.map(function(c) { return c.label; });
-  addUserBubble(labels.join(', '));
+  // If nothing selected, apply to all
+  if (categories.length === 0) categories = flow._cats.slice();
 
-  checkDiscountItemSelection();
-}
+  flow.categories = categories;
+  flow.items = {};
+  categories.forEach(function(c) { flow.items[c.key] = c.items; });
 
-function checkDiscountItemSelection() {
-  var flow = window._discountFlow;
-  if (!flow) return;
+  var summaryParts = categories.map(function(c) { return c.label + ': ' + c.items.join(', '); });
+  addUserBubble(summaryParts.join(' | '));
 
-  // For each category with 2+ items, ask which specific items
-  var catsNeedingItems = flow.categories.filter(function(c) { return c.items.length > 1; });
-
-  if (catsNeedingItems.length === 0) {
-    // All categories have 0 or 1 item — no need to ask
-    finishDiscountFlow(flow.categories);
-    return;
-  }
-
-  // Ask per-category item selection sequentially
-  flow._itemQueue = catsNeedingItems.slice();
-  flow.step = 'items';
-  showTypingIndicator();
-  setTimeout(function() { removeTypingIndicator(); renderDiscountItemSelect(); }, 400);
-}
-
-function renderDiscountItemSelect() {
-  var flow = window._discountFlow;
-  if (!flow || !flow._itemQueue || flow._itemQueue.length === 0) {
-    finishDiscountFlow(flow.categories);
-    return;
-  }
-
-  var conversation = document.getElementById('assistantConversation');
-  if (!conversation) return;
-  var L = window.APP_LANGUAGES || {};
-  var cat = flow._itemQueue[0]; // peek
-
-  var prompt = (L.discount_items_prompt || 'Which %{category} items?').replace('%{category}', cat.label.toLowerCase());
-
-  var btns = '';
-  cat.items.forEach(function(itemName, idx) {
-    btns += '<button type="button" data-item-idx="' + idx + '" data-selected="true" onclick="toggleDiscountItem(this)" class="discount-item-btn w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-green-200 bg-green-50 hover:bg-green-100 transition-all cursor-pointer active:scale-[0.97] text-left">'
-      + '<div class="w-5 h-5 rounded border-2 border-green-500 bg-green-50 flex items-center justify-center flex-shrink-0 item-check"><svg class="w-3 h-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>'
-      + '<div class="text-[12px] font-bold text-gray-700">' + escapeHtml(itemName) + '</div>'
-      + '</button>';
-  });
-  btns += '<button type="button" onclick="confirmDiscountItems()" class="w-full px-3 py-2 rounded-xl border-2 border-orange-300 bg-orange-50 hover:bg-orange-100 transition-all cursor-pointer active:scale-[0.97] text-[12px] font-bold text-orange-700 text-center mt-1">' + escapeHtml(L.confirm_btn || 'Confirm') + '</button>';
-
-  var div = document.createElement('div');
-  div.className = 'flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300';
-  div.id = 'discountItemCard';
-  div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
-    + '<div class="max-w-[85%]">'
-    + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
-    + '<div class="text-sm font-bold text-gray-800 mb-2">' + escapeHtml(prompt) + '</div>'
-    + '<div class="space-y-1.5">' + btns + '</div>'
-    + '</div></div>';
-  conversation.appendChild(div);
-  conversation.scrollTop = conversation.scrollHeight;
-}
-
-function toggleDiscountItem(btn) {
-  var sel = btn.getAttribute('data-selected') === 'true';
-  btn.setAttribute('data-selected', sel ? 'false' : 'true');
-  var check = btn.querySelector('.item-check');
-  if (check) {
-    if (sel) {
-      check.innerHTML = '';
-      check.classList.remove('border-green-500', 'bg-green-50');
-      check.classList.add('border-gray-300');
-      btn.classList.remove('border-green-200', 'bg-green-50');
-      btn.classList.add('border-gray-200', 'bg-white');
-    } else {
-      check.innerHTML = '<svg class="w-3 h-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
-      check.classList.add('border-green-500', 'bg-green-50');
-      check.classList.remove('border-gray-300');
-      btn.classList.add('border-green-200', 'bg-green-50');
-      btn.classList.remove('border-gray-200', 'bg-white');
-    }
-  }
-}
-
-function confirmDiscountItems() {
-  var flow = window._discountFlow;
-  if (!flow || !flow._itemQueue) return;
-  var cat = flow._itemQueue.shift();
-  var card = document.getElementById('discountItemCard');
-  var btns = card ? card.querySelectorAll('.discount-item-btn[data-selected="true"]') : [];
-  var selected = [];
-  btns.forEach(function(btn) {
-    var idx = parseInt(btn.getAttribute('data-item-idx'));
-    if (!isNaN(idx) && cat.items[idx]) selected.push(cat.items[idx]);
-  });
-  if (selected.length === 0) selected = cat.items.slice(); // none selected = all
-  if (!flow.items) flow.items = {};
-  flow.items[cat.key] = selected;
-  addUserBubble(selected.join(', '));
-
-  // Remove the card
-  if (card) card.remove();
-
-  if (flow._itemQueue.length > 0) {
-    showTypingIndicator();
-    setTimeout(function() { removeTypingIndicator(); renderDiscountItemSelect(); }, 400);
-  } else {
-    finishDiscountFlow(flow.categories);
-  }
+  finishDiscountFlow(categories);
 }
 
 function finishDiscountFlow(categories) {
@@ -6753,8 +6885,21 @@ function handleClientDetailInput(value) {
     return;
   }
 
-  // ── ADD ITEM STEP 1: item name → ask for price ──
+  // ── ADD ITEM: smart detection ──
   if (field === 'add_item_name') {
+    var hasNumbers = /\d/.test(value);
+    var hasMultiple = /\s+და\s+|,/.test(value);
+
+    // If input has prices or multiple items → delegate entirely to AI
+    if (hasNumbers || hasMultiple) {
+      window._collectingClientDetail = null;
+      window._addItemName = null;
+      showTypingIndicator();
+      triggerAssistantReparse('Add items: ' + value, 'refinement', 'User requested change');
+      return;
+    }
+
+    // Single item, no price → ask for price (2-step)
     window._addItemName = value;
     window._collectingClientDetail = 'add_item_price';
     showTypingIndicator();
@@ -6772,13 +6917,17 @@ function handleClientDetailInput(value) {
     return;
   }
 
-  // ── ADD ITEM STEP 2: price → send to AI ──
+  // ── ADD ITEM STEP 2: price answer ──
   if (field === 'add_item_price') {
     window._collectingClientDetail = null;
     var itemName = window._addItemName || 'item';
     window._addItemName = null;
+
+    // If user mentions additional items in price answer → delegate to AI
+    var hasExtra = /\s+და\s+|,/.test(value);
+    var instruction = hasExtra ? 'Add items: ' + itemName + ' ' + value : 'Add item: ' + itemName + ', price: ' + value;
     showTypingIndicator();
-    triggerAssistantReparse('Add item: ' + itemName + ', price: ' + value, 'refinement', 'User requested change');
+    triggerAssistantReparse(instruction, 'refinement', 'User requested change');
     return;
   }
 
@@ -7052,11 +7201,9 @@ async function submitAssistantMessage() {
   }
   const userMessage = input ? input.value.trim() : '';
 
-  if (!userMessage || userMessage.length < 2) {
-    return; // Silently ignore empty/barely legible input
-  }
+  if (!userMessage) return;
 
-  // INTERCEPT 0: Discount flow (multi-step, entirely frontend)
+  // INTERCEPT 0: Discount flow (multi-step, entirely frontend) — accepts single chars like "1", "9", "%"
   if (window._discountFlow) {
     addUserBubble(userMessage);
     if (input) { input.value = ''; if (typeof autoResize === 'function') autoResize(input); }
@@ -7080,6 +7227,9 @@ async function submitAssistantMessage() {
     return;
   }
 
+  // Guard: minimum length for AI-bound messages only (intercepts above handle short input)
+  if (userMessage.length < 2) return;
+
   // Determine type: if there are pending clarifications, it's a clarification answer; otherwise it's a user-initiated change
   const hasPendingQuestions = window.pendingClarifications && window.pendingClarifications.length > 0;
   const type = hasPendingQuestions ? 'clarification' : 'refinement';
@@ -7100,6 +7250,11 @@ async function triggerAssistantReparse(userAnswer, type, questionsText) {
     : "User requested change");
 
   const historyEntry = { questions: currentQuestions, answer: userAnswer };
+
+  // Snapshot for undo (single-level)
+  if (window.lastAiResult) {
+    try { window._undoSnapshot = JSON.parse(JSON.stringify(window.lastAiResult)); } catch(e) { window._undoSnapshot = null; }
+  }
 
   // Queue answer for display AFTER AI finishes
   window._pendingAnswer = { text: userAnswer, type: type, historyEntry: historyEntry };
