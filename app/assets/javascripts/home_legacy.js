@@ -5540,12 +5540,15 @@ window.disablePreviousInteractiveElements = function() {
   if (!conversation) return;
   // Remove quick action chip containers entirely (not grey out)
   conversation.querySelectorAll('.quick-action-chips').forEach(function(el) { el.remove(); });
-  var allBtns = conversation.querySelectorAll('button:not([disabled])');
-  allBtns.forEach(function(btn) {
-    // Skip buttons inside active accordion/multi-choice cards
-    if (btn.closest('#multiChoiceAccordionCard')) return;
+  // Disable ALL buttons
+  conversation.querySelectorAll('button:not([disabled])').forEach(function(btn) {
     btn.disabled = true;
     btn.classList.add('opacity-50', 'pointer-events-none');
+  });
+  // Disable ALL inputs (text, number, range/sliders)
+  conversation.querySelectorAll('input:not([disabled])').forEach(function(inp) {
+    inp.disabled = true;
+    inp.classList.add('opacity-50', 'pointer-events-none');
   });
 };
 
@@ -5602,12 +5605,12 @@ function handleClarifications(clarifications) {
     renderConversationHistory();
   }
 
+  // Capture and clear client detail follow-up flag early (survives regardless of new clarifications)
+  var wasCreateNew = !!window._wasAddClientYes;
+  window._wasAddClientYes = false;
+
   if (!unansweredClarifications || unansweredClarifications.length === 0) {
     window.pendingClarifications = [];
-
-    // Check if the CURRENT user answer (being processed right now) was "add client to list" confirmation
-    var wasCreateNew = !!window._wasAddClientYes;
-    window._wasAddClientYes = false;
 
     showTypingIndicator();
     setTimeout(function() {
@@ -5627,6 +5630,12 @@ function handleClarifications(clarifications) {
       }
     }, 600);
     return;
+  }
+
+  // If client detail follow-up is pending but AI also returned clarifications,
+  // defer client details until after clarifications are answered
+  if (wasCreateNew) {
+    window._wasAddClientYes = true; // Re-set so it triggers after queue finishes
   }
 
   // Bug 6: Loop protection — filter out questions AI already asked recently
@@ -5704,6 +5713,8 @@ function showNextQueueItem() {
     renderAddClientToListCard(c);
   } else if (c.field === 'client_match' && c.similar_clients && c.similar_clients.length > 0) {
     renderClientMatchCard(c);
+  } else if (c.field === 'discount_type_multi' && c.options && c.options.length > 0) {
+    renderDiscountTypeMultiCard(c);
   } else if (c.field === 'section_type' && c.options && c.options.length > 0) {
     renderSectionTypeCard(c);
   } else if (c.field === 'currency' && c.options && c.options.length > 0) {
@@ -5781,10 +5792,38 @@ function batchSubmitQueueAnswers() {
   window._queueTotal = 0;
   window.pendingClarifications = [];
 
-  if (answers.length === 0) return;
+  // Filter out client_match/add_client_to_list answers — these are frontend-only, not for AI
+  var aiAnswers = answers.filter(function(qa) {
+    return qa.field !== 'client_match' && qa.field !== 'add_client_to_list';
+  });
+
+  // If only client answers remained, skip AI and handle locally
+  if (aiAnswers.length === 0) {
+    if (window._wasAddClientYes) {
+      window._wasAddClientYes = false;
+      showTypingIndicator();
+      setTimeout(function() {
+        removeTypingIndicator();
+        renderClientDetailOptions();
+        var assistInput = document.getElementById('assistantInput');
+        if (assistInput) { assistInput.disabled = false; assistInput.focus(); }
+      }, 400);
+    } else {
+      showTypingIndicator();
+      setTimeout(function() {
+        removeTypingIndicator();
+        addAIBubble(window.APP_LANGUAGES.anything_else || "Anything else to change?");
+        renderQuickActionChips();
+        window.setupSaveButton();
+        var assistInput = document.getElementById('assistantInput');
+        if (assistInput) { assistInput.disabled = false; assistInput.focus(); }
+      }, 400);
+    }
+    return;
+  }
 
   // Format batch as individual Q&A pairs for the AI
-  var batchMessage = answers.map(function(qa) {
+  var batchMessage = aiAnswers.map(function(qa) {
     return '[AI asked: "' + qa.question + '" → User answered: "' + qa.answer + '"]';
   }).join('\n');
 
@@ -5833,7 +5872,10 @@ function showTypingIndicator() {
     </div>
   `;
   conversation.appendChild(div);
-  conversation.scrollTop = conversation.scrollHeight;
+  // Use rAF to scroll after the browser paints the indicator
+  requestAnimationFrame(function() {
+    conversation.scrollTop = conversation.scrollHeight;
+  });
 }
 
 function removeTypingIndicator() {
@@ -6290,27 +6332,20 @@ function renderQuickActionChips() {
     { label: L.action_change_date || 'Change date', handler: 'handleChipChangeDate', icon: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>', color: 'default' }
   ];
 
-  // Contextual tax chips — show Manage Taxes when items exist, Remove Tax when taxable items exist
-  var hasTax = false;
+  // Contextual: Manage Taxes chip — show when items exist
   var hasItems = false;
   if (window.lastAiResult && window.lastAiResult.sections) {
     window.lastAiResult.sections.forEach(function(s) {
-      (s.items || []).forEach(function(item) {
-        hasItems = true;
-        if (item.taxable === true || item.tax_rate > 0) hasTax = true;
-      });
+      if ((s.items || []).length > 0) hasItems = true;
     });
   }
   if (hasItems) {
     chips.push({ label: L.action_manage_tax || 'Manage Taxes', handler: 'handleChipManageTax', icon: '<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>', color: 'default' });
   }
-  if (hasTax) {
-    chips.push({ label: L.action_remove_tax || 'Remove tax', handler: 'handleChipRemoveTax', icon: '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>', color: 'red' });
-  }
 
-  // Add undo chip if snapshot exists
+  // Add undo & revert chip if snapshot exists
   if (window._undoSnapshot) {
-    chips.unshift({ label: L.undo_btn || 'Undo', handler: 'handleChipUndo', icon: '<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>' });
+    chips.unshift({ label: L.undo_and_revert || 'Undo & Revert', handler: 'handleChipUndo', icon: '<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>', color: 'red' });
   }
 
   var chipHtml = '';
@@ -6373,24 +6408,37 @@ function handleChipAddDiscount() {
   triggerAssistantReparse(L.action_add_discount || 'Add discount', 'refinement', 'User requested change');
 }
 
-// ── CHIP HANDLER: UNDO LAST AI CHANGE ──
+// ── CHIP HANDLER: UNDO & REVERT (restore chat + invoice to before last AI action) ──
 function handleChipUndo() {
   if (window._pendingAnswer) return;
   if (!window._undoSnapshot) return;
   var L = window.APP_LANGUAGES || {};
 
-  addUserBubble(L.undo_btn || 'Undo');
+  // Restore invoice JSON
+  updateUIWithoutTranscript(window._undoSnapshot.json);
+  window.lastAiResult = window._undoSnapshot.json;
 
-  // Restore snapshot
-  updateUIWithoutTranscript(window._undoSnapshot);
-  window.lastAiResult = window._undoSnapshot;
+  // Restore chat to pre-action state
+  var conversation = document.getElementById('assistantConversation');
+  if (conversation && window._undoSnapshot.chatHtml !== undefined) {
+    conversation.innerHTML = window._undoSnapshot.chatHtml;
+  }
+
+  // Restore clarification history length
+  if (window.clarificationHistory && window._undoSnapshot.historyLength !== undefined) {
+    window.clarificationHistory = window.clarificationHistory.slice(0, window._undoSnapshot.historyLength);
+  }
+
   window._undoSnapshot = null;
+  window._collectingClientDetail = null;
+  window._clarificationQueue = null;
+  window._queueAnswers = null;
+  window._queueTotal = 0;
 
   showTypingIndicator();
   setTimeout(function() {
     removeTypingIndicator();
-    // Show undo confirmation as red-styled message, no action chips
-    var conversation = document.getElementById('assistantConversation');
+    // Show undo confirmation as red-styled message, then quick action chips
     if (conversation) {
       var note = document.createElement('div');
       note.className = 'flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300';
@@ -6401,6 +6449,9 @@ function handleChipUndo() {
       conversation.appendChild(note);
       conversation.scrollTop = conversation.scrollHeight;
     }
+    addAIBubble(L.anything_else || 'Anything else to change?');
+    renderQuickActionChips();
+    window.setupSaveButton();
     var assistInput = document.getElementById('assistantInput');
     if (assistInput) {
       assistInput.disabled = false;
@@ -6433,12 +6484,12 @@ function handleChipChangeDate() {
       + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
       + '<div class="text-xs font-bold text-gray-800 mb-2">' + escapeHtml(L.date_type_prompt || 'Which date?') + '</div>'
       + '<div class="flex gap-2">'
-      + '<button type="button" onclick="selectDateType(\'invoice\')" class="flex-1 flex flex-col items-center gap-1 px-3 py-3 rounded-xl border-2 border-gray-200 bg-white hover:bg-orange-50 hover:border-orange-300 transition-all cursor-pointer active:scale-[0.97]">'
-      + '<div class="w-8 h-8 rounded-full bg-orange-50 border border-orange-200 flex items-center justify-center"><svg class="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>'
-      + '<span class="text-[11px] font-bold text-gray-700">' + escapeHtml(L.date_type_invoice || 'Invoice date') + '</span></button>'
-      + '<button type="button" onclick="selectDateType(\'due\')" class="flex-1 flex flex-col items-center gap-1 px-3 py-3 rounded-xl border-2 border-gray-200 bg-white hover:bg-blue-50 hover:border-blue-300 transition-all cursor-pointer active:scale-[0.97]">'
-      + '<div class="w-8 h-8 rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center"><svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg></div>'
-      + '<span class="text-[11px] font-bold text-gray-700">' + escapeHtml(L.date_type_due || 'Due date') + '</span></button>'
+      + '<button type="button" onclick="selectDateType(\'invoice\')" class="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border-2 border-gray-200 bg-white hover:bg-orange-50 hover:border-orange-300 transition-all cursor-pointer active:scale-[0.97]">'
+      + '<svg class="w-4 h-4 text-orange-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>'
+      + '<span class="text-[11px] font-bold text-gray-700 whitespace-nowrap">' + escapeHtml(L.date_type_invoice || 'Issue date') + '</span></button>'
+      + '<button type="button" onclick="selectDateType(\'due\')" class="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border-2 border-red-200 bg-white hover:bg-red-50 hover:border-red-300 transition-all cursor-pointer active:scale-[0.97]">'
+      + '<svg class="w-4 h-4 text-red-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg>'
+      + '<span class="text-[11px] font-bold text-red-600 whitespace-nowrap">' + escapeHtml(L.date_type_due || 'Due date') + '</span></button>'
       + '</div></div></div>';
     conversation.appendChild(div);
     conversation.scrollTop = conversation.scrollHeight;
@@ -6560,15 +6611,103 @@ function navigateCalendar(delta) {
 }
 
 function pickCalendarDate(year, month, day) {
-  // Format as "MMM DD, YYYY" for the AI (always English month abbreviations for JSON)
-  var MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  var formatted = MONTH_ABBR[month] + ' ' + (day < 10 ? '0' + day : day) + ', ' + year;
+  var L = window.APP_LANGUAGES || {};
+  var lang = window.currentSystemLanguage || 'en';
+  var formatted;
+  if (lang === 'ka') {
+    var KA_MONTHS = [L.jan || 'იან', L.feb || 'თებ', L.mar || 'მარ', L.apr || 'აპრ', L.may_short || 'მაი', L.jun || 'ივნ', L.jul || 'ივლ', L.aug || 'აგვ', L.sep || 'სექ', L.oct || 'ოქტ', L.nov || 'ნოე', L.dec || 'დეკ'];
+    formatted = KA_MONTHS[month] + ' ' + (day < 10 ? '0' + day : day) + ', ' + year;
+  } else {
+    var MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    formatted = MONTH_ABBR[month] + ' ' + (day < 10 ? '0' + day : day) + ', ' + year;
+  }
 
   // Submit as if user typed it
   window._collectingClientDetail = 'change_date';
   var assistInput = document.getElementById('assistantInput');
   if (assistInput) assistInput.value = formatted;
   submitAssistantMessage();
+}
+
+// ── DISCOUNT TYPE MULTI WIDGET (per-item fixed/percentage toggle) ──
+function renderDiscountTypeMultiCard(clarification) {
+  var conversation = document.getElementById('assistantConversation');
+  if (!conversation) return;
+
+  var L = window.APP_LANGUAGES || {};
+  var items = clarification.options || [];
+  var currSym = '$';
+  if (window.lastAiResult && window.lastAiResult.currency) {
+    var cMap = { 'GEL': '₾', 'USD': '$', 'EUR': '€', 'GBP': '£' };
+    currSym = cMap[window.lastAiResult.currency] || window.lastAiResult.currency;
+  }
+
+  window._discountTypeItems = items.map(function(name) { return { name: name, type: 'fixed' }; });
+
+  var itemsHtml = '';
+  items.forEach(function(name, idx) {
+    itemsHtml += '<div class="flex items-center justify-between gap-2 px-2.5 py-2 rounded-lg bg-white">'
+      + '<span class="text-[11px] font-semibold text-gray-700 truncate flex-1">' + escapeHtml(name) + '</span>'
+      + '<div class="flex items-center gap-0 shrink-0 border-2 border-gray-200 rounded-lg overflow-hidden">'
+      + '<button type="button" data-dt-idx="' + idx + '" data-dt-type="fixed" onclick="toggleDiscountType(this)" class="dt-toggle-btn dt-fixed px-2.5 py-1 text-[11px] font-bold transition-all cursor-pointer bg-orange-500 text-white">' + escapeHtml(currSym) + '</button>'
+      + '<button type="button" data-dt-idx="' + idx + '" data-dt-type="percentage" onclick="toggleDiscountType(this)" class="dt-toggle-btn dt-pct px-2.5 py-1 text-[11px] font-bold transition-all cursor-pointer bg-white text-gray-400 hover:bg-gray-50">%</button>'
+      + '</div></div>';
+  });
+
+  var div = document.createElement('div');
+  div.className = 'flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300';
+  div.id = 'discountTypeMultiCard';
+  div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
+    + '<div class="max-w-[85%] w-full">'
+    + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
+    + '<div class="text-xs font-bold text-gray-800 mb-2.5">' + escapeHtml(clarification.question || L.discount_type_prompt || 'What type of discounts?') + '</div>'
+    + '<div class="space-y-1.5">' + itemsHtml + '</div>'
+    + '<div class="flex gap-2 mt-2.5">'
+    + '<button type="button" onclick="confirmDiscountTypes()" class="flex-1 px-2 py-1.5 rounded-xl border-2 border-orange-300 bg-orange-50 hover:bg-orange-100 transition-all cursor-pointer active:scale-[0.97] text-[10px] font-bold text-orange-700">' + escapeHtml(L.tax_apply_btn || 'Confirm') + '</button>'
+    + '</div>'
+    + '</div></div>';
+  conversation.appendChild(div);
+  conversation.scrollTop = conversation.scrollHeight;
+}
+
+function toggleDiscountType(btn) {
+  var idx = parseInt(btn.dataset.dtIdx);
+  var type = btn.dataset.dtType;
+  var card = document.getElementById('discountTypeMultiCard');
+  if (!card) return;
+
+  // Update all toggle buttons for this index
+  var row = btn.parentElement;
+  row.querySelectorAll('.dt-toggle-btn').forEach(function(b) {
+    if (b.dataset.dtType === type) {
+      b.className = 'dt-toggle-btn dt-' + (type === 'fixed' ? 'fixed' : 'pct') + ' px-2.5 py-1 text-[11px] font-bold transition-all cursor-pointer bg-orange-500 text-white';
+    } else {
+      b.className = 'dt-toggle-btn dt-' + (b.dataset.dtType === 'fixed' ? 'fixed' : 'pct') + ' px-2.5 py-1 text-[11px] font-bold transition-all cursor-pointer bg-white text-gray-400 hover:bg-gray-50';
+    }
+  });
+
+  if (window._discountTypeItems && window._discountTypeItems[idx]) {
+    window._discountTypeItems[idx].type = type;
+  }
+}
+
+function confirmDiscountTypes() {
+  var items = window._discountTypeItems;
+  if (!items || items.length === 0) return;
+
+  var fixedItems = [];
+  var pctItems = [];
+  items.forEach(function(item) {
+    if (item.type === 'percentage') pctItems.push(item.name);
+    else fixedItems.push(item.name);
+  });
+
+  var answer = '';
+  if (fixedItems.length > 0) answer += 'Fixed amount discount on: ' + fixedItems.join(', ') + '. ';
+  if (pctItems.length > 0) answer += 'Percentage discount on: ' + pctItems.join(', ') + '.';
+
+  window._discountTypeItems = null;
+  handleQueueAnswer(answer.trim());
 }
 
 // ── CHIP HANDLER: REMOVE TAX (1-click command) ──
@@ -6610,8 +6749,13 @@ function renderTaxManagementCard() {
     window.lastAiResult.sections.forEach(function(sec) {
       (sec.items || []).forEach(function(item) {
         var name = item.desc || item.name || '?';
-        var isTaxed = item.taxable === true || (item.tax_rate && item.tax_rate > 0);
-        items.push({ name: name, taxed: isTaxed, section: sec.type || 'labor' });
+        var rate = 0;
+        if (item.tax_rate && item.tax_rate > 0) {
+          rate = item.tax_rate;
+        } else if (item.taxable === true) {
+          rate = 18; // Default Georgian VAT
+        }
+        items.push({ name: name, rate: rate, section: sec.type || 'labor' });
       });
     });
   }
@@ -6620,14 +6764,17 @@ function renderTaxManagementCard() {
 
   var itemsHtml = '';
   items.forEach(function(item, idx) {
-    var onCls = item.taxed
-      ? 'bg-green-500 border-green-500 text-white'
-      : 'bg-white border-gray-300 text-gray-400 hover:border-green-300 hover:bg-green-50';
-    var label = item.taxed ? (L.tax_on || 'Taxed') : (L.tax_off || 'Not taxed');
-    itemsHtml += '<div class="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-white hover:bg-gray-50 transition-all">'
+    var pct = item.rate;
+    var barColor = pct > 0 ? 'bg-green-500' : 'bg-gray-300';
+    var labelColor = pct > 0 ? 'text-green-600' : 'text-gray-400';
+    itemsHtml += '<div class="px-2.5 py-2 rounded-lg bg-white">'
+      + '<div class="flex items-center justify-between gap-2 mb-1">'
       + '<span class="text-[11px] font-semibold text-gray-700 truncate flex-1">' + escapeHtml(item.name) + '</span>'
-      + '<button type="button" data-tax-idx="' + idx + '" data-taxed="' + item.taxed + '" onclick="toggleTaxItem(this)" class="tax-toggle-btn shrink-0 px-2.5 py-1 rounded-lg border-2 text-[10px] font-bold transition-all cursor-pointer active:scale-[0.95] ' + onCls + '">'
-      + escapeHtml(label) + '</button>'
+      + '<div class="flex items-center gap-1 shrink-0">'
+      + '<input type="number" min="0" max="100" step="1" value="' + pct + '" data-tax-idx="' + idx + '" onchange="onTaxInputChange(this)" oninput="onTaxInputChange(this)" class="tax-rate-input w-10 text-center text-[11px] font-bold ' + labelColor + ' border border-gray-200 rounded-md px-0.5 py-0.5 focus:outline-none focus:border-orange-400 transition-all" />'
+      + '<span class="text-[10px] font-bold text-gray-400">%</span>'
+      + '</div></div>'
+      + '<input type="range" min="0" max="100" step="1" value="' + pct + '" data-tax-idx="' + idx + '" oninput="onTaxSliderChange(this)" class="tax-rate-slider w-full h-1.5 rounded-full appearance-none cursor-pointer accent-green-500 ' + barColor + '" style="background:linear-gradient(to right,#22c55e ' + pct + '%,#e5e7eb ' + pct + '%)" />'
       + '</div>';
   });
 
@@ -6641,86 +6788,122 @@ function renderTaxManagementCard() {
     + '<div class="max-w-[85%] w-full">'
     + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
     + '<div class="text-xs font-bold text-gray-800 mb-2.5">' + escapeHtml(L.tax_management_prompt || 'Which items should be taxed?') + '</div>'
-    + '<div class="space-y-1">' + itemsHtml + '</div>'
+    + '<div class="space-y-1.5">' + itemsHtml + '</div>'
     + '<div class="flex gap-2 mt-2.5">'
-    + '<button type="button" onclick="taxBulkAction(false)" class="flex-1 px-2 py-1.5 rounded-xl border-2 border-red-200 bg-red-50 hover:bg-red-100 transition-all cursor-pointer active:scale-[0.97] text-[10px] font-bold text-red-600">' + escapeHtml(L.tax_remove_all || 'Remove All') + '</button>'
-    + '<button type="button" onclick="taxBulkAction(true)" class="flex-1 px-2 py-1.5 rounded-xl border-2 border-green-200 bg-green-50 hover:bg-green-100 transition-all cursor-pointer active:scale-[0.97] text-[10px] font-bold text-green-600">' + escapeHtml(L.tax_apply_all || 'Apply All') + '</button>'
-    + '<button type="button" onclick="confirmTaxManagement()" class="flex-1 px-2 py-1.5 rounded-xl border-2 border-orange-300 bg-orange-50 hover:bg-orange-100 transition-all cursor-pointer active:scale-[0.97] text-[10px] font-bold text-orange-700">' + escapeHtml(L.tax_apply_btn || 'Apply') + '</button>'
+    + '<button type="button" onclick="taxBulkAction(0)" class="flex-1 px-2 py-1.5 rounded-xl border-2 border-red-200 bg-red-50 hover:bg-red-100 transition-all cursor-pointer active:scale-[0.97] text-[10px] font-bold text-red-600">' + escapeHtml(L.tax_remove_all || 'None') + '</button>'
+    + '<button type="button" onclick="taxBulkAction(18)" class="flex-1 px-2 py-1.5 rounded-xl border-2 border-green-200 bg-green-50 hover:bg-green-100 transition-all cursor-pointer active:scale-[0.97] text-[10px] font-bold text-green-600">' + escapeHtml(L.tax_apply_all || 'All') + '</button>'
+    + '<button type="button" onclick="confirmTaxManagement()" class="flex-1 px-2 py-1.5 rounded-xl border-2 border-orange-300 bg-orange-50 hover:bg-orange-100 transition-all cursor-pointer active:scale-[0.97] text-[10px] font-bold text-orange-700">' + escapeHtml(L.tax_apply_btn || 'Confirm') + '</button>'
     + '</div>'
     + '</div></div>';
   conversation.appendChild(div);
   conversation.scrollTop = conversation.scrollHeight;
 }
 
-function toggleTaxItem(btn) {
-  var isTaxed = btn.dataset.taxed === 'true';
-  var newState = !isTaxed;
-  btn.dataset.taxed = String(newState);
+function syncTaxSliderStyle(slider, val) {
+  slider.style.background = 'linear-gradient(to right,#22c55e ' + val + '%,#e5e7eb ' + val + '%)';
+}
 
-  var L = window.APP_LANGUAGES || {};
-  var label = newState ? (L.tax_on || 'Taxed') : (L.tax_off || 'Not taxed');
-  btn.textContent = label;
+function onTaxSliderChange(slider) {
+  var idx = parseInt(slider.dataset.taxIdx);
+  var val = parseInt(slider.value) || 0;
+  if (val < 0) val = 0;
+  if (val > 100) val = 100;
+  syncTaxSliderStyle(slider, val);
 
-  if (newState) {
-    btn.className = 'tax-toggle-btn shrink-0 px-2.5 py-1 rounded-lg border-2 text-[10px] font-bold transition-all cursor-pointer active:scale-[0.95] bg-green-500 border-green-500 text-white';
-  } else {
-    btn.className = 'tax-toggle-btn shrink-0 px-2.5 py-1 rounded-lg border-2 text-[10px] font-bold transition-all cursor-pointer active:scale-[0.95] bg-white border-gray-300 text-gray-400 hover:border-green-300 hover:bg-green-50';
+  // Sync input field
+  var card = document.getElementById('taxManagementCard');
+  if (card) {
+    var inp = card.querySelector('.tax-rate-input[data-tax-idx="' + idx + '"]');
+    if (inp) {
+      inp.value = val;
+      inp.className = 'tax-rate-input w-10 text-center text-[11px] font-bold ' + (val > 0 ? 'text-green-600' : 'text-gray-400') + ' border border-gray-200 rounded-md px-0.5 py-0.5 focus:outline-none focus:border-orange-400 transition-all';
+    }
   }
-
-  // Update stored state
-  var idx = parseInt(btn.dataset.taxIdx);
   if (window._taxManagementItems && window._taxManagementItems[idx]) {
-    window._taxManagementItems[idx].taxed = newState;
+    window._taxManagementItems[idx].rate = val;
   }
 }
 
-function taxBulkAction(taxAll) {
+function onTaxInputChange(inp) {
+  var idx = parseInt(inp.dataset.taxIdx);
+  var val = parseInt(inp.value) || 0;
+  if (val < 0) val = 0;
+  if (val > 100) val = 100;
+  inp.value = val;
+  inp.className = 'tax-rate-input w-10 text-center text-[11px] font-bold ' + (val > 0 ? 'text-green-600' : 'text-gray-400') + ' border border-gray-200 rounded-md px-0.5 py-0.5 focus:outline-none focus:border-orange-400 transition-all';
+
+  // Sync slider
+  var card = document.getElementById('taxManagementCard');
+  if (card) {
+    var slider = card.querySelector('.tax-rate-slider[data-tax-idx="' + idx + '"]');
+    if (slider) {
+      slider.value = val;
+      syncTaxSliderStyle(slider, val);
+    }
+  }
+  if (window._taxManagementItems && window._taxManagementItems[idx]) {
+    window._taxManagementItems[idx].rate = val;
+  }
+}
+
+function taxBulkAction(rate) {
   var card = document.getElementById('taxManagementCard');
   if (!card) return;
-  var L = window.APP_LANGUAGES || {};
 
-  card.querySelectorAll('.tax-toggle-btn').forEach(function(btn) {
-    btn.dataset.taxed = String(taxAll);
-    btn.textContent = taxAll ? (L.tax_on || 'Taxed') : (L.tax_off || 'Not taxed');
-    if (taxAll) {
-      btn.className = 'tax-toggle-btn shrink-0 px-2.5 py-1 rounded-lg border-2 text-[10px] font-bold transition-all cursor-pointer active:scale-[0.95] bg-green-500 border-green-500 text-white';
-    } else {
-      btn.className = 'tax-toggle-btn shrink-0 px-2.5 py-1 rounded-lg border-2 text-[10px] font-bold transition-all cursor-pointer active:scale-[0.95] bg-white border-gray-300 text-gray-400 hover:border-green-300 hover:bg-green-50';
-    }
-    var idx = parseInt(btn.dataset.taxIdx);
-    if (window._taxManagementItems && window._taxManagementItems[idx]) {
-      window._taxManagementItems[idx].taxed = taxAll;
-    }
+  card.querySelectorAll('.tax-rate-slider').forEach(function(slider) {
+    slider.value = rate;
+    syncTaxSliderStyle(slider, rate);
   });
+  card.querySelectorAll('.tax-rate-input').forEach(function(inp) {
+    inp.value = rate;
+    inp.className = 'tax-rate-input w-10 text-center text-[11px] font-bold ' + (rate > 0 ? 'text-green-600' : 'text-gray-400') + ' border border-gray-200 rounded-md px-0.5 py-0.5 focus:outline-none focus:border-orange-400 transition-all';
+  });
+  if (window._taxManagementItems) {
+    window._taxManagementItems.forEach(function(item) { item.rate = rate; });
+  }
 }
 
 function confirmTaxManagement() {
   var items = window._taxManagementItems;
   if (!items || items.length === 0) return;
+  var L = window.APP_LANGUAGES || {};
 
-  var taxedNames = [];
-  var untaxedNames = [];
+  var taxedItems = [];
+  var untaxedItems = [];
   items.forEach(function(item) {
-    if (item.taxed) {
-      taxedNames.push(item.name);
+    if (item.rate > 0) {
+      taxedItems.push({ name: item.name, rate: item.rate });
     } else {
-      untaxedNames.push(item.name);
+      untaxedItems.push(item.name);
     }
   });
 
   var instruction = '';
-  if (untaxedNames.length === items.length) {
+  if (untaxedItems.length === items.length) {
     instruction = 'Remove all tax from every item. Set taxable:false, labor_taxable:false, tax_rate:null, tax_scope:null on everything.';
-  } else if (taxedNames.length === items.length) {
-    instruction = 'Apply tax to every item. Set taxable:true on all items.';
+  } else if (taxedItems.length === items.length) {
+    var allSameRate = taxedItems.every(function(i) { return i.rate === taxedItems[0].rate; });
+    if (allSameRate) {
+      instruction = 'Apply ' + taxedItems[0].rate + '% tax to every item. Set taxable:true, tax_rate:' + taxedItems[0].rate + ' on all items.';
+    } else {
+      taxedItems.forEach(function(i) {
+        instruction += 'Set taxable:true, tax_rate:' + i.rate + ' on "' + i.name + '". ';
+      });
+    }
   } else {
-    if (taxedNames.length > 0) instruction += 'Set taxable:true on: ' + taxedNames.join(', ') + '. ';
-    if (untaxedNames.length > 0) instruction += 'Set taxable:false on: ' + untaxedNames.join(', ') + '.';
+    taxedItems.forEach(function(i) {
+      instruction += 'Set taxable:true, tax_rate:' + i.rate + ' on "' + i.name + '". ';
+    });
+    if (untaxedItems.length > 0) instruction += 'Set taxable:false, tax_rate:null on: ' + untaxedItems.join(', ') + '.';
   }
 
-  var summary = taxedNames.length > 0
-    ? (taxedNames.length + ' taxed, ' + untaxedNames.length + ' untaxed')
-    : 'All tax removed';
+  var summary;
+  if (untaxedItems.length === items.length) {
+    summary = L.tax_all_removed || 'All tax removed';
+  } else {
+    summary = (L.tax_summary || '%{taxed} taxed, %{untaxed} untaxed')
+      .replace('%{taxed}', taxedItems.length).replace('%{untaxed}', untaxedItems.length);
+  }
   addUserBubble(summary);
 
   window._taxManagementItems = null;
@@ -7369,9 +7552,14 @@ async function processAssistantAudio() {
     if (input) {
       input.placeholder = window.APP_LANGUAGES.assistant_placeholder || "Tell me what to change...";
       const transcribed = (data.raw_summary || '').trim();
-      if (transcribed.length >= 2) {
+      // Guard against AI returning descriptive text about silence instead of actual transcription
+      var silencePatterns = /^(empty|silent|no\s*(speech|audio|sound)|i\s*can'?t|the\s*audio\s*(is|clip|contains|was)|there\s*(is|was)\s*no)/i;
+      if (transcribed.length >= 2 && !silencePatterns.test(transcribed)) {
         input.value = transcribed;
         setTimeout(() => submitAssistantMessage(), 300);
+      } else if (transcribed.length < 2 || silencePatterns.test(transcribed)) {
+        // Show localized snackbar error for empty/silent audio
+        showError(window.APP_LANGUAGES.audio_empty_error || 'Audio is empty — please try again');
       }
     }
   } catch (e) {
@@ -7431,9 +7619,16 @@ async function triggerAssistantReparse(userAnswer, type, questionsText) {
 
   const historyEntry = { questions: currentQuestions, answer: userAnswer };
 
-  // Snapshot for undo (single-level)
+  // Snapshot for undo (single-level): store JSON + chat HTML + history length
   if (window.lastAiResult) {
-    try { window._undoSnapshot = JSON.parse(JSON.stringify(window.lastAiResult)); } catch(e) { window._undoSnapshot = null; }
+    try {
+      var conv = document.getElementById('assistantConversation');
+      window._undoSnapshot = {
+        json: JSON.parse(JSON.stringify(window.lastAiResult)),
+        chatHtml: conv ? conv.innerHTML : '',
+        historyLength: (window.clarificationHistory || []).length
+      };
+    } catch(e) { window._undoSnapshot = null; }
   }
 
   // Queue answer for display AFTER AI finishes
@@ -7901,11 +8096,16 @@ Object.assign(window, {
   toggleLaborRate,
   handleChipManageTax,
   renderTaxManagementCard,
-  toggleTaxItem,
+  onTaxSliderChange,
+  onTaxInputChange,
+  syncTaxSliderStyle,
   taxBulkAction,
   confirmTaxManagement,
   renderDatePickerCard,
   buildCalendarGrid,
   navigateCalendar,
   pickCalendarDate,
+  renderDiscountTypeMultiCard,
+  toggleDiscountType,
+  confirmDiscountTypes,
 });

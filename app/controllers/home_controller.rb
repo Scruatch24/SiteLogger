@@ -2010,7 +2010,7 @@ PROMPT
       - "discount everything except [category]" → apply per-item to every OTHER category, leave excluded at 0. Do NOT use global_discount.
       - DISCOUNT CLARIFICATION ORDER: When user mentions a discount but does NOT specify the amount:
         1. FIRST ask "#{ui_is_georgian ? 'რა ოდენობის ფასდაკლება გსურთ?' : 'How much discount?'}" with field: "discount_amount", type: "text". Do NOT assume percentage.
-        2. If user gives a number without % sign and it could be either flat or percentage (1-100 range), return a clarification with field: "discount_type", type: "choice", options: ["fixed", "percentage"]. The frontend renders clickable buttons automatically.
+        2. If user gives a number without % sign and it could be either flat or percentage (1-100 range) for a SINGLE item, return a clarification with field: "discount_type", type: "choice", options: ["fixed", "percentage"]. For MULTIPLE items needing type selection, use field: "discount_type_multi", type: "multi_choice", options: [item names]. The frontend renders a per-item fixed/percentage toggle widget.
         3. If discount scope is ambiguous (multiple items exist and user didn't specify which), ask with field: "discount_scope", type: "multi_choice", options: [extract ALL item desc/name values from the CURRENT INVOICE JSON sections above — e.g., if JSON has labor items "AC Repair" and materials "Filter", options: ["AC Repair", "Filter"]]. The frontend renders an accordion grouped by category with an "Invoice Discount" button for whole-invoice discount.
         4. If user answers "Invoice Discount" to a discount_scope question, apply as global_discount_flat or global_discount_percent (invoice-level). Otherwise apply per-item to the selected items.
         5. NEVER ask "რომელი პროცენტით?" — always ask for amount first, then type if ambiguous, then scope if needed.
@@ -2039,6 +2039,15 @@ PROMPT
       QUESTION FORMATTING:
       - All questions MUST end with "?" (question mark). Never end with "." or nothing.
       - Keep questions SHORT and conversational.
+      - GEORGIAN GRAMMAR (CRITICAL when question_lang is Georgian):
+        - NEVER use parenthesized plural suffixes like "პოზიცი(ებ)ს", "ელემენტ(ებ)ს", "ნივთ(ებ)ს". This is unnatural computerese.
+        - NEVER use words like "პოზიცია", "ელემენტი", "ნივთი" to refer to invoice items. Use natural phrasing instead.
+        - For SCOPE questions (warranty, discount, description): use "რას ეხება ...?" pattern. Examples:
+          ✓ "რას ეხება გარანტია?" NOT "რომელ პოზიცი(ებ)ს გსურთ გარანტიის დამატება?"
+          ✓ "რას ეხება ფასდაკლება?" NOT "რომელ ელემენტებზე გსურთ ფასდაკლება?"
+          ✓ "რას გსურთ დაუმატოთ აღწერა \"წითელია\"?" NOT "რომელ პოზიცი(ებ)ს გსურთ დაუმატოთ აღწერა?"
+        - For DESCRIPTION requests: when user says "მინდა დაუმატო რომ წითელია", recognize it as a description. Ask "რა არის წითელი?" or "რას გსურთ დაუმატოთ აღწერა \"წითელია\"?" using the accordion widget (type: "multi_choice").
+        - Write questions as a native Georgian speaker would naturally ask them in conversation.
 
       FRONTEND WIDGET SYSTEM:
       Your clarifications trigger visual widgets based on type and field:
@@ -2190,7 +2199,7 @@ PROMPT
           else
             # No match at all — set as new client, ask if user wants to save to list
             result["recipient_info"] = { "client_id" => nil, "name" => client_name, "is_new" => true }
-            add_q = I18n.locale.to_s == "ka" ? "გსურთ \"#{client_name}\"-ს დამატება?" : "Would you like to add \"#{client_name}\"?"
+            add_q = I18n.locale.to_s == "ka" ? "გსურთ მეტი დეტალის მითითება \"#{client_name}\"-სთვის?" : "Would you like to add more details for \"#{client_name}\"?"
             result["clarifications"] << { "field" => "add_client_to_list", "type" => "yes_no", "question" => add_q, "guess" => nil, "client_name" => client_name }
           end
         end
@@ -2219,6 +2228,10 @@ PROMPT
           "payment_instructions" => result["sender_payment_instructions"]
         }.compact
       end
+
+      # Sort clarifications: client_match/add_client_to_list first, then AI questions
+      client_fields = %w[client_match add_client_to_list]
+      result["clarifications"].sort_by! { |c| client_fields.include?(c["field"].to_s) ? 0 : 1 }
 
       Rails.logger.info "REFINE RESULT: #{result.to_json}"
       render json: result
