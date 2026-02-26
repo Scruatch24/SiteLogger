@@ -5459,8 +5459,10 @@ function updateUI(data) {
     // Update totals summary after all items are added
     updateTotalsSummary();
 
-    // Always show invoice preview
-    document.getElementById("invoicePreview").classList.remove("hidden");
+    // Show invoice preview (respect user close flag)
+    if (!window._userClosedInvoice) {
+      document.getElementById("invoicePreview").classList.remove("hidden");
+    }
 
     // Handle AI Clarification Questions (shown as chat bubbles alongside invoice)
     handleClarifications(data.clarifications || []);
@@ -5505,7 +5507,6 @@ window._queueAnswers = null;
 window._queueTotal = 0;
 window._collectingClientDetail = null;
 window._newClientDetails = {};
-window._discountFlow = null;
 window._recentQuestions = [];
 
 window.resetAssistantState = function() {
@@ -5522,7 +5523,6 @@ window.resetAssistantState = function() {
   window._queueTotal = 0;
   window._collectingClientDetail = null;
   window._newClientDetails = {};
-  window._discountFlow = null;
   window._addItemName = null;
   window._recentQuestions = [];
   window.clientMatchResolved = false;
@@ -5543,7 +5543,7 @@ window.disablePreviousInteractiveElements = function() {
   var allBtns = conversation.querySelectorAll('button:not([disabled])');
   allBtns.forEach(function(btn) {
     // Skip buttons inside active accordion/multi-choice cards
-    if (btn.closest('#discountAccordionCard') || btn.closest('#multiChoiceAccordionCard')) return;
+    if (btn.closest('#multiChoiceAccordionCard')) return;
     btn.disabled = true;
     btn.classList.add('opacity-50', 'pointer-events-none');
   });
@@ -5695,24 +5695,15 @@ function showNextQueueItem() {
   }
 
   // Route to type-specific renderer by field first, then by type
+  // discount_scope → mark for Invoice Discount button, then fall through to multi_choice
+  if (c.field === 'discount_scope') {
+    c._showInvoiceDiscount = true;
+  }
+
   if (c.field === 'add_client_to_list') {
     renderAddClientToListCard(c);
   } else if (c.field === 'client_match' && c.similar_clients && c.similar_clients.length > 0) {
     renderClientMatchCard(c);
-  } else if (c.field === 'discount_type') {
-    // AI asked about discount type → use built-in discount type choice UI
-    var amt = c._discount_amount || (c.question.match(/\d+/) ? c.question.match(/\d+/)[0] : '0');
-    window._discountFlow = { step: 'type', amount: amt, type: null, categories: [], items: {} };
-    // Drain remaining queue items — discount flow will handle the rest
-    window._clarificationQueue = [];
-    renderDiscountTypeChoice();
-  } else if (c.field === 'discount_scope') {
-    // AI asked about discount scope → use built-in accordion UI
-    var amt2 = c._discount_amount || '0';
-    var typ2 = c._discount_type || 'percentage';
-    window._discountFlow = { step: 'category', amount: amt2, type: typ2, categories: [], items: {} };
-    window._clarificationQueue = [];
-    renderDiscountCategorySelect();
   } else if (c.field === 'section_type' && c.options && c.options.length > 0) {
     renderSectionTypeCard(c);
   } else if (c.field === 'currency' && c.options && c.options.length > 0) {
@@ -5889,8 +5880,8 @@ function renderAddClientToListCard(clarification) {
     + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
     + '<div class="text-xs font-bold text-gray-800 mb-2.5">' + escapeHtml(questionText) + '</div>'
     + '<div class="flex gap-2">'
-    + '<button type="button" onclick="window.clientMatchResolved=true; window._wasAddClientYes=true; autoSubmitAssistantMessage(\'' + escapeHtml(yesLabel).replace(/'/g, "\\'") + '\')" class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border-2 border-green-300 bg-green-50 hover:bg-green-100 transition-all cursor-pointer active:scale-[0.97] text-[12px] font-bold text-green-600">'
-    + '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>'
+    + '<button type="button" onclick="window.clientMatchResolved=true; window._wasAddClientYes=true; autoSubmitAssistantMessage(\'' + escapeHtml(yesLabel).replace(/'/g, "\\'") + '\')" class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border-2 border-orange-300 bg-orange-50 hover:bg-orange-100 transition-all cursor-pointer active:scale-[0.97] text-[12px] font-bold text-orange-600">'
+    + '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m6-6H6"/></svg>'
     + escapeHtml(yesLabel)
     + '</button>'
     + '<button type="button" onclick="autoSubmitAssistantMessage(\'' + escapeHtml(noLabel).replace(/'/g, "\\'") + '\')" class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border-2 border-gray-200 bg-white hover:bg-gray-50 transition-all cursor-pointer active:scale-[0.97] text-[12px] font-bold text-gray-500">'
@@ -5931,7 +5922,7 @@ function renderClientMatchCard(clarification) {
   });
 
   var createLabel = window.APP_LANGUAGES.create_new_client || 'Create new';
-  var createNewBtn = '<button type="button" onclick="window.clientMatchResolved=true; autoSubmitAssistantMessage(\'' + escapeHtml(createLabel).replace(/'/g, "\\'") + '\')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-dashed border-orange-300 bg-white hover:bg-orange-50 hover:border-orange-400 transition-all cursor-pointer active:scale-[0.97] text-left">'
+  var createNewBtn = '<button type="button" onclick="window.clientMatchResolved=true; window._wasAddClientYes=true; autoSubmitAssistantMessage(\'' + escapeHtml(createLabel).replace(/'/g, "\\'") + '\')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-dashed border-orange-300 bg-white hover:bg-orange-50 hover:border-orange-400 transition-all cursor-pointer active:scale-[0.97] text-left">'
     + '<div class="w-7 h-7 rounded-full bg-orange-50 border border-orange-200 flex items-center justify-center flex-shrink-0">'
     + '<svg class="w-3.5 h-3.5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m6-6H6"/></svg>'
     + '</div>'
@@ -6146,7 +6137,7 @@ function renderMultiChoiceCard(clarification) {
     window._multiChoiceAccordionOptions = options;
     window._multiChoiceAccordionGuess = guessItems;
 
-    var accordionHtml = buildAccordionHtml(grouped, L);
+    var accordionHtml = buildAccordionHtml(grouped, L, !!clarification._showInvoiceDiscount);
 
     var div = document.createElement('div');
     div.className = "flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300";
@@ -6158,12 +6149,6 @@ function renderMultiChoiceCard(clarification) {
       + '<div class="space-y-2">' + accordionHtml + '</div>'
       + '</div></div>';
     conversation.appendChild(div);
-
-    // Override confirm button to use multi-choice submit
-    var confirmBtn = div.querySelector('.accordion-global-toggle + button');
-    if (confirmBtn) {
-      confirmBtn.setAttribute('onclick', 'confirmMultiChoiceAccordion()');
-    }
 
     conversation.scrollTop = conversation.scrollHeight;
     return;
@@ -6204,6 +6189,15 @@ function renderMultiChoiceCard(clarification) {
 function confirmMultiChoiceAccordion() {
   var card = document.getElementById('multiChoiceAccordionCard');
   if (!card) return;
+
+  // Check if Invoice Discount button is active (discount-scope context)
+  var invoiceBtn = document.getElementById('invoiceDiscountBtn');
+  if (invoiceBtn && invoiceBtn.dataset.active === 'true') {
+    var L = window.APP_LANGUAGES || {};
+    autoSubmitAssistantMessage(L.discount_invoice_discount || 'Invoice Discount');
+    return;
+  }
+
   var selected = [];
   card.querySelectorAll('.accordion-item-btn[data-selected="true"]').forEach(function(btn) {
     var label = btn.querySelector('span');
@@ -6339,11 +6333,10 @@ function renderQuickActionChips() {
   conversation.scrollTop = conversation.scrollHeight;
 }
 
-// ── CHIP HANDLER: CHANGE CLIENT (1-step frontend flow) ──
+// ── CHIP HANDLER: CHANGE CLIENT (conversation starter → AI) ──
 function handleChipChangeClient() {
   if (window._pendingAnswer) return;
   window._collectingClientDetail = null;
-  window._discountFlow = null;
   var L = window.APP_LANGUAGES || {};
 
   addUserBubble(L.action_change_client || 'Change client');
@@ -6363,28 +6356,16 @@ function handleChipChangeClient() {
   }, 400);
 }
 
-// ── CHIP HANDLER: ADD DISCOUNT (multi-step frontend flow) ──
+// ── CHIP HANDLER: ADD DISCOUNT (conversation starter → AI handles clarifications) ──
 function handleChipAddDiscount() {
   if (window._pendingAnswer) return;
   window._collectingClientDetail = null;
-  window._discountFlow = null;
   var L = window.APP_LANGUAGES || {};
 
   addUserBubble(L.action_add_discount || 'Add discount');
-
-  window._discountFlow = { step: 'amount', amount: null, type: null, categories: [], items: {} };
-
   showTypingIndicator();
-  setTimeout(function() {
-    removeTypingIndicator();
-    addAIBubble(L.discount_amount_prompt || 'How much discount?');
-    var assistInput = document.getElementById('assistantInput');
-    if (assistInput) {
-      assistInput.value = '';
-      assistInput.placeholder = L.discount_amount_prompt || 'How much discount?';
-      assistInput.focus();
-    }
-  }, 400);
+  // Send directly to AI — it will ask about amount, type, scope via clarifications
+  triggerAssistantReparse(L.action_add_discount || 'Add discount', 'refinement', 'User requested change');
 }
 
 // ── CHIP HANDLER: UNDO LAST AI CHANGE ──
@@ -6394,8 +6375,6 @@ function handleChipUndo() {
   var L = window.APP_LANGUAGES || {};
 
   addUserBubble(L.undo_btn || 'Undo');
-  window._collectingClientDetail = null;
-  window._discountFlow = null;
 
   // Restore snapshot
   updateUIWithoutTranscript(window._undoSnapshot);
@@ -6430,7 +6409,6 @@ function handleChipUndo() {
 function handleChipChangeDate() {
   if (window._pendingAnswer) return;
   window._collectingClientDetail = null;
-  window._discountFlow = null;
   var L = window.APP_LANGUAGES || {};
 
   addUserBubble(L.action_change_date || 'Change date');
@@ -6485,7 +6463,6 @@ function selectDateType(type) {
 function handleChipRemoveTax() {
   if (window._pendingAnswer) return;
   window._collectingClientDetail = null;
-  window._discountFlow = null;
   var L = window.APP_LANGUAGES || {};
 
   addUserBubble(L.action_remove_tax || 'Remove tax');
@@ -6493,11 +6470,10 @@ function handleChipRemoveTax() {
   triggerAssistantReparse('Remove all tax from every item. Set taxable:false, labor_taxable:false, tax_rate:null, tax_scope:null on everything.', 'refinement', 'User requested change');
 }
 
-// ── CHIP HANDLER: ADD ITEM (2-step frontend flow) ──
+// ── CHIP HANDLER: ADD ITEM (conversation starter → AI) ──
 function handleChipAddItem() {
   if (window._pendingAnswer) return;
   window._collectingClientDetail = null;
-  window._discountFlow = null;
   var L = window.APP_LANGUAGES || {};
 
   addUserBubble(L.action_add_item || 'Add item');
@@ -6517,93 +6493,7 @@ function handleChipAddItem() {
   }, 400);
 }
 
-// ── DISCOUNT FLOW: multi-step handler ──
-function handleDiscountFlowInput(value) {
-  var flow = window._discountFlow;
-  if (!flow) return;
-  var L = window.APP_LANGUAGES || {};
-
-  if (flow.step === 'amount') {
-    // Parse number — strip currency symbols, %, spaces
-    var num = parseFloat(value.replace(/[^0-9.,]/g, '').replace(',', '.'));
-    if (isNaN(num) || num <= 0) {
-      addAIBubble(L.discount_invalid_amount || 'Please enter a valid number.');
-      return;
-    }
-    flow.amount = num;
-
-    // Auto-detect type: if > 100, must be fixed (can't be percentage)
-    if (num > 100) {
-      flow.type = 'fixed';
-      flow.step = 'category';
-      showTypingIndicator();
-      setTimeout(function() { removeTypingIndicator(); renderDiscountCategorySelect(); }, 400);
-    } else {
-      // Could be either — check if user typed "%" explicitly
-      if (value.indexOf('%') !== -1) {
-        flow.type = 'percentage';
-        flow.step = 'category';
-        showTypingIndicator();
-        setTimeout(function() { removeTypingIndicator(); renderDiscountCategorySelect(); }, 400);
-      } else {
-        flow.step = 'type';
-        showTypingIndicator();
-        setTimeout(function() { removeTypingIndicator(); renderDiscountTypeChoice(); }, 400);
-      }
-    }
-    return;
-  }
-
-  if (flow.step === 'type') {
-    var lower = value.toLowerCase().trim();
-    if (lower === '%' || lower === 'percentage' || lower === 'პროცენტული' || lower === 'percent') {
-      flow.type = 'percentage';
-    } else {
-      flow.type = 'fixed';
-    }
-    flow.step = 'category';
-    showTypingIndicator();
-    setTimeout(function() { removeTypingIndicator(); renderDiscountCategorySelect(); }, 400);
-    return;
-  }
-
-  // Steps 'category' and 'items' are handled by button clicks, not text input
-}
-
-function renderDiscountTypeChoice() {
-  var conversation = document.getElementById('assistantConversation');
-  if (!conversation) return;
-  window.disablePreviousInteractiveElements();
-  var L = window.APP_LANGUAGES || {};
-
-  var div = document.createElement('div');
-  div.className = 'flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300';
-  div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
-    + '<div class="max-w-[85%]">'
-    + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
-    + '<div class="text-xs font-bold text-gray-800 mb-2">' + escapeHtml(L.discount_type_prompt || 'Fixed or percentage?') + '</div>'
-    + '<div class="flex gap-2">'
-    + '<button type="button" onclick="selectDiscountType(\'fixed\')" class="flex-1 flex flex-col items-center gap-1 px-3 py-3 rounded-xl border-2 border-gray-200 bg-white hover:bg-green-50 hover:border-green-300 transition-all cursor-pointer active:scale-[0.97]">'
-    + '<div class="w-8 h-8 rounded-full bg-green-50 border border-green-200 flex items-center justify-center"><span class="text-sm font-black text-green-600">' + escapeHtml(getCurrencySym()) + '</span></div>'
-    + '<span class="text-[11px] font-bold text-gray-700">' + escapeHtml(L.discount_type_fixed || 'Fixed amount') + '</span></button>'
-    + '<button type="button" onclick="selectDiscountType(\'percentage\')" class="flex-1 flex flex-col items-center gap-1 px-3 py-3 rounded-xl border-2 border-gray-200 bg-white hover:bg-green-50 hover:border-green-300 transition-all cursor-pointer active:scale-[0.97]">'
-    + '<div class="w-8 h-8 rounded-full bg-green-50 border border-green-200 flex items-center justify-center"><span class="text-sm font-black text-green-600">%</span></div>'
-    + '<span class="text-[11px] font-bold text-gray-700">' + escapeHtml(L.discount_type_percentage || 'Percentage') + '</span></button>'
-    + '</div></div></div>';
-  conversation.appendChild(div);
-  conversation.scrollTop = conversation.scrollHeight;
-}
-
-function selectDiscountType(type) {
-  var flow = window._discountFlow;
-  if (!flow) return;
-  var L = window.APP_LANGUAGES || {};
-  addUserBubble(type === 'percentage' ? (L.discount_type_percentage || 'Percentage') : (L.discount_type_fixed || 'Fixed amount'));
-  flow.type = type;
-  flow.step = 'category';
-  showTypingIndicator();
-  setTimeout(function() { removeTypingIndicator(); renderDiscountCategorySelect(); }, 400);
-}
+// ── DISCOUNT FLOW: removed — AI now handles discount clarifications via generic widgets ──
 
 // ── LIVE DOM READER: reads invoice sections/items directly from DOM ──
 function getInvoiceSectionsFromDOM() {
@@ -6648,46 +6538,9 @@ function getInvoiceSectionsFromDOM() {
   return cats;
 }
 
-// ── ACCORDION PICKER: single-step category+item selection ──
-function renderDiscountCategorySelect() {
-  var conversation = document.getElementById('assistantConversation');
-  if (!conversation) return;
-  window.disablePreviousInteractiveElements();
-  var L = window.APP_LANGUAGES || {};
+// ── renderDiscountCategorySelect removed — merged into renderMultiChoiceCard ──
 
-  var cats = getInvoiceSectionsFromDOM();
-
-  if (cats.length === 0) {
-    finishDiscountFlow([]);
-    return;
-  }
-
-  // If only 1 category with 1 item — auto-apply, skip UI entirely
-  if (cats.length === 1 && cats[0].items.length <= 1) {
-    window._discountFlow.categories = cats;
-    finishDiscountFlow(cats);
-    return;
-  }
-
-  // Store cats reference
-  window._discountFlow._cats = cats;
-
-  var accordionHtml = buildAccordionHtml(cats, L);
-
-  var div = document.createElement('div');
-  div.className = 'flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300';
-  div.id = 'discountAccordionCard';
-  div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
-    + '<div class="max-w-[85%] w-full">'
-    + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
-    + '<div class="text-xs font-bold text-gray-800 mb-2.5">' + escapeHtml(L.discount_accordion_prompt || 'What does this discount apply to?') + '</div>'
-    + '<div class="space-y-2">' + accordionHtml + '</div>'
-    + '</div></div>';
-  conversation.appendChild(div);
-  conversation.scrollTop = conversation.scrollHeight;
-}
-
-function buildAccordionHtml(cats, L) {
+function buildAccordionHtml(cats, L, showInvoiceDiscount) {
   var ACCORDION_COLORS = {
     orange: { headerBg: 'bg-orange-50', headerBorder: 'border-orange-200', text: 'text-orange-600', allActiveBg: 'bg-orange-500', allActiveText: 'text-white' },
     blue:   { headerBg: 'bg-blue-50',   headerBorder: 'border-blue-200',   text: 'text-blue-600',   allActiveBg: 'bg-blue-500',   allActiveText: 'text-white' },
@@ -6726,16 +6579,18 @@ function buildAccordionHtml(cats, L) {
     accordionHtml += '</div></div>';
   });
 
-  // Invoice Discount exclusive button (below categories, above bottom buttons)
-  accordionHtml += '<button type="button" id="invoiceDiscountBtn" data-active="false" onclick="toggleInvoiceDiscount()" class="w-full flex items-center justify-center gap-2 px-3 py-2.5 mt-2 rounded-xl border-2 border-green-400 bg-white hover:bg-green-50 transition-all cursor-pointer active:scale-[0.97] text-[12px] font-bold text-green-600">'
-    + '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2v16z"/></svg>'
-    + escapeHtml(L.discount_invoice_discount || 'Invoice Discount')
-    + '</button>';
+  // Invoice Discount exclusive button — only shown for discount-scope context
+  if (showInvoiceDiscount) {
+    accordionHtml += '<button type="button" id="invoiceDiscountBtn" data-active="false" onclick="toggleInvoiceDiscount()" class="w-full flex items-center justify-center gap-2 px-3 py-2.5 mt-2 rounded-xl border-2 border-green-400 bg-white hover:bg-green-50 transition-all cursor-pointer active:scale-[0.97] text-[12px] font-bold text-green-600">'
+      + '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2v16z"/></svg>'
+      + escapeHtml(L.discount_invoice_discount || 'Invoice Discount')
+      + '</button>';
+  }
 
   // Bottom buttons: Select All + Confirm
   accordionHtml += '<div class="flex gap-2 mt-2">'
     + '<button type="button" onclick="toggleAccordionSelectAll()" class="accordion-global-toggle flex-1 px-3 py-1.5 rounded-xl transition-all cursor-pointer active:scale-[0.97] text-[11px] font-bold bg-orange-500 text-white border-2 border-orange-500">' + escapeHtml(L.select_all_btn || 'All') + '</button>'
-    + '<button type="button" onclick="confirmAccordionSelection()" class="flex-1 px-3 py-1.5 rounded-xl border-2 border-orange-300 bg-orange-50 hover:bg-orange-100 transition-all cursor-pointer active:scale-[0.97] text-[11px] font-bold text-orange-700">' + escapeHtml(L.confirm_btn || 'Confirm') + '</button>'
+    + '<button type="button" onclick="confirmMultiChoiceAccordion()" class="flex-1 px-3 py-1.5 rounded-xl border-2 border-orange-300 bg-orange-50 hover:bg-orange-100 transition-all cursor-pointer active:scale-[0.97] text-[11px] font-bold text-orange-700">' + escapeHtml(L.confirm_btn || 'Confirm') + '</button>'
     + '</div>';
 
   return accordionHtml;
@@ -6843,7 +6698,7 @@ function toggleInvoiceDiscount() {
     // Activate invoice discount — deselect all category items
     btn.dataset.active = 'true';
     btn.className = 'w-full flex items-center justify-center gap-2 px-3 py-2.5 mt-2 rounded-xl border-2 border-green-500 bg-green-500 transition-all cursor-pointer active:scale-[0.97] text-[12px] font-bold text-white';
-    var card = document.getElementById('discountAccordionCard') || document;
+    var card = document.getElementById('multiChoiceAccordionCard') || document;
     card.querySelectorAll('.accordion-item-btn').forEach(function(item) {
       item.dataset.selected = 'false';
       updateAccordionItemVisual(item);
@@ -6863,7 +6718,7 @@ function deactivateInvoiceDiscount() {
 function toggleAccordionSelectAll() {
   // "Select All" does NOT select Invoice Discount — deactivate it
   deactivateInvoiceDiscount();
-  var card = document.getElementById('discountAccordionCard') || document.getElementById('multiChoiceAccordionCard');
+  var card = document.getElementById('multiChoiceAccordionCard');
   var allBtns = card ? card.querySelectorAll('.accordion-item-btn') : document.querySelectorAll('.accordion-item-btn');
   if (!allBtns.length) return;
   var allSelected = true;
@@ -6875,88 +6730,7 @@ function toggleAccordionSelectAll() {
   syncAccordionToggleStates();
 }
 
-function confirmAccordionSelection() {
-  var flow = window._discountFlow;
-  if (!flow || !flow._cats) return;
-
-  // Check if Invoice Discount is active (exclusive mode)
-  var invoiceBtn = document.getElementById('invoiceDiscountBtn');
-  if (invoiceBtn && invoiceBtn.dataset.active === 'true') {
-    flow._invoiceDiscount = true;
-    var L = window.APP_LANGUAGES || {};
-    addUserBubble(L.discount_invoice_discount || 'Invoice Discount');
-    finishDiscountFlow([]);
-    return;
-  }
-
-  var selectedByCategory = {};
-  var card = document.getElementById('discountAccordionCard');
-  if (!card) return;
-
-  card.querySelectorAll('.accordion-item-btn[data-selected="true"]').forEach(function(btn) {
-    var catIdx = parseInt(btn.dataset.catIdx);
-    var itemIdx = parseInt(btn.dataset.itemIdx);
-    if (isNaN(catIdx) || isNaN(itemIdx)) return;
-    var cat = flow._cats[catIdx];
-    if (!cat || !cat.items[itemIdx]) return;
-    if (!selectedByCategory[cat.key]) selectedByCategory[cat.key] = { key: cat.key, label: cat.label, items: [] };
-    selectedByCategory[cat.key].items.push(cat.items[itemIdx]);
-  });
-
-  var categories = [];
-  Object.keys(selectedByCategory).forEach(function(key) { categories.push(selectedByCategory[key]); });
-
-  // If nothing selected, apply to all
-  if (categories.length === 0) categories = flow._cats.slice();
-
-  flow.categories = categories;
-  flow.items = {};
-  categories.forEach(function(c) { flow.items[c.key] = c.items; });
-
-  var summaryParts = categories.map(function(c) { return c.label + ': ' + c.items.join(', '); });
-  addUserBubble(summaryParts.join(' | '));
-
-  finishDiscountFlow(categories);
-}
-
-function finishDiscountFlow(categories) {
-  var flow = window._discountFlow;
-  if (!flow) return;
-
-  // Build clear instruction for AI
-  var typeStr = flow.type === 'percentage' ? (flow.amount + '%') : flow.amount;
-  var instruction;
-
-  if (flow._invoiceDiscount) {
-    // Invoice-level discount (global_discount)
-    if (flow.type === 'percentage') {
-      instruction = 'Apply ' + flow.amount + '% invoice-level discount (global_discount_percent). Do NOT apply per-item. Set global_discount_percent: ' + flow.amount;
-    } else {
-      instruction = 'Apply ' + flow.amount + ' invoice-level discount (global_discount_flat). Do NOT apply per-item. Set global_discount_flat: ' + flow.amount;
-    }
-  } else {
-    var parts = [];
-    if (categories && categories.length > 0) {
-      categories.forEach(function(cat) {
-        var items = (flow.items && flow.items[cat.key]) ? flow.items[cat.key] : cat.items;
-        if (items && items.length > 0) {
-          parts.push(items.join(', ') + ' (' + cat.key + ')');
-        } else {
-          parts.push(cat.label + ' (' + cat.key + ')');
-        }
-      });
-    }
-
-    instruction = 'Apply ' + typeStr + ' discount';
-    if (parts.length > 0) {
-      instruction += ' on ' + parts.join(' and ');
-    }
-  }
-
-  window._discountFlow = null;
-  showTypingIndicator();
-  triggerAssistantReparse(instruction, 'refinement', 'User requested change');
-}
+// confirmAccordionSelection and finishDiscountFlow removed — AI handles discount flow via clarifications
 
 function autoSubmitAssistantMessage(text) {
   var input = document.getElementById('assistantInput');
@@ -7077,95 +6851,13 @@ function handleClientDetailInput(value) {
 
   var L = window.APP_LANGUAGES || {};
 
-  // ── CHANGE CLIENT: send to AI as refinement ──
-  if (field === 'change_client') {
+  // ── ADD ITEM / CHANGE DATE / CHANGE CLIENT: all sent directly to AI ──
+  if (field === 'add_item_name' || field === 'add_item_price' || field === 'change_date' || field === 'change_client') {
     window._collectingClientDetail = null;
-    showTypingIndicator();
-    triggerAssistantReparse('Change client to ' + value, 'refinement', 'User requested change');
-    return;
-  }
-
-  // ── CHANGE DATE: send to AI as refinement ──
-  if (field === 'change_date') {
-    window._collectingClientDetail = null;
-    var dateField = window._dateFlowType === 'due' ? 'due date' : 'invoice date';
+    window._addItemName = null;
     window._dateFlowType = null;
     showTypingIndicator();
-    triggerAssistantReparse('Change ' + dateField + ' to ' + value, 'refinement', 'User requested change');
-    return;
-  }
-
-  // ── ADD ITEM: smart detection ──
-  if (field === 'add_item_name') {
-    // Cancel intent detection
-    var cancelPatterns = /^(აღარ\s*მინდა|არა|გაუქმება|გაუქმე|შეწყვიტე|არ მინდა|cancel|never\s*mind|no|stop)$/i;
-    if (cancelPatterns.test(value.trim())) {
-      window._collectingClientDetail = null;
-      window._addItemName = null;
-      showTypingIndicator();
-      setTimeout(function() {
-        removeTypingIndicator();
-        addAIBubble(L.anything_else || 'Anything else to change?');
-        renderQuickActionChips();
-      }, 400);
-      return;
-    }
-
-    var hasNumbers = /\d/.test(value);
-    var hasMultiple = /\s+და\s+|,/.test(value);
-
-    // If input has prices or multiple items → delegate entirely to AI
-    if (hasNumbers || hasMultiple) {
-      window._collectingClientDetail = null;
-      window._addItemName = null;
-      showTypingIndicator();
-      triggerAssistantReparse('Add items: ' + value, 'refinement', 'User requested change');
-      return;
-    }
-
-    // Single item, no price → ask for price (2-step)
-    window._addItemName = value;
-    window._collectingClientDetail = 'add_item_price';
-    showTypingIndicator();
-    setTimeout(function() {
-      removeTypingIndicator();
-      var priceQ = (L.add_item_price_prompt || 'How much does %{item} cost?').replace('%{item}', value);
-      addAIBubble(priceQ);
-      var assistInput = document.getElementById('assistantInput');
-      if (assistInput) {
-        assistInput.value = '';
-        assistInput.placeholder = priceQ;
-        assistInput.focus();
-      }
-    }, 400);
-    return;
-  }
-
-  // ── ADD ITEM STEP 2: price answer ──
-  if (field === 'add_item_price') {
-    // Cancel intent detection
-    var cancelPatterns2 = /^(აღარ\s*მინდა|არა|გაუქმება|გაუქმე|შეწყვიტე|არ მინდა|cancel|never\s*mind|no|stop)$/i;
-    if (cancelPatterns2.test(value.trim())) {
-      window._collectingClientDetail = null;
-      window._addItemName = null;
-      showTypingIndicator();
-      setTimeout(function() {
-        removeTypingIndicator();
-        addAIBubble(L.anything_else || 'Anything else to change?');
-        renderQuickActionChips();
-      }, 400);
-      return;
-    }
-
-    window._collectingClientDetail = null;
-    var itemName = window._addItemName || 'item';
-    window._addItemName = null;
-
-    // If user mentions additional items in price answer → delegate to AI
-    var hasExtra = /\s+და\s+|,/.test(value);
-    var instruction = hasExtra ? 'Add items: ' + itemName + ' ' + value : 'Add item: ' + itemName + ', price: ' + value;
-    showTypingIndicator();
-    triggerAssistantReparse(instruction, 'refinement', 'User requested change');
+    triggerAssistantReparse(value, 'refinement', 'User requested change');
     return;
   }
 
@@ -7441,22 +7133,7 @@ async function submitAssistantMessage() {
 
   if (!userMessage) return;
 
-  // INTERCEPT 0: Discount flow (multi-step, entirely frontend) — accepts single chars like "1", "9", "%"
-  if (window._discountFlow) {
-    addUserBubble(userMessage);
-    if (input) { input.value = ''; if (typeof autoResize === 'function') autoResize(input); }
-    handleDiscountFlowInput(userMessage);
-    return;
-  }
-
-  // INTERCEPT 0b: Detect discount-related free-text and redirect to built-in discount flow
-  if (!window._discountFlow && !window._collectingClientDetail && /^(ფასდაკლება|ფასდაკლებ|add\s*discount|discount)/i.test(userMessage.trim())) {
-    if (input) { input.value = ''; if (typeof autoResize === 'function') autoResize(input); }
-    handleChipAddDiscount();
-    return;
-  }
-
-  // INTERCEPT 1: Frontend-only detail/flow collection
+  // INTERCEPT 1: Frontend-only detail/flow collection (client details only)
   if (window._collectingClientDetail) {
     addUserBubble(userMessage);
     if (input) { input.value = ''; if (typeof autoResize === 'function') autoResize(input); }

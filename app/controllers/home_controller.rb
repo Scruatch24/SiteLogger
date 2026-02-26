@@ -1080,13 +1080,15 @@ DISCOUNT & CREDIT RULES
 - Flat discount (e.g., "$50 off") → use discount_flat.
 - discount_percent ≤ 100. discount_flat ≤ item total price.
 - Same rules apply to global_discount_flat/percent and labor_discount_flat/percent.
-- PERCENTAGE DISCOUNTS ARE NEVER CLARIFICATION CANDIDATES. Just apply them.
 - DISCOUNT CLARIFICATION ORDER: When user mentions a discount but does NOT specify the amount:
-  1. FIRST ask "რა ოდენობის ფასდაკლებაა?" / "What is the discount amount?" (type: "text"). Do NOT assume percentage.
-  2. If user gives a number without % sign and it could be either flat or percentage, THEN ask "რა ტიპის ფასდაკლებაა?" / "What type of discount?" (type: "choice", options: ["FIXED", "PERCENTAGE"]).
-  3. NEVER ask "რომელი პროცენტით?" — always ask for amount first, then type if ambiguous.
-  4. If user explicitly says "X%" → just apply discount_percent=X. No clarification needed.
-  5. If user explicitly says "$X off" or "X ლარი ფასდაკლება" → just apply discount_flat=X. No clarification needed.
+  1. FIRST ask "რა ოდენობის ფასდაკლებაა?" / "What is the discount amount?" with field: "discount_amount", type: "text". Do NOT assume percentage.
+  2. If user gives a number without % sign and it could be either flat or percentage (1-100 range), return a clarification with field: "discount_type", type: "choice", options: ["fixed", "percentage"]. The frontend renders clickable buttons.
+  3. If discount scope is ambiguous (multiple items exist and user didn't specify which), ask with field: "discount_scope", type: "multi_choice", options: [list ALL item names]. The frontend renders an accordion with an "Invoice Discount" button.
+  4. If user answers "Invoice Discount" to a discount_scope question, apply as global_discount_flat or global_discount_percent. Otherwise apply per-item.
+  5. NEVER ask "რომელი პროცენტით?" — always ask for amount first, then type if ambiguous, then scope if needed.
+  6. If user explicitly says "X%" → just apply discount_percent=X. No clarification needed.
+  7. If user explicitly says "$X off" or "X ლარი ფასდაკლება" → just apply discount_flat=X. No clarification needed.
+  8. IMPORTANT: Use EXACTLY these field names: "discount_amount", "discount_type", "discount_scope".
 
 ----------------------------
 TAX RULES
@@ -1990,13 +1992,14 @@ PROMPT
       - Percentage → discount_percent. Flat amount → discount_flat. NEVER compute the flat equivalent of a percentage.
       - discount_percent ≤ 100. discount_flat ≤ item total price.
       - "discount everything except [category]" → apply per-item to every OTHER category, leave excluded at 0. Do NOT use global_discount.
-      - PERCENTAGE DISCOUNTS AND DISCOUNT SCOPE ARE NEVER CLARIFICATION CANDIDATES. Just apply them.
       - DISCOUNT CLARIFICATION ORDER: When user mentions a discount but does NOT specify the amount:
         1. FIRST ask "#{ui_is_georgian ? 'რა ოდენობის ფასდაკლება გსურთ?' : 'How much discount?'}" with field: "discount_amount", type: "text". Do NOT assume percentage.
-        2. If user gives a number without % sign and it could be either flat or percentage, return a clarification with field: "discount_type", type: "choice", options: ["fixed", "percentage"]. The frontend will render the built-in type selector widget automatically.
-        3. NEVER ask about discount scope/categories in clarifications — the frontend handles scope selection via its built-in accordion widget after type is determined.
-        4. NEVER ask "რომელი პროცენტით?" — always ask for amount first, then type if ambiguous.
-        5. IMPORTANT: Use EXACTLY these field names: "discount_amount", "discount_type". The frontend uses these to trigger built-in UI widgets instead of generic text/choice inputs.
+        2. If user gives a number without % sign and it could be either flat or percentage (1-100 range), return a clarification with field: "discount_type", type: "choice", options: ["fixed", "percentage"]. The frontend renders clickable buttons automatically.
+        3. If discount scope is ambiguous (multiple items exist and user didn't specify which), ask with field: "discount_scope", type: "multi_choice", options: [list ALL item names from the invoice]. The frontend renders an accordion grouped by category with an "Invoice Discount" button for whole-invoice discount.
+        4. If user answers "Invoice Discount" to a discount_scope question, apply as global_discount_flat or global_discount_percent (invoice-level). Otherwise apply per-item to the selected items.
+        5. NEVER ask "რომელი პროცენტით?" — always ask for amount first, then type if ambiguous, then scope if needed.
+        6. IMPORTANT: Use EXACTLY these field names: "discount_amount", "discount_type", "discount_scope". The frontend uses these to trigger specific UI widgets.
+        7. If user specifies percentage explicitly (e.g., "10%"), just apply it — no need to ask about type. If scope is clear (e.g., "discount on phone"), just apply it — no need to ask about scope.
 
       TAX RULES:
       - Default: taxable = null (system applies defaults). Only set explicitly when user says so.
@@ -2012,7 +2015,7 @@ PROMPT
 
       NEVER-ASK RULES:
       - NEVER ask about tax rates, tax scope, tax applicability — these are COMMANDS. Execute them.
-      - NEVER ask about discount percentages or discount scope — these are COMMANDS. Execute them.
+      - NEVER ask about discount percentages when user specifies them (e.g., "10%") — just apply. Discount scope CAN be asked when ambiguous (use field: "discount_scope", type: "multi_choice").
       - NEVER ask about ANY value that has an explicit number next to it.
       - NEVER ask about hourly rates, team rates, special rates — system has defaults.
       - NEVER confirm something the user already stated.
@@ -2020,6 +2023,20 @@ PROMPT
       QUESTION FORMATTING:
       - All questions MUST end with "?" (question mark). Never end with "." or nothing.
       - Keep questions SHORT and conversational.
+
+      FRONTEND WIDGET SYSTEM:
+      Your clarifications trigger visual widgets based on type and field:
+      - type: "choice" + options → renders clickable buttons (user picks one)
+      - type: "multi_choice" + options → renders accordion with per-item checkboxes grouped by invoice category (user picks one or more)
+      - type: "yes_no" → renders yes/no buttons
+      - type: "text" → renders text input with optional guess pre-fill
+      - type: "info" → shows info message, no answer needed (auto-advances)
+      - field: "section_type" + type: "choice" → renders category picker with icons
+      - field: "discount_scope" + type: "multi_choice" → renders accordion with "Invoice Discount" button
+      Use these to create interactive, multi-step conversations. Each round of clarifications can build on previous answers. The frontend queues them and shows one at a time. After all answers, they are sent back to you for the next round.
+
+      MULTI-INTENT HANDLING:
+      When user's message contains multiple intents (e.g., add items + discounts + tax), apply everything you CAN directly (add items, apply tax) and return clarifications ONLY for ambiguous parts (discount amounts, types, scope). NEVER lose part of a multi-intent request.
 
       ████ END DOMAIN RULES ████
 
@@ -2069,7 +2086,7 @@ PROMPT
           - "text": user provides free-text input (number, name, date). Example: missing price.
           - "info": you are telling the user something, NO answer expected. Example: confirming action, assumption summary.
       19. SAFETY: If you cannot understand the instruction, return UNCHANGED JSON + empty clarifications. If the instruction is not about invoice modification, return unchanged JSON + one clarification with type: "info" politely redirecting.
-      20. Maximum 2 answer-requiring clarifications per response. If more issues exist, guess the rest and add a type: "info" clarification explaining your assumptions.
+      20. Ask as many clarifications as the situation genuinely requires. For complex multi-intent requests, handle what you can directly and ask about what's missing. The frontend queues and displays them sequentially. Prefer fewer questions when possible, but do NOT artificially limit yourself to 2 if more are needed.
       21. Keep questions SHORT and conversational.
 
       Return ONLY valid JSON. No markdown fences, no explanation text, no preamble.
