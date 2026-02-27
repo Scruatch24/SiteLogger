@@ -5723,6 +5723,8 @@ function showNextQueueItem() {
     renderSectionTypeCard(c);
   } else if (c.field === 'currency' && c.options && c.options.length > 0) {
     renderCurrencyCard(c);
+  } else if (c.type === 'item_input_list' && c.items && c.items.length > 0) {
+    renderItemInputListCard(c);
   } else if (c.type === 'choice' && c.options && c.options.length > 0) {
     renderGenericChoiceCard(c);
   } else if (c.type === 'multi_choice' && c.options && c.options.length > 0) {
@@ -6333,7 +6335,8 @@ function confirmMultiChoiceAccordion() {
     var label = btn.querySelector('span');
     if (label) selected.push(label.textContent.trim());
   });
-  var answer = selected.length > 0 ? selected.join(', ') : 'none';
+  var L = window.APP_LANGUAGES || {};
+  var answer = selected.length > 0 ? selected.join(', ') : (L.none_selected || 'none');
   autoSubmitAssistantMessage(answer);
 }
 
@@ -6361,7 +6364,8 @@ function submitMultiChoice(btn) {
   for (var i = 0; i < btns.length; i++) {
     selected.push(btns[i].dataset.multiOpt);
   }
-  var answer = selected.length > 0 ? selected.join(', ') : 'none';
+  var L = window.APP_LANGUAGES || {};
+  var answer = selected.length > 0 ? selected.join(', ') : (L.none_selected || 'none');
   autoSubmitAssistantMessage(answer);
 }
 
@@ -6937,20 +6941,23 @@ function renderDiscountTypeMultiCard(clarification) {
 
   var L = window.APP_LANGUAGES || {};
   var items = clarification.options || [];
+  var amounts = clarification.amounts || {};
   var currSym = '$';
   if (window.lastAiResult && window.lastAiResult.currency) {
     var cMap = { 'GEL': '₾', 'USD': '$', 'EUR': '€', 'GBP': '£' };
     currSym = cMap[window.lastAiResult.currency] || window.lastAiResult.currency;
   }
 
-  window._discountTypeItems = items.map(function(name) { return { name: name, type: 'fixed' }; });
+  window._discountTypeItems = items.map(function(name) { return { name: name, type: 'fixed', amount: amounts[name] || null }; });
 
   var itemsHtml = '';
   items.forEach(function(name, idx) {
+    var amt = amounts[name];
+    var displayName = amt ? name + ': ' + amt : name;
     itemsHtml += '<div class="flex items-center justify-between gap-2 px-2.5 py-2 rounded-lg bg-white">'
-      + '<span class="text-[11px] font-semibold text-gray-700 truncate flex-1">' + escapeHtml(name) + '</span>'
+      + '<span class="text-[11px] font-semibold text-gray-700 truncate flex-1">' + escapeHtml(displayName) + '</span>'
       + '<div class="flex items-center gap-0 shrink-0 border-2 border-gray-200 rounded-lg overflow-hidden">'
-      + '<button type="button" data-dt-idx="' + idx + '" data-dt-type="fixed" onclick="toggleDiscountType(this)" class="dt-toggle-btn dt-fixed px-2.5 py-1 text-[11px] font-bold transition-all cursor-pointer bg-orange-500 text-white">' + escapeHtml(currSym) + '</button>'
+      + '<button type="button" data-dt-idx="' + idx + '" data-dt-type="fixed" onclick="toggleDiscountType(this)" class="dt-toggle-btn dt-fixed px-2.5 py-1 text-[11px] font-bold transition-all cursor-pointer bg-green-500 text-white">' + escapeHtml(currSym) + '</button>'
       + '<button type="button" data-dt-idx="' + idx + '" data-dt-type="percentage" onclick="toggleDiscountType(this)" class="dt-toggle-btn dt-pct px-2.5 py-1 text-[11px] font-bold transition-all cursor-pointer bg-white text-gray-400 hover:bg-gray-50">%</button>'
       + '</div></div>';
   });
@@ -6982,7 +6989,7 @@ function toggleDiscountType(btn) {
   var row = btn.parentElement;
   row.querySelectorAll('.dt-toggle-btn').forEach(function(b) {
     if (b.dataset.dtType === type) {
-      b.className = 'dt-toggle-btn dt-' + (type === 'fixed' ? 'fixed' : 'pct') + ' px-2.5 py-1 text-[11px] font-bold transition-all cursor-pointer bg-orange-500 text-white';
+      b.className = 'dt-toggle-btn dt-' + (type === 'fixed' ? 'fixed' : 'pct') + ' px-2.5 py-1 text-[11px] font-bold transition-all cursor-pointer bg-green-500 text-white';
     } else {
       b.className = 'dt-toggle-btn dt-' + (b.dataset.dtType === 'fixed' ? 'fixed' : 'pct') + ' px-2.5 py-1 text-[11px] font-bold transition-all cursor-pointer bg-white text-gray-400 hover:bg-gray-50';
     }
@@ -6996,20 +7003,228 @@ function toggleDiscountType(btn) {
 function confirmDiscountTypes() {
   var items = window._discountTypeItems;
   if (!items || items.length === 0) return;
+  var L = window.APP_LANGUAGES || {};
 
-  var fixedItems = [];
-  var pctItems = [];
+  var parts = [];
   items.forEach(function(item) {
-    if (item.type === 'percentage') pctItems.push(item.name);
-    else fixedItems.push(item.name);
+    var amtStr = item.amount ? String(item.amount) : '';
+    if (item.type === 'percentage') {
+      parts.push(item.name + (amtStr ? ' ' + amtStr : '') + '%');
+    } else {
+      parts.push(item.name + (amtStr ? ' ' + amtStr : '') + ' ' + (L.fixed_label || 'fixed'));
+    }
   });
 
-  var answer = '';
-  if (fixedItems.length > 0) answer += 'Fixed amount discount on: ' + fixedItems.join(', ') + '. ';
-  if (pctItems.length > 0) answer += 'Percentage discount on: ' + pctItems.join(', ') + '.';
+  var answer = parts.join(', ');
 
   window._discountTypeItems = null;
-  handleQueueAnswer(answer.trim());
+  window.disablePreviousInteractiveElements();
+  addUserBubble(answer);
+  handleQueueAnswer(answer);
+}
+
+// ── MULTI-ITEM INPUT LIST CARD ──
+function renderItemInputListCard(clarification) {
+  var conversation = document.getElementById('assistantConversation');
+  if (!conversation) return;
+  window.disablePreviousInteractiveElements();
+
+  var L = window.APP_LANGUAGES || {};
+  var items = clarification.items || [];
+  if (items.length === 0) return;
+
+  var currSym = '$';
+  if (window.lastAiResult && window.lastAiResult.currency) {
+    var cMap = { 'GEL': '₾', 'USD': '$', 'EUR': '€', 'GBP': '£' };
+    currSym = cMap[window.lastAiResult.currency] || window.lastAiResult.currency;
+  }
+
+  // Store state for confirm
+  window._itemInputListData = items.map(function(item, idx) {
+    var toggle = item.toggle || null;
+    var activeMode = toggle ? (toggle.default || toggle.options[0]) : null;
+    return { name: item.name, category: item.category || null, inputs: item.inputs || [], toggle: toggle, activeMode: activeMode, idx: idx };
+  });
+
+  var itemsHtml = '';
+  items.forEach(function(item, idx) {
+    var toggle = item.toggle || null;
+    var activeMode = toggle ? (toggle.default || toggle.options[0]) : null;
+    var isDiscountToggle = toggle && toggle.key === 'discount_type';
+    var isBillingToggle = toggle && toggle.key === 'billing_mode';
+    var activeColor = isDiscountToggle ? 'bg-green-500 text-white' : 'bg-orange-500 text-white';
+    var inactiveColor = 'bg-white text-gray-400 hover:bg-gray-50';
+
+    // Item card
+    itemsHtml += '<div class="px-2.5 py-2 rounded-lg bg-white border border-gray-100" data-iil-idx="' + idx + '">';
+
+    // Item name
+    itemsHtml += '<div class="text-[11px] font-bold text-gray-700 mb-1.5">' + escapeHtml(item.name) + '</div>';
+
+    // Toggle (above inputs)
+    if (toggle && toggle.options && toggle.options.length === 2) {
+      var opt0 = toggle.options[0];
+      var opt1 = toggle.options[1];
+      var label0 = isBillingToggle ? (opt0 === 'fixed' ? (L.fixed_label || 'Fixed') : (L.hourly_label || 'Hourly')) : (opt0 === 'fixed' ? (L.discount_type_fixed || 'Fixed') : (L.discount_type_percentage || '%'));
+      var label1 = isBillingToggle ? (opt1 === 'hourly' ? (L.hourly_label || 'Hourly') : (L.fixed_label || 'Fixed')) : (opt1 === 'percentage' ? (L.discount_type_percentage || '%') : (L.discount_type_fixed || 'Fixed'));
+      var cls0 = activeMode === opt0 ? activeColor : inactiveColor;
+      var cls1 = activeMode === opt1 ? activeColor : inactiveColor;
+
+      itemsHtml += '<div class="flex items-center gap-0 mb-1.5 border-2 border-gray-200 rounded-lg overflow-hidden w-fit">'
+        + '<button type="button" data-iil-idx="' + idx + '" data-iil-mode="' + escapeHtml(opt0) + '" onclick="toggleItemInputMode(this)" class="iil-toggle-btn px-2.5 py-1 text-[10px] font-bold transition-all cursor-pointer ' + cls0 + '">' + escapeHtml(label0) + '</button>'
+        + '<button type="button" data-iil-idx="' + idx + '" data-iil-mode="' + escapeHtml(opt1) + '" onclick="toggleItemInputMode(this)" class="iil-toggle-btn px-2.5 py-1 text-[10px] font-bold transition-all cursor-pointer ' + cls1 + '">' + escapeHtml(label1) + '</button>'
+        + '</div>';
+    }
+
+    // Input fields container
+    var isHourly = isBillingToggle && activeMode === 'hourly';
+    itemsHtml += '<div class="iil-inputs-container flex items-center gap-2">';
+
+    if (isHourly) {
+      // Split into hours + rate
+      itemsHtml += buildIilInput(idx, 'hours', L.hours_label || 'Hours', 'number', null)
+        + buildIilInput(idx, 'rate', L.rate_label || 'Rate', 'number', null);
+    } else {
+      // Regular inputs from config
+      (item.inputs || []).forEach(function(inp) {
+        var prefill = inp.value !== undefined && inp.value !== null ? inp.value : null;
+        itemsHtml += buildIilInput(idx, inp.key, inp.label, inp.type || 'text', prefill);
+      });
+    }
+
+    itemsHtml += '</div>'; // end inputs-container
+    itemsHtml += '</div>'; // end item card
+  });
+
+  var div = document.createElement('div');
+  div.className = 'flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300';
+  div.id = 'itemInputListCard';
+  div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
+    + '<div class="max-w-[85%] w-full">'
+    + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm relative">'
+    + widgetCloseBtn()
+    + '<div class="text-xs font-bold text-gray-800 mb-2.5 pr-6">' + escapeHtml(clarification.question || '') + (clarification._progressTag || '') + '</div>'
+    + '<div class="space-y-1.5">' + itemsHtml + '</div>'
+    + '<div class="flex gap-2 mt-2.5">'
+    + '<button type="button" onclick="confirmItemInputList()" class="flex-1 px-3 py-1.5 rounded-xl border-2 border-orange-300 bg-orange-50 hover:bg-orange-100 transition-all cursor-pointer active:scale-[0.97] text-[11px] font-bold text-orange-700">' + escapeHtml(L.confirm_btn || 'Confirm') + '</button>'
+    + '</div>'
+    + '</div></div>';
+  conversation.appendChild(div);
+  conversation.scrollTop = conversation.scrollHeight;
+
+  // Focus first input
+  var firstInput = div.querySelector('.iil-input');
+  if (firstInput) firstInput.focus();
+}
+
+function buildIilInput(idx, key, label, type, prefill) {
+  var inputType = type === 'number' ? 'number' : 'text';
+  var inputMode = type === 'number' ? ' inputmode="decimal"' : '';
+  var val = prefill !== null ? ' value="' + escapeHtml(String(prefill)) + '"' : '';
+  var labelHtml = label ? '<span class="text-[9px] font-semibold text-gray-400 uppercase tracking-wide">' + escapeHtml(label) + '</span>' : '';
+  return '<div class="flex-1 min-w-0">'
+    + labelHtml
+    + '<input type="' + inputType + '"' + inputMode + val + ' data-iil-idx="' + idx + '" data-iil-key="' + escapeHtml(key) + '" class="iil-input w-full text-[12px] font-semibold text-gray-800 border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-orange-400 transition-all bg-white" placeholder="..." />'
+    + '</div>';
+}
+
+function toggleItemInputMode(btn) {
+  var idx = parseInt(btn.dataset.iilIdx);
+  var newMode = btn.dataset.iilMode;
+  var data = window._itemInputListData;
+  if (!data || !data[idx] || !data[idx].toggle) return;
+
+  var item = data[idx];
+  var toggle = item.toggle;
+  var isDiscountToggle = toggle.key === 'discount_type';
+  var isBillingToggle = toggle.key === 'billing_mode';
+  var activeColor = isDiscountToggle ? 'bg-green-500 text-white' : 'bg-orange-500 text-white';
+  var inactiveColor = 'bg-white text-gray-400 hover:bg-gray-50';
+
+  item.activeMode = newMode;
+
+  // Update toggle button visuals
+  var card = document.getElementById('itemInputListCard');
+  if (!card) return;
+  var itemCard = card.querySelector('[data-iil-idx="' + idx + '"]');
+  if (!itemCard) return;
+
+  itemCard.querySelectorAll('.iil-toggle-btn').forEach(function(b) {
+    if (b.dataset.iilMode === newMode) {
+      b.className = 'iil-toggle-btn px-2.5 py-1 text-[10px] font-bold transition-all cursor-pointer ' + activeColor;
+    } else {
+      b.className = 'iil-toggle-btn px-2.5 py-1 text-[10px] font-bold transition-all cursor-pointer ' + inactiveColor;
+    }
+  });
+
+  // If billing_mode toggle, rebuild inputs
+  if (isBillingToggle) {
+    var L = window.APP_LANGUAGES || {};
+    var container = itemCard.querySelector('.iil-inputs-container');
+    if (!container) return;
+
+    if (newMode === 'hourly') {
+      container.innerHTML = buildIilInput(idx, 'hours', L.hours_label || 'Hours', 'number', null)
+        + buildIilInput(idx, 'rate', L.rate_label || 'Rate', 'number', null);
+    } else {
+      // Restore original inputs from config
+      var inputsHtml = '';
+      (item.inputs || []).forEach(function(inp) {
+        var prefill = inp.value !== undefined && inp.value !== null ? inp.value : null;
+        inputsHtml += buildIilInput(idx, inp.key, inp.label, inp.type || 'text', prefill);
+      });
+      container.innerHTML = inputsHtml;
+    }
+    var firstInput = container.querySelector('.iil-input');
+    if (firstInput) firstInput.focus();
+  }
+}
+
+function confirmItemInputList() {
+  var data = window._itemInputListData;
+  if (!data || data.length === 0) return;
+
+  var L = window.APP_LANGUAGES || {};
+  var card = document.getElementById('itemInputListCard');
+  if (!card) return;
+
+  var parts = [];
+  data.forEach(function(item) {
+    var itemCard = card.querySelector('[data-iil-idx="' + item.idx + '"]');
+    if (!itemCard) return;
+
+    var isBillingToggle = item.toggle && item.toggle.key === 'billing_mode';
+    var isDiscountToggle = item.toggle && item.toggle.key === 'discount_type';
+
+    if (isBillingToggle && item.activeMode === 'hourly') {
+      var hoursInput = itemCard.querySelector('.iil-input[data-iil-key="hours"]');
+      var rateInput = itemCard.querySelector('.iil-input[data-iil-key="rate"]');
+      var hours = hoursInput ? hoursInput.value.trim() : '';
+      var rate = rateInput ? rateInput.value.trim() : '';
+      if (hours || rate) {
+        parts.push(item.name + ': ' + (hours || '0') + ' ' + (L.per_hour_suffix || 'hour') + ' ' + (rate || '0') + ' ' + (L.currency_suffix || ''));
+      }
+    } else {
+      // Collect all inputs for this item
+      var inputs = itemCard.querySelectorAll('.iil-input');
+      var values = [];
+      inputs.forEach(function(inp) { if (inp.value.trim()) values.push(inp.value.trim()); });
+      if (values.length > 0) {
+        var suffix = '';
+        if (isDiscountToggle) {
+          suffix = item.activeMode === 'percentage' ? '%' : ' ' + (L.fixed_label || 'fixed');
+        }
+        parts.push(item.name + ': ' + values.join(', ') + suffix);
+      }
+    }
+  });
+
+  var answer = parts.length > 0 ? parts.join(', ') : (L.none_selected || 'none');
+
+  window._itemInputListData = null;
+  window.disablePreviousInteractiveElements();
+  addUserBubble(answer);
+  handleQueueAnswer(answer);
 }
 
 // ── CHIP HANDLER: REMOVE TAX (1-click command) ──

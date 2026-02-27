@@ -397,6 +397,17 @@ ka:
   delete_client_hint: "ინვოისებს დარჩება კლიენტის სახელი, მაგრამ კავშირი გაუქმდება."
   selected: "არჩეულია"
   delete_forever: "სამუდამოდ წაშლა"
+  none_selected: "არცერთი"
+  hourly_label: "საათობრივი"
+  fixed_label: "ფიქსირებული"
+  hours_label: "საათები"
+  rate_label: "ტარიფი"
+  price_label: "ფასი"
+  amount_label: "რაოდენობა"
+  discount_fixed_on: "ფიქსირებული ფასდაკლება: "
+  discount_pct_on: "პროცენტული ფასდაკლება: "
+  per_hour_suffix: "საათი"
+  currency_suffix: "ლარი"
   go_back: "უკან დაბრუნება"
   
   # Membership

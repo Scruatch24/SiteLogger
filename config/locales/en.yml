@@ -397,6 +397,17 @@ en:
   delete_client_hint: "Invoices will keep the client name but won't be linked anymore."
   selected: "Selected"
   delete_forever: "Delete Forever"
+  none_selected: "None"
+  hourly_label: "Hourly"
+  fixed_label: "Fixed"
+  hours_label: "Hours"
+  rate_label: "Rate"
+  price_label: "Price"
+  amount_label: "Amount"
+  discount_fixed_on: "Fixed discount: "
+  discount_pct_on: "Percentage discount: "
+  per_hour_suffix: "hour"
+  currency_suffix: "USD"
   go_back: "Go Back"
   
   # Membership
