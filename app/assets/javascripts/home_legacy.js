@@ -5540,8 +5540,8 @@ window.disablePreviousInteractiveElements = function() {
   if (!conversation) return;
   // Remove quick action chip containers entirely (not grey out)
   conversation.querySelectorAll('.quick-action-chips').forEach(function(el) { el.remove(); });
-  // Disable ALL buttons
-  conversation.querySelectorAll('button:not([disabled])').forEach(function(btn) {
+  // Disable ALL buttons EXCEPT undo buttons (they must stay active for previous changes)
+  conversation.querySelectorAll('button:not([disabled]):not(.undo-btn)').forEach(function(btn) {
     btn.disabled = true;
     btn.classList.add('opacity-50', 'pointer-events-none');
   });
@@ -5796,9 +5796,9 @@ function batchSubmitQueueAnswers() {
   window._queueTotal = 0;
   window.pendingClarifications = [];
 
-  // Filter out client answers — these are frontend-only, not for AI
+  // Filter out client answers and cancelled items — these are frontend-only, not for AI
   var aiAnswers = answers.filter(function(qa) {
-    return qa.field !== 'client_match' && qa.field !== 'add_client_to_list' && qa.field !== 'client_confirm_existing';
+    return qa.field !== 'client_match' && qa.field !== 'add_client_to_list' && qa.field !== 'client_confirm_existing' && qa.answer !== '__CANCELLED__';
   });
 
   // If only client answers remained, skip AI and handle locally
@@ -5923,9 +5923,9 @@ function cancelWidget() {
   window.disablePreviousInteractiveElements();
   addUserBubble(L.widget_cancel || 'Cancel');
 
-  // If inside a clarification queue, advance it with cancel answer
+  // If inside a clarification queue, skip this item (mark as cancelled)
   if (window._clarificationQueue && window._clarificationQueue.length > 0) {
-    handleQueueAnswer(L.widget_cancel || 'Cancel');
+    handleQueueAnswer('__CANCELLED__');
     return;
   }
 
@@ -6411,10 +6411,11 @@ function renderInlineUndoBtn() {
   var conversation = document.getElementById('assistantConversation');
   if (!conversation) return;
   var L = window.APP_LANGUAGES || {};
+  var snapshotIdx = window._undoStack.length - 1;
 
   var div = document.createElement('div');
   div.className = 'flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300 ml-9 mt-0.5 mb-0.5';
-  div.innerHTML = '<button type="button" onclick="performUndo()" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-red-200 bg-white hover:bg-red-50 hover:border-red-300 transition-all cursor-pointer active:scale-[0.95] text-[10px] font-bold text-red-400 hover:text-red-600 shadow-sm">'
+  div.innerHTML = '<button type="button" onclick="performUndoTo(' + snapshotIdx + ')" class="undo-btn inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-red-200 bg-white hover:bg-red-50 hover:border-red-300 transition-all cursor-pointer active:scale-[0.95] text-[10px] font-bold text-red-400 hover:text-red-600 shadow-sm">'
     + '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>'
     + escapeHtml(L.undo_and_revert || 'Undo')
     + '</button>';
@@ -6445,7 +6446,7 @@ function renderQuickActionChips() {
   }
   if (hasItems) {
     chips.push({ label: L.action_manage_tax || 'Manage Taxes', handler: 'handleChipManageTax', icon: '<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>', color: 'default' });
-    chips.push({ label: L.cancel_what_prompt || 'Remove item', handler: 'handleChipRemoveItem', icon: '<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>', color: 'red' });
+    chips.push({ label: L.action_remove_item || 'Remove', handler: 'handleChipRemoveItem', icon: '<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>', color: 'red' });
   }
 
   var chipHtml = '';
@@ -6649,12 +6650,20 @@ function removeEntireInvoice() {
 function handleChipUndo() {
   if (window._pendingAnswer) return;
   if (!window._undoStack || window._undoStack.length === 0) return;
-  performUndo();
+  performUndoTo(window._undoStack.length - 1);
 }
 
 function performUndo() {
   if (!window._undoStack || window._undoStack.length === 0) return;
+  performUndoTo(window._undoStack.length - 1);
+}
+
+function performUndoTo(targetIdx) {
+  if (!window._undoStack || window._undoStack.length === 0) return;
+  if (targetIdx < 0 || targetIdx >= window._undoStack.length) return;
   var L = window.APP_LANGUAGES || {};
+  // Truncate stack to the target and take that snapshot
+  window._undoStack = window._undoStack.slice(0, targetIdx + 1);
   var snapshot = window._undoStack.pop();
 
   // Restore invoice JSON
@@ -6671,6 +6680,10 @@ function performUndo() {
   if (window.clarificationHistory && snapshot.historyLength !== undefined) {
     window.clarificationHistory = window.clarificationHistory.slice(0, snapshot.historyLength);
   }
+
+  // Restore client match and recent questions state
+  if (snapshot.clientMatchResolved !== undefined) window.clientMatchResolved = snapshot.clientMatchResolved;
+  if (snapshot.recentQuestions !== undefined) window._recentQuestions = snapshot.recentQuestions.slice();
 
   window._collectingClientDetail = null;
   window._clarificationQueue = null;
@@ -7410,7 +7423,7 @@ function syncAccordionToggleStates() {
   // Sync global "All" button
   var globalToggle = document.querySelector('.accordion-global-toggle');
   if (globalToggle) {
-    var card = globalToggle.closest('.bg-gray-50') || document;
+    var card = document.getElementById('multiChoiceAccordionCard') || globalToggle.closest('.bg-gray-50') || document;
     var allItemBtns = card.querySelectorAll('.accordion-item-btn');
     var globalAllSelected = true;
     allItemBtns.forEach(function(btn) { if (btn.dataset.selected !== 'true') globalAllSelected = false; });
@@ -7589,11 +7602,21 @@ function handleClientDetailInput(value) {
 
   // ── ADD ITEM / CHANGE DATE / CHANGE CLIENT: all sent directly to AI ──
   if (field === 'add_item_name' || field === 'add_item_price' || field === 'change_date' || field === 'change_client') {
+    var contextValue = value;
+    if (field === 'change_date' && window._dateFlowType) {
+      var dateLabel = window._dateFlowType === 'due'
+        ? (L.date_type_due || 'Due date')
+        : (L.date_type_invoice || 'Invoice date');
+      contextValue = dateLabel + ': ' + value;
+    }
+    if (field === 'change_client') {
+      contextValue = (L.action_change_client || 'Change client') + ': ' + value;
+    }
     window._collectingClientDetail = null;
     window._addItemName = null;
     window._dateFlowType = null;
     showTypingIndicator();
-    triggerAssistantReparse(value, 'refinement', 'User requested change');
+    triggerAssistantReparse(contextValue, 'refinement', 'User requested change');
     return;
   }
 
@@ -7966,7 +7989,9 @@ async function triggerAssistantReparse(userAnswer, type, questionsText) {
       window._undoStack.push({
         json: JSON.parse(JSON.stringify(window.lastAiResult)),
         chatHtml: conv ? conv.innerHTML : '',
-        historyLength: (window.clarificationHistory || []).length
+        historyLength: (window.clarificationHistory || []).length,
+        clientMatchResolved: !!window.clientMatchResolved,
+        recentQuestions: (window._recentQuestions || []).slice()
       });
       if (window._undoStack.length > 10) window._undoStack.shift();
     } catch(e) { /* ignore serialization errors */ }
@@ -8449,6 +8474,7 @@ Object.assign(window, {
   widgetCloseBtn,
   cancelWidget,
   performUndo,
+  performUndoTo,
   renderInlineUndoBtn,
   handleChipRemoveItem,
   renderRemoveItemCard,

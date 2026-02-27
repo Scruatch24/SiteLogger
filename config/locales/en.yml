@@ -293,6 +293,7 @@ en:
   client_new_added: "New client \"%{name}\" added. Add more details?"
   widget_cancel: "Cancel"
   entire_invoice: "Entire Invoice"
+  action_remove_item: "Remove"
   cancel_what_prompt: "What would you like to remove?"
   remove_prefix: "Remove"
   invoice_cleared: "Invoice cleared. Start over by recording or typing."

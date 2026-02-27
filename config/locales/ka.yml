@@ -293,6 +293,7 @@ ka:
   client_new_added: "დაემატა ახალი კლიენტი: %{name}. გსურთ მეტი დეტალის დამატება?"
   widget_cancel: "გაუქმება"
   entire_invoice: "მთლიანი ინვოისი"
+  action_remove_item: "წაშლა"
   cancel_what_prompt: "რისი წაშლა გსურთ?"
   remove_prefix: "წაშლა"
   invoice_cleared: "ინვოისი გასუფთავდა. ჩაწერეთ ან აკრიფეთ ახალი."

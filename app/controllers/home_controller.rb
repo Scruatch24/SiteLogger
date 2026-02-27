@@ -2004,7 +2004,7 @@ PROMPT
         2. If user gives a number WITHOUT % sign:
            - If the number is > 100 → it is ALWAYS a flat amount. Apply discount_flat directly. Do NOT ask about type.
            - If the number is 1-100 (ambiguous range) for a SINGLE item, return a clarification with field: "discount_type", type: "choice", options: #{ui_is_georgian ? '["ფიქსირებული", "პროცენტული"]' : '["Fixed", "Percentage"]'}. ALL option values MUST be in #{ui_is_georgian ? 'Georgian' : 'English'}.
-           - For MULTIPLE items needing type selection, use field: "discount_type_multi", type: "multi_choice", options: [item names]. The frontend renders a per-item fixed/percentage toggle widget.
+           - For MULTIPLE items (2+) needing type selection in the SAME round, you MUST use a SINGLE clarification with field: "discount_type_multi", type: "multi_choice", options: [item names]. Do NOT return multiple separate "discount_type" clarifications — combine them into ONE "discount_type_multi". The frontend renders one combined per-item toggle widget.
         3. If discount scope is ambiguous (multiple items exist and user didn't specify which), ask with field: "discount_scope", type: "multi_choice", options: [extract ALL item desc/name values from the CURRENT INVOICE JSON sections above — e.g., if JSON has labor items "AC Repair" and materials "Filter", options: ["AC Repair", "Filter"]]. The frontend renders an accordion grouped by category with an "Invoice Discount" button for whole-invoice discount.
         4. If user answers "Invoice Discount" to a discount_scope question, apply as global_discount_flat or global_discount_percent (invoice-level). Otherwise apply per-item to the selected items.
         5. NEVER ask "რომელი პროცენტით?" — always ask for amount first, then type if ambiguous, then scope if needed.
@@ -2039,8 +2039,9 @@ PROMPT
         - For SCOPE questions (warranty, discount, description): use "რას ეხება ...?" pattern. Examples:
           ✓ "რას ეხება გარანტია?" NOT "რომელ პოზიცი(ებ)ს გსურთ გარანტიის დამატება?"
           ✓ "რას ეხება ფასდაკლება?" NOT "რომელ ელემენტებზე გსურთ ფასდაკლება?"
-          ✓ "რას გსურთ დაუმატოთ აღწერა \"წითელია\"?" NOT "რომელ პოზიცი(ებ)ს გსურთ დაუმატოთ აღწერა?"
-        - For DESCRIPTION requests: when user says "მინდა დაუმატო რომ წითელია", recognize it as a description. Ask "რა არის წითელი?" or "რას გსურთ დაუმატოთ აღწერა \"წითელია\"?" using the accordion widget (type: "multi_choice").
+          ✓ "რას გსურთ დაუმატოთ აღწერა \"წითელი\"?" NOT "რომელ პოზიცი(ებ)ს გსურთ დაუმატოთ აღწერა?"
+        - For DESCRIPTION requests: when user says "მინდა დაუმატო რომ წითელია", recognize it as a description. Ask "რას გსურთ დაუმატოთ აღწერა \"წითელი\"?" using the accordion widget (type: "multi_choice").
+        - GEORGIAN COPULA STRIPPING: When user provides a Georgian adjective/descriptor as input (e.g., "წითელია", "მწვანეა", "დიდია"), strip the copula suffix (-ა/-ია) to get the base adjective form ("წითელი", "მწვანე", "დიდი") before using it as a description, sub_category, or in questions. The copula is conversational grammar ("it is red"), not the descriptor itself ("red").
         - Write questions as a native Georgian speaker would naturally ask them in conversation.
 
       FRONTEND WIDGET SYSTEM:
@@ -2074,6 +2075,7 @@ PROMPT
          - Materials: { desc, qty (default 1), price, taxable, tax_rate, discount_flat, discount_percent, sub_categories: [] }
          - Expenses/Fees: { desc, price, taxable, tax_rate, discount_flat, discount_percent, sub_categories: [] }
          - If adding a new section type, use: { type: "materials"|"expenses"|"fees", title: "#{ui_is_georgian ? 'appropriate Georgian title' : 'appropriate English title'}", items: [...] }
+         - PRICE REQUIRED: When adding new items and the user did NOT specify a price, you MUST ask for the price via clarification (field: "item_price", type: "text", question: "#{ui_is_georgian ? 'რა ღირს [item name]?' : 'How much does [item name] cost?'}"). NEVER assume a default price (not 100, not 0, not any value). Add the items to the JSON with price: null and return price clarifications for each missing price.
       6b. SUB_CATEGORIES RULE: sub_categories is an array of strings for additional details on an item.
          - WARRANTY / GUARANTEE: "გარანტია დაამატე" / "add warranty" → add to sub_categories (e.g., "გარანტია: 1 წელი" / "Warranty: 1 Year"). NEVER create a separate line item. If 2+ items exist and user doesn't specify which, ask with field: "warranty_scope", type: "multi_choice", options: [all item names]. Apply to user's selection.
          - NOTES / DESCRIPTION: "აღწერა დაუმატე" → add to sub_categories of the target item.
@@ -2089,6 +2091,7 @@ PROMPT
          - "ყველაფერს"/"ყველას"/"all"/"everything"/"all items" → apply to ALL items in ALL sections (products, services, fees, expenses — everything). Do NOT limit to just one section.
          - Numeric answer → update the corresponding field.
          - "yes"/"კი"/"correct"/"სწორია"/"სწორი ვარაუდი"/"დადასტურება" → keep JSON as-is (the guess was correct).
+         - Discount scope answer (list of item names like "ERP სისტემის დანერგვა, სერვერი, ტელეფონი") → these are the SELECTED items for discount. You MUST now ask for the discount AMOUNT for those items (field: "discount_amount", type: "text"). Do NOT return empty clarifications — the flow is: scope → amount → type (if ambiguous).
          Do NOT re-ask the EXACT SAME question that was just answered.
       10. FOLLOW-UP CLARIFICATIONS — USE EXISTING WIDGETS: After applying batch answers, if the answers reveal NEW ambiguity, you MUST return NEW clarifications using the SAME widget field names the frontend already supports. Do NOT invent free-text questions for things that have dedicated widgets. The frontend has built-in interactive widgets for these fields:
           - "discount_type" (choice) → renders a toggle button (Fixed/Percentage) for a SINGLE item
@@ -2176,7 +2179,9 @@ PROMPT
       end
 
       # Client matching for refine_invoice responses (paid users only)
-      if user_signed_in? && @profile.paid? && result["client"].present?
+      # Skip if frontend already resolved client matching (user confirmed/denied)
+      client_already_resolved = ActiveModel::Type::Boolean.new.cast(params[:client_match_resolved])
+      if user_signed_in? && @profile.paid? && result["client"].present? && !client_already_resolved
         client_name = result["client"].to_s.strip
         current_client_name = params.dig(:current_json, :client).to_s.strip
         norm_spoken = normalize_client_name(client_name)
