@@ -1273,7 +1273,7 @@ PROMPT
       # Inject client list context for client matching (paid users only)
       if user_signed_in? && @profile.paid? && current_user.clients.any?
         client_names = current_user.clients.order(:name).limit(50).pluck(:id, :name).map { |id, name| "#{id}:#{name}" }.join(", ")
-        user_input_parts << { text: "EXISTING CLIENTS (MUST USE EXACT DB NAME if match found — ignore legal-form order differences like შპს before/after name, and ignore quote style „" vs \"\"): #{client_names}" }
+        user_input_parts << { text: "EXISTING CLIENTS (MUST USE EXACT DB NAME if match found — ignore legal-form order differences like შპს before/after name, and ignore quote style differences): #{client_names}" }
       end
 
       # Inject sender payment instructions for bank transfer intelligence
@@ -2089,7 +2089,13 @@ PROMPT
          - Numeric answer → update the corresponding field.
          - "yes"/"კი"/"correct"/"სწორია"/"სწორი ვარაუდი"/"დადასტურება" → keep JSON as-is (the guess was correct).
          Do NOT re-ask the EXACT SAME question that was just answered.
-      10. FOLLOW-UP CLARIFICATIONS ARE EXPECTED: After applying batch answers, if the answers reveal NEW ambiguity (e.g., user gave a discount amount but didn't specify type, or user selected items but didn't specify a value), you MUST return NEW clarification questions for the remaining unknowns. Do NOT return "clarifications": [] just because the previous batch was answered — only return empty when EVERYTHING is fully resolved. The frontend will queue and display follow-up rounds automatically. Example: if 6 items were asked about and items 4 and 6 still need discount_type after the user gave amounts, return 2 new clarifications for those items.
+      10. FOLLOW-UP CLARIFICATIONS — USE EXISTING WIDGETS: After applying batch answers, if the answers reveal NEW ambiguity, you MUST return NEW clarifications using the SAME widget field names the frontend already supports. Do NOT invent free-text questions for things that have dedicated widgets. The frontend has built-in interactive widgets for these fields:
+          - "discount_type" (choice) → renders a toggle button (Fixed/Percentage) for a SINGLE item
+          - "discount_type_multi" (multi_choice) → renders per-item toggle widgets for MULTIPLE items
+          - "discount_scope" (multi_choice) → renders accordion with item checkboxes + Invoice Discount button
+          - "section_type" (choice) → renders section picker buttons
+          - "currency" (choice) → renders currency picker buttons
+          ALWAYS prefer these widget fields over generic text questions. Example: if user gave discount amounts for 6 items and items 4 and 6 are in the 1-100 ambiguous range, return 2 clarifications with field: "discount_type" (one per item) — the frontend will show the toggle widget for each. Do NOT return "clarifications": [] just because the previous batch was answered — only return empty when EVERYTHING is fully resolved.
       11. Keep "raw_summary" unchanged.
       12. CREDITS: Apply per CREDITS rule above. Default reason: "Courtesy Credit" if none given.
       13. All clarification questions MUST be in #{question_lang}. Questions MUST end with "?".
@@ -2104,7 +2110,7 @@ PROMPT
           - "text": user provides free-text input (number, name, date). Example: missing price.
           - "info": you are telling the user something, NO answer expected. Example: confirming action, assumption summary.
       19. SAFETY: If you cannot understand the instruction, return UNCHANGED JSON + empty clarifications. If the instruction is not about invoice modification, return unchanged JSON + one clarification with type: "info" politely redirecting.
-      20. Ask as many clarifications as the situation genuinely requires — there is NO hard limit on rounds or total questions. For complex multi-intent requests, handle what you can directly and ask about what's missing. The frontend queues and displays them sequentially. If answering one round of questions reveals new unknowns, start a NEW round of follow-up questions. Example: round 1 asks discount amounts for 6 items → user answers all 6 → round 2 asks discount_type for items where the amount was ambiguous (1-100 range). This multi-round flow is fully supported by the frontend.
+      20. Ask as many clarifications as the situation genuinely requires — there is NO hard limit on rounds or total questions. For complex multi-intent requests, handle what you can directly and ask about what's missing. The frontend queues and displays them sequentially. If answering one round reveals new unknowns, start a NEW round using the appropriate widget fields from rule 10. Example: round 1 asks discount amounts → user answers → round 2 returns field:"discount_type" clarifications for items in the 1-100 ambiguous range → frontend shows the toggle widget automatically. NEVER fall back to a plain text question when a dedicated widget field exists.
       21. Keep questions SHORT and conversational.
 
       Return ONLY valid JSON. No markdown fences, no explanation text, no preamble.
