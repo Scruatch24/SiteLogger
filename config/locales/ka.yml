@@ -290,7 +290,7 @@ ka:
   audio_empty_error: "აუდიო ცარიელია — სცადეთ თავიდან"
   undo_and_revert: "გაუქმება და დაბრუნება"
   client_exists_confirm: "ეს კლიენტი უკვე არსებობს თქვენს კლიენტთა სიაში, ასეა?"
-  client_new_added: "დაემატა ახალი კლიენტი: „%{name}". გსურთ მეტი დეტალის დამატება?"
+  client_new_added: "დაემატა ახალი კლიენტი: %{name}. გსურთ მეტი დეტალის დამატება?"
   widget_cancel: "გაუქმება"
   entire_invoice: "მთლიანი ინვოისი"
   cancel_what_prompt: "რისი წაშლა გსურთ?"
