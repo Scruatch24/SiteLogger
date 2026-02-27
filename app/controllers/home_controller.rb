@@ -728,40 +728,33 @@ class HomeController < ApplicationController
       #{raw_text}
     TEXT
 
-    primary_model = ENV["GEMINI_PRIMARY_MODEL"].presence || "gemini-2.5-flash-lite"
-    fallback_model = ENV["GEMINI_FALLBACK_MODEL"].presence || "gemini-2.5-flash"
-    model_chain = [ primary_model, fallback_model ].map { |m| m.to_s.strip }.reject(&:blank?).uniq.take(2)
+    gemini_model = ENV["GEMINI_PRIMARY_MODEL"].presence || "gemini-2.5-flash-lite"
 
-    enhanced_text = nil
+    body = gemini_generate_content(
+      api_key: api_key,
+      model: gemini_model,
+      prompt_parts: [ { text: instruction } ],
+      cached_instruction_name: nil
+    )
 
-    model_chain.each do |gemini_model|
-      body = gemini_generate_content(
-        api_key: api_key,
-        model: gemini_model,
-        prompt_parts: [ { text: instruction } ],
-        cached_instruction_name: nil
-      )
+    if body["error"].present?
+      Rails.logger.warn("ENHANCE MODEL ERROR (#{gemini_model}): #{body["error"].to_json}")
+      return render json: { error: t("ai_failed_response") }, status: 500
+    end
 
-      if body["error"].present?
-        Rails.logger.warn("ENHANCE MODEL ERROR (#{gemini_model}): #{body["error"].to_json}")
-        next
-      end
+    parts = body.dig("candidates", 0, "content", "parts")
+    enhanced_text = parts&.reject { |p| p["thought"] }&.map { |p| p["text"] }&.join(" ")&.to_s&.strip
 
-      parts = body.dig("candidates", 0, "content", "parts")
-      candidate = parts&.reject { |p| p["thought"] }&.map { |p| p["text"] }&.join(" ")&.to_s&.strip
-      next if candidate.blank?
-
-      candidate = candidate.gsub(/\A```(?:text)?\s*/i, "").gsub(/\s*```\z/, "").strip
-      candidate = candidate.gsub(/\A["“”']+|["“”']+\z/, "").strip
-      next if candidate.blank?
-
-      enhanced_text = candidate[0, limit]
-      break
+    if enhanced_text.present?
+      enhanced_text = enhanced_text.gsub(/\A```(?:text)?\s*/i, "").gsub(/\s*```\z/, "").strip
+      enhanced_text = enhanced_text.gsub(/\A["""']+|["""']+\z/, "").strip
     end
 
     if enhanced_text.blank?
       return render json: { error: t("ai_failed_response") }, status: 500
     end
+
+    enhanced_text = enhanced_text[0, limit]
 
     # Conservative guardrail: reject only when a classifier is highly confident
     # the enhanced transcript is incoherent or unrelated to invoice extraction.
@@ -779,7 +772,7 @@ class HomeController < ApplicationController
         #{enhanced_text}
       TEXT
 
-      validation_model = model_chain.first || "gemini-2.5-flash-lite"
+      validation_model = gemini_model
       validation_body = gemini_generate_content(
         api_key: api_key,
         model: validation_model,
@@ -1082,7 +1075,9 @@ DISCOUNT & CREDIT RULES
 - Same rules apply to global_discount_flat/percent and labor_discount_flat/percent.
 - DISCOUNT CLARIFICATION ORDER: When user mentions a discount but does NOT specify the amount:
   1. FIRST ask "რა ოდენობის ფასდაკლებაა?" / "What is the discount amount?" with field: "discount_amount", type: "text". Do NOT assume percentage.
-  2. If user gives a number without % sign and it could be either flat or percentage (1-100 range), return a clarification with field: "discount_type", type: "choice", options: ["fixed", "percentage"]. The frontend renders clickable buttons.
+  2. If user gives a number WITHOUT % sign:
+     - If the number is > 100 → it is ALWAYS a flat amount. Apply discount_flat directly. Do NOT ask about type.
+     - If the number is 1-100 (ambiguous range), return a clarification with field: "discount_type", type: "choice", options: #{ui_is_georgian ? '["ფიქსირებული", "პროცენტული"]' : '["Fixed", "Percentage"]'}. The frontend renders clickable buttons. ALL option values MUST be in #{ui_is_georgian ? 'Georgian' : 'English'}.
   3. If discount scope is ambiguous (multiple items exist and user didn't specify which), ask with field: "discount_scope", type: "multi_choice", options: [list ALL item names]. The frontend renders an accordion with an "Invoice Discount" button.
   4. If user answers "Invoice Discount" to a discount_scope question, apply as global_discount_flat or global_discount_percent. Otherwise apply per-item.
   5. NEVER ask "რომელი პროცენტით?" — always ask for amount first, then type if ambiguous, then scope if needed.
@@ -1271,16 +1266,14 @@ PROMPT
         half_day_hours: half_day_hours
       )
 
-      primary_model = ENV["GEMINI_PRIMARY_MODEL"].presence || "gemini-2.5-flash-lite"
-      fallback_model = ENV["GEMINI_FALLBACK_MODEL"].presence || "gemini-2.5-flash"
-      model_chain = [ primary_model, fallback_model ].map { |m| m.to_s.strip }.reject(&:blank?).uniq.take(2)
+      gemini_model = ENV["GEMINI_PRIMARY_MODEL"].presence || "gemini-2.5-flash-lite"
 
       user_input_parts = []
 
       # Inject client list context for client matching (paid users only)
       if user_signed_in? && @profile.paid? && current_user.clients.any?
         client_names = current_user.clients.order(:name).limit(50).pluck(:id, :name).map { |id, name| "#{id}:#{name}" }.join(", ")
-        user_input_parts << { text: "EXISTING CLIENTS (for matching — use exact name if match found): #{client_names}" }
+        user_input_parts << { text: "EXISTING CLIENTS (MUST USE EXACT DB NAME if match found — ignore legal-form order differences like შპს before/after name, and ignore quote style „" vs \"\"): #{client_names}" }
       end
 
       # Inject sender payment instructions for bank transfer intelligence
@@ -1312,96 +1305,76 @@ PROMPT
 
       raw = nil
       json = nil
-      last_body = {}
-      used_model = nil
 
-      model_chain.each_with_index do |gemini_model, idx|
-        cache_key, cached_instruction_name = gemini_instruction_cached_content(
-          api_key: api_key,
-          model: gemini_model,
-          instruction: instruction_for_cache
-        )
-        use_cached_instruction = cached_instruction_name.present?
+      cache_key, cached_instruction_name = gemini_instruction_cached_content(
+        api_key: api_key,
+        model: gemini_model,
+        instruction: instruction_for_cache
+      )
+      use_cached_instruction = cached_instruction_name.present?
 
-        prompt_parts = []
-        prompt_parts << { text: instruction } unless use_cached_instruction
-        prompt_parts << { text: runtime_cache_context } if use_cached_instruction
-        prompt_parts.concat(user_input_parts)
+      prompt_parts = []
+      prompt_parts << { text: instruction } unless use_cached_instruction
+      prompt_parts << { text: runtime_cache_context } if use_cached_instruction
+      prompt_parts.concat(user_input_parts)
 
-        thinking_budget = (ENV["GEMINI_THINKING_BUDGET"].presence || 2048).to_i
+      thinking_budget = (ENV["GEMINI_THINKING_BUDGET"].presence || 2048).to_i
+
+      body = gemini_generate_content(
+        api_key: api_key,
+        model: gemini_model,
+        prompt_parts: prompt_parts,
+        cached_instruction_name: (use_cached_instruction ? cached_instruction_name : nil),
+        thinking_budget: thinking_budget
+      )
+
+      # Cache fallback: if cached instruction failed, retry same model without cache
+      if use_cached_instruction && body["error"].present?
+        Rails.logger.warn("GEMINI CACHE FALLBACK (#{gemini_model}): #{body["error"].to_json}")
+        Rails.cache.delete(cache_key) if cache_key.present?
+
+        fallback_parts = prompt_parts.dup
+        fallback_parts.unshift({ text: instruction })
 
         body = gemini_generate_content(
           api_key: api_key,
           model: gemini_model,
-          prompt_parts: prompt_parts,
-          cached_instruction_name: (use_cached_instruction ? cached_instruction_name : nil),
+          prompt_parts: fallback_parts,
+          cached_instruction_name: nil,
           thinking_budget: thinking_budget
         )
-
-        if use_cached_instruction && body["error"].present?
-          Rails.logger.warn("GEMINI CACHE FALLBACK (#{gemini_model}): #{body["error"].to_json}")
-          Rails.cache.delete(cache_key) if cache_key.present?
-
-          fallback_parts = prompt_parts.dup
-          fallback_parts.unshift({ text: instruction })
-
-          body = gemini_generate_content(
-            api_key: api_key,
-            model: gemini_model,
-            prompt_parts: fallback_parts,
-            cached_instruction_name: nil,
-            thinking_budget: thinking_budget
-          )
-        end
-
-        last_body = body
-
-        if body["error"].present?
-          Rails.logger.warn("AI MODEL ERROR (#{gemini_model}): #{body["error"].to_json}")
-          next
-        end
-
-        parts = body.dig("candidates", 0, "content", "parts")
-        candidate_raw = parts&.reject { |p| p["thought"] }&.map { |p| p["text"] }&.join("\n")
-
-        if candidate_raw.blank?
-          Rails.logger.warn("AI MODEL EMPTY RAW (#{gemini_model}).")
-          next
-        end
-
-        raw = candidate_raw
-        Rails.logger.info "AI RAW RESPONSE (#{gemini_model}): #{raw}"
-
-        # More robust JSON extraction to handle preamble or "thinking" blocks
-        json_match = raw.match(/\{[\s\S]*\}/m)
-        candidate_json = nil
-        if json_match
-          begin
-            candidate_json = JSON.parse(json_match[0])
-          rescue => e
-            Rails.logger.error "AI JSON PARSE ERROR (#{gemini_model}): #{e.message}. Raw: #{raw}"
-          end
-        else
-          Rails.logger.error "AI NO JSON FOUND IN RAW (#{gemini_model}): #{raw}"
-        end
-
-        if candidate_json
-          json = candidate_json
-          used_model = gemini_model
-          break
-        elsif idx < (model_chain.length - 1)
-          Rails.logger.warn("AI MODEL FALLBACK: invalid JSON from #{gemini_model}, retrying with #{model_chain[idx + 1]}")
-        end
       end
 
-      if raw.blank?
-        Rails.logger.error "AI FAILURE: No raw text in response. Body: #{last_body.to_json}"
+      if body["error"].present?
+        Rails.logger.error("AI MODEL ERROR (#{gemini_model}): #{body["error"].to_json}")
         return render json: { error: t('ai_failed_response') }, status: 500
+      end
+
+      parts = body.dig("candidates", 0, "content", "parts")
+      raw = parts&.reject { |p| p["thought"] }&.map { |p| p["text"] }&.join("\n")
+
+      if raw.blank?
+        Rails.logger.error "AI FAILURE: No raw text in response. Body: #{body.to_json}"
+        return render json: { error: t('ai_failed_response') }, status: 500
+      end
+
+      Rails.logger.info "AI RAW RESPONSE (#{gemini_model}): #{raw}"
+
+      # More robust JSON extraction to handle preamble or "thinking" blocks
+      json_match = raw.match(/\{[\s\S]*\}/m)
+      if json_match
+        begin
+          json = JSON.parse(json_match[0])
+        rescue => e
+          Rails.logger.error "AI JSON PARSE ERROR (#{gemini_model}): #{e.message}. Raw: #{raw}"
+        end
+      else
+        Rails.logger.error "AI NO JSON FOUND IN RAW (#{gemini_model}): #{raw}"
       end
 
       return render json: { error: t('invalid_ai_output') }, status: 422 unless json
 
-      Rails.logger.info "AI MODEL USED: #{used_model || model_chain.first}"
+      Rails.logger.info "AI MODEL USED: #{gemini_model}"
 
       if json["error"]
         Rails.logger.warn "AI RETURNED ERROR: #{json["error"]}"
@@ -1789,24 +1762,41 @@ PROMPT
       recipient_info = nil
       if user_signed_in? && @profile.paid? && json["client"].present?
         client_name = json["client"].to_s.strip
-        # Tier 1: Exact match (case-insensitive)
+        norm_spoken = normalize_client_name(client_name)
+
+        # Tier 1: Exact match — first try ILIKE, then normalized name comparison
         exact_match = current_user.clients.where("name ILIKE ?", client_name).first
+        unless exact_match
+          exact_match = current_user.clients.detect { |c| normalize_client_name(c.name) == norm_spoken } if norm_spoken.present?
+        end
+
         if exact_match
           recipient_info = { "client_id" => exact_match.id, "name" => exact_match.name, "email" => exact_match.email, "phone" => exact_match.phone, "address" => exact_match.address }
           json["client"] = exact_match.name
+          # Ask user to confirm this is the right client
+          confirm_q = I18n.locale.to_s == "ka" ? t("client_exists_confirm") : t("client_exists_confirm")
+          json["clarifications"] ||= []
+          json["clarifications"] << { "field" => "client_confirm_existing", "type" => "yes_no", "question" => confirm_q, "client_name" => exact_match.name, "client_id" => exact_match.id }
         else
-          # Tier 2: Fuzzy match — find similar names and ask user to confirm
-          similar = current_user.clients.where("name ILIKE ?", "%#{client_name.gsub(/[%_]/, '')}%").limit(5).to_a
+          # Tier 2: Fuzzy match — ILIKE pattern + normalized comparison
+          safe_name = client_name.gsub(/[%_]/, "")
+          similar = current_user.clients.where("name ILIKE ?", "%#{safe_name}%").limit(10).to_a
+          # Also find by normalized name if ILIKE missed them
+          if norm_spoken.length >= 3
+            current_user.clients.each do |c|
+              norm_db = normalize_client_name(c.name)
+              if norm_db.include?(norm_spoken) || norm_spoken.include?(norm_db)
+                similar << c unless similar.any? { |s| s.id == c.id }
+              end
+            end
+          end
+
           if similar.any?
             similar_with_counts = similar.map { |c| { "id" => c.id, "name" => c.name, "invoices_count" => c.logs.kept.count } }
               .sort_by { |c| -c["invoices_count"] }
               .first(3)
             best_guess = similar_with_counts.first["name"]
-            question_text = if I18n.locale.to_s == "ka"
-              "მოიძებნა რამდენიმე მსგავსი კლიენტი:"
-            else
-              "Multiple similar clients found:"
-            end
+            question_text = I18n.locale.to_s == "ka" ? "მოიძებნა რამდენიმე მსგავსი კლიენტი:" : "Multiple similar clients found:"
             json["clarifications"] ||= []
             json["clarifications"] << { "field" => "client_match", "guess" => best_guess, "question" => question_text, "similar_clients" => similar_with_counts }
             recipient_info = { "client_id" => nil, "name" => client_name, "is_new" => true }
@@ -2010,7 +2000,10 @@ PROMPT
       - "discount everything except [category]" → apply per-item to every OTHER category, leave excluded at 0. Do NOT use global_discount.
       - DISCOUNT CLARIFICATION ORDER: When user mentions a discount but does NOT specify the amount:
         1. FIRST ask "#{ui_is_georgian ? 'რა ოდენობის ფასდაკლება გსურთ?' : 'How much discount?'}" with field: "discount_amount", type: "text". Do NOT assume percentage.
-        2. If user gives a number without % sign and it could be either flat or percentage (1-100 range) for a SINGLE item, return a clarification with field: "discount_type", type: "choice", options: ["fixed", "percentage"]. For MULTIPLE items needing type selection, use field: "discount_type_multi", type: "multi_choice", options: [item names]. The frontend renders a per-item fixed/percentage toggle widget.
+        2. If user gives a number WITHOUT % sign:
+           - If the number is > 100 → it is ALWAYS a flat amount. Apply discount_flat directly. Do NOT ask about type.
+           - If the number is 1-100 (ambiguous range) for a SINGLE item, return a clarification with field: "discount_type", type: "choice", options: #{ui_is_georgian ? '["ფიქსირებული", "პროცენტული"]' : '["Fixed", "Percentage"]'}. ALL option values MUST be in #{ui_is_georgian ? 'Georgian' : 'English'}.
+           - For MULTIPLE items needing type selection, use field: "discount_type_multi", type: "multi_choice", options: [item names]. The frontend renders a per-item fixed/percentage toggle widget.
         3. If discount scope is ambiguous (multiple items exist and user didn't specify which), ask with field: "discount_scope", type: "multi_choice", options: [extract ALL item desc/name values from the CURRENT INVOICE JSON sections above — e.g., if JSON has labor items "AC Repair" and materials "Filter", options: ["AC Repair", "Filter"]]. The frontend renders an accordion grouped by category with an "Invoice Discount" button for whole-invoice discount.
         4. If user answers "Invoice Discount" to a discount_scope question, apply as global_discount_flat or global_discount_percent (invoice-level). Otherwise apply per-item to the selected items.
         5. NEVER ask "რომელი პროცენტით?" — always ask for amount first, then type if ambiguous, then scope if needed.
@@ -2095,8 +2088,8 @@ PROMPT
          - "ყველაფერს"/"ყველას"/"all"/"everything"/"all items" → apply to ALL items in ALL sections (products, services, fees, expenses — everything). Do NOT limit to just one section.
          - Numeric answer → update the corresponding field.
          - "yes"/"კი"/"correct"/"სწორია"/"სწორი ვარაუდი"/"დადასტურება" → keep JSON as-is (the guess was correct).
-         Do NOT re-ask the same question. Return "clarifications": [] after applying.
-      10. Return "clarifications": [] (empty) unless the instruction is genuinely NEW and ambiguous. NEVER re-ask a question that was just answered.
+         Do NOT re-ask the EXACT SAME question that was just answered.
+      10. FOLLOW-UP CLARIFICATIONS ARE EXPECTED: After applying batch answers, if the answers reveal NEW ambiguity (e.g., user gave a discount amount but didn't specify type, or user selected items but didn't specify a value), you MUST return NEW clarification questions for the remaining unknowns. Do NOT return "clarifications": [] just because the previous batch was answered — only return empty when EVERYTHING is fully resolved. The frontend will queue and display follow-up rounds automatically. Example: if 6 items were asked about and items 4 and 6 still need discount_type after the user gave amounts, return 2 new clarifications for those items.
       11. Keep "raw_summary" unchanged.
       12. CREDITS: Apply per CREDITS rule above. Default reason: "Courtesy Credit" if none given.
       13. All clarification questions MUST be in #{question_lang}. Questions MUST end with "?".
@@ -2111,14 +2104,14 @@ PROMPT
           - "text": user provides free-text input (number, name, date). Example: missing price.
           - "info": you are telling the user something, NO answer expected. Example: confirming action, assumption summary.
       19. SAFETY: If you cannot understand the instruction, return UNCHANGED JSON + empty clarifications. If the instruction is not about invoice modification, return unchanged JSON + one clarification with type: "info" politely redirecting.
-      20. Ask as many clarifications as the situation genuinely requires. For complex multi-intent requests, handle what you can directly and ask about what's missing. The frontend queues and displays them sequentially. Prefer fewer questions when possible, but do NOT artificially limit yourself to 2 if more are needed.
+      20. Ask as many clarifications as the situation genuinely requires — there is NO hard limit on rounds or total questions. For complex multi-intent requests, handle what you can directly and ask about what's missing. The frontend queues and displays them sequentially. If answering one round of questions reveals new unknowns, start a NEW round of follow-up questions. Example: round 1 asks discount amounts for 6 items → user answers all 6 → round 2 asks discount_type for items where the amount was ambiguous (1-100 range). This multi-round flow is fully supported by the frontend.
       21. Keep questions SHORT and conversational.
 
       Return ONLY valid JSON. No markdown fences, no explanation text, no preamble.
     PROMPT
 
     begin
-      gemini_model = ENV["GEMINI_PRIMARY_MODEL"].presence || ENV["GEMINI_MODEL"].presence || "gemini-2.5-flash"
+      gemini_model = ENV["GEMINI_PRIMARY_MODEL"].presence || "gemini-2.5-flash-lite"
       thinking_budget = (ENV["GEMINI_THINKING_BUDGET"].presence || 2048).to_i
 
       body = gemini_generate_content(
@@ -2166,29 +2159,52 @@ PROMPT
       result["clarifications"] = Array(result["clarifications"]).select { |c| c.is_a?(Hash) && c["question"].present? }
 
       # Strip AI-generated client clarifications (backend handles client matching exclusively)
-      result["clarifications"].reject! { |c| c["field"].to_s.match?(/\bclient\b/i) && c["field"] != "client_match" }
+      # Broadened: reject any clarification with "client" in field OR whose options overlap with DB client names
+      db_client_names = user_signed_in? ? current_user.clients.pluck(:name).map(&:downcase) : []
+      result["clarifications"].reject! do |c|
+        next false unless c.is_a?(Hash)
+        field_match = c["field"].to_s.match?(/\bclient\b/i) && !%w[client_match client_confirm_existing add_client_to_list].include?(c["field"].to_s)
+        options_match = c["options"].is_a?(Array) && c["options"].any? { |o| db_client_names.include?(o.to_s.downcase) }
+        field_match || options_match
+      end
 
       # Client matching for refine_invoice responses (paid users only)
       if user_signed_in? && @profile.paid? && result["client"].present?
         client_name = result["client"].to_s.strip
         current_client_name = params.dig(:current_json, :client).to_s.strip
+        norm_spoken = normalize_client_name(client_name)
 
+        # Tier 1: Exact match — ILIKE then normalized
         exact_match = current_user.clients.where("name ILIKE ?", client_name).first
+        unless exact_match
+          exact_match = current_user.clients.detect { |c| normalize_client_name(c.name) == norm_spoken } if norm_spoken.present?
+        end
+
         if exact_match
           result["recipient_info"] = { "client_id" => exact_match.id, "name" => exact_match.name, "email" => exact_match.email, "phone" => exact_match.phone, "address" => exact_match.address }
           result["client"] = exact_match.name
+          # Confirm existing client
+          confirm_q = t("client_exists_confirm")
+          result["clarifications"] << { "field" => "client_confirm_existing", "type" => "yes_no", "question" => confirm_q, "client_name" => exact_match.name, "client_id" => exact_match.id }
         else
-          # Fuzzy match — exclude the current invoice client from results
-          similar = current_user.clients.where("name ILIKE ?", "%#{client_name.gsub(/[%_]/, '')}%").limit(10).to_a
+          # Tier 2: Fuzzy match — ILIKE + normalized comparison, exclude current client
+          safe_name = client_name.gsub(/[%_]/, "")
+          similar = current_user.clients.where("name ILIKE ?", "%#{safe_name}%").limit(10).to_a
+          if norm_spoken.length >= 3
+            current_user.clients.each do |c|
+              norm_db = normalize_client_name(c.name)
+              if norm_db.include?(norm_spoken) || norm_spoken.include?(norm_db)
+                similar << c unless similar.any? { |s| s.id == c.id }
+              end
+            end
+          end
           similar.reject! { |c| c.name.downcase == current_client_name.downcase } if current_client_name.present?
 
           if similar.length == 1
-            # Only 1 match after excluding current → auto-set
             match = similar.first
             result["recipient_info"] = { "client_id" => match.id, "name" => match.name, "email" => match.email, "phone" => match.phone, "address" => match.address }
             result["client"] = match.name
           elsif similar.length > 1
-            # Multiple matches → show picker
             similar_with_counts = similar.map { |c| { "id" => c.id, "name" => c.name, "invoices_count" => c.logs.kept.count } }
               .sort_by { |c| -c["invoices_count"] }
               .first(3)
@@ -2197,7 +2213,6 @@ PROMPT
             result["clarifications"] << { "field" => "client_match", "guess" => best_guess, "question" => question_text, "similar_clients" => similar_with_counts }
             result["recipient_info"] = { "client_id" => nil, "name" => client_name, "is_new" => true }
           else
-            # No match at all — set as new client, ask if user wants to save to list
             result["recipient_info"] = { "client_id" => nil, "name" => client_name, "is_new" => true }
             add_q = I18n.locale.to_s == "ka" ? "გსურთ მეტი დეტალის მითითება \"#{client_name}\"-სთვის?" : "Would you like to add more details for \"#{client_name}\"?"
             result["clarifications"] << { "field" => "add_client_to_list", "type" => "yes_no", "question" => add_q, "guess" => nil, "client_name" => client_name }
@@ -2229,8 +2244,8 @@ PROMPT
         }.compact
       end
 
-      # Sort clarifications: client_match/add_client_to_list first, then AI questions
-      client_fields = %w[client_match add_client_to_list]
+      # Sort clarifications: client fields first, then AI questions
+      client_fields = %w[client_confirm_existing client_match add_client_to_list]
       result["clarifications"].sort_by! { |c| client_fields.include?(c["field"].to_s) ? 0 : 1 }
 
       Rails.logger.info "REFINE RESULT: #{result.to_json}"
@@ -3658,6 +3673,18 @@ PROMPT
     @alerts = []
     @overview = { active_clients: 5, total_invoices: 24 }
     @tracking_counts = { exports: 12, recordings_started: 38 }
+  end
+
+  private
+
+  # Normalize a client name for matching: strip legal forms, special quotes, downcase
+  def normalize_client_name(name)
+    n = name.to_s.dup
+    # Strip Georgian/international legal forms
+    n.gsub!(/\b(შპს|შ\.პ\.ს\.|ს\.ს\.|სს|Ltd\.?|LLC|Inc\.?|Corp\.?|GmbH|ООО|ИП|ОАО|ЗАО|S\.?A\.?|S\.?L\.?|PLC|Pty|Co\.?)\b/i, '')
+    # Strip special quotes: Georgian „", «», "", standard ""
+    n.gsub!(/[„""«»"\u201C\u201D\u201E\u00AB\u00BB]/, '')
+    n.strip.gsub(/\s+/, ' ').downcase
   end
 
   def profile_params

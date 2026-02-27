@@ -5526,7 +5526,7 @@ window.resetAssistantState = function() {
   window._addItemName = null;
   window._recentQuestions = [];
   window.clientMatchResolved = false;
-  window._undoSnapshot = null;
+  window._undoStack = [];
   window._userClosedInvoice = false;
   var conversation = document.getElementById('assistantConversation');
   if (conversation) conversation.innerHTML = '';
@@ -5709,10 +5709,14 @@ function showNextQueueItem() {
     c._showInvoiceDiscount = true;
   }
 
-  if (c.field === 'add_client_to_list') {
+  if (c.field === 'client_confirm_existing') {
+    renderClientConfirmExistingCard(c);
+  } else if (c.field === 'add_client_to_list') {
     renderAddClientToListCard(c);
   } else if (c.field === 'client_match' && c.similar_clients && c.similar_clients.length > 0) {
     renderClientMatchCard(c);
+  } else if (c.field === 'discount_type' && c.options && c.options.length > 0) {
+    renderDiscountTypeSingleCard(c);
   } else if (c.field === 'discount_type_multi' && c.options && c.options.length > 0) {
     renderDiscountTypeMultiCard(c);
   } else if (c.field === 'section_type' && c.options && c.options.length > 0) {
@@ -5792,9 +5796,9 @@ function batchSubmitQueueAnswers() {
   window._queueTotal = 0;
   window.pendingClarifications = [];
 
-  // Filter out client_match/add_client_to_list answers — these are frontend-only, not for AI
+  // Filter out client answers — these are frontend-only, not for AI
   var aiAnswers = answers.filter(function(qa) {
-    return qa.field !== 'client_match' && qa.field !== 'add_client_to_list';
+    return qa.field !== 'client_match' && qa.field !== 'add_client_to_list' && qa.field !== 'client_confirm_existing';
   });
 
   // If only client answers remained, skip AI and handle locally
@@ -5905,6 +5909,85 @@ function addAIBubble(text, guessHtml, progressTag) {
   `;
   conversation.appendChild(div);
   conversation.scrollTop = conversation.scrollHeight;
+}
+
+// ── WIDGET CLOSE (X) BUTTON HELPER ──
+function widgetCloseBtn() {
+  return '<button type="button" onclick="cancelWidget()" class="absolute top-2 right-2 w-5 h-5 rounded-full bg-gray-200 hover:bg-red-100 flex items-center justify-center transition-all cursor-pointer active:scale-90 z-10" title="' + escapeHtml(window.APP_LANGUAGES.widget_cancel || 'Cancel') + '">'
+    + '<svg class="w-3 h-3 text-gray-500 hover:text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
+    + '</button>';
+}
+
+function cancelWidget() {
+  var L = window.APP_LANGUAGES || {};
+  window.disablePreviousInteractiveElements();
+  addUserBubble(L.widget_cancel || 'Cancel');
+
+  // If inside a clarification queue, advance it with cancel answer
+  if (window._clarificationQueue && window._clarificationQueue.length > 0) {
+    handleQueueAnswer(L.widget_cancel || 'Cancel');
+    return;
+  }
+
+  // Standalone widget (tax management, etc.) — reset and show chips
+  window._taxManagementItems = null;
+  window._collectingClientDetail = null;
+  showTypingIndicator();
+  setTimeout(function() {
+    removeTypingIndicator();
+    addAIBubble(L.anything_else || 'Anything else to change?');
+    renderQuickActionChips();
+    window.setupSaveButton();
+  }, 400);
+}
+
+function renderClientConfirmExistingCard(clarification) {
+  var conversation = document.getElementById('assistantConversation');
+  if (!conversation) return;
+  var L = window.APP_LANGUAGES || {};
+  var questionText = clarification.question || L.client_exists_confirm || 'This client already exists in your client list, correct?';
+  var clientName = clarification.client_name || '';
+  var yesLabel = L.yes_btn || 'Yes';
+  var noLabel = L.no_btn || 'No';
+
+  var div = document.createElement('div');
+  div.className = 'flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300';
+  div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
+    + '<div class="max-w-[85%]">'
+    + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
+    + '<div class="flex items-center gap-2 mb-2">'
+    + '<div class="w-8 h-8 rounded-full bg-orange-50 border-2 border-orange-200 flex items-center justify-center shrink-0">'
+    + '<svg class="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>'
+    + '</div>'
+    + '<span class="text-[13px] font-bold text-gray-800">' + escapeHtml(clientName) + '</span>'
+    + '</div>'
+    + '<div class="text-xs font-bold text-gray-600 mb-2.5">' + escapeHtml(questionText) + '</div>'
+    + '<div class="flex gap-2">'
+    + '<button type="button" onclick="confirmExistingClientYes()" class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border-2 border-green-300 bg-green-50 hover:bg-green-100 transition-all cursor-pointer active:scale-[0.97] text-[12px] font-bold text-green-600">'
+    + '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>'
+    + escapeHtml(yesLabel)
+    + '</button>'
+    + '<button type="button" onclick="confirmExistingClientNo()" class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border-2 border-gray-200 bg-white hover:bg-gray-50 transition-all cursor-pointer active:scale-[0.97] text-[12px] font-bold text-gray-500">'
+    + '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
+    + escapeHtml(noLabel)
+    + '</button>'
+    + '</div>'
+    + '</div></div>';
+  conversation.appendChild(div);
+  conversation.scrollTop = conversation.scrollHeight;
+}
+
+function confirmExistingClientYes() {
+  window.clientMatchResolved = true;
+  window.disablePreviousInteractiveElements();
+  autoSubmitAssistantMessage(window.APP_LANGUAGES.yes_btn || 'Yes');
+}
+
+function confirmExistingClientNo() {
+  window.clientMatchResolved = true;
+  window._wasAddClientYes = true;
+  window.disablePreviousInteractiveElements();
+  autoSubmitAssistantMessage(window.APP_LANGUAGES.no_btn || 'No');
 }
 
 function renderAddClientToListCard(clarification) {
@@ -6029,8 +6112,9 @@ function renderSectionTypeCard(clarification) {
   div.className = "flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300";
   div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
     + '<div class="max-w-[85%]">'
-    + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
-    + '<div class="text-xs font-bold text-gray-800 mb-2.5">' + escapeHtml(questionText) + '</div>'
+    + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm relative">'
+    + widgetCloseBtn()
+    + '<div class="text-xs font-bold text-gray-800 mb-2.5 pr-6">' + escapeHtml(questionText) + '</div>'
     + '<div class="space-y-1.5">' + btns + '</div>'
     + '</div>'
     + '</div>';
@@ -6084,8 +6168,9 @@ function renderCurrencyCard(clarification) {
   div.className = "flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300";
   div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
     + '<div class="max-w-[85%]">'
-    + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
-    + '<div class="text-xs font-bold text-gray-800 mb-2.5">' + escapeHtml(questionText) + '</div>'
+    + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm relative">'
+    + widgetCloseBtn()
+    + '<div class="text-xs font-bold text-gray-800 mb-2.5 pr-6">' + escapeHtml(questionText) + '</div>'
     + '<div class="flex flex-wrap gap-2">' + btns + '</div>'
     + '</div>'
     + '</div>';
@@ -6122,8 +6207,9 @@ function renderGenericChoiceCard(clarification) {
   div.className = "flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300";
   div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
     + '<div class="max-w-[85%]">'
-    + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
-    + '<div class="text-xs font-bold text-gray-800 mb-2.5">' + escapeHtml(questionText) + (clarification._progressTag || '') + '</div>'
+    + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm relative">'
+    + widgetCloseBtn()
+    + '<div class="text-xs font-bold text-gray-800 mb-2.5 pr-6">' + escapeHtml(questionText) + (clarification._progressTag || '') + '</div>'
     + '<div class="space-y-1.5">' + btns + '</div>'
     + '</div>'
     + '</div>';
@@ -6186,8 +6272,9 @@ function renderMultiChoiceCard(clarification) {
     div.id = 'multiChoiceAccordionCard';
     div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
       + '<div class="max-w-[85%] w-full">'
-      + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
-      + '<div class="text-xs font-bold text-gray-800 mb-2.5">' + escapeHtml(questionText) + '</div>'
+      + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm relative">'
+      + widgetCloseBtn()
+      + '<div class="text-xs font-bold text-gray-800 mb-2.5 pr-6">' + escapeHtml(questionText) + '</div>'
       + '<div class="space-y-2">' + accordionHtml + '</div>'
       + '</div></div>';
     conversation.appendChild(div);
@@ -6218,8 +6305,9 @@ function renderMultiChoiceCard(clarification) {
   div.className = "flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300";
   div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
     + '<div class="max-w-[85%]">'
-    + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
-    + '<div class="text-xs font-bold text-gray-800 mb-2.5">' + escapeHtml(questionText) + '</div>'
+    + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm relative">'
+    + widgetCloseBtn()
+    + '<div class="text-xs font-bold text-gray-800 mb-2.5 pr-6">' + escapeHtml(questionText) + '</div>'
     + '<div class="space-y-1.5">' + btns + '</div>'
     + '</div>'
     + '</div>';
@@ -6318,11 +6406,27 @@ function renderYesNoCard(clarification) {
   conversation.scrollTop = conversation.scrollHeight;
 }
 
+function renderInlineUndoBtn() {
+  if (!window._undoStack || window._undoStack.length === 0) return;
+  var conversation = document.getElementById('assistantConversation');
+  if (!conversation) return;
+  var L = window.APP_LANGUAGES || {};
+
+  var div = document.createElement('div');
+  div.className = 'flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300 ml-9 mt-0.5 mb-0.5';
+  div.innerHTML = '<button type="button" onclick="performUndo()" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-red-200 bg-white hover:bg-red-50 hover:border-red-300 transition-all cursor-pointer active:scale-[0.95] text-[10px] font-bold text-red-400 hover:text-red-600 shadow-sm">'
+    + '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>'
+    + escapeHtml(L.undo_and_revert || 'Undo')
+    + '</button>';
+  conversation.appendChild(div);
+}
+
 function renderQuickActionChips() {
   var conversation = document.getElementById('assistantConversation');
   if (!conversation) return;
 
   window.disablePreviousInteractiveElements();
+  renderInlineUndoBtn();
 
   var L = window.APP_LANGUAGES || {};
   var chips = [
@@ -6341,11 +6445,7 @@ function renderQuickActionChips() {
   }
   if (hasItems) {
     chips.push({ label: L.action_manage_tax || 'Manage Taxes', handler: 'handleChipManageTax', icon: '<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>', color: 'default' });
-  }
-
-  // Add undo & revert chip if snapshot exists
-  if (window._undoSnapshot) {
-    chips.unshift({ label: L.undo_and_revert || 'Undo & Revert', handler: 'handleChipUndo', icon: '<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>', color: 'red' });
+    chips.push({ label: L.cancel_what_prompt || 'Remove item', handler: 'handleChipRemoveItem', icon: '<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>', color: 'red' });
   }
 
   var chipHtml = '';
@@ -6408,28 +6508,170 @@ function handleChipAddDiscount() {
   triggerAssistantReparse(L.action_add_discount || 'Add discount', 'refinement', 'User requested change');
 }
 
-// ── CHIP HANDLER: UNDO & REVERT (restore chat + invoice to before last AI action) ──
-function handleChipUndo() {
+// ── CHIP HANDLER: REMOVE ITEM (accordion-style picker) ──
+function handleChipRemoveItem() {
   if (window._pendingAnswer) return;
-  if (!window._undoSnapshot) return;
+  window._collectingClientDetail = null;
   var L = window.APP_LANGUAGES || {};
 
+  addUserBubble(L.cancel_what_prompt || 'Remove item');
+
+  showTypingIndicator();
+  setTimeout(function() {
+    removeTypingIndicator();
+    renderRemoveItemCard();
+  }, 400);
+}
+
+function renderRemoveItemCard() {
+  var conversation = document.getElementById('assistantConversation');
+  if (!conversation) return;
+  var L = window.APP_LANGUAGES || {};
+
+  var sections = (window.lastAiResult && window.lastAiResult.sections) || [];
+  var domCats = typeof getInvoiceSectionsFromDOM === 'function' ? getInvoiceSectionsFromDOM() : [];
+
+  // Build accordion HTML grouped by section
+  var accordionHtml = '';
+  var itemIndex = 0;
+  sections.forEach(function(sec, secIdx) {
+    var items = sec.items || [];
+    if (items.length === 0) return;
+
+    // Find matching DOM category for color/icon
+    var domCat = domCats.find(function(dc) { return dc.key === sec.type; }) || {};
+    var catColor = domCat.color || 'gray';
+    var catIcon = domCat.icon || '<rect x="2" y="5" width="20" height="14" rx="2"/>';
+    var catLabel = sec.title || sec.type;
+
+    var colorMap = {
+      orange: { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-600', itemHover: 'hover:bg-orange-50' },
+      blue: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-600', itemHover: 'hover:bg-blue-50' },
+      red: { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-600', itemHover: 'hover:bg-red-50' },
+      green: { bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-600', itemHover: 'hover:bg-green-50' },
+      purple: { bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-600', itemHover: 'hover:bg-purple-50' },
+      gray: { bg: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-600', itemHover: 'hover:bg-gray-50' }
+    };
+    var cm = colorMap[catColor] || colorMap.gray;
+
+    var isOpen = secIdx === 0 ? 'true' : 'false';
+    var contentClass = secIdx === 0 ? '' : ' hidden';
+
+    accordionHtml += '<div class="border rounded-xl overflow-hidden ' + cm.border + '">'
+      + '<button type="button" onclick="toggleRemoveAccordion(this)" data-open="' + isOpen + '" class="w-full flex items-center gap-2 px-3 py-2 ' + cm.bg + ' cursor-pointer">'
+      + '<svg class="w-3.5 h-3.5 ' + cm.text + ' shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + catIcon + '</svg>'
+      + '<span class="text-[11px] font-bold ' + cm.text + ' flex-1 text-left">' + escapeHtml(catLabel) + ' (' + items.length + ')</span>'
+      + '<svg class="w-3 h-3 text-gray-400 transition-transform ' + (secIdx === 0 ? 'rotate-180' : '') + '" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>'
+      + '</button>'
+      + '<div class="remove-accordion-content' + contentClass + '">';
+
+    items.forEach(function(item) {
+      var desc = item.desc || '';
+      accordionHtml += '<button type="button" onclick="removeItemFromInvoice(\'' + escapeHtml(desc).replace(/'/g, "\\'") + '\')" class="w-full flex items-center gap-2 px-3 py-1.5 border-t ' + cm.border + ' bg-white ' + cm.itemHover + ' transition-all cursor-pointer active:scale-[0.98] text-left">'
+        + '<svg class="w-3 h-3 text-red-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
+        + '<span class="text-[11px] font-semibold text-gray-700 truncate">' + escapeHtml(desc) + '</span>'
+        + '</button>';
+    });
+
+    accordionHtml += '</div></div>';
+  });
+
+  // "Entire Invoice" danger button
+  var entireLabel = L.entire_invoice || 'Entire Invoice';
+  var entireBtn = '<button type="button" onclick="removeEntireInvoice()" class="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border-2 border-orange-400 bg-orange-50 hover:bg-orange-100 transition-all cursor-pointer active:scale-[0.97] mt-2">'
+    + '<svg class="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>'
+    + '<span class="text-[12px] font-bold text-orange-700">' + escapeHtml(entireLabel) + '</span>'
+    + '</button>';
+
+  var div = document.createElement('div');
+  div.className = 'flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300';
+  div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
+    + '<div class="max-w-[85%] w-full">'
+    + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm relative">'
+    + widgetCloseBtn()
+    + '<div class="text-xs font-bold text-gray-800 mb-2.5 pr-6">' + escapeHtml(L.cancel_what_prompt || 'What would you like to remove?') + '</div>'
+    + '<div class="space-y-2">' + accordionHtml + '</div>'
+    + entireBtn
+    + '</div></div>';
+  conversation.appendChild(div);
+  conversation.scrollTop = conversation.scrollHeight;
+}
+
+function toggleRemoveAccordion(btn) {
+  var isOpen = btn.dataset.open === 'true';
+  var content = btn.parentElement.querySelector('.remove-accordion-content');
+  var chevron = btn.querySelector('svg:last-child');
+  if (isOpen) {
+    content.classList.add('hidden');
+    btn.dataset.open = 'false';
+    if (chevron) chevron.classList.remove('rotate-180');
+  } else {
+    content.classList.remove('hidden');
+    btn.dataset.open = 'true';
+    if (chevron) chevron.classList.add('rotate-180');
+  }
+}
+
+function removeItemFromInvoice(itemName) {
+  var L = window.APP_LANGUAGES || {};
+  window.disablePreviousInteractiveElements();
+  // Send to AI for removal
+  var msg = (L.remove_prefix || 'Remove') + ' ' + itemName;
+  addUserBubble(msg);
+  showTypingIndicator();
+  triggerAssistantReparse(msg, 'refinement', 'User wants to remove item');
+}
+
+function removeEntireInvoice() {
+  var L = window.APP_LANGUAGES || {};
+  window.disablePreviousInteractiveElements();
+
+  // Clear the entire invoice
+  if (window.lastAiResult) {
+    window.lastAiResult.sections = [];
+    window.lastAiResult.credits = [];
+    window.lastAiResult.client = null;
+    window.lastAiResult.recipient_info = null;
+  }
+  updateUIWithoutTranscript(window.lastAiResult || { sections: [], credits: [] });
+
+  addUserBubble(L.entire_invoice || 'Entire Invoice');
+  showTypingIndicator();
+  setTimeout(function() {
+    removeTypingIndicator();
+    addAIBubble(L.invoice_cleared || 'Invoice cleared. Start over by recording or typing.');
+    var assistInput = document.getElementById('assistantInput');
+    if (assistInput) { assistInput.disabled = false; assistInput.focus(); }
+  }, 400);
+}
+
+// ── UNDO: pop from stack and restore (used by chip AND inline button) ──
+function handleChipUndo() {
+  if (window._pendingAnswer) return;
+  if (!window._undoStack || window._undoStack.length === 0) return;
+  performUndo();
+}
+
+function performUndo() {
+  if (!window._undoStack || window._undoStack.length === 0) return;
+  var L = window.APP_LANGUAGES || {};
+  var snapshot = window._undoStack.pop();
+
   // Restore invoice JSON
-  updateUIWithoutTranscript(window._undoSnapshot.json);
-  window.lastAiResult = window._undoSnapshot.json;
+  updateUIWithoutTranscript(snapshot.json);
+  window.lastAiResult = snapshot.json;
 
   // Restore chat to pre-action state
   var conversation = document.getElementById('assistantConversation');
-  if (conversation && window._undoSnapshot.chatHtml !== undefined) {
-    conversation.innerHTML = window._undoSnapshot.chatHtml;
+  if (conversation && snapshot.chatHtml !== undefined) {
+    conversation.innerHTML = snapshot.chatHtml;
   }
 
   // Restore clarification history length
-  if (window.clarificationHistory && window._undoSnapshot.historyLength !== undefined) {
-    window.clarificationHistory = window.clarificationHistory.slice(0, window._undoSnapshot.historyLength);
+  if (window.clarificationHistory && snapshot.historyLength !== undefined) {
+    window.clarificationHistory = window.clarificationHistory.slice(0, snapshot.historyLength);
   }
 
-  window._undoSnapshot = null;
   window._collectingClientDetail = null;
   window._clarificationQueue = null;
   window._queueAnswers = null;
@@ -6438,7 +6680,7 @@ function handleChipUndo() {
   showTypingIndicator();
   setTimeout(function() {
     removeTypingIndicator();
-    // Show undo confirmation as red-styled message, then quick action chips
+    // Show undo confirmation as red-styled message
     if (conversation) {
       var note = document.createElement('div');
       note.className = 'flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300';
@@ -6629,6 +6871,52 @@ function pickCalendarDate(year, month, day) {
   submitAssistantMessage();
 }
 
+// ── DISCOUNT TYPE SINGLE WIDGET (two-button fixed vs percentage) ──
+function renderDiscountTypeSingleCard(clarification) {
+  var conversation = document.getElementById('assistantConversation');
+  if (!conversation) return;
+  window.disablePreviousInteractiveElements();
+
+  var L = window.APP_LANGUAGES || {};
+  var currSym = '$';
+  if (window.lastAiResult && window.lastAiResult.currency) {
+    var cMap = { 'GEL': '₾', 'USD': '$', 'EUR': '€', 'GBP': '£' };
+    currSym = cMap[window.lastAiResult.currency] || window.lastAiResult.currency;
+  }
+
+  var fixedLabel = L.discount_fixed_label || 'Fixed';
+  var pctLabel = L.discount_percent_label || 'Percentage';
+  var questionText = clarification.question || (L.discount_type_prompt || 'Fixed or percentage?');
+
+  var div = document.createElement('div');
+  div.className = 'flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300';
+  div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
+    + '<div class="max-w-[85%]">'
+    + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm relative">'
+    + widgetCloseBtn()
+    + '<div class="text-xs font-bold text-gray-800 mb-2.5 pr-6">' + escapeHtml(questionText) + '</div>'
+    + '<div class="flex gap-2">'
+    + '<button type="button" onclick="answerDiscountTypeSingle(\'fixed\')" class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border-2 border-orange-300 bg-orange-50 hover:bg-orange-100 transition-all cursor-pointer active:scale-[0.97]">'
+    + '<span class="text-sm font-bold text-orange-600">' + escapeHtml(currSym) + '</span>'
+    + '<span class="text-[11px] font-bold text-orange-700">' + escapeHtml(fixedLabel) + '</span>'
+    + '</button>'
+    + '<button type="button" onclick="answerDiscountTypeSingle(\'percentage\')" class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border-2 border-blue-300 bg-blue-50 hover:bg-blue-100 transition-all cursor-pointer active:scale-[0.97]">'
+    + '<span class="text-sm font-bold text-blue-600">%</span>'
+    + '<span class="text-[11px] font-bold text-blue-700">' + escapeHtml(pctLabel) + '</span>'
+    + '</button>'
+    + '</div>'
+    + '</div></div>';
+  conversation.appendChild(div);
+  conversation.scrollTop = conversation.scrollHeight;
+}
+
+function answerDiscountTypeSingle(type) {
+  var L = window.APP_LANGUAGES || {};
+  var label = type === 'fixed' ? (L.discount_fixed_label || 'Fixed') : (L.discount_percent_label || 'Percentage');
+  window.disablePreviousInteractiveElements();
+  autoSubmitAssistantMessage(label);
+}
+
 // ── DISCOUNT TYPE MULTI WIDGET (per-item fixed/percentage toggle) ──
 function renderDiscountTypeMultiCard(clarification) {
   var conversation = document.getElementById('assistantConversation');
@@ -6659,8 +6947,9 @@ function renderDiscountTypeMultiCard(clarification) {
   div.id = 'discountTypeMultiCard';
   div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
     + '<div class="max-w-[85%] w-full">'
-    + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
-    + '<div class="text-xs font-bold text-gray-800 mb-2.5">' + escapeHtml(clarification.question || L.discount_type_prompt || 'What type of discounts?') + '</div>'
+    + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm relative">'
+    + widgetCloseBtn()
+    + '<div class="text-xs font-bold text-gray-800 mb-2.5 pr-6">' + escapeHtml(clarification.question || L.discount_type_prompt || 'What type of discounts?') + '</div>'
     + '<div class="space-y-1.5">' + itemsHtml + '</div>'
     + '<div class="flex gap-2 mt-2.5">'
     + '<button type="button" onclick="confirmDiscountTypes()" class="flex-1 px-2 py-1.5 rounded-xl border-2 border-orange-300 bg-orange-50 hover:bg-orange-100 transition-all cursor-pointer active:scale-[0.97] text-[10px] font-bold text-orange-700">' + escapeHtml(L.tax_apply_btn || 'Confirm') + '</button>'
@@ -6765,16 +7054,16 @@ function renderTaxManagementCard() {
   var itemsHtml = '';
   items.forEach(function(item, idx) {
     var pct = item.rate;
-    var barColor = pct > 0 ? 'bg-green-500' : 'bg-gray-300';
-    var labelColor = pct > 0 ? 'text-green-600' : 'text-gray-400';
+    var barColor = pct > 0 ? '' : 'bg-gray-300';
+    var labelColor = pct > 0 ? '' : 'text-gray-400';
     itemsHtml += '<div class="px-2.5 py-2 rounded-lg bg-white">'
       + '<div class="flex items-center justify-between gap-2 mb-1">'
       + '<span class="text-[11px] font-semibold text-gray-700 truncate flex-1">' + escapeHtml(item.name) + '</span>'
       + '<div class="flex items-center gap-1 shrink-0">'
-      + '<input type="number" min="0" max="100" step="1" value="' + pct + '" data-tax-idx="' + idx + '" onchange="onTaxInputChange(this)" oninput="onTaxInputChange(this)" class="tax-rate-input w-10 text-center text-[11px] font-bold ' + labelColor + ' border border-gray-200 rounded-md px-0.5 py-0.5 focus:outline-none focus:border-orange-400 transition-all" />'
+      + '<input type="number" min="0" max="100" step="1" value="' + pct + '" data-tax-idx="' + idx + '" onchange="onTaxInputChange(this)" oninput="onTaxInputChange(this)" class="tax-rate-input w-10 text-center text-[11px] font-bold border border-gray-200 rounded-md px-0.5 py-0.5 focus:outline-none focus:border-orange-400 transition-all" style="color:' + (pct > 0 ? '#364153' : '#9ca3af') + '" />' 
       + '<span class="text-[10px] font-bold text-gray-400">%</span>'
       + '</div></div>'
-      + '<input type="range" min="0" max="100" step="1" value="' + pct + '" data-tax-idx="' + idx + '" oninput="onTaxSliderChange(this)" class="tax-rate-slider w-full h-1.5 rounded-full appearance-none cursor-pointer accent-green-500 ' + barColor + '" style="background:linear-gradient(to right,#22c55e ' + pct + '%,#e5e7eb ' + pct + '%)" />'
+      + '<input type="range" min="0" max="100" step="1" value="' + pct + '" data-tax-idx="' + idx + '" oninput="onTaxSliderChange(this)" class="tax-rate-slider w-full h-1.5 rounded-full appearance-none cursor-pointer ' + barColor + '" style="accent-color:#364153;background:linear-gradient(to right,#364153 ' + pct + '%,#e5e7eb ' + pct + '%)" />'
       + '</div>';
   });
 
@@ -6786,8 +7075,9 @@ function renderTaxManagementCard() {
   div.id = 'taxManagementCard';
   div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
     + '<div class="max-w-[85%] w-full">'
-    + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
-    + '<div class="text-xs font-bold text-gray-800 mb-2.5">' + escapeHtml(L.tax_management_prompt || 'Which items should be taxed?') + '</div>'
+    + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm relative">'
+    + widgetCloseBtn()
+    + '<div class="text-xs font-bold text-gray-800 mb-2.5 pr-6">' + escapeHtml(L.tax_management_prompt || 'Which items should be taxed?') + '</div>'
     + '<div class="space-y-1.5">' + itemsHtml + '</div>'
     + '<div class="flex gap-2 mt-2.5">'
     + '<button type="button" onclick="taxBulkAction(0)" class="flex-1 px-2 py-1.5 rounded-xl border-2 border-red-200 bg-red-50 hover:bg-red-100 transition-all cursor-pointer active:scale-[0.97] text-[10px] font-bold text-red-600">' + escapeHtml(L.tax_remove_all || 'None') + '</button>'
@@ -6800,7 +7090,7 @@ function renderTaxManagementCard() {
 }
 
 function syncTaxSliderStyle(slider, val) {
-  slider.style.background = 'linear-gradient(to right,#22c55e ' + val + '%,#e5e7eb ' + val + '%)';
+  slider.style.background = 'linear-gradient(to right,#364153 ' + val + '%,#e5e7eb ' + val + '%)';
 }
 
 function onTaxSliderChange(slider) {
@@ -6816,7 +7106,8 @@ function onTaxSliderChange(slider) {
     var inp = card.querySelector('.tax-rate-input[data-tax-idx="' + idx + '"]');
     if (inp) {
       inp.value = val;
-      inp.className = 'tax-rate-input w-10 text-center text-[11px] font-bold ' + (val > 0 ? 'text-green-600' : 'text-gray-400') + ' border border-gray-200 rounded-md px-0.5 py-0.5 focus:outline-none focus:border-orange-400 transition-all';
+      inp.className = 'tax-rate-input w-10 text-center text-[11px] font-bold border border-gray-200 rounded-md px-0.5 py-0.5 focus:outline-none focus:border-orange-400 transition-all';
+      inp.style.color = val > 0 ? '#364153' : '#9ca3af';
     }
   }
   if (window._taxManagementItems && window._taxManagementItems[idx]) {
@@ -6830,7 +7121,8 @@ function onTaxInputChange(inp) {
   if (val < 0) val = 0;
   if (val > 100) val = 100;
   inp.value = val;
-  inp.className = 'tax-rate-input w-10 text-center text-[11px] font-bold ' + (val > 0 ? 'text-green-600' : 'text-gray-400') + ' border border-gray-200 rounded-md px-0.5 py-0.5 focus:outline-none focus:border-orange-400 transition-all';
+  inp.className = 'tax-rate-input w-10 text-center text-[11px] font-bold border border-gray-200 rounded-md px-0.5 py-0.5 focus:outline-none focus:border-orange-400 transition-all';
+  inp.style.color = val > 0 ? '#364153' : '#9ca3af';
 
   // Sync slider
   var card = document.getElementById('taxManagementCard');
@@ -6856,7 +7148,8 @@ function taxBulkAction(rate) {
   });
   card.querySelectorAll('.tax-rate-input').forEach(function(inp) {
     inp.value = rate;
-    inp.className = 'tax-rate-input w-10 text-center text-[11px] font-bold ' + (rate > 0 ? 'text-green-600' : 'text-gray-400') + ' border border-gray-200 rounded-md px-0.5 py-0.5 focus:outline-none focus:border-orange-400 transition-all';
+    inp.className = 'tax-rate-input w-10 text-center text-[11px] font-bold border border-gray-200 rounded-md px-0.5 py-0.5 focus:outline-none focus:border-orange-400 transition-all';
+    inp.style.color = rate > 0 ? '#364153' : '#9ca3af';
   });
   if (window._taxManagementItems) {
     window._taxManagementItems.forEach(function(item) { item.rate = rate; });
@@ -6901,8 +7194,10 @@ function confirmTaxManagement() {
   if (untaxedItems.length === items.length) {
     summary = L.tax_all_removed || 'All tax removed';
   } else {
-    summary = (L.tax_summary || '%{taxed} taxed, %{untaxed} untaxed')
-      .replace('%{taxed}', taxedItems.length).replace('%{untaxed}', untaxedItems.length);
+    // Per-item summary: "Item1 18%, Item2 10%, Item3 0%"
+    summary = items.map(function(item) {
+      return item.name + ' ' + item.rate + '%';
+    }).join(', ');
   }
   addUserBubble(summary);
 
@@ -7302,32 +7597,76 @@ function handleClientDetailInput(value) {
     return;
   }
 
-  // ── STANDARD CLIENT DETAIL FIELDS ──
+  // ── SMART INPUT DETECTION ──
   var isEmailPattern = /[^@\s]+@[^@\s]+\.[^@\s]+/.test(value);
+  var isPhonePattern = /^[\d\s\-\+\(\)]{7,}$/.test(value.trim());
+  var isAddressLike = value.trim().length > 20 || /\d+.*(\b(street|st|ave|road|rd|blvd|ქუჩა|გამზ|შესახ|პროსპ|მის)\b)/i.test(value);
 
-  // Smart input detection: email entered when phone was asked
+  // Detect what the input LOOKS LIKE vs what was asked
+  var detectedAs = null;
+  var reaskField = null;
+  var detectedMsg = null;
+  var defs = getDetailFieldDefs();
+
   if (field === 'phone' && isEmailPattern) {
-    window._newClientDetails['email'] = value;
+    // Asked for phone, got email
+    detectedAs = 'email';
+    reaskField = 'phone';
+    detectedMsg = L.detail_detected_email || "That looks like an email — saved it. Now please enter the phone number:";
+  } else if (field === 'email' && isPhonePattern) {
+    // Asked for email, got phone number
+    detectedAs = 'phone';
+    reaskField = 'email';
+    detectedMsg = L.detected_phone || "That looks like a phone number — saved.";
+  } else if (field === 'email' && !isEmailPattern && isAddressLike) {
+    // Asked for email, got address-like text
+    detectedAs = 'address';
+    reaskField = 'email';
+    detectedMsg = L.detected_address || "That looks like an address — saved.";
+  } else if (field === 'phone' && !isPhonePattern && isAddressLike) {
+    // Asked for phone, got address-like text
+    detectedAs = 'address';
+    reaskField = 'phone';
+    detectedMsg = L.detected_address || "That looks like an address — saved.";
+  } else if (field === 'phone' && !isPhonePattern && !isEmailPattern && !isAddressLike && value.trim().length > 2) {
+    // Asked for phone, got random text → save as notes
+    detectedAs = 'notes';
+    reaskField = 'phone';
+    detectedMsg = L.detected_notes || "Saved as a note.";
+  } else if (field === 'email' && !isEmailPattern && !isPhonePattern && !isAddressLike && value.trim().length > 2) {
+    // Asked for email, got random text → save as notes
+    detectedAs = 'notes';
+    reaskField = 'email';
+    detectedMsg = L.detected_notes || "Saved as a note.";
+  }
+
+  if (detectedAs && reaskField) {
+    // Save under the detected field (if not already collected)
+    if (!window._newClientDetails[detectedAs]) {
+      window._newClientDetails[detectedAs] = value;
+    }
     window._collectingClientDetail = null;
 
     showTypingIndicator();
     setTimeout(function() {
       removeTypingIndicator();
-      addAIBubble(L.detail_detected_email || "That looks like an email — saved it. Now please enter the phone number:");
+      // Show what we detected, then re-ask the original field
+      var reaskDef = defs[reaskField];
+      var reaskPrompt = reaskDef ? reaskDef.prompt : '';
+      addAIBubble(detectedMsg + (reaskPrompt ? ' ' + reaskPrompt : ''));
 
-      // Re-ask for phone
-      window._collectingClientDetail = 'phone';
+      window._collectingClientDetail = reaskField;
       var assistInput = document.getElementById('assistantInput');
       if (assistInput) {
         assistInput.value = '';
-        assistInput.placeholder = L.detail_prompt_phone || "Phone number:";
+        assistInput.placeholder = reaskPrompt || '';
         assistInput.focus();
       }
     }, 400);
     return;
   }
 
-  // Save the value
+  // Save the value normally
   window._newClientDetails[field] = value;
   window._collectingClientDetail = null;
 
@@ -7619,16 +7958,18 @@ async function triggerAssistantReparse(userAnswer, type, questionsText) {
 
   const historyEntry = { questions: currentQuestions, answer: userAnswer };
 
-  // Snapshot for undo (single-level): store JSON + chat HTML + history length
+  // Push undo checkpoint onto stack (max 10)
   if (window.lastAiResult) {
     try {
+      if (!window._undoStack) window._undoStack = [];
       var conv = document.getElementById('assistantConversation');
-      window._undoSnapshot = {
+      window._undoStack.push({
         json: JSON.parse(JSON.stringify(window.lastAiResult)),
         chatHtml: conv ? conv.innerHTML : '',
         historyLength: (window.clarificationHistory || []).length
-      };
-    } catch(e) { window._undoSnapshot = null; }
+      });
+      if (window._undoStack.length > 10) window._undoStack.shift();
+    } catch(e) { /* ignore serialization errors */ }
   }
 
   // Queue answer for display AFTER AI finishes
@@ -8105,6 +8446,20 @@ Object.assign(window, {
   buildCalendarGrid,
   navigateCalendar,
   pickCalendarDate,
+  widgetCloseBtn,
+  cancelWidget,
+  performUndo,
+  renderInlineUndoBtn,
+  handleChipRemoveItem,
+  renderRemoveItemCard,
+  toggleRemoveAccordion,
+  removeItemFromInvoice,
+  removeEntireInvoice,
+  renderClientConfirmExistingCard,
+  confirmExistingClientYes,
+  confirmExistingClientNo,
+  renderDiscountTypeSingleCard,
+  answerDiscountTypeSingle,
   renderDiscountTypeMultiCard,
   toggleDiscountType,
   confirmDiscountTypes,
