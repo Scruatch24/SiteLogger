@@ -1328,6 +1328,7 @@ PROMPT
         thinking_budget: thinking_budget
       )
 
+
       # Cache fallback: if cached instruction failed, retry same model without cache
       if use_cached_instruction && body["error"].present?
         Rails.logger.warn("GEMINI CACHE FALLBACK (#{gemini_model}): #{body["error"].to_json}")
@@ -2118,7 +2119,7 @@ PROMPT
 
     begin
       gemini_model = ENV["GEMINI_PRIMARY_MODEL"].presence || "gemini-2.5-flash-lite"
-      thinking_budget = (ENV["GEMINI_THINKING_BUDGET"].presence || 2048).to_i
+      thinking_budget = (ENV["GEMINI_REFINE_THINKING_BUDGET"].presence || ENV["GEMINI_THINKING_BUDGET"].presence || 4096).to_i
 
       body = gemini_generate_content(
         api_key: api_key,
