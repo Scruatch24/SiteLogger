@@ -1871,7 +1871,7 @@ PROMPT
           event_type: AnalyticsEvent::VOICE_PROCESSING,
           duration_seconds: processing_time,
           source: source,
-          metadata: { model: used_model }
+          metadata: { model: gemini_model }
         )
 
         unless is_manual_text
@@ -1887,7 +1887,7 @@ PROMPT
           user_id: current_user.id,
           event_type: AnalyticsEvent::TRANSCRIPTION_SUCCESS,
           source: source,
-          metadata: { model: used_model, has_clarifications: final_response["clarifications"].present? }
+          metadata: { model: gemini_model, has_clarifications: final_response["clarifications"].present? }
         )
       end
 
