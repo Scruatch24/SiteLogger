@@ -5795,17 +5795,9 @@ function handleQueueAnswer(answer) {
     window._itemInputListData = null;
   }
 
-  // Inter-step thinking: single text ambiguity → rename item in subsequent steps
-  // BUT only if the answer is a real qualifier, not a dismissal like "არაფერი კონკრეტული"
-  if (currentItem._original_name && answer && answer !== '__CANCELLED__') {
-    var dismissalRe = /^არა$|არაფერი|არ\s*ვიცი|არ\s*მინდა|უბრალოდ|^no$|^nothing$|^none$|don'?t\s*know|not\s*sure|^just$|^skip$|გამოტოვე|^N\/A$/i;
-    var trimmed = answer.trim();
-    if (!dismissalRe.test(trimmed) && trimmed.length < 60) {
-      window._queueItemRenames = window._queueItemRenames || {};
-      var newName = trimmed + ' ' + currentItem._original_name;
-      window._queueItemRenames[currentItem._original_name.toLowerCase()] = newName;
-    }
-  }
+  // Inter-step renaming REMOVED — the AI handles name interpretation via batch answers.
+  // Previously this regex-concatenated answers as prefixes (e.g., "კარების" + "შეკეთება"),
+  // causing bugs like "არა შეკეთება". Now the AI sees the full Q&A context and does it right.
 
   // Remove progress indicator
   var conversation = document.getElementById('assistantConversation');
@@ -5822,7 +5814,6 @@ function handleQueueAnswer(answer) {
     }, 400);
   } else {
     // All answered — batch submit to AI
-    window._queueItemRenames = null; // clean up
     batchSubmitQueueAnswers();
   }
 }
@@ -7241,14 +7232,6 @@ function renderItemInputListCard(clarification) {
     currSym = cMap[window.lastAiResult.currency] || window.lastAiResult.currency;
   }
 
-  // Apply inter-step renames (e.g. შეკეთება → მანქანის შეკეთება after ambiguity)
-  if (window._queueItemRenames) {
-    items.forEach(function(item) {
-      var key = (item.name || '').toLowerCase();
-      if (window._queueItemRenames[key]) item.name = window._queueItemRenames[key];
-    });
-  }
-
   // Store state for confirm
   window._itemInputListData = items.map(function(item, idx) {
     var toggle = item.toggle || null;
@@ -7485,21 +7468,11 @@ function validateDiscountInput(inp) {
   }
 }
 
-// Clean Georgian question wrapping from item names (frontend safety net)
-// NEVER strip word suffixes — only strip question wrapper phrases
+// Clean item display name — minimal normalization only
+// The AI and backend now provide clean item_name fields; this is just a safety trim
 function cleanItemDisplayName(raw) {
   if (!raw) return 'Item';
-  var n = raw.replace(/[?？]+\s*$/, '')
-    .replace(/^რა\s+ფასად\s+გსურთ\s+/i, '')
-    .replace(/^რა\s+ღირს\s+/i, '')
-    .replace(/^რამდენი?\s+/i, '')
-    .replace(/^რა\s+სახის\s+/i, '')
-    .replace(/^გსურთ\s+/i, '')
-    .replace(/\s+დამატება$/i, '')
-    .replace(/\s+შეცვლა$/i, '')
-    .replace(/\s+გსურთ$/i, '')
-    .replace(/\(.*?\)/g, '')
-    .replace(/\s+/g, ' ').trim();
+  var n = raw.replace(/[?？]+\s*$/, '').replace(/\s+/g, ' ').trim();
   return n || 'Item';
 }
 
@@ -7511,25 +7484,7 @@ function confirmItemInputList() {
   var card = window._currentIilCardId ? document.getElementById(window._currentIilCardId) : null;
   if (!card) return;
 
-  // Check if this is an ambiguity card — build rename map for subsequent steps
-  // BUT only if the answer is a real qualifier, not a dismissal
-  var dismissalRe = /^არა$|არაფერი|არ\s*ვიცი|არ\s*მინდა|უბრალოდ|^no$|^nothing$|^none$|don'?t\s*know|not\s*sure|^just$|^skip$|გამოტოვე|^N\/A$/i;
-  var currentClar = window._clarificationQueue && window._clarificationQueue[0];
-  if (currentClar && currentClar.field === 'item_clarification') {
-    window._queueItemRenames = window._queueItemRenames || {};
-    data.forEach(function(item) {
-      var itemCard = card.querySelector('div[data-iil-idx="' + item.idx + '"]');
-      if (!itemCard) return;
-      var descInput = itemCard.querySelector('.iil-input[data-iil-key="description"]');
-      if (descInput && descInput.value.trim()) {
-        var val = descInput.value.trim();
-        if (!dismissalRe.test(val) && val.length < 60) {
-          var newName = val + ' ' + item.name;
-          window._queueItemRenames[item.name.toLowerCase()] = newName;
-        }
-      }
-    });
-  }
+  // Inter-step renaming REMOVED — AI handles name interpretation via batch answers.
 
   var parts = [];
   data.forEach(function(item) {
@@ -7846,13 +7801,6 @@ function renderTaxManagementInQueue(clarification) {
     return;
   }
 
-  // Apply inter-step renames
-  if (window._queueItemRenames) {
-    items.forEach(function(item) {
-      var key = (item.name || '').toLowerCase();
-      if (window._queueItemRenames[key]) item.name = window._queueItemRenames[key];
-    });
-  }
 
   // Store items for confirm
   window._taxQueueItems = items;

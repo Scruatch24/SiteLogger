@@ -1162,9 +1162,16 @@ Ask ONLY when a category is mentioned but has NO number at all:
 
 If ALL values are explicit numbers AND no ambiguous notes, return clarifications: [] (empty array).
 
-FORMAT: { "field": "[category].[field_name]", "guess": [best_guess_value], "question": "[short direct question]", "type": "[response_type]" }
+FORMAT: { "field": "[category].[field_name]", "guess": [best_guess_value], "question": "[short direct question]", "type": "[response_type]", "item_name": "[clean item name]" }
 - For missing numbers: guess = your best numeric estimate (or 0)
 - For ambiguous notes/warranty: guess = ITEM NAME(S) the note applies to (NEVER the note text itself)
+
+ITEM NAME RULE (CRITICAL):
+- Every clarification about a specific item MUST include "item_name" with the EXACT clean item name from sections (e.g., "შეკეთება", "ტელეფონი", "ქეისი").
+- "item_name" must match a section item's "desc" field EXACTLY. No question phrases, no suffixes, no wrapping.
+- The "question" field is for the QUESTION TEXT only (e.g., "რა სახის შეკეთებაა?"). NEVER embed item names inside question text as if they were the item name.
+- WRONG: { "field": "labor.price", "question": "რა ფასად გსურთ შეკეთების?" } ← no item_name, name buried in question
+- CORRECT: { "field": "labor.price", "item_name": "შეკეთება", "question": "რა ფასია?" }
 
 RESPONSE TYPE TAXONOMY (every clarification MUST include a "type" field):
 - "choice": user picks ONE option from a list. MUST include "options": ["opt1", "opt2", ...]. Example: section_type, currency.
@@ -3823,7 +3830,15 @@ PROMPT
       (s["items"] || []).map { |i| { desc: i["desc"].to_s.strip, category: cat } }
     end
 
-    # ── Name cleaning: strip Georgian wrapping, match against section items ──
+    # ── Name resolution: prefer AI-provided item_name, fallback to regex cleaning ──
+    # resolve_name: use c["item_name"] if AI provided it, otherwise fall back to clean_name
+    resolve_name = lambda do |clar_hash, fallback_raw|
+      ai_name = clar_hash.is_a?(Hash) ? clar_hash["item_name"].to_s.strip : ""
+      return ai_name if ai_name.present? && section_items.any? { |s| s[:desc].downcase == ai_name.downcase }
+      clean_name.call(fallback_raw)
+    end
+
+    # clean_name: FALLBACK regex extraction (only used when AI doesn't provide item_name)
     clean_name = lambda do |raw|
       name = raw.to_s.strip
       return "Item" if name.blank? || name.match?(/\A[\d.,\s]+\z/)
@@ -3883,7 +3898,7 @@ PROMPT
       # Ambiguity: "რა სახის?", "რისი?", "what kind?" — NOT price/qty/disc/tax
       if q.match?(ambig_re) && !q.match?(price_re) && !q.match?(qty_re) && !q.match?(disc_re) && !q.match?(tax_re)
         absorbed << c.object_id
-        name = clean_name.call(c["guess"].to_s.presence || q.gsub(/[?？]/, "").gsub(ambig_re, "").gsub(/^რა\s+/i, "").strip)
+        name = resolve_name.call(c, c["guess"].to_s.presence || q.gsub(/[?？]/, "").gsub(ambig_re, "").gsub(/^რა\s+/i, "").strip)
         ambig_list << { clar: c, name: name }
         next
       end
@@ -3945,7 +3960,7 @@ PROMPT
     if existing_iil
       # Clean names + ensure inputs/toggles in AI-generated item_input_list
       (existing_iil["items"] || []).each do |item|
-        item["name"] = clean_name.call(item["name"])
+        item["name"] = resolve_name.call(item, item["name"])
         cat = item["category"].to_s
         # Match category from section items if missing, fallback to keyword detection
         if cat.blank?
@@ -3975,7 +3990,7 @@ PROMPT
       # Build item_input_list from individual text questions
       merged_names = Set.new
       items = price_list.map do |pc|
-        item_name = clean_name.call(pc["guess"].to_s.presence || pc["question"])
+        item_name = resolve_name.call(pc, pc["guess"].to_s.presence || pc["question"])
         merged_names << item_name.downcase
         field_cat = pc["field"].to_s.split(".").first
         category = cat_prefixes.include?(field_cat) ? field_cat : nil
@@ -3984,7 +3999,7 @@ PROMPT
 
         # Find matching qty question
         mq = qty_list.find do |qc|
-          qn = clean_name.call(qc["guess"].to_s.presence || qc["question"])
+          qn = resolve_name.call(qc, qc["guess"].to_s.presence || qc["question"])
           qn.downcase == item_name.downcase
         end
         absorbed << mq.object_id if mq
@@ -3998,7 +4013,7 @@ PROMPT
       # Absorb leftover qty questions for items already in card
       qty_list.each do |qc|
         next if absorbed.include?(qc.object_id)
-        qn = clean_name.call(qc["guess"].to_s.presence || qc["question"])
+        qn = resolve_name.call(qc, qc["guess"].to_s.presence || qc["question"])
         absorbed << qc.object_id if merged_names.include?(qn.downcase)
       end
       new_clars << { "type" => "item_input_list", "field" => "item_prices", "question" => price_q, "items" => items }
