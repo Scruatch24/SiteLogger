@@ -319,7 +319,7 @@ ka:
   confirm_btn: "დადასტურება"
   select_all_btn: "ყველა"
   undo_btn: "გაუქმება"
-  undo_confirmed: "ცვლილება გაუქმდა."
+  undo_confirmed: "ცვლილებები გაუქმდა."
   invoice_manual_update: "ინვოისი ხელით განახლდა"
   got_it: "გასაგებია ✓"
   no_client: "კლიენტი არ არის"

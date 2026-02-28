@@ -5624,7 +5624,7 @@ function handleClarifications(clarifications) {
         addAIBubble(L.ai_did_not_understand || 'ვერ გავიგე მოთხოვნა. სცადეთ სხვა ფორმულირებით ან დაყავით ნაწილებად.');
         renderQuickActionChips();
       } else {
-        addAIBubble(window.APP_LANGUAGES.anything_else || "Anything else to change?");
+        addAIBubble(window.APP_LANGUAGES.anything_else || "Anything else to change?", null, null, {'anything-else': 'true'});
         renderQuickActionChips();
         window.setupSaveButton();
       }
@@ -5666,7 +5666,7 @@ function handleClarifications(clarifications) {
     showTypingIndicator();
     setTimeout(function() {
       removeTypingIndicator();
-      addAIBubble(window.APP_LANGUAGES.anything_else || "Anything else to change?");
+      addAIBubble(window.APP_LANGUAGES.anything_else || "Anything else to change?", null, null, {'anything-else': 'true'});
       renderQuickActionChips();
       window.setupSaveButton();
     }, 600);
@@ -5824,7 +5824,7 @@ function batchSubmitQueueAnswers() {
       showTypingIndicator();
       setTimeout(function() {
         removeTypingIndicator();
-        addAIBubble(window.APP_LANGUAGES.anything_else || "Anything else to change?");
+        addAIBubble(window.APP_LANGUAGES.anything_else || "Anything else to change?", null, null, {'anything-else': 'true'});
         renderQuickActionChips();
         window.setupSaveButton();
         var assistInput = document.getElementById('assistantInput');
@@ -5898,12 +5898,13 @@ function removeTypingIndicator() {
   conversation.scrollTop = conversation.scrollHeight;
 }
 
-function addAIBubble(text, guessHtml, progressTag) {
+function addAIBubble(text, guessHtml, progressTag, dataAttrs) {
   const conversation = document.getElementById('assistantConversation');
   if (!conversation) return;
 
   const div = document.createElement('div');
   div.className = "flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300";
+  if (dataAttrs) { Object.keys(dataAttrs).forEach(function(k) { div.setAttribute('data-' + k, dataAttrs[k]); }); }
   const guessBlock = guessHtml ? `<div class="mt-1.5 px-3 py-1 bg-orange-50 border border-dashed border-orange-300 rounded-lg text-[11px] text-orange-700 font-bold">${guessHtml}</div>` : '';
   const tagHtml = progressTag || '';
   div.innerHTML = `
@@ -5943,7 +5944,7 @@ function cancelWidget() {
   showTypingIndicator();
   setTimeout(function() {
     removeTypingIndicator();
-    addAIBubble(L.anything_else || 'Anything else to change?');
+    addAIBubble(L.anything_else || 'Anything else to change?', null, null, {'anything-else': 'true'});
     renderQuickActionChips();
     window.setupSaveButton();
   }, 400);
@@ -6418,13 +6419,15 @@ function renderYesNoCard(clarification) {
 
 function renderInlineUndoBtn() {
   if (!window._undoStack || window._undoStack.length === 0) return;
+  if (window._skipNextUndoBtn) { window._skipNextUndoBtn = false; return; }
   var conversation = document.getElementById('assistantConversation');
   if (!conversation) return;
   var L = window.APP_LANGUAGES || {};
   var snapshotIdx = window._undoStack.length - 1;
 
   var div = document.createElement('div');
-  div.className = 'flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300 ml-9 mt-0.5 mb-0.5';
+  div.className = 'flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300 ml-9';
+  div.style.marginTop = '2px';
   div.innerHTML = '<button type="button" onclick="performUndoTo(' + snapshotIdx + ')" class="undo-btn inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-red-200 bg-white hover:bg-red-50 hover:border-red-300 transition-all cursor-pointer active:scale-[0.95] text-[10px] font-bold text-red-400 hover:text-red-600 shadow-sm">'
     + '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>'
     + escapeHtml(L.undo_and_revert || 'Undo')
@@ -6478,6 +6481,7 @@ function renderQuickActionChips() {
 
   var div = document.createElement('div');
   div.className = "quick-action-chips flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300 ml-9";
+  div.style.marginTop = '8px';
   div.innerHTML = '<div class="flex flex-wrap gap-1.5 mt-0">' + chipHtml + '</div>';
 
   conversation.appendChild(div);
@@ -6836,6 +6840,8 @@ function performUndoTo(targetIdx) {
   var conversation = document.getElementById('assistantConversation');
   if (conversation && snapshot.chatHtml !== undefined) {
     conversation.innerHTML = snapshot.chatHtml;
+    // Remove old "anything else" bubbles from restored snapshot
+    conversation.querySelectorAll('[data-anything-else]').forEach(function(el) { el.remove(); });
   }
 
   // Restore clarification history length
@@ -6866,7 +6872,8 @@ function performUndoTo(targetIdx) {
       conversation.appendChild(note);
       conversation.scrollTop = conversation.scrollHeight;
     }
-    addAIBubble(L.anything_else || 'Anything else to change?');
+    addAIBubble(L.anything_else || 'Anything else to change?', null, null, {'anything-else': 'true'});
+    window._skipNextUndoBtn = true;
     renderQuickActionChips();
     window.setupSaveButton();
     var assistInput = document.getElementById('assistantInput');
@@ -8117,7 +8124,7 @@ function finishClientDetailCollection() {
   showTypingIndicator();
   setTimeout(function() {
     removeTypingIndicator();
-    addAIBubble(window.APP_LANGUAGES.anything_else || 'Anything else to change?');
+    addAIBubble(window.APP_LANGUAGES.anything_else || 'Anything else to change?', null, null, {'anything-else': 'true'});
     renderQuickActionChips();
     window.setupSaveButton();
   }, 400);
