@@ -1389,6 +1389,40 @@ PROMPT
         return render json: { error: json["error"] }, status: 422
       end
 
+      # #10: Structural JSON validation — ensure AI returned a usable object
+      unless json.is_a?(Hash)
+        Rails.logger.error "AI SCHEMA FAIL: response is not a Hash, got #{json.class}"
+        return render json: { error: t('invalid_ai_output') }, status: 422
+      end
+
+      # Coerce sections to array if AI returned wrong structure
+      if json["sections"].present? && !json["sections"].is_a?(Array)
+        Rails.logger.warn "AI SCHEMA FIX: sections was #{json["sections"].class}, wrapping in array"
+        json["sections"] = [json["sections"]]
+      end
+
+      # Validate section items structure
+      (json["sections"] || []).each_with_index do |sec, i|
+        unless sec.is_a?(Hash)
+          Rails.logger.warn "AI SCHEMA FIX: sections[#{i}] was #{sec.class}, removing"
+          json["sections"][i] = nil
+          next
+        end
+        if sec["items"].present? && !sec["items"].is_a?(Array)
+          Rails.logger.warn "AI SCHEMA FIX: sections[#{i}].items was #{sec["items"].class}, wrapping"
+          sec["items"] = [sec["items"]]
+        end
+        (sec["items"] || []).reject! { |item| !item.is_a?(Hash) }
+      end
+      json["sections"]&.compact!
+
+      # Validate clarifications structure
+      if json["clarifications"].present? && !json["clarifications"].is_a?(Array)
+        Rails.logger.warn "AI SCHEMA FIX: clarifications was #{json["clarifications"].class}, wrapping"
+        json["clarifications"] = [json["clarifications"]]
+      end
+      (json["clarifications"] || []).reject! { |c| !c.is_a?(Hash) }
+
       Rails.logger.info "AI_PROCESSED: #{json}"
 
       # Enforce Array Safety
@@ -3888,7 +3922,31 @@ PROMPT
       next unless c.is_a?(Hash)
       q = c["question"].to_s
       f = c["field"].to_s
+
+      # #9: Normalize field names — AI may return "price" instead of "unit_price"
+      c["field"] = f.gsub(/\bprice\b(?!.*unit)/i, "unit_price") if f.present? && !f.match?(/unit_price|discount/i)
+
+      # #9: Infer missing type from field/question when AI omits it
       t = c["type"].to_s
+      if t.blank?
+        if f.match?(/tax_rate|vat/i) || q.match?(tax_re)
+          c["type"] = t = "tax_management"
+        elsif f.match?(/discount/i) || q.match?(disc_re)
+          c["type"] = t = "text"
+        elsif f.match?(/\.unit_price|\.price|\.cost|\.qty|\.quantity/i) || q.match?(price_re) || q.match?(qty_re)
+          c["type"] = t = "text"
+        elsif q.match?(ambig_re)
+          c["type"] = t = "text"
+        else
+          c["type"] = t = "text"
+        end
+        Rails.logger.info "AUTO-UPGRADE: Inferred type='#{t}' for field='#{f}' question='#{q.truncate(60)}'"
+      end
+
+      # #4: Ensure item_name is always populated for frontend display
+      if c["item_name"].blank? && f.present? && f.include?(".")
+        c["item_name"] = resolve_name.call(c, f.split(".").last)
+      end
 
       # AI already returned item_input_list → absorb it, clean names later
       if t == "item_input_list"

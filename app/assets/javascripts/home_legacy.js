@@ -7455,6 +7455,21 @@ function validateDiscountInput(inp) {
   var itemCard = card.querySelector('div[data-iil-idx="' + idx + '"]');
   if (!itemCard) return;
 
+  // #5: Recalculate maxPrice from LIVE lastAiResult (prices may have been set after card creation)
+  if (window.lastAiResult && window.lastAiResult.sections) {
+    var iName = (item.name || '').toLowerCase();
+    window.lastAiResult.sections.forEach(function(sec) {
+      (sec.items || []).forEach(function(sItem) {
+        var sName = (sItem.desc || sItem.name || '').toLowerCase();
+        if (sName === iName) {
+          var qty = parseFloat(sItem.qty) || 1;
+          var price = parseFloat(sItem.unit_price || sItem.price) || 0;
+          item.maxPrice = Math.round(qty * price * 100) / 100;
+        }
+      });
+    });
+  }
+
   var activeColor = 'bg-green-500 text-white';
   var inactiveColor = 'bg-white text-gray-400 hover:bg-gray-50';
   var disabledColor = 'bg-gray-100 text-gray-300 cursor-not-allowed';
@@ -7797,6 +7812,15 @@ function confirmTaxManagement() {
   if (!items || items.length === 0) return;
   var L = window.APP_LANGUAGES || {};
 
+  // #13: Lock tax rates into _userItemOverrides (non-queue path also needs protection)
+  if (!window._userItemOverrides) window._userItemOverrides = {};
+  items.forEach(function(item) {
+    var key = item.name.toLowerCase();
+    if (!window._userItemOverrides[key]) window._userItemOverrides[key] = {};
+    window._userItemOverrides[key].taxable = item.rate > 0;
+    window._userItemOverrides[key].tax_rate = item.rate;
+  });
+
   // DIRECTLY apply tax rates to invoice JSON as immediate safety net
   if (window.lastAiResult && window.lastAiResult.sections) {
     window.lastAiResult.sections.forEach(function(sec) {
@@ -8093,8 +8117,8 @@ function applyTaxTextDirectly(text) {
   });
   if (allItems.length === 0) return;
 
-  // Pattern 1: "remove all tax" / "გადასახადი მოხსენი" / "0 tax" / "ყველა 0"
-  var removeAllRe = /^(remove\s+all\s+tax|no\s+tax|0\s*%?\s*(tax|დღგ)|გადასახად\w*\s+(მოხსენ|წაშალ|არ)|ყველა\s+0\s*%?)\s*$/i;
+  // Pattern 1: "remove all tax" / "გადასახადი მოხსენი" / "0 tax" / "ყველა 0" / "tax free" / "ნუ დაადებ დღგ-ს" / "დღგ-ს გარეშე"
+  var removeAllRe = /^(remove\s+all\s+tax|no\s+tax|tax\s*free|without\s+tax|0\s*%?\s*(tax|დღგ)|გადასახად\w*\s+(მოხსენ|წაშალ|არ)|ყველა\s+0\s*%?|ნუ\s+დაადებ\s+დღგ|დღგ[‐\-]?ს?\s+გარეშე|არ\s+დაადო\s+გადასახად|დღგ\s+(მოხსენ|წაშალ|არ)|დღგ\s+ნუ)\s*$/i;
   if (removeAllRe.test(t)) {
     allItems.forEach(function(item) { item.taxable = false; item.tax_rate = 0; });
     _lockCurrentTaxRates();
@@ -8556,6 +8580,12 @@ function handleClientDetailInput(value) {
   var field = window._collectingClientDetail;
   if (!field) return;
 
+  // #14: Normalize input — trim, clean phone, lowercase email
+  value = (value || '').trim();
+  if (!value) return;
+  if (field === 'phone') value = value.replace(/\s{2,}/g, ' ');
+  if (field === 'email') value = value.toLowerCase().trim();
+
   var L = window.APP_LANGUAGES || {};
 
   // ── CHANGE CLIENT: bypass AI entirely, do direct backend matching ──
@@ -8974,17 +9004,32 @@ async function triggerAssistantReparse(userAnswer, type, questionsText) {
   window._pendingAnswer = { text: userAnswer, type: type, historyEntry: historyEntry };
   if (input) input.disabled = true;
 
-  // Build conversation history text (Bug 7: cap to last 8 entries to prevent token bloat)
+  // Build conversation history text (#16: summarize older entries to reduce tokens)
   const allEntries = [...(window.clarificationHistory || []), historyEntry];
-  const cappedEntries = allEntries.length > 8 ? allEntries.slice(-8) : allEntries;
+  const cappedEntries = allEntries.length > 10 ? allEntries.slice(-10) : allEntries;
   let historyText = "";
   if (cappedEntries.length > 1) {
+    var past = cappedEntries.slice(0, -1);
+    var recentCount = Math.min(4, past.length);
+    var oldEntries = past.slice(0, past.length - recentCount);
+    var recentEntries = past.slice(past.length - recentCount);
     historyText = "--- PREVIOUS Q&A CONTEXT ---";
-    cappedEntries.slice(0, -1).forEach((h, i) => {
+    // #16: Summarize older entries as one-liners to save tokens
+    if (oldEntries.length > 0) {
+      historyText += "\n[Summary of earlier rounds: ";
+      historyText += oldEntries.map(function(h, i) {
+        if (h.questions === "User requested change") return "User changed: " + (h.answer || "").substring(0, 80);
+        return "Q:" + (h.questions || "").substring(0, 40) + "→A:" + (h.answer || "").substring(0, 40);
+      }).join("; ");
+      historyText += "]";
+    }
+    // Recent entries get full detail
+    recentEntries.forEach(function(h, i) {
+      var roundNum = oldEntries.length + i + 1;
       if (h.questions === "User requested change") {
-        historyText += `\n[Round ${i + 1} - User correction/addition: "${h.answer}"]`;
+        historyText += `\n[Round ${roundNum} - User correction/addition: "${h.answer}"]`;
       } else {
-        historyText += `\n[Round ${i + 1} - AI asked: "${h.questions}" → User answered: "${h.answer}"]`;
+        historyText += `\n[Round ${roundNum} - AI asked: "${h.questions}" → User answered: "${h.answer}"]`;
       }
     });
     historyText += "\n--- END CONTEXT ---";
@@ -8993,23 +9038,45 @@ async function triggerAssistantReparse(userAnswer, type, questionsText) {
   // Use /refine_invoice with existing JSON if available
   if (window.lastAiResult) {
     try {
-      const res = await fetch("/refine_invoice", {
-        method: "POST",
-        headers: {
-          "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]').content,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          current_json: window.lastAiResult,
-          user_message: (type === 'clarification' && currentQuestions && currentQuestions !== "User requested change")
-            ? `[AI asked: "${currentQuestions}"] User answered: "${userAnswer}"`
-            : userAnswer,
-          conversation_history: historyText,
-          language: localStorage.getItem('transcriptLanguage') || window.profileSystemLanguage || 'en',
-          client_match_resolved: window.clientMatchResolved || false
-        })
+      var reqBody = JSON.stringify({
+        current_json: window.lastAiResult,
+        user_message: (type === 'clarification' && currentQuestions && currentQuestions !== "User requested change")
+          ? `[AI asked: "${currentQuestions}"] User answered: "${userAnswer}"`
+          : userAnswer,
+        conversation_history: historyText,
+        language: localStorage.getItem('transcriptLanguage') || window.profileSystemLanguage || 'en',
+        client_match_resolved: window.clientMatchResolved || false
       });
-      const data = await res.json();
+      var reqHeaders = {
+        "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]').content,
+        "Content-Type": "application/json"
+      };
+
+      // #15: Fetch with automatic retry (1 retry after 1.5s on network/server error)
+      var res, data, retried = false;
+      var doFetch = async function() {
+        var r = await fetch("/refine_invoice", { method: "POST", headers: reqHeaders, body: reqBody });
+        if (r.status >= 500 && !retried) {
+          retried = true;
+          console.warn('[refine_invoice] Server error ' + r.status + ', retrying in 1.5s...');
+          await new Promise(function(ok) { setTimeout(ok, 1500); });
+          return doFetch();
+        }
+        return r;
+      };
+      try {
+        res = await doFetch();
+      } catch (netErr) {
+        if (!retried) {
+          retried = true;
+          console.warn('[refine_invoice] Network error, retrying in 1.5s...', netErr);
+          await new Promise(function(ok) { setTimeout(ok, 1500); });
+          res = await doFetch();
+        } else {
+          throw netErr;
+        }
+      }
+      data = await res.json();
 
       removeTypingIndicator();
 
@@ -9047,6 +9114,37 @@ async function triggerAssistantReparse(userAnswer, type, questionsText) {
       window._aiReturnedNothing = aiReturnedNothing;
 
       // Re-apply ALL locked user overrides BEFORE rendering — AI may have overwritten values
+      // #17: Track which fields AI got wrong (overrides had to correct)
+      var overrideDiffs = [];
+      if (window._userItemOverrides && data && data.sections) {
+        var ov = window._userItemOverrides;
+        data.sections.forEach(function(sec) {
+          (sec.items || []).forEach(function(sItem) {
+            var name = (sItem.desc || sItem.name || '').toLowerCase();
+            if (ov[name]) {
+              Object.keys(ov[name]).forEach(function(field) {
+                if (sItem[field] !== ov[name][field]) {
+                  overrideDiffs.push({ item: name, field: field, ai: sItem[field], user: ov[name][field] });
+                }
+              });
+            }
+          });
+        });
+      }
+      if (overrideDiffs.length > 0) {
+        console.warn('[AI ACCURACY] Override corrections applied:', JSON.stringify(overrideDiffs));
+        // Fire telemetry event if analytics endpoint exists
+        try {
+          var csrfEl = document.querySelector('meta[name="csrf-token"]');
+          if (csrfEl && window._analysisSucceeded) {
+            fetch('/analytics_event', {
+              method: 'POST',
+              headers: { 'X-CSRF-Token': csrfEl.content, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ event_type: 'ai_override_correction', metadata: { diffs: overrideDiffs, model: 'refine_invoice' } })
+            }).catch(function() {});
+          }
+        } catch(e) {}
+      }
       _reapplyAllOverrides(data);
 
       // Suppress double render if AI returned identical data (#3 — avoid jarring UX flash)
