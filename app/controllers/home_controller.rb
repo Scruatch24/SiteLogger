@@ -1759,64 +1759,8 @@ PROMPT
         json["clarifications"].reject! { |c| c.is_a?(Hash) && c["field"].to_s.match?(/\bclient\b/i) && c["field"] != "client_match" }
       end
 
-      # ── Auto-merge multiple price/qty text questions into item_input_list ──
-      if json["clarifications"].is_a?(Array)
-        pa_price_pattern = /ღირს|ფასი|ფასად|price|cost|charge/i
-        pa_qty_pattern   = /რაოდენობ|quantity|რამდენ/i
-        pa_exclude       = /ფასდაკლება|discount|დღგ|vat|tax|გადასახ/i
-        pa_cat_prefixes  = %w[labor materials expenses fees]
-
-        pa_price_clars = json["clarifications"].select do |c|
-          c.is_a?(Hash) && c["type"].to_s == "text" &&
-            c["question"].to_s.match?(pa_price_pattern) &&
-            !c["question"].to_s.match?(pa_exclude) &&
-            !c["field"].to_s.match?(/discount|tax/i)
-        end
-
-        pa_qty_clars = json["clarifications"].select do |c|
-          c.is_a?(Hash) && c["type"].to_s == "text" &&
-            c["question"].to_s.match?(pa_qty_pattern) &&
-            !c["question"].to_s.match?(pa_exclude)
-        end
-
-        if pa_price_clars.length >= 2
-          pa_merged = Set.new
-          pa_lang = (params[:language] || lang).to_s.start_with?("ka") ? "ka" : "en"
-          pa_price_lbl = pa_lang == "ka" ? "ფასი" : "Price"
-          pa_qty_lbl   = pa_lang == "ka" ? "რაოდენობა" : "Qty"
-          pa_q_text    = pa_lang == "ka" ? "შეავსეთ საჭირო ინფორმაცია:" : "Fill in the details:"
-
-          pa_items = pa_price_clars.map do |pc|
-            pa_merged << pc.object_id
-            item_name = pc["guess"].to_s.presence
-            item_name = nil if item_name && item_name.match?(/\A[\d.,]+\z/)
-            item_name ||= pc["question"].to_s.gsub(/[?？។]/, "").gsub(pa_price_pattern, "").gsub(/რა\s*/i, "").strip.gsub(/\s+/, " ")
-
-            field_cat = pc["field"].to_s.split(".").first
-            category = pa_cat_prefixes.include?(field_cat) ? field_cat : nil
-
-            mq = pa_qty_clars.find { |qc| qc["guess"].to_s.downcase == item_name.downcase }
-            inputs = []
-            if mq
-              pa_merged << mq.object_id
-              inputs << { "key" => "qty", "label" => pa_qty_lbl, "type" => "number", "value" => 1 }
-            elsif category == "materials"
-              inputs << { "key" => "qty", "label" => pa_qty_lbl, "type" => "number", "value" => 1 }
-            end
-            inputs << { "key" => "price", "label" => pa_price_lbl, "type" => "number" }
-
-            toggle = category == "labor" ? { "key" => "billing_mode", "options" => ["fixed", "hourly"], "default" => "fixed" } : nil
-            { "name" => item_name, "category" => category, "inputs" => inputs, "toggle" => toggle }
-          end
-
-          json["clarifications"].reject! { |c| pa_merged.include?(c.object_id) }
-          json["clarifications"].unshift({
-            "type" => "item_input_list", "field" => "item_prices",
-            "question" => pa_q_text, "items" => pa_items
-          })
-          Rails.logger.info "AUTO-MERGED #{pa_price_clars.length} price questions into item_input_list (process_audio)"
-        end
-      end
+      # ── Auto-upgrade clarifications: merge prices+qty, fix discount, convert tax ──
+      auto_upgrade_clarifications!(json, (params[:language] || lang).to_s)
 
       # ── Client Matching Post-Processing (paid users only) ──
       recipient_info = nil
@@ -2324,77 +2268,8 @@ PROMPT
         false
       end
 
-      # Auto-merge multiple price/qty text questions into a single item_input_list card
-      # Safety net: AI often ignores the item_input_list instruction and asks one-by-one
-      price_pattern = /ღირს|ფასი|ფასად|price|cost|charge/i
-      qty_pattern   = /რაოდენობ|quantity|რამდენ/i
-      exclude_pattern = /ფასდაკლება|discount|დღგ|vat|tax|გადასახ/i
-      category_prefixes = %w[labor materials expenses fees]
-
-      price_clars = result["clarifications"].select do |c|
-        c["type"].to_s == "text" &&
-          c["question"].to_s.match?(price_pattern) &&
-          !c["question"].to_s.match?(exclude_pattern) &&
-          !c["field"].to_s.match?(/discount|tax/i)
-      end
-
-      qty_clars = result["clarifications"].select do |c|
-        c["type"].to_s == "text" &&
-          c["question"].to_s.match?(qty_pattern) &&
-          !c["question"].to_s.match?(exclude_pattern)
-      end
-
-      if price_clars.length >= 2
-        merged_set = Set.new
-        ui_lang = params[:language].to_s.start_with?("ka") ? "ka" : "en"
-        price_label = ui_lang == "ka" ? "ფასი" : "Price"
-        qty_label   = ui_lang == "ka" ? "რაოდენობა" : "Qty"
-        question_text = ui_lang == "ka" ? "შეავსეთ საჭირო ინფორმაცია:" : "Fill in the details:"
-
-        items = price_clars.map do |pc|
-          merged_set << pc.object_id
-          # Extract item name from guess (AI typically puts item name there) or from question
-          item_name = pc["guess"].to_s.presence
-          item_name = nil if item_name && item_name.match?(/\A[\d.,]+\z/) # Skip numeric guesses
-          item_name ||= pc["question"].to_s.gsub(/[?？។]/, "").gsub(price_pattern, "").gsub(/რა\s*/i, "").strip.gsub(/\s+/, " ")
-
-          # Determine category from field prefix
-          field_cat = pc["field"].to_s.split(".").first
-          category = category_prefixes.include?(field_cat) ? field_cat : nil
-
-          # Check for matching quantity question for this item
-          matching_qty = qty_clars.find { |qc| qc["guess"].to_s.downcase == item_name.downcase }
-          inputs = []
-          if matching_qty
-            merged_set << matching_qty.object_id
-            inputs << { "key" => "qty", "label" => qty_label, "type" => "number", "value" => 1 }
-          elsif category == "materials"
-            inputs << { "key" => "qty", "label" => qty_label, "type" => "number", "value" => 1 }
-          end
-          inputs << { "key" => "price", "label" => price_label, "type" => "number" }
-
-          # Labor items get billing_mode toggle
-          toggle = nil
-          if category == "labor"
-            toggle = { "key" => "billing_mode", "options" => ["fixed", "hourly"], "default" => "fixed" }
-          end
-
-          { "name" => item_name, "category" => category, "inputs" => inputs, "toggle" => toggle }
-        end
-
-        # Remove merged clarifications
-        result["clarifications"].reject! { |c| merged_set.include?(c.object_id) }
-
-        # Insert item_input_list at position 0 (prices first, then other questions)
-        iil = {
-          "type" => "item_input_list",
-          "field" => "item_prices",
-          "question" => question_text,
-          "items" => items
-        }
-        result["clarifications"].unshift(iil)
-        Rails.logger.info "AUTO-MERGED #{price_clars.length} price questions into item_input_list"
-      end
+      # ── Auto-upgrade clarifications: merge prices+qty, fix discount, convert tax ──
+      auto_upgrade_clarifications!(result, params[:language].to_s)
 
       # Client matching for refine_invoice responses (paid users only)
       # Skip if frontend already resolved client matching (user confirmed/denied)
@@ -3907,6 +3782,173 @@ PROMPT
   end
 
   private
+
+  # ── Auto-upgrade AI clarifications: merge price/qty → item_input_list,
+  #    discount amount → card with toggle, VAT rate → choice widget ──
+  def auto_upgrade_clarifications!(data, language)
+    clars = data["clarifications"]
+    return unless clars.is_a?(Array) && clars.any?
+
+    ui_ka = language.to_s.start_with?("ka")
+    cat_prefixes = %w[labor materials expenses fees]
+
+    # Patterns
+    price_re   = /ღირს|ფასი|ფასად|price|cost|charge/i
+    qty_re     = /რაოდენობ|quantity|რამდენ/i
+    disc_re    = /ფასდაკლება|discount/i
+    tax_re     = /დღგ|vat|tax.*rate|tax.*განაკვეთ/i
+    exclude_re = /ფასდაკლება|discount|დღგ|vat|tax|გადასახ/i
+
+    # Collect section item descs for fuzzy name matching
+    section_items = (data["sections"] || []).flat_map do |s|
+      cat = s["type"].to_s
+      (s["items"] || []).map { |i| { desc: i["desc"].to_s.strip, category: cat } }
+    end
+
+    # Helper: resolve a raw AI guess/question into a clean item name + category
+    resolve_name = lambda do |raw_guess, question_text, field|
+      name = raw_guess.to_s.strip
+      name = "" if name.match?(/\A[\d.,\s]+\z/)
+
+      # Strip Georgian wrapping: "გსურთ X-ის დამატება" → X-ის
+      if name.present?
+        name = name.gsub(/^გსურთ\s+/i, "").gsub(/\s+დამატება$/i, "").gsub(/\s+შეცვლა$/i, "")
+          .gsub(/\(.*\)/, "").strip
+      end
+
+      # If no usable guess, try extracting from question text
+      if name.blank?
+        name = question_text.to_s.gsub(/[?？]/, "").gsub(price_re, "").gsub(qty_re, "")
+          .gsub(/^რა\s+/i, "").gsub(/^რამდენი?\s*/i, "").strip
+      end
+
+      # Try matching against actual section items (fuzzy: contains either direction)
+      norm = name.downcase.strip
+      match = section_items.find do |si|
+        d = si[:desc].downcase
+        d == norm || d.include?(norm) || norm.include?(d) ||
+          (norm.end_with?("ის") && (d.include?(norm[0..-3]) || d.include?(norm[0..-2]))) ||
+          (norm.end_with?("ს") && d.include?(norm[0..-2]))
+      end
+      if match
+        [match[:desc], match[:category]]
+      else
+        field_cat = field.to_s.split(".").first
+        cat = cat_prefixes.include?(field_cat) ? field_cat : nil
+        [name.presence || "Item", cat]
+      end
+    end
+
+    merged_ids = Set.new
+    new_clars  = []
+
+    # ── 1. Merge 2+ price text questions (+ matching qty) into item_input_list ──
+    price_clars = clars.select do |c|
+      c.is_a?(Hash) && c["type"].to_s == "text" &&
+        c["question"].to_s.match?(price_re) &&
+        !c["question"].to_s.match?(exclude_re) &&
+        !c["field"].to_s.match?(/discount|tax/i)
+    end
+
+    qty_clars = clars.select do |c|
+      c.is_a?(Hash) && c["type"].to_s == "text" &&
+        c["question"].to_s.match?(qty_re) &&
+        !c["question"].to_s.match?(exclude_re)
+    end
+
+    if price_clars.length >= 2
+      price_lbl = ui_ka ? "ფასი" : "Price"
+      qty_lbl   = ui_ka ? "რაოდენობა" : "Qty"
+      q_text    = ui_ka ? "შეავსეთ საჭირო ინფორმაცია:" : "Fill in the details:"
+      merged_names = Set.new
+
+      items = price_clars.map do |pc|
+        merged_ids << pc.object_id
+        item_name, category = resolve_name.call(pc["guess"], pc["question"], pc["field"])
+        merged_names << item_name.downcase
+
+        # Find matching qty question for this item
+        mq = qty_clars.find do |qc|
+          next false if merged_ids.include?(qc.object_id)
+          qn, _ = resolve_name.call(qc["guess"], qc["question"], qc["field"])
+          qn.downcase == item_name.downcase
+        end
+
+        inputs = []
+        if mq
+          merged_ids << mq.object_id
+          inputs << { "key" => "qty", "label" => qty_lbl, "type" => "number", "value" => 1 }
+        elsif category == "materials"
+          inputs << { "key" => "qty", "label" => qty_lbl, "type" => "number", "value" => 1 }
+        end
+        inputs << { "key" => "price", "label" => price_lbl, "type" => "number" }
+
+        toggle = category == "labor" ? { "key" => "billing_mode", "options" => ["fixed", "hourly"], "default" => "fixed" } : nil
+        { "name" => item_name, "category" => category, "inputs" => inputs, "toggle" => toggle }
+      end
+
+      # Also remove leftover qty questions whose item already has a qty input in the card
+      qty_clars.each do |qc|
+        next if merged_ids.include?(qc.object_id)
+        qn, _ = resolve_name.call(qc["guess"], qc["question"], qc["field"])
+        merged_ids << qc.object_id if merged_names.include?(qn.downcase)
+      end
+
+      new_clars << { "type" => "item_input_list", "field" => "item_prices", "question" => q_text, "items" => items }
+      Rails.logger.info "AUTO-MERGED #{price_clars.length} price + qty questions → item_input_list"
+    end
+
+    # ── 2. Convert discount_amount text → item_input_list with discount_type toggle ──
+    disc_amount = clars.find do |c|
+      c.is_a?(Hash) && !merged_ids.include?(c.object_id) && c["type"].to_s == "text" &&
+        (c["field"].to_s.match?(/discount_amount/i) ||
+          (c["question"].to_s.match?(disc_re) && c["question"].to_s.match?(/ოდენობ|რამდენ|amount|how much/i)))
+    end
+    if disc_amount
+      merged_ids << disc_amount.object_id
+      # Also absorb discount_type choice if in the same batch
+      disc_type = clars.find do |c|
+        c.is_a?(Hash) && !merged_ids.include?(c.object_id) &&
+          (c["field"].to_s == "discount_type" || c["field"].to_s == "discount_type_multi") &&
+          %w[choice multi_choice].include?(c["type"].to_s)
+      end
+      merged_ids << disc_type.object_id if disc_type
+
+      disc_label = ui_ka ? "ფასდაკლება" : "Discount"
+      amt_label  = ui_ka ? "თანხა" : "Amount"
+      disc_q     = ui_ka ? "შეიყვანეთ ფასდაკლების ინფორმაცია:" : "Enter discount details:"
+
+      new_clars << {
+        "type" => "item_input_list", "field" => "discount_amount",
+        "question" => disc_q,
+        "items" => [{
+          "name" => disc_label,
+          "inputs" => [{ "key" => "amount", "label" => amt_label, "type" => "number" }],
+          "toggle" => { "key" => "discount_type", "options" => ["fixed", "percentage"], "default" => "percentage" }
+        }]
+      }
+      Rails.logger.info "AUTO-CONVERTED discount_amount → item_input_list with discount_type toggle"
+    end
+
+    # ── 3. Convert VAT/tax rate text → choice widget with common rates ──
+    vat_clar = clars.find do |c|
+      c.is_a?(Hash) && !merged_ids.include?(c.object_id) && c["type"].to_s == "text" &&
+        (c["question"].to_s.match?(tax_re) || c["field"].to_s.match?(/tax_rate|vat/i))
+    end
+    if vat_clar
+      merged_ids << vat_clar.object_id
+      new_clars << {
+        "type" => "choice", "field" => "tax_rate",
+        "question" => vat_clar["question"],
+        "options" => ["5%", "10%", "18%", "20%"]
+      }
+      Rails.logger.info "AUTO-CONVERTED VAT rate text → choice widget"
+    end
+
+    # Apply: remove originals, prepend upgraded clarifications
+    clars.reject! { |c| merged_ids.include?(c.object_id) }
+    data["clarifications"] = new_clars + clars
+  end
 
   # Normalize a client name for matching: strip legal forms, special quotes, downcase
   def normalize_client_name(name)
