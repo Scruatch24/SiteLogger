@@ -5750,13 +5750,8 @@ function showNextQueueItem() {
     }, 1500);
     return;
   } else {
-    // Default: text type or unknown — show bubble with optional guess
-    var guessHtml = null;
-    if (c.guess !== null && c.guess !== undefined && c.guess !== '' && c.guess !== 0 && c.guess !== '0') {
-      var guessLabel = L.current_guess || 'My guess:';
-      guessHtml = escapeHtml(guessLabel) + ' ' + escapeHtml(String(c.guess));
-    }
-    addAIBubble(c.question, guessHtml, c._progressTag);
+    // Default: text type or unknown — show bubble (no guess display)
+    addAIBubble(c.question, null, c._progressTag);
   }
 
   // Focus input for answer (except info type which auto-advances)
@@ -5779,6 +5774,13 @@ function handleQueueAnswer(answer) {
     guess: currentItem.guess
   });
 
+  // Inter-step thinking: single text ambiguity → rename item in subsequent steps
+  if (currentItem._original_name && answer && answer !== '__CANCELLED__') {
+    window._queueItemRenames = window._queueItemRenames || {};
+    var newName = answer.trim() + ' ' + currentItem._original_name;
+    window._queueItemRenames[currentItem._original_name.toLowerCase()] = newName;
+  }
+
   // Remove progress indicator
   var conversation = document.getElementById('assistantConversation');
   if (conversation) {
@@ -5794,6 +5796,7 @@ function handleQueueAnswer(answer) {
     }, 400);
   } else {
     // All answered — batch submit to AI
+    window._queueItemRenames = null; // clean up
     batchSubmitQueueAnswers();
   }
 }
@@ -5807,9 +5810,9 @@ function batchSubmitQueueAnswers() {
   window._queueTotal = 0;
   window.pendingClarifications = [];
 
-  // Filter out client answers and cancelled items — these are frontend-only, not for AI
+  // Filter out client answers, cancelled items, and tax (applied directly to JSON)
   var aiAnswers = answers.filter(function(qa) {
-    return qa.field !== 'client_match' && qa.field !== 'add_client_to_list' && qa.field !== 'client_confirm_existing' && qa.answer !== '__CANCELLED__';
+    return qa.field !== 'client_match' && qa.field !== 'add_client_to_list' && qa.field !== 'client_confirm_existing' && qa.field !== 'tax_rate' && qa.answer !== '__CANCELLED__';
   });
 
   // If only client answers remained, skip AI and handle locally
@@ -5841,6 +5844,11 @@ function batchSubmitQueueAnswers() {
   var batchMessage = aiAnswers.map(function(qa) {
     return '[AI asked: "' + qa.question + '" → User answered: "' + qa.answer + '"]';
   }).join('\n');
+
+  // If tax was applied directly, tell AI not to touch it
+  if (answers.some(function(qa) { return qa.field === 'tax_rate'; })) {
+    batchMessage += '\n[IMPORTANT: Tax rates have already been applied correctly. Do NOT change any taxable or tax_rate values.]';
+  }
 
   showTypingIndicator();
   var input = document.getElementById('assistantInput');
@@ -7201,10 +7209,23 @@ function renderItemInputListCard(clarification) {
   var items = clarification.items || [];
   if (items.length === 0) return;
 
+  // Unique card ID to avoid conflicts when multiple cards exist in DOM
+  window._iilCardId = (window._iilCardId || 0) + 1;
+  var cardId = 'iilCard_' + window._iilCardId;
+  window._currentIilCardId = cardId;
+
   var currSym = '$';
   if (window.lastAiResult && window.lastAiResult.currency) {
     var cMap = { 'GEL': '₾', 'USD': '$', 'EUR': '€', 'GBP': '£' };
     currSym = cMap[window.lastAiResult.currency] || window.lastAiResult.currency;
+  }
+
+  // Apply inter-step renames (e.g. შეკეთება → მანქანის შეკეთება after ambiguity)
+  if (window._queueItemRenames) {
+    items.forEach(function(item) {
+      var key = (item.name || '').toLowerCase();
+      if (window._queueItemRenames[key]) item.name = window._queueItemRenames[key];
+    });
   }
 
   // Store state for confirm
@@ -7226,39 +7247,51 @@ function renderItemInputListCard(clarification) {
     // Item card
     itemsHtml += '<div class="px-2.5 py-2 rounded-lg bg-white border border-gray-100" data-iil-idx="' + idx + '">';
 
-    // Item name (cleaned of Georgian question wrapping)
+    // Item name with colon
     var cleanName = cleanItemDisplayName(item.name);
-    itemsHtml += '<div class="text-[11px] font-bold text-gray-700 mb-1.5">' + escapeHtml(cleanName) + '</div>';
+    itemsHtml += '<div class="text-[11px] font-bold text-gray-700 mb-1.5">' + escapeHtml(cleanName) + ':</div>';
 
-    // Toggle (above inputs)
-    if (toggle && toggle.options && toggle.options.length === 2) {
-      var opt0 = toggle.options[0];
-      var opt1 = toggle.options[1];
-      var label0 = isBillingToggle ? (opt0 === 'fixed' ? (L.fixed_label || 'Fixed') : (L.hourly_label || 'Hourly')) : (opt0 === 'fixed' ? (L.discount_type_fixed || 'Fixed') : (L.discount_type_percentage || '%'));
-      var label1 = isBillingToggle ? (opt1 === 'hourly' ? (L.hourly_label || 'Hourly') : (L.fixed_label || 'Fixed')) : (opt1 === 'percentage' ? (L.discount_type_percentage || '%') : (L.discount_type_fixed || 'Fixed'));
-      var cls0 = activeMode === opt0 ? activeColor : inactiveColor;
-      var cls1 = activeMode === opt1 ? activeColor : inactiveColor;
-
-      itemsHtml += '<div class="flex items-center gap-0 mb-1.5 border-2 border-gray-200 rounded-lg overflow-hidden w-fit">'
-        + '<button type="button" data-iil-idx="' + idx + '" data-iil-mode="' + escapeHtml(opt0) + '" onclick="toggleItemInputMode(this)" class="iil-toggle-btn px-2.5 py-1 text-[10px] font-bold transition-all cursor-pointer ' + cls0 + '">' + escapeHtml(label0) + '</button>'
-        + '<button type="button" data-iil-idx="' + idx + '" data-iil-mode="' + escapeHtml(opt1) + '" onclick="toggleItemInputMode(this)" class="iil-toggle-btn px-2.5 py-1 text-[10px] font-bold transition-all cursor-pointer ' + cls1 + '">' + escapeHtml(label1) + '</button>'
-        + '</div>';
-    }
-
-    // Input fields container
+    // Inputs + toggle on SAME row
     var isHourly = isBillingToggle && activeMode === 'hourly';
-    itemsHtml += '<div class="iil-inputs-container flex items-center gap-2">';
+    itemsHtml += '<div class="iil-inputs-container flex items-center gap-1.5">';
 
     if (isHourly) {
-      // Split into hours + rate
-      itemsHtml += buildIilInput(idx, 'hours', L.hours_label || 'Hours', 'number', null)
-        + buildIilInput(idx, 'rate', L.rate_label || 'Rate', 'number', null);
+      itemsHtml += buildIilInput(idx, 'hours', L.hours_label || 'საათი', 'number', null)
+        + buildIilInput(idx, 'rate', L.rate_label || 'ტარიფი', 'number', null);
     } else {
-      // Regular inputs from config
       (item.inputs || []).forEach(function(inp) {
         var prefill = inp.value !== undefined && inp.value !== null ? inp.value : null;
         itemsHtml += buildIilInput(idx, inp.key, inp.label, inp.type || 'text', prefill);
       });
+    }
+
+    // Toggle inline (same row as inputs)
+    if (toggle && toggle.options && toggle.options.length === 2) {
+      var opt0 = toggle.options[0];
+      var opt1 = toggle.options[1];
+      var label0, label1;
+      if (isBillingToggle) {
+        label0 = opt0 === 'fixed' ? (L.fixed_short || 'ფიქსირ.') : (L.hourly_short || 'საათობ.');
+        label1 = opt1 === 'hourly' ? (L.hourly_short || 'საათობ.') : (L.fixed_short || 'ფიქსირ.');
+      } else if (isDiscountToggle) {
+        // Full labels on desktop, symbols on mobile
+        label0 = opt0 === 'fixed'
+          ? '<span class="hidden sm:inline">' + escapeHtml(L.discount_type_fixed || 'ფიქსირებული') + '</span><span class="sm:hidden">' + escapeHtml(currSym) + '</span>'
+          : '<span class="hidden sm:inline">' + escapeHtml(L.discount_type_percentage || 'პროცენტული') + '</span><span class="sm:hidden">%</span>';
+        label1 = opt1 === 'percentage'
+          ? '<span class="hidden sm:inline">' + escapeHtml(L.discount_type_percentage || 'პროცენტული') + '</span><span class="sm:hidden">%</span>'
+          : '<span class="hidden sm:inline">' + escapeHtml(L.discount_type_fixed || 'ფიქსირებული') + '</span><span class="sm:hidden">' + escapeHtml(currSym) + '</span>';
+      } else {
+        label0 = escapeHtml(opt0);
+        label1 = escapeHtml(opt1);
+      }
+      var cls0 = activeMode === opt0 ? activeColor : inactiveColor;
+      var cls1 = activeMode === opt1 ? activeColor : inactiveColor;
+
+      itemsHtml += '<div class="shrink-0 flex items-center gap-0 border-2 border-gray-200 rounded-lg overflow-hidden">'
+        + '<button type="button" data-iil-idx="' + idx + '" data-iil-mode="' + escapeHtml(opt0) + '" onclick="toggleItemInputMode(this)" class="iil-toggle-btn px-2 py-1 text-[10px] font-bold transition-all cursor-pointer ' + cls0 + '">' + (isBillingToggle ? escapeHtml(label0) : label0) + '</button>'
+        + '<button type="button" data-iil-idx="' + idx + '" data-iil-mode="' + escapeHtml(opt1) + '" onclick="toggleItemInputMode(this)" class="iil-toggle-btn px-2 py-1 text-[10px] font-bold transition-all cursor-pointer ' + cls1 + '">' + (isBillingToggle ? escapeHtml(label1) : label1) + '</button>'
+        + '</div>';
     }
 
     itemsHtml += '</div>'; // end inputs-container
@@ -7267,7 +7300,7 @@ function renderItemInputListCard(clarification) {
 
   var div = document.createElement('div');
   div.className = 'flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300';
-  div.id = 'itemInputListCard';
+  div.id = cardId;
   div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
     + '<div class="max-w-[85%] w-full">'
     + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm relative">'
@@ -7275,13 +7308,12 @@ function renderItemInputListCard(clarification) {
     + '<div class="text-xs font-bold text-gray-800 mb-2.5 pr-6">' + escapeHtml(clarification.question || '') + (clarification._progressTag || '') + '</div>'
     + '<div class="space-y-1.5">' + itemsHtml + '</div>'
     + '<div class="flex gap-2 mt-2.5">'
-    + '<button type="button" onclick="confirmItemInputList()" class="flex-1 px-3 py-1.5 rounded-xl border-2 border-orange-300 bg-orange-50 hover:bg-orange-100 transition-all cursor-pointer active:scale-[0.97] text-[11px] font-bold text-orange-700">' + escapeHtml(L.confirm_btn || 'Confirm') + '</button>'
+    + '<button type="button" onclick="confirmItemInputList()" class="flex-1 px-3 py-1.5 rounded-xl border-2 border-orange-300 bg-orange-50 hover:bg-orange-100 transition-all cursor-pointer active:scale-[0.97] text-[11px] font-bold text-orange-700">' + escapeHtml(L.confirm_btn || 'დადასტურება') + '</button>'
     + '</div>'
     + '</div></div>';
   conversation.appendChild(div);
   conversation.scrollTop = conversation.scrollHeight;
 
-  // Focus first input
   var firstInput = div.querySelector('.iil-input');
   if (firstInput) firstInput.focus();
 }
@@ -7312,44 +7344,58 @@ function toggleItemInputMode(btn) {
 
   item.activeMode = newMode;
 
-  // Update toggle button visuals
-  var card = document.getElementById('itemInputListCard');
+  // Use unique card ID to find the correct card
+  var card = window._currentIilCardId ? document.getElementById(window._currentIilCardId) : null;
   if (!card) return;
-  var itemCard = card.querySelector('[data-iil-idx="' + idx + '"]');
+  var itemCard = card.querySelector('div[data-iil-idx="' + idx + '"]');
   if (!itemCard) return;
 
   itemCard.querySelectorAll('.iil-toggle-btn').forEach(function(b) {
     if (b.dataset.iilMode === newMode) {
-      b.className = 'iil-toggle-btn px-2.5 py-1 text-[10px] font-bold transition-all cursor-pointer ' + activeColor;
+      b.className = 'iil-toggle-btn px-2 py-1 text-[10px] font-bold transition-all cursor-pointer ' + activeColor;
     } else {
-      b.className = 'iil-toggle-btn px-2.5 py-1 text-[10px] font-bold transition-all cursor-pointer ' + inactiveColor;
+      b.className = 'iil-toggle-btn px-2 py-1 text-[10px] font-bold transition-all cursor-pointer ' + inactiveColor;
     }
   });
 
-  // If billing_mode toggle, rebuild inputs
+  // If billing_mode toggle, rebuild inputs (hourly needs different fields)
   if (isBillingToggle) {
     var L = window.APP_LANGUAGES || {};
     var container = itemCard.querySelector('.iil-inputs-container');
     if (!container) return;
 
+    // Preserve toggle HTML at end of container
+    var toggleEl = container.querySelector('.shrink-0');
+    var toggleHtml = toggleEl ? toggleEl.outerHTML : '';
+
     if (newMode === 'hourly') {
-      container.innerHTML = buildIilInput(idx, 'hours', L.hours_label || 'Hours', 'number', null)
-        + buildIilInput(idx, 'rate', L.rate_label || 'Rate', 'number', null);
+      container.innerHTML = buildIilInput(idx, 'hours', L.hours_label || 'საათი', 'number', null)
+        + buildIilInput(idx, 'rate', L.rate_label || 'ტარიფი', 'number', null)
+        + toggleHtml;
     } else {
-      // Restore original inputs from config
       var inputsHtml = '';
       (item.inputs || []).forEach(function(inp) {
         var prefill = inp.value !== undefined && inp.value !== null ? inp.value : null;
         inputsHtml += buildIilInput(idx, inp.key, inp.label, inp.type || 'text', prefill);
       });
-      container.innerHTML = inputsHtml;
+      container.innerHTML = inputsHtml + toggleHtml;
     }
+    // Re-bind toggle button visuals after rebuild
+    container.querySelectorAll('.iil-toggle-btn').forEach(function(b) {
+      if (b.dataset.iilMode === newMode) {
+        b.className = 'iil-toggle-btn px-2 py-1 text-[10px] font-bold transition-all cursor-pointer ' + activeColor;
+      } else {
+        b.className = 'iil-toggle-btn px-2 py-1 text-[10px] font-bold transition-all cursor-pointer ' + inactiveColor;
+      }
+    });
     var firstInput = container.querySelector('.iil-input');
     if (firstInput) firstInput.focus();
   }
+  // discount_type toggle: visual-only (no input rebuild needed) — already handled above
 }
 
 // Clean Georgian question wrapping from item names (frontend safety net)
+// NEVER strip word suffixes — only strip question wrapper phrases
 function cleanItemDisplayName(raw) {
   if (!raw) return 'Item';
   var n = raw.replace(/[?？]+\s*$/, '')
@@ -7363,9 +7409,6 @@ function cleanItemDisplayName(raw) {
     .replace(/\s+გსურთ$/i, '')
     .replace(/\(.*?\)/g, '')
     .replace(/\s+/g, ' ').trim();
-  // Strip Georgian genitive -ის suffix
-  if (n.length > 3 && n.match(/ის$/)) n = n.slice(0, -2);
-  else if (n.length > 2 && n.match(/ს$/)) n = n.slice(0, -1);
   return n || 'Item';
 }
 
@@ -7374,12 +7417,27 @@ function confirmItemInputList() {
   if (!data || data.length === 0) return;
 
   var L = window.APP_LANGUAGES || {};
-  var card = document.getElementById('itemInputListCard');
+  var card = window._currentIilCardId ? document.getElementById(window._currentIilCardId) : null;
   if (!card) return;
+
+  // Check if this is an ambiguity card — build rename map for subsequent steps
+  var currentClar = window._clarificationQueue && window._clarificationQueue[0];
+  if (currentClar && currentClar.field === 'item_clarification') {
+    window._queueItemRenames = window._queueItemRenames || {};
+    data.forEach(function(item) {
+      var itemCard = card.querySelector('div[data-iil-idx="' + item.idx + '"]');
+      if (!itemCard) return;
+      var descInput = itemCard.querySelector('.iil-input[data-iil-key="description"]');
+      if (descInput && descInput.value.trim()) {
+        var newName = descInput.value.trim() + ' ' + item.name;
+        window._queueItemRenames[item.name.toLowerCase()] = newName;
+      }
+    });
+  }
 
   var parts = [];
   data.forEach(function(item) {
-    var itemCard = card.querySelector('[data-iil-idx="' + item.idx + '"]');
+    var itemCard = card.querySelector('div[data-iil-idx="' + item.idx + '"]');
     if (!itemCard) return;
 
     var displayName = cleanItemDisplayName(item.name);
@@ -7392,30 +7450,27 @@ function confirmItemInputList() {
       var hours = hoursInput ? hoursInput.value.trim() : '';
       var rate = rateInput ? rateInput.value.trim() : '';
       if (hours || rate) {
-        parts.push(displayName + ': ' + (hours || '0') + ' ' + (L.per_hour_suffix || 'hour') + ' × ' + (rate || '0'));
+        parts.push(displayName + ': ' + (hours || '0') + ' ' + (L.hours_label || 'საათი') + ' × ' + (rate || '0'));
       }
     } else {
-      // Collect all inputs with their labels for structured display
+      // Collect all inputs with their labels from the DOM (always matches display language)
       var inputs = itemCard.querySelectorAll('.iil-input');
       var labeledValues = [];
       inputs.forEach(function(inp) {
         var val = inp.value.trim();
         if (!val) return;
-        var key = inp.dataset.iilKey || '';
-        var label = '';
-        if (key === 'qty') label = (L.qty_label || 'qty');
-        else if (key === 'price') label = (L.price_label || 'price');
-        else if (key === 'amount') label = (L.amount_label || 'amount');
-        else if (key === 'description') label = '';
-        if (label) labeledValues.push(label + ': ' + val);
+        // Read label from sibling label element in DOM
+        var labelEl = inp.parentElement ? inp.parentElement.querySelector('span') : null;
+        var label = labelEl ? labelEl.textContent.trim() : '';
+        if (label) labeledValues.push(label.toLowerCase() + ': ' + val);
         else labeledValues.push(val);
       });
       if (labeledValues.length > 0) {
         var suffix = '';
         if (isDiscountToggle) {
-          suffix = ' (' + (item.activeMode === 'percentage' ? '%' : (L.fixed_label || 'fixed')) + ')';
+          suffix = ' (' + (item.activeMode === 'percentage' ? '%' : (L.fixed_label || 'ფიქსირებული')) + ')';
         }
-        parts.push(displayName + ' — ' + labeledValues.join(', ') + suffix);
+        parts.push(displayName + ': ' + labeledValues.join(', ') + suffix);
       }
     }
   });
@@ -7657,6 +7712,14 @@ function renderTaxManagementInQueue(clarification) {
     return;
   }
 
+  // Apply inter-step renames
+  if (window._queueItemRenames) {
+    items.forEach(function(item) {
+      var key = (item.name || '').toLowerCase();
+      if (window._queueItemRenames[key]) item.name = window._queueItemRenames[key];
+    });
+  }
+
   // Store items for confirm
   window._taxQueueItems = items;
 
@@ -7738,26 +7801,25 @@ function confirmTaxQueue() {
   var items = window._taxQueueItems;
   if (!items || items.length === 0) return;
 
-  // Build instruction for AI — list EVERY item with explicit rate so nothing is ambiguous
-  var allZero = items.every(function(i) { return i.rate === 0; });
-  var allSame = items.every(function(i) { return i.rate === items[0].rate; });
-  var instruction = '';
-
-  if (allZero) {
-    instruction = 'Remove all tax. Set taxable:false and tax_rate:0 on every item.';
-  } else if (allSame) {
-    instruction = 'Apply exactly ' + items[0].rate + '% tax to every item. Set taxable:true and tax_rate:' + items[0].rate + ' on all.';
-  } else {
-    // List EVERY item explicitly — taxed AND untaxed
-    instruction = 'Set per-item tax rates EXACTLY as follows: ';
-    items.forEach(function(item) {
-      if (item.rate > 0) {
-        instruction += '"' + item.name + '": taxable=true, tax_rate=' + item.rate + '. ';
-      } else {
-        instruction += '"' + item.name + '": taxable=false, tax_rate=0. ';
-      }
+  // DIRECTLY apply tax rates to invoice JSON — never rely on AI for this
+  if (window.lastAiResult && window.lastAiResult.sections) {
+    window.lastAiResult.sections.forEach(function(sec) {
+      (sec.items || []).forEach(function(sItem) {
+        var name = (sItem.desc || sItem.name || '').toLowerCase();
+        var match = items.find(function(ti) { return ti.name.toLowerCase() === name; });
+        if (match) {
+          if (match.rate > 0) {
+            sItem.taxable = true;
+            sItem.tax_rate = match.rate;
+          } else {
+            sItem.taxable = false;
+            sItem.tax_rate = 0;
+          }
+        }
+      });
     });
-    instruction += 'Do NOT override these rates. Items with tax_rate=0 must have taxable:false.';
+    // Update UI immediately with the new tax values
+    updateUIWithoutTranscript(window.lastAiResult);
   }
 
   // Build user bubble summary
@@ -7772,7 +7834,8 @@ function confirmTaxQueue() {
   }
 
   addUserBubble(summary);
-  handleQueueAnswer(instruction.trim());
+  // Pass a note so the batch knows tax was already applied
+  handleQueueAnswer('[tax rates applied directly to invoice]');
 }
 
 // ── CHIP HANDLER: ADD ITEM (conversation starter → AI) ──

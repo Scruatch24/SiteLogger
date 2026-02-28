@@ -3804,6 +3804,7 @@ PROMPT
     tax_re     = /დღგ|vat|tax.*rate|tax.*განაკვეთ/i
     ambig_re   = /სახის|რისი|what kind|what type|describe|აღწერ/i
     exclude_re = /ფასდაკლება|discount|დღგ|vat|tax|გადასახ/i
+    labor_re   = /შეკეთება|რემონტი|მონტაჟი|ინსტალაცია|repair|install|service|maintenance|fix|labor|work|მომსახურება|წმენდა|cleaning|painting|შეღებვა/i
 
     # ── Section items for name matching & per-item widgets ──
     section_items = (data["sections"] || []).flat_map do |s|
@@ -3918,7 +3919,9 @@ PROMPT
       end
       new_clars << { "type" => "item_input_list", "field" => "item_clarification", "question" => q_text, "items" => items }
     elsif ambig_list.length == 1
-      new_clars << ambig_list.first[:clar]
+      c = ambig_list.first[:clar]
+      c["_original_name"] = ambig_list.first[:name]
+      new_clars << c
     end
 
     # ══════════════════════════════════════════════════════════════════
@@ -3933,10 +3936,11 @@ PROMPT
       (existing_iil["items"] || []).each do |item|
         item["name"] = clean_name.call(item["name"])
         cat = item["category"].to_s
-        # Match category from section items if missing
+        # Match category from section items if missing, fallback to keyword detection
         if cat.blank?
           si = section_items.find { |s| s[:desc].downcase == item["name"].downcase }
           cat = si[:category] if si
+          cat = "labor" if cat.blank? && item["name"].to_s.match?(labor_re)
           item["category"] = cat
         end
         # Ensure materials have qty input
@@ -3965,6 +3969,7 @@ PROMPT
         field_cat = pc["field"].to_s.split(".").first
         category = cat_prefixes.include?(field_cat) ? field_cat : nil
         category ||= section_items.find { |s| s[:desc].downcase == item_name.downcase }&.dig(:category)
+        category ||= "labor" if item_name.match?(labor_re)
 
         # Find matching qty question
         mq = qty_list.find do |qc|
