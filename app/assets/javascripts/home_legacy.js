@@ -5798,7 +5798,7 @@ function handleQueueAnswer(answer) {
   // Inter-step thinking: single text ambiguity → rename item in subsequent steps
   // BUT only if the answer is a real qualifier, not a dismissal like "არაფერი კონკრეტული"
   if (currentItem._original_name && answer && answer !== '__CANCELLED__') {
-    var dismissalRe = /არაფერი|არ\s*ვიცი|არ\s*მინდა|უბრალოდ|nothing|none|no|don'?t\s*know|not\s*sure|just|skip|გამოტოვე|N\/A/i;
+    var dismissalRe = /^არა$|არაფერი|არ\s*ვიცი|არ\s*მინდა|უბრალოდ|^no$|^nothing$|^none$|don'?t\s*know|not\s*sure|^just$|^skip$|გამოტოვე|^N\/A$/i;
     var trimmed = answer.trim();
     if (!dismissalRe.test(trimmed) && trimmed.length < 60) {
       window._queueItemRenames = window._queueItemRenames || {};
@@ -7513,7 +7513,7 @@ function confirmItemInputList() {
 
   // Check if this is an ambiguity card — build rename map for subsequent steps
   // BUT only if the answer is a real qualifier, not a dismissal
-  var dismissalRe = /არაფერი|არ\s*ვიცი|არ\s*მინდა|უბრალოდ|nothing|none|no|don'?t\s*know|not\s*sure|just|skip|გამოტოვე|N\/A/i;
+  var dismissalRe = /^არა$|არაფერი|არ\s*ვიცი|არ\s*მინდა|უბრალოდ|^no$|^nothing$|^none$|don'?t\s*know|not\s*sure|^just$|^skip$|გამოტოვე|^N\/A$/i;
   var currentClar = window._clarificationQueue && window._clarificationQueue[0];
   if (currentClar && currentClar.field === 'item_clarification') {
     window._queueItemRenames = window._queueItemRenames || {};
@@ -8622,13 +8622,11 @@ function addUserBubble(text) {
   const conversation = document.getElementById('assistantConversation');
   if (!conversation) return;
 
+  // Convert newlines to <br> AFTER escaping HTML (avoids pre-line indentation bugs)
+  var safe = escapeHtml(text).replace(/\n/g, '<br>');
   const div = document.createElement('div');
   div.className = "flex justify-end animate-in fade-in slide-in-from-right-2 duration-300";
-  div.innerHTML = `
-    <div class="bg-orange-50 border-2 border-orange-200 rounded-2xl rounded-tr-none px-4 py-2 text-xs font-bold text-orange-800 shadow-sm max-w-[80%]" style="white-space:pre-line">
-      ${escapeHtml(text)}
-    </div>
-  `;
+  div.innerHTML = '<div class="bg-orange-50 border-2 border-orange-200 rounded-2xl rounded-tr-none px-4 py-2 text-xs font-bold text-orange-800 shadow-sm max-w-[80%]">' + safe + '</div>';
   conversation.appendChild(div);
   conversation.scrollTop = conversation.scrollHeight;
 }
