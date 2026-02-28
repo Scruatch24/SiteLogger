@@ -728,7 +728,7 @@ class HomeController < ApplicationController
       #{raw_text}
     TEXT
 
-    gemini_model = ENV["GEMINI_PRIMARY_MODEL"].presence || "gemini-2.5-flash"
+    gemini_model = ENV["GEMINI_PRIMARY_MODEL"].presence || "gemini-2.5-flash-lite"
 
     body = gemini_generate_content(
       api_key: api_key,
@@ -1273,7 +1273,7 @@ PROMPT
         half_day_hours: half_day_hours
       )
 
-      gemini_model = ENV["GEMINI_PRIMARY_MODEL"].presence || "gemini-2.5-flash"
+      gemini_model = ENV["GEMINI_PRIMARY_MODEL"].presence || "gemini-2.5-flash-lite"
 
       user_input_parts = []
 
@@ -2205,7 +2205,7 @@ PROMPT
     PROMPT
 
     begin
-      gemini_model = ENV["GEMINI_PRIMARY_MODEL"].presence || "gemini-2.5-flash"
+      gemini_model = ENV["GEMINI_PRIMARY_MODEL"].presence || "gemini-2.5-flash-lite"
       thinking_budget = (ENV["GEMINI_REFINE_THINKING_BUDGET"].presence || ENV["GEMINI_THINKING_BUDGET"].presence || 4096).to_i
 
       body = gemini_generate_content(
