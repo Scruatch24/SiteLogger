@@ -5731,7 +5731,7 @@ function showNextQueueItem() {
     renderCurrencyCard(c);
   } else if (c.type === 'tax_management') {
     renderTaxManagementInQueue(c);
-    return; // tax widget handles its own input flow
+    // DO NOT return — input must stay active so user can type text instead of using widget
   } else if (c.type === 'item_input_list' && c.items && c.items.length > 0) {
     renderItemInputListCard(c);
   } else if (c.type === 'choice' && c.options && c.options.length > 0) {
@@ -5775,10 +5775,15 @@ function handleQueueAnswer(answer) {
   });
 
   // Inter-step thinking: single text ambiguity → rename item in subsequent steps
+  // BUT only if the answer is a real qualifier, not a dismissal like "არაფერი კონკრეტული"
   if (currentItem._original_name && answer && answer !== '__CANCELLED__') {
-    window._queueItemRenames = window._queueItemRenames || {};
-    var newName = answer.trim() + ' ' + currentItem._original_name;
-    window._queueItemRenames[currentItem._original_name.toLowerCase()] = newName;
+    var dismissalRe = /არაფერი|არ\s*ვიცი|არ\s*მინდა|უბრალოდ|nothing|none|no|don'?t\s*know|not\s*sure|just|skip|გამოტოვე|N\/A/i;
+    var trimmed = answer.trim();
+    if (!dismissalRe.test(trimmed) && trimmed.length < 60) {
+      window._queueItemRenames = window._queueItemRenames || {};
+      var newName = trimmed + ' ' + currentItem._original_name;
+      window._queueItemRenames[currentItem._original_name.toLowerCase()] = newName;
+    }
   }
 
   // Remove progress indicator
@@ -5810,9 +5815,9 @@ function batchSubmitQueueAnswers() {
   window._queueTotal = 0;
   window.pendingClarifications = [];
 
-  // Filter out client answers, cancelled items, and tax (applied directly to JSON)
+  // Filter out client answers and cancelled items — tax MUST go to AI too (AI is the brain)
   var aiAnswers = answers.filter(function(qa) {
-    return qa.field !== 'client_match' && qa.field !== 'add_client_to_list' && qa.field !== 'client_confirm_existing' && qa.field !== 'tax_rate' && qa.answer !== '__CANCELLED__';
+    return qa.field !== 'client_match' && qa.field !== 'add_client_to_list' && qa.field !== 'client_confirm_existing' && qa.answer !== '__CANCELLED__';
   });
 
   // If only client answers remained, skip AI and handle locally
@@ -5844,11 +5849,6 @@ function batchSubmitQueueAnswers() {
   var batchMessage = aiAnswers.map(function(qa) {
     return '[AI asked: "' + qa.question + '" → User answered: "' + qa.answer + '"]';
   }).join('\n');
-
-  // If tax was applied directly, tell AI not to touch it
-  if (answers.some(function(qa) { return qa.field === 'tax_rate'; })) {
-    batchMessage += '\n[IMPORTANT: Tax rates have already been applied correctly. Do NOT change any taxable or tax_rate values.]';
-  }
 
   showTypingIndicator();
   var input = document.getElementById('assistantInput');
@@ -7253,7 +7253,7 @@ function renderItemInputListCard(clarification) {
 
     // Inputs + toggle on SAME row
     var isHourly = isBillingToggle && activeMode === 'hourly';
-    itemsHtml += '<div class="iil-inputs-container flex items-center gap-1.5">';
+    itemsHtml += '<div class="iil-inputs-container flex items-end gap-1.5">';
 
     if (isHourly) {
       itemsHtml += buildIilInput(idx, 'hours', L.hours_label || 'საათი', 'number', null)
@@ -7421,6 +7421,8 @@ function confirmItemInputList() {
   if (!card) return;
 
   // Check if this is an ambiguity card — build rename map for subsequent steps
+  // BUT only if the answer is a real qualifier, not a dismissal
+  var dismissalRe = /არაფერი|არ\s*ვიცი|არ\s*მინდა|უბრალოდ|nothing|none|no|don'?t\s*know|not\s*sure|just|skip|გამოტოვე|N\/A/i;
   var currentClar = window._clarificationQueue && window._clarificationQueue[0];
   if (currentClar && currentClar.field === 'item_clarification') {
     window._queueItemRenames = window._queueItemRenames || {};
@@ -7429,8 +7431,11 @@ function confirmItemInputList() {
       if (!itemCard) return;
       var descInput = itemCard.querySelector('.iil-input[data-iil-key="description"]');
       if (descInput && descInput.value.trim()) {
-        var newName = descInput.value.trim() + ' ' + item.name;
-        window._queueItemRenames[item.name.toLowerCase()] = newName;
+        var val = descInput.value.trim();
+        if (!dismissalRe.test(val) && val.length < 60) {
+          var newName = val + ' ' + item.name;
+          window._queueItemRenames[item.name.toLowerCase()] = newName;
+        }
       }
     });
   }
@@ -7645,7 +7650,27 @@ function confirmTaxManagement() {
   if (!items || items.length === 0) return;
   var L = window.APP_LANGUAGES || {};
 
-  // Build instruction — list EVERY item with explicit rate so nothing is ambiguous
+  // DIRECTLY apply tax rates to invoice JSON as immediate safety net
+  if (window.lastAiResult && window.lastAiResult.sections) {
+    window.lastAiResult.sections.forEach(function(sec) {
+      (sec.items || []).forEach(function(sItem) {
+        var name = (sItem.desc || sItem.name || '').toLowerCase();
+        var match = items.find(function(ti) { return ti.name.toLowerCase() === name; });
+        if (match) {
+          if (match.rate > 0) {
+            sItem.taxable = true;
+            sItem.tax_rate = match.rate;
+          } else {
+            sItem.taxable = false;
+            sItem.tax_rate = 0;
+          }
+        }
+      });
+    });
+    updateUIWithoutTranscript(window.lastAiResult);
+  }
+
+  // ALSO build explicit AI instruction — AI is the primary brain
   var allZero = items.every(function(i) { return i.rate === 0; });
   var allSame = items.every(function(i) { return i.rate === items[0].rate; });
   var instruction = '';
@@ -7663,7 +7688,7 @@ function confirmTaxManagement() {
         instruction += '"' + i.name + '": taxable=false, tax_rate=0. ';
       }
     });
-    instruction += 'Do NOT override these rates. Items with tax_rate=0 must have taxable:false.';
+    instruction += 'Do NOT override these rates. Items with tax_rate=0 MUST have taxable:false.';
   }
 
   var summary;
@@ -7801,7 +7826,7 @@ function confirmTaxQueue() {
   var items = window._taxQueueItems;
   if (!items || items.length === 0) return;
 
-  // DIRECTLY apply tax rates to invoice JSON — never rely on AI for this
+  // DIRECTLY apply tax rates to invoice JSON as immediate safety net
   if (window.lastAiResult && window.lastAiResult.sections) {
     window.lastAiResult.sections.forEach(function(sec) {
       (sec.items || []).forEach(function(sItem) {
@@ -7818,8 +7843,28 @@ function confirmTaxQueue() {
         }
       });
     });
-    // Update UI immediately with the new tax values
     updateUIWithoutTranscript(window.lastAiResult);
+  }
+
+  // ALSO build explicit AI instruction — AI is the primary brain, it must understand too
+  var allZero = items.every(function(i) { return i.rate === 0; });
+  var allSame = items.every(function(i) { return i.rate === items[0].rate; });
+  var instruction = '';
+
+  if (allZero) {
+    instruction = 'Remove all tax. Set taxable:false and tax_rate:0 on every item.';
+  } else if (allSame) {
+    instruction = 'Apply exactly ' + items[0].rate + '% tax to every item. Set taxable:true and tax_rate:' + items[0].rate + ' on all.';
+  } else {
+    instruction = 'Set per-item tax rates EXACTLY as follows: ';
+    items.forEach(function(item) {
+      if (item.rate > 0) {
+        instruction += '"' + item.name + '": taxable=true, tax_rate=' + item.rate + '. ';
+      } else {
+        instruction += '"' + item.name + '": taxable=false, tax_rate=0. ';
+      }
+    });
+    instruction += 'Do NOT override these rates. Items with tax_rate=0 MUST have taxable:false.';
   }
 
   // Build user bubble summary
@@ -7834,8 +7879,8 @@ function confirmTaxQueue() {
   }
 
   addUserBubble(summary);
-  // Pass a note so the batch knows tax was already applied
-  handleQueueAnswer('[tax rates applied directly to invoice]');
+  // Send BOTH: direct JSON already applied + AI instruction so AI understands too
+  handleQueueAnswer(instruction.trim());
 }
 
 // ── CHIP HANDLER: ADD ITEM (conversation starter → AI) ──
