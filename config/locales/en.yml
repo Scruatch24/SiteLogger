@@ -408,6 +408,8 @@ en:
   discount_pct_on: "Percentage discount: "
   per_hour_suffix: "hour"
   currency_suffix: "USD"
+  ai_did_not_understand: "I couldn't understand the request. Try rephrasing or break it into smaller parts."
+  confirm_remove: "Remove"
   go_back: "Go Back"
   
   # Membership

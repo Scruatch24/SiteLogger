@@ -5617,6 +5617,12 @@ function handleClarifications(clarifications) {
       removeTypingIndicator();
       if (wasCreateNew) {
         renderClientDetailOptions();
+      } else if (window._aiReturnedNothing) {
+        // AI failed to process the message — show retry prompt
+        window._aiReturnedNothing = false;
+        var L = window.APP_LANGUAGES || {};
+        addAIBubble(L.ai_did_not_understand || 'ვერ გავიგე მოთხოვნა. სცადეთ სხვა ფორმულირებით ან დაყავით ნაწილებად.');
+        renderQuickActionChips();
       } else {
         addAIBubble(window.APP_LANGUAGES.anything_else || "Anything else to change?");
         renderQuickActionChips();
@@ -6501,6 +6507,69 @@ function handleChipChangeClient() {
   }, 400);
 }
 
+// ── DIRECT CLIENT CHANGE: bypass AI, use backend matching only ──
+async function directClientChange(newClientName) {
+  var L = window.APP_LANGUAGES || {};
+
+  // Push undo checkpoint
+  if (window.lastAiResult) {
+    try {
+      if (!window._undoStack) window._undoStack = [];
+      var conv = document.getElementById('assistantConversation');
+      window._undoStack.push({
+        json: JSON.parse(JSON.stringify(window.lastAiResult)),
+        chatHtml: conv ? conv.innerHTML : '',
+        historyLength: (window.clarificationHistory || []).length,
+        clientMatchResolved: !!window.clientMatchResolved,
+        recentQuestions: (window._recentQuestions || []).slice()
+      });
+      if (window._undoStack.length > 10) window._undoStack.shift();
+    } catch(e) { /* ignore */ }
+  }
+
+  var assistInput = document.getElementById('assistantInput');
+  if (assistInput) assistInput.disabled = true;
+
+  try {
+    var res = await fetch("/refine_invoice", {
+      method: "POST",
+      headers: {
+        "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]').content,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        current_json: window.lastAiResult,
+        user_message: newClientName,
+        client_change_only: true
+      })
+    });
+    var data = await res.json();
+    removeTypingIndicator();
+
+    if (data.error) {
+      showError(data.error);
+      if (assistInput) assistInput.disabled = false;
+      return;
+    }
+
+    // Reset client match state so new clarifications show
+    window.clientMatchResolved = false;
+    window._recentQuestions = [];
+
+    // Update UI with the result (client changed + matching clarifications)
+    updateUIWithoutTranscript(data);
+    window.lastAiResult = data;
+
+    if (assistInput) assistInput.disabled = false;
+
+  } catch(e) {
+    removeTypingIndicator();
+    showError(L.network_error || 'Network error.');
+    console.error('Client change error:', e);
+    if (assistInput) assistInput.disabled = false;
+  }
+}
+
 // ── CHIP HANDLER: ADD DISCOUNT (conversation starter → AI handles clarifications) ──
 function handleChipAddDiscount() {
   if (window._pendingAnswer) return;
@@ -6536,44 +6605,45 @@ function renderRemoveItemCard() {
   var sections = (window.lastAiResult && window.lastAiResult.sections) || [];
   var domCats = typeof getInvoiceSectionsFromDOM === 'function' ? getInvoiceSectionsFromDOM() : [];
 
-  // Build accordion HTML grouped by section
+  // Initialize selection state
+  window._removeSelectedItems = {};
+
+  // Build accordion HTML grouped by section with toggle checkboxes
   var accordionHtml = '';
-  var itemIndex = 0;
   sections.forEach(function(sec, secIdx) {
     var items = sec.items || [];
     if (items.length === 0) return;
 
-    // Find matching DOM category for color/icon
     var domCat = domCats.find(function(dc) { return dc.key === sec.type; }) || {};
     var catColor = domCat.color || 'gray';
     var catIcon = domCat.icon || '<rect x="2" y="5" width="20" height="14" rx="2"/>';
     var catLabel = sec.title || sec.type;
 
     var colorMap = {
-      orange: { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-600', itemHover: 'hover:bg-orange-50' },
-      blue: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-600', itemHover: 'hover:bg-blue-50' },
-      red: { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-600', itemHover: 'hover:bg-red-50' },
-      green: { bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-600', itemHover: 'hover:bg-green-50' },
-      purple: { bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-600', itemHover: 'hover:bg-purple-50' },
-      gray: { bg: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-600', itemHover: 'hover:bg-gray-50' }
+      orange: { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-600' },
+      blue: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-600' },
+      red: { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-600' },
+      green: { bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-600' },
+      purple: { bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-600' },
+      gray: { bg: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-600' }
     };
     var cm = colorMap[catColor] || colorMap.gray;
 
-    var isOpen = secIdx === 0 ? 'true' : 'false';
-    var contentClass = secIdx === 0 ? '' : ' hidden';
-
     accordionHtml += '<div class="border rounded-xl overflow-hidden ' + cm.border + '">'
-      + '<button type="button" onclick="toggleRemoveAccordion(this)" data-open="' + isOpen + '" class="w-full flex items-center gap-2 px-3 py-2 ' + cm.bg + ' cursor-pointer">'
+      + '<button type="button" onclick="toggleRemoveAccordion(this)" data-open="true" class="w-full flex items-center gap-2 px-3 py-2 ' + cm.bg + ' cursor-pointer">'
       + '<svg class="w-3.5 h-3.5 ' + cm.text + ' shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + catIcon + '</svg>'
       + '<span class="text-[11px] font-bold ' + cm.text + ' flex-1 text-left">' + escapeHtml(catLabel) + ' (' + items.length + ')</span>'
-      + '<svg class="w-3 h-3 text-gray-400 transition-transform ' + (secIdx === 0 ? 'rotate-180' : '') + '" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>'
+      + '<svg class="w-3 h-3 text-gray-400 transition-transform rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>'
       + '</button>'
-      + '<div class="remove-accordion-content' + contentClass + '">';
+      + '<div class="remove-accordion-content">';
 
     items.forEach(function(item) {
       var desc = item.desc || '';
-      accordionHtml += '<button type="button" onclick="removeItemFromInvoice(\'' + escapeHtml(desc).replace(/'/g, "\\'") + '\')" class="w-full flex items-center gap-2 px-3 py-1.5 border-t ' + cm.border + ' bg-white ' + cm.itemHover + ' transition-all cursor-pointer active:scale-[0.98] text-left">'
-        + '<svg class="w-3 h-3 text-red-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
+      var itemKey = sec.type + '::' + desc;
+      accordionHtml += '<button type="button" onclick="toggleRemoveItem(this, \'' + escapeHtml(itemKey).replace(/'/g, "\\'") + '\')" data-item-key="' + escapeHtml(itemKey) + '" data-selected="false" class="remove-toggle-item w-full flex items-center gap-2 px-3 py-1.5 border-t ' + cm.border + ' bg-white hover:bg-red-50 transition-all cursor-pointer active:scale-[0.98] text-left">'
+        + '<div class="remove-check w-4 h-4 rounded border-2 border-gray-300 flex items-center justify-center shrink-0 transition-all">'
+        + '<svg class="w-2.5 h-2.5 text-white hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>'
+        + '</div>'
         + '<span class="text-[11px] font-semibold text-gray-700 truncate">' + escapeHtml(desc) + '</span>'
         + '</button>';
     });
@@ -6583,13 +6653,21 @@ function renderRemoveItemCard() {
 
   // "Entire Invoice" danger button
   var entireLabel = L.entire_invoice || 'Entire Invoice';
-  var entireBtn = '<button type="button" onclick="removeEntireInvoice()" class="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border-2 border-orange-400 bg-orange-50 hover:bg-orange-100 transition-all cursor-pointer active:scale-[0.97] mt-2">'
-    + '<svg class="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>'
-    + '<span class="text-[12px] font-bold text-orange-700">' + escapeHtml(entireLabel) + '</span>'
+  var entireBtn = '<button type="button" onclick="removeEntireInvoice()" class="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border-2 border-red-300 bg-red-50 hover:bg-red-100 transition-all cursor-pointer active:scale-[0.97] mt-2">'
+    + '<svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>'
+    + '<span class="text-[12px] font-bold text-red-700">' + escapeHtml(entireLabel) + '</span>'
+    + '</button>';
+
+  // Confirm button (hidden until items selected)
+  var confirmLabel = L.confirm_remove || 'Remove';
+  var confirmBtn = '<button type="button" id="removeConfirmBtn" onclick="confirmRemoveItems()" class="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white transition-all cursor-pointer active:scale-[0.97] mt-2 hidden">'
+    + '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>'
+    + '<span class="text-[12px] font-bold">' + escapeHtml(confirmLabel) + '</span>'
     + '</button>';
 
   var div = document.createElement('div');
   div.className = 'flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300';
+  div.id = 'removeItemCard';
   div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
     + '<div class="max-w-[85%] w-full">'
     + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm relative">'
@@ -6597,6 +6675,7 @@ function renderRemoveItemCard() {
     + '<div class="text-xs font-bold text-gray-800 mb-2.5 pr-6">' + escapeHtml(L.cancel_what_prompt || 'What would you like to remove?') + '</div>'
     + '<div class="space-y-2">' + accordionHtml + '</div>'
     + entireBtn
+    + confirmBtn
     + '</div></div>';
   conversation.appendChild(div);
   conversation.scrollTop = conversation.scrollHeight;
@@ -6617,14 +6696,93 @@ function toggleRemoveAccordion(btn) {
   }
 }
 
-function removeItemFromInvoice(itemName) {
+function toggleRemoveItem(btn, itemKey) {
+  var isSelected = btn.dataset.selected === 'true';
+  var checkBox = btn.querySelector('.remove-check');
+  var checkSvg = checkBox ? checkBox.querySelector('svg') : null;
+
+  if (isSelected) {
+    btn.dataset.selected = 'false';
+    btn.classList.remove('bg-red-50', 'border-red-200');
+    btn.classList.add('bg-white');
+    if (checkBox) { checkBox.classList.remove('bg-red-500', 'border-red-500'); checkBox.classList.add('border-gray-300'); }
+    if (checkSvg) checkSvg.classList.add('hidden');
+    delete window._removeSelectedItems[itemKey];
+  } else {
+    btn.dataset.selected = 'true';
+    btn.classList.add('bg-red-50', 'border-red-200');
+    btn.classList.remove('bg-white');
+    if (checkBox) { checkBox.classList.add('bg-red-500', 'border-red-500'); checkBox.classList.remove('border-gray-300'); }
+    if (checkSvg) checkSvg.classList.remove('hidden');
+    window._removeSelectedItems[itemKey] = true;
+  }
+
+  // Show/hide confirm button based on selection count
+  var count = Object.keys(window._removeSelectedItems || {}).length;
+  var confirmBtn = document.getElementById('removeConfirmBtn');
+  if (confirmBtn) {
+    if (count > 0) {
+      confirmBtn.classList.remove('hidden');
+      var L = window.APP_LANGUAGES || {};
+      var label = (L.confirm_remove || 'Remove') + ' (' + count + ')';
+      var span = confirmBtn.querySelector('span');
+      if (span) span.textContent = label;
+    } else {
+      confirmBtn.classList.add('hidden');
+    }
+  }
+}
+
+function confirmRemoveItems() {
+  var selected = window._removeSelectedItems || {};
+  var keys = Object.keys(selected);
+  if (keys.length === 0) return;
+
   var L = window.APP_LANGUAGES || {};
   window.disablePreviousInteractiveElements();
-  // Send to AI for removal
-  var msg = (L.remove_prefix || 'Remove') + ' ' + itemName;
-  addUserBubble(msg);
-  showTypingIndicator();
-  triggerAssistantReparse(msg, 'refinement', 'User wants to remove item');
+
+  // Push undo checkpoint
+  if (window.lastAiResult) {
+    try {
+      if (!window._undoStack) window._undoStack = [];
+      var conv = document.getElementById('assistantConversation');
+      window._undoStack.push({
+        json: JSON.parse(JSON.stringify(window.lastAiResult)),
+        chatHtml: conv ? conv.innerHTML : '',
+        historyLength: (window.clarificationHistory || []).length,
+        clientMatchResolved: !!window.clientMatchResolved,
+        recentQuestions: (window._recentQuestions || []).slice()
+      });
+      if (window._undoStack.length > 10) window._undoStack.shift();
+    } catch(e) { /* ignore */ }
+  }
+
+  // Remove selected items from JSON directly (no AI needed)
+  var removedNames = [];
+  keys.forEach(function(key) {
+    var parts = key.split('::');
+    var secType = parts[0];
+    var itemDesc = parts.slice(1).join('::');
+    removedNames.push(itemDesc);
+
+    if (window.lastAiResult && window.lastAiResult.sections) {
+      window.lastAiResult.sections.forEach(function(sec) {
+        if (sec.type === secType) {
+          sec.items = (sec.items || []).filter(function(item) { return item.desc !== itemDesc; });
+        }
+      });
+      // Remove empty sections
+      window.lastAiResult.sections = window.lastAiResult.sections.filter(function(sec) { return (sec.items || []).length > 0; });
+    }
+  });
+
+  // Show user bubble with removed items
+  var bubbleText = (L.confirm_remove || 'Remove') + ' ' + removedNames.join(', ');
+  addUserBubble(bubbleText);
+
+  // Update UI
+  updateUIWithoutTranscript(window.lastAiResult);
+  window._removeSelectedItems = {};
 }
 
 function removeEntireInvoice() {
@@ -7815,17 +7973,22 @@ function handleClientDetailInput(value) {
 
   var L = window.APP_LANGUAGES || {};
 
-  // ── ADD ITEM / CHANGE DATE / CHANGE CLIENT: all sent directly to AI ──
-  if (field === 'add_item_name' || field === 'add_item_price' || field === 'change_date' || field === 'change_client') {
+  // ── CHANGE CLIENT: bypass AI entirely, do direct backend matching ──
+  if (field === 'change_client') {
+    window._collectingClientDetail = null;
+    showTypingIndicator();
+    directClientChange(value);
+    return;
+  }
+
+  // ── ADD ITEM / CHANGE DATE: sent directly to AI ──
+  if (field === 'add_item_name' || field === 'add_item_price' || field === 'change_date') {
     var contextValue = value;
     if (field === 'change_date' && window._dateFlowType) {
       var dateLabel = window._dateFlowType === 'due'
         ? (L.date_type_due || 'Due date')
         : (L.date_type_invoice || 'Invoice date');
       contextValue = dateLabel + ': ' + value;
-    }
-    if (field === 'change_client') {
-      contextValue = (L.action_change_client || 'Change client') + ': ' + value;
     }
     window._collectingClientDetail = null;
     window._addItemName = null;
@@ -8261,6 +8424,20 @@ async function triggerAssistantReparse(userAnswer, type, questionsText) {
         return;
       }
 
+      // Detect unchanged AI response: if no clarifications and JSON sections look identical, flag it
+      var aiReturnedNothing = false;
+      var clars = data.clarifications || [];
+      if (clars.length === 0 && window.lastAiResult && type === 'refinement') {
+        try {
+          var oldSections = JSON.stringify((window.lastAiResult.sections || []).map(function(s) { return { type: s.type, items: (s.items || []).map(function(i) { return i.desc; }) }; }));
+          var newSections = JSON.stringify((data.sections || []).map(function(s) { return { type: s.type, items: (s.items || []).map(function(i) { return i.desc; }) }; }));
+          if (oldSections === newSections && (data.client || '') === (window.lastAiResult.client || '')) {
+            aiReturnedNothing = true;
+          }
+        } catch(e) { /* ignore comparison errors */ }
+      }
+      window._aiReturnedNothing = aiReturnedNothing;
+
       // Update UI with refined result (without touching transcript)
       updateUIWithoutTranscript(data);
 
@@ -8691,10 +8868,12 @@ Object.assign(window, {
   performUndo,
   performUndoTo,
   renderInlineUndoBtn,
+  directClientChange,
   handleChipRemoveItem,
   renderRemoveItemCard,
   toggleRemoveAccordion,
-  removeItemFromInvoice,
+  toggleRemoveItem,
+  confirmRemoveItems,
   removeEntireInvoice,
   renderClientConfirmExistingCard,
   confirmExistingClientYes,

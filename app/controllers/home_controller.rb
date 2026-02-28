@@ -1917,6 +1917,75 @@ PROMPT
     return render json: { error: t("input_too_short", default: "Input too short.") }, status: :unprocessable_entity if user_message.length < 2
     return render json: { error: "Missing invoice data" }, status: :unprocessable_entity if current_json.blank?
 
+    # ── CLIENT CHANGE SHORTCUT: bypass AI entirely, just do client matching ──
+    if ActiveModel::Type::Boolean.new.cast(params[:client_change_only])
+      result = current_json.is_a?(String) ? (JSON.parse(current_json) rescue {}) : current_json.to_unsafe_h.to_h
+      result = result.deep_stringify_keys
+      new_client_name = user_message.to_s.strip
+      result["client"] = new_client_name
+      result["recipient_info"] = nil
+      result["clarifications"] = []
+      result["sections"] ||= []
+      result["credits"] ||= []
+
+      if user_signed_in? && @profile.paid?
+        norm_spoken = normalize_client_name(new_client_name)
+
+        # Tier 1: Exact match
+        exact_match = current_user.clients.where("name ILIKE ?", new_client_name).first
+        unless exact_match
+          exact_match = current_user.clients.detect { |c| normalize_client_name(c.name) == norm_spoken } if norm_spoken.present?
+        end
+
+        if exact_match
+          result["recipient_info"] = { "client_id" => exact_match.id, "name" => exact_match.name, "email" => exact_match.email, "phone" => exact_match.phone, "address" => exact_match.address }
+          result["client"] = exact_match.name
+          confirm_q = t("client_exists_confirm")
+          result["clarifications"] << { "field" => "client_confirm_existing", "type" => "yes_no", "question" => confirm_q, "client_name" => exact_match.name, "client_id" => exact_match.id }
+        else
+          # Tier 2: Fuzzy match
+          safe_name = new_client_name.gsub(/[%_]/, "")
+          similar = current_user.clients.where("name ILIKE ?", "%#{safe_name}%").limit(10).to_a
+          if norm_spoken.length >= 3
+            current_user.clients.each do |c|
+              norm_db = normalize_client_name(c.name)
+              if norm_db.include?(norm_spoken) || norm_spoken.include?(norm_db)
+                similar << c unless similar.any? { |s| s.id == c.id }
+              end
+            end
+          end
+
+          if similar.length == 1
+            match = similar.first
+            result["recipient_info"] = { "client_id" => match.id, "name" => match.name, "email" => match.email, "phone" => match.phone, "address" => match.address }
+            result["client"] = match.name
+            confirm_q = t("client_exists_confirm")
+            result["clarifications"] << { "field" => "client_confirm_existing", "type" => "yes_no", "question" => confirm_q, "client_name" => match.name, "client_id" => match.id }
+          elsif similar.length > 1
+            similar_with_counts = similar.map { |c| { "id" => c.id, "name" => c.name, "invoices_count" => c.logs.kept.count } }
+              .sort_by { |c| -c["invoices_count"] }
+              .first(5)
+            best_guess = similar_with_counts.first["name"]
+            question_text = I18n.locale.to_s == "ka" ? "მოიძებნა რამდენიმე მსგავსი კლიენტი:" : "Multiple similar clients found:"
+            result["clarifications"] << { "field" => "client_match", "guess" => best_guess, "question" => question_text, "similar_clients" => similar_with_counts }
+            result["recipient_info"] = { "client_id" => nil, "name" => new_client_name, "is_new" => true }
+          else
+            result["recipient_info"] = { "client_id" => nil, "name" => new_client_name, "is_new" => true }
+            add_q = I18n.locale.to_s == "ka" ? "გსურთ მეტი დეტალის მითითება \"#{new_client_name}\"-სთვის?" : "Would you like to add more details for \"#{new_client_name}\"?"
+            result["clarifications"] << { "field" => "add_client_to_list", "type" => "yes_no", "question" => add_q, "guess" => nil, "client_name" => new_client_name }
+          end
+        end
+      else
+        # Not paid: just set name, no matching
+        result["recipient_info"] = { "client_id" => nil, "name" => new_client_name, "is_new" => true }
+        add_q = I18n.locale.to_s == "ka" ? "გსურთ მეტი დეტალის მითითება \"#{new_client_name}\"-სთვის?" : "Would you like to add more details for \"#{new_client_name}\"?"
+        result["clarifications"] << { "field" => "add_client_to_list", "type" => "yes_no", "question" => add_q, "guess" => nil, "client_name" => new_client_name }
+      end
+
+      Rails.logger.info "CLIENT CHANGE DIRECT: #{new_client_name} → clarifications: #{result["clarifications"].map { |c| c["field"] }.join(", ")}"
+      return render json: result
+    end
+
     doc_language = params[:language] || @profile.try(:transcription_language) || session[:transcription_language] || @profile.try(:document_language) || "en"
     target_is_georgian = (doc_language == "ge" || doc_language == "ka")
     ui_is_georgian = (I18n.locale.to_s == "ka")
@@ -1991,17 +2060,17 @@ PROMPT
       - Percentage → discount_percent. Flat amount → discount_flat. NEVER compute the flat equivalent of a percentage.
       - discount_percent ≤ 100. discount_flat ≤ item total price.
       - "discount everything except [category]" → apply per-item to every OTHER category, leave excluded at 0. Do NOT use global_discount.
-      - DISCOUNT CLARIFICATION ORDER: When user mentions a discount but does NOT specify the amount:
-        1. FIRST ask for the discount amount with field: "discount_amount", type: "text". Do NOT assume percentage.
-        2. If user gives a number WITHOUT % sign:
+      - DISCOUNT CLARIFICATION ORDER — THINK: WHAT → HOW MUCH → WHAT TYPE. Follow this EXACT sequence:
+        1. SCOPE FIRST: If 2+ items exist and user did NOT specify WHICH items get a discount, you MUST ask SCOPE first with field: "discount_scope", type: "multi_choice", options: [all item desc/name values from current invoice]. The frontend renders an accordion grouped by category with an "Invoice Discount" button. Do NOT skip this step. Do NOT assume "all items".
+        2. AMOUNT SECOND: After scope is known (user selected items OR only 1 item exists OR user specified which), ask for the discount amount with field: "discount_amount", type: "text". Do NOT assume percentage.
+        3. TYPE THIRD: After user gives a number WITHOUT % sign:
            - If the number is > 100 → it is ALWAYS a flat amount. Apply discount_flat directly. Do NOT ask about type.
            - If the number is 1-100 (ambiguous range) for a SINGLE item, return a clarification with field: "discount_type", type: "choice", options: ["ფიქსირებული", "პროცენტული"].
            - For MULTIPLE items (2+) needing type selection in the SAME round, you MUST use a SINGLE clarification with field: "discount_type_multi", type: "multi_choice", options: [item names]. Include "amounts" map with guessed/known amounts per item (e.g., "amounts": {"ტელეფონი": 13, "ქეისი": 25}). Do NOT return multiple separate "discount_type" clarifications — combine them into ONE "discount_type_multi".
-        3. If discount scope is ambiguous (multiple items exist and user didn't specify which), ask with field: "discount_scope", type: "multi_choice", options: [all item desc/name values from current invoice].
-        4. If user answers "Invoice Discount" to a discount_scope question, apply as global_discount_flat or global_discount_percent. Otherwise apply per-item.
-        5. NEVER ask "რომელი პროცენტით?" — always ask for amount first, then type if ambiguous, then scope if needed.
+        4. If user answers "Invoice Discount" to a discount_scope question, apply as global_discount_flat or global_discount_percent (invoice-level). Otherwise apply per-item to the selected items.
+        5. SHORTCUT: If user specifies percentage explicitly (e.g., "10%"), just apply it — no need to ask about type. If scope is clear (e.g., "discount on phone"), just apply it — no need to ask about scope. If only 1 item exists, skip scope. Only ask what's MISSING.
         6. IMPORTANT: Use EXACTLY these field names: "discount_amount", "discount_type", "discount_scope". The frontend uses these to trigger specific UI widgets.
-        7. If user specifies percentage explicitly (e.g., "10%"), just apply it — no need to ask about type. If scope is clear, just apply it.
+        7. NEVER ask "რომელი პროცენტით?" — follow the WHAT → HOW MUCH → WHAT TYPE order strictly.
 
       TAX RULES:
       - Default: taxable = null (system applies defaults). Only set explicitly when user says so.

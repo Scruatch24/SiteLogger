@@ -408,6 +408,8 @@ ka:
   discount_pct_on: "პროცენტული ფასდაკლება: "
   per_hour_suffix: "საათი"
   currency_suffix: "ლარი"
+  ai_did_not_understand: "ვერ გავიგე მოთხოვნა. სცადეთ სხვა ფორმულირებით ან დაყავით ნაწილებად."
+  confirm_remove: "წაშლა"
   go_back: "უკან დაბრუნება"
   
   # Membership
