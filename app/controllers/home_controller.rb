@@ -2080,12 +2080,18 @@ PROMPT
       - REMOVE TAX / NO TAX → Set labor_taxable:false AND taxable:false on EVERY SINGLE item. Also set tax_rate:null and tax_scope:null. This is a COMMAND, not a question.
       - "tax everything except [X]" → taxable:false for X, taxable:true for all others.
       - PER-ITEM TAX EXEMPTION: find items BY NAME, set taxable:false on each. Leave others unchanged.
-      - PER-ITEM TAX RATES: When user specifies rates per item (e.g., "შეკეთება 18%, დანარჩენი 0%"), apply EXACTLY:
+      - PER-ITEM TAX RATES: When user specifies rates per item, apply EXACTLY:
         - Items with rate > 0 → taxable:true, tax_rate:<rate>
-        - Items with rate = 0 or "დანარჩენი 0" or "rest 0" → taxable:false, tax_rate:0 on EVERY remaining item. Do NOT skip 0% items. Do NOT default them to 18%.
-      - "დანარჩენი 0" / "rest is 0" / "others 0%" = ALL items NOT explicitly mentioned get taxable:false, tax_rate:0.
+        - Items with rate = 0 → taxable:false, tax_rate:0. NEVER skip. NEVER default to 18%.
+      - ZERO TAX PATTERNS (CRITICAL - all mean tax_rate:0, taxable:false):
+        - "X 0-ია" = "X is 0" → X gets taxable:false, tax_rate:0
+        - "X 0%" → X gets taxable:false, tax_rate:0
+        - "X-ის დღგ 0%" → X gets taxable:false, tax_rate:0
+        - "დანარჩენი 0" / "rest 0" / "others 0%" → ALL unmentioned items get taxable:false, tax_rate:0
+        - "შეკეთება 0-ია, დანარჩენი 18" = შეკეთება gets 0%, everything else gets 18%
+        - ZERO IS A VALID TAX RATE. Apply it. Do not ignore it. Do not ask about it.
       - TAX IS NEVER A CLARIFICATION. Just apply it. Never ask.
-      - CRITICAL: When a batch answer contains tax instructions (e.g., [AI asked: "..." → User answered: "Set per-item tax rates..."]), you MUST apply those rates EXACTLY. Items listed with tax_rate=0 MUST get taxable:false. NEVER ignore 0% rates or default them to anything else.
+      - CRITICAL: When a batch answer contains tax instructions (e.g., [AI asked: "..." → User answered: "Set per-item tax rates..."]), you MUST apply those rates EXACTLY. Items listed with tax_rate=0 MUST get taxable:false. NEVER ignore 0% rates or default them to anything else. The number 0 means ZERO TAX, not "skip" or "unchanged".
 
       FREE ITEMS: "free" / "no charge" / "უფასოდ" / "უფასო" → price=0, hours=0, rate=0, mode="fixed", taxable=false.
 

@@ -5774,6 +5774,27 @@ function handleQueueAnswer(answer) {
     guess: currentItem.guess
   });
 
+  // TAX TEXT PRE-PROCESSING: if user typed text during a tax_management step,
+  // parse it and apply directly to JSON as safety net (AI struggles with 0%)
+  if (currentItem.type === 'tax_management' && answer && answer !== '__CANCELLED__') {
+    applyTaxTextDirectly(answer);
+    // Also disable the tax widget card if it was showing
+    var taxCard = document.getElementById('taxQueueCard');
+    if (taxCard) {
+      taxCard.querySelectorAll('button, input').forEach(function(el) { el.disabled = true; el.style.opacity = '0.5'; });
+    }
+    window._taxQueueItems = null;
+  }
+
+  // WIDGET-TEXT CONFLICT: if user typed text while a widget was showing, disable that widget
+  if (currentItem.type === 'item_input_list') {
+    var iilCard = window._currentIilCardId ? document.getElementById(window._currentIilCardId) : null;
+    if (iilCard) {
+      iilCard.querySelectorAll('button, input').forEach(function(el) { el.disabled = true; el.style.opacity = '0.5'; });
+    }
+    window._itemInputListData = null;
+  }
+
   // Inter-step thinking: single text ambiguity → rename item in subsequent steps
   // BUT only if the answer is a real qualifier, not a dismissal like "არაფერი კონკრეტული"
   if (currentItem._original_name && answer && answer !== '__CANCELLED__') {
@@ -6795,8 +6816,8 @@ function confirmRemoveItems() {
   var bubbleText = (L.confirm_remove || 'Remove') + ' ' + removedNames.join(', ');
   addUserBubble(bubbleText);
 
-  // Update UI
-  updateUIWithoutTranscript(window.lastAiResult);
+  // Update UI (skip clarifications — triggerAssistantReparse will handle chat)
+  updateUIWithoutTranscript(window.lastAiResult, true);
   window._removeSelectedItems = {};
 }
 
@@ -6811,7 +6832,7 @@ function removeEntireInvoice() {
     window.lastAiResult.client = null;
     window.lastAiResult.recipient_info = null;
   }
-  updateUIWithoutTranscript(window.lastAiResult || { sections: [], credits: [] });
+  updateUIWithoutTranscript(window.lastAiResult || { sections: [], credits: [] }, true);
 
   addUserBubble(L.entire_invoice || 'Entire Invoice');
   showTypingIndicator();
@@ -6843,8 +6864,8 @@ function performUndoTo(targetIdx) {
   window._undoStack = window._undoStack.slice(0, targetIdx + 1);
   var snapshot = window._undoStack.pop();
 
-  // Restore invoice JSON
-  updateUIWithoutTranscript(snapshot.json);
+  // Restore invoice JSON (skip clarifications — undo handles chat itself)
+  updateUIWithoutTranscript(snapshot.json, true);
   window.lastAiResult = snapshot.json;
 
   // Restore chat to pre-action state
@@ -7232,7 +7253,22 @@ function renderItemInputListCard(clarification) {
   window._itemInputListData = items.map(function(item, idx) {
     var toggle = item.toggle || null;
     var activeMode = toggle ? (toggle.default || toggle.options[0]) : null;
-    return { name: item.name, category: item.category || null, inputs: item.inputs || [], toggle: toggle, activeMode: activeMode, idx: idx };
+    // For discount cards, calculate max price from invoice JSON
+    var maxPrice = null;
+    if (toggle && toggle.key === 'discount_type' && window.lastAiResult && window.lastAiResult.sections) {
+      var iName = (item.name || '').toLowerCase();
+      window.lastAiResult.sections.forEach(function(sec) {
+        (sec.items || []).forEach(function(sItem) {
+          var sName = (sItem.desc || sItem.name || '').toLowerCase();
+          if (sName === iName) {
+            var qty = parseFloat(sItem.qty) || 1;
+            var price = parseFloat(sItem.price) || 0;
+            maxPrice = Math.round(qty * price * 100) / 100;
+          }
+        });
+      });
+    }
+    return { name: item.name, category: item.category || null, inputs: item.inputs || [], toggle: toggle, activeMode: activeMode, idx: idx, maxPrice: maxPrice };
   });
 
   var itemsHtml = '';
@@ -7261,7 +7297,8 @@ function renderItemInputListCard(clarification) {
     } else {
       (item.inputs || []).forEach(function(inp) {
         var prefill = inp.value !== undefined && inp.value !== null ? inp.value : null;
-        itemsHtml += buildIilInput(idx, inp.key, inp.label, inp.type || 'text', prefill);
+        var extra = isDiscountToggle ? ' oninput="validateDiscountInput(this)"' : '';
+        itemsHtml += buildIilInput(idx, inp.key, inp.label, inp.type || 'text', prefill, extra);
       });
     }
 
@@ -7289,8 +7326,8 @@ function renderItemInputListCard(clarification) {
       var cls1 = activeMode === opt1 ? activeColor : inactiveColor;
 
       itemsHtml += '<div class="shrink-0 flex items-center gap-0 border-2 border-gray-200 rounded-lg overflow-hidden">'
-        + '<button type="button" data-iil-idx="' + idx + '" data-iil-mode="' + escapeHtml(opt0) + '" onclick="toggleItemInputMode(this)" class="iil-toggle-btn px-2 py-1 text-[10px] font-bold transition-all cursor-pointer ' + cls0 + '">' + (isBillingToggle ? escapeHtml(label0) : label0) + '</button>'
-        + '<button type="button" data-iil-idx="' + idx + '" data-iil-mode="' + escapeHtml(opt1) + '" onclick="toggleItemInputMode(this)" class="iil-toggle-btn px-2 py-1 text-[10px] font-bold transition-all cursor-pointer ' + cls1 + '">' + (isBillingToggle ? escapeHtml(label1) : label1) + '</button>'
+        + '<button type="button" data-iil-idx="' + idx + '" data-iil-mode="' + escapeHtml(opt0) + '" onclick="toggleItemInputMode(this)" class="iil-toggle-btn px-2 py-1.5 text-[10px] font-bold transition-all cursor-pointer ' + cls0 + '">' + (isBillingToggle ? escapeHtml(label0) : label0) + '</button>'
+        + '<button type="button" data-iil-idx="' + idx + '" data-iil-mode="' + escapeHtml(opt1) + '" onclick="toggleItemInputMode(this)" class="iil-toggle-btn px-2 py-1.5 text-[10px] font-bold transition-all cursor-pointer ' + cls1 + '">' + (isBillingToggle ? escapeHtml(label1) : label1) + '</button>'
         + '</div>';
     }
 
@@ -7318,14 +7355,15 @@ function renderItemInputListCard(clarification) {
   if (firstInput) firstInput.focus();
 }
 
-function buildIilInput(idx, key, label, type, prefill) {
+function buildIilInput(idx, key, label, type, prefill, extraAttrs) {
   var inputType = type === 'number' ? 'number' : 'text';
   var inputMode = type === 'number' ? ' inputmode="decimal"' : '';
   var val = prefill !== null ? ' value="' + escapeHtml(String(prefill)) + '"' : '';
+  var extra = extraAttrs || '';
   var labelHtml = label ? '<span class="text-[9px] font-semibold text-gray-400 uppercase tracking-wide">' + escapeHtml(label) + '</span>' : '';
   return '<div class="flex-1 min-w-0">'
     + labelHtml
-    + '<input type="' + inputType + '"' + inputMode + val + ' data-iil-idx="' + idx + '" data-iil-key="' + escapeHtml(key) + '" class="iil-input w-full text-[12px] font-semibold text-gray-800 border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-orange-400 transition-all bg-white" placeholder="..." />'
+    + '<input type="' + inputType + '"' + inputMode + val + ' data-iil-idx="' + idx + '" data-iil-key="' + escapeHtml(key) + '"' + extra + ' class="iil-input w-full text-[12px] font-semibold text-gray-800 border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-orange-400 transition-all bg-white" placeholder="..." />'
     + '</div>';
 }
 
@@ -7352,9 +7390,9 @@ function toggleItemInputMode(btn) {
 
   itemCard.querySelectorAll('.iil-toggle-btn').forEach(function(b) {
     if (b.dataset.iilMode === newMode) {
-      b.className = 'iil-toggle-btn px-2 py-1 text-[10px] font-bold transition-all cursor-pointer ' + activeColor;
+      b.className = 'iil-toggle-btn px-2 py-1.5 text-[10px] font-bold transition-all cursor-pointer ' + activeColor;
     } else {
-      b.className = 'iil-toggle-btn px-2 py-1 text-[10px] font-bold transition-all cursor-pointer ' + inactiveColor;
+      b.className = 'iil-toggle-btn px-2 py-1.5 text-[10px] font-bold transition-all cursor-pointer ' + inactiveColor;
     }
   });
 
@@ -7383,15 +7421,68 @@ function toggleItemInputMode(btn) {
     // Re-bind toggle button visuals after rebuild
     container.querySelectorAll('.iil-toggle-btn').forEach(function(b) {
       if (b.dataset.iilMode === newMode) {
-        b.className = 'iil-toggle-btn px-2 py-1 text-[10px] font-bold transition-all cursor-pointer ' + activeColor;
+        b.className = 'iil-toggle-btn px-2 py-1.5 text-[10px] font-bold transition-all cursor-pointer ' + activeColor;
       } else {
-        b.className = 'iil-toggle-btn px-2 py-1 text-[10px] font-bold transition-all cursor-pointer ' + inactiveColor;
+        b.className = 'iil-toggle-btn px-2 py-1.5 text-[10px] font-bold transition-all cursor-pointer ' + inactiveColor;
       }
     });
     var firstInput = container.querySelector('.iil-input');
     if (firstInput) firstInput.focus();
   }
   // discount_type toggle: visual-only (no input rebuild needed) — already handled above
+
+  // After switching discount mode, re-validate input
+  if (isDiscountToggle) {
+    var dInput = itemCard.querySelector('.iil-input');
+    if (dInput) validateDiscountInput(dInput);
+  }
+}
+
+// Discount input validation:
+// - If value > 100 → auto-switch to FIXED, grey out percentage
+// - If value > maxPrice (price*qty) in fixed mode → cap at maxPrice
+function validateDiscountInput(inp) {
+  var idx = parseInt(inp.dataset.iilIdx);
+  var data = window._itemInputListData;
+  if (!data || !data[idx]) return;
+  var item = data[idx];
+  if (!item.toggle || item.toggle.key !== 'discount_type') return;
+
+  var val = parseFloat(inp.value) || 0;
+  var card = window._currentIilCardId ? document.getElementById(window._currentIilCardId) : null;
+  if (!card) return;
+  var itemCard = card.querySelector('div[data-iil-idx="' + idx + '"]');
+  if (!itemCard) return;
+
+  var activeColor = 'bg-green-500 text-white';
+  var inactiveColor = 'bg-white text-gray-400 hover:bg-gray-50';
+  var disabledColor = 'bg-gray-100 text-gray-300 cursor-not-allowed';
+  var pctBtn = itemCard.querySelector('.iil-toggle-btn[data-iil-mode="percentage"]');
+  var fixedBtn = itemCard.querySelector('.iil-toggle-btn[data-iil-mode="fixed"]');
+
+  if (val > 100) {
+    // Auto-switch to FIXED — percentage impossible for >100
+    item.activeMode = 'fixed';
+    if (fixedBtn) fixedBtn.className = 'iil-toggle-btn px-2 py-1.5 text-[10px] font-bold transition-all cursor-pointer ' + activeColor;
+    if (pctBtn) {
+      pctBtn.className = 'iil-toggle-btn px-2 py-1.5 text-[10px] font-bold transition-all ' + disabledColor;
+      pctBtn.disabled = true;
+    }
+    // Cap at maxPrice if available
+    if (item.maxPrice !== null && val > item.maxPrice) {
+      inp.value = item.maxPrice;
+    }
+  } else {
+    // Re-enable percentage if it was disabled
+    if (pctBtn && pctBtn.disabled) {
+      pctBtn.disabled = false;
+      if (item.activeMode === 'percentage') {
+        pctBtn.className = 'iil-toggle-btn px-2 py-1.5 text-[10px] font-bold transition-all cursor-pointer ' + activeColor;
+      } else {
+        pctBtn.className = 'iil-toggle-btn px-2 py-1.5 text-[10px] font-bold transition-all cursor-pointer ' + inactiveColor;
+      }
+    }
+  }
 }
 
 // Clean Georgian question wrapping from item names (frontend safety net)
@@ -7449,38 +7540,56 @@ function confirmItemInputList() {
     var isBillingToggle = item.toggle && item.toggle.key === 'billing_mode';
     var isDiscountToggle = item.toggle && item.toggle.key === 'discount_type';
 
-    if (isBillingToggle && item.activeMode === 'hourly') {
+    if (isDiscountToggle) {
+      // Discount format: "ტელეფონი: 150" or "ქეისი: 52%"
+      var amtInput = itemCard.querySelector('.iil-input');
+      var val = amtInput ? amtInput.value.trim() : '0';
+      if (item.activeMode === 'percentage') {
+        parts.push(displayName + ': ' + (val || '0') + '%');
+      } else {
+        parts.push(displayName + ': ' + (val || '0'));
+      }
+    } else if (isBillingToggle && item.activeMode === 'hourly') {
+      // Hourly labor: multi-line "შეკეთება:\nსაათი - 2\nტარიფი - 613"
       var hoursInput = itemCard.querySelector('.iil-input[data-iil-key="hours"]');
       var rateInput = itemCard.querySelector('.iil-input[data-iil-key="rate"]');
       var hours = hoursInput ? hoursInput.value.trim() : '';
       var rate = rateInput ? rateInput.value.trim() : '';
       if (hours || rate) {
-        parts.push(displayName + ': ' + (hours || '0') + ' ' + (L.hours_label || 'საათი') + ' × ' + (rate || '0'));
+        var lines = [displayName + ':'];
+        if (hours) lines.push((L.hours_label || 'საათი') + ' - ' + hours);
+        if (rate) lines.push((L.rate_label || 'ტარიფი') + ' - ' + rate);
+        parts.push(lines.join('\n'));
       }
     } else {
-      // Collect all inputs with their labels from the DOM (always matches display language)
-      var inputs = itemCard.querySelectorAll('.iil-input');
-      var labeledValues = [];
-      inputs.forEach(function(inp) {
-        var val = inp.value.trim();
-        if (!val) return;
-        // Read label from sibling label element in DOM
-        var labelEl = inp.parentElement ? inp.parentElement.querySelector('span') : null;
-        var label = labelEl ? labelEl.textContent.trim() : '';
-        if (label) labeledValues.push(label.toLowerCase() + ': ' + val);
-        else labeledValues.push(val);
-      });
-      if (labeledValues.length > 0) {
-        var suffix = '';
-        if (isDiscountToggle) {
-          suffix = ' (' + (item.activeMode === 'percentage' ? '%' : (L.fixed_label || 'ფიქსირებული')) + ')';
+      // Check if this is a clarification card (single description input)
+      var descOnly = itemCard.querySelector('.iil-input[data-iil-key="description"]');
+      if (descOnly && itemCard.querySelectorAll('.iil-input').length === 1) {
+        // Clarification format: "შეკეთება - მაცივრის"
+        var descVal = descOnly.value.trim();
+        if (descVal) {
+          parts.push(displayName + ' - ' + descVal);
         }
-        parts.push(displayName + ': ' + labeledValues.join(', ') + suffix);
+      } else {
+        // Price/qty format: multi-line "ტელეფონი:\nრაოდენობა - 1\nფასი - 500"
+        var inputs = itemCard.querySelectorAll('.iil-input');
+        var fieldLines = [];
+        inputs.forEach(function(inp) {
+          var val = inp.value.trim();
+          if (!val) return;
+          var labelEl = inp.parentElement ? inp.parentElement.querySelector('span') : null;
+          var label = labelEl ? labelEl.textContent.trim() : '';
+          if (label) fieldLines.push(label.toLowerCase() + ' - ' + val);
+          else fieldLines.push(val);
+        });
+        if (fieldLines.length > 0) {
+          parts.push(displayName + ':\n' + fieldLines.join('\n'));
+        }
       }
     }
   });
 
-  var answer = parts.length > 0 ? parts.join('\n') : (L.none_selected || 'none');
+  var answer = parts.length > 0 ? parts.join('\n\n') : (L.none_selected || 'none');
 
   window._itemInputListData = null;
   window.disablePreviousInteractiveElements();
@@ -7667,7 +7776,7 @@ function confirmTaxManagement() {
         }
       });
     });
-    updateUIWithoutTranscript(window.lastAiResult);
+    updateUIWithoutTranscript(window.lastAiResult, true);
   }
 
   // ALSO build explicit AI instruction — AI is the primary brain
@@ -7696,8 +7805,8 @@ function confirmTaxManagement() {
     summary = L.tax_all_removed || 'All tax removed';
   } else {
     summary = items.map(function(item) {
-      return item.name + ' ' + item.rate + '%';
-    }).join(', ');
+      return item.name + ': ' + item.rate + '%';
+    }).join('\n');
   }
   addUserBubble(summary);
 
@@ -7843,7 +7952,7 @@ function confirmTaxQueue() {
         }
       });
     });
-    updateUIWithoutTranscript(window.lastAiResult);
+    updateUIWithoutTranscript(window.lastAiResult, true);
   }
 
   // ALSO build explicit AI instruction — AI is the primary brain, it must understand too
@@ -7867,8 +7976,8 @@ function confirmTaxQueue() {
     instruction += 'Do NOT override these rates. Items with tax_rate=0 MUST have taxable:false.';
   }
 
-  // Build user bubble summary
-  var summary = items.map(function(item) { return item.name + ' ' + item.rate + '%'; }).join(', ');
+  // Build user bubble summary — one item per line
+  var summary = items.map(function(item) { return item.name + ': ' + item.rate + '%'; }).join('\n');
 
   window._taxQueueItems = null;
 
@@ -7881,6 +7990,101 @@ function confirmTaxQueue() {
   addUserBubble(summary);
   // Send BOTH: direct JSON already applied + AI instruction so AI understands too
   handleQueueAnswer(instruction.trim());
+}
+
+// ── TAX TEXT DIRECT APPLY: parse natural language tax instructions and apply to JSON ──
+// Safety net for AI failures — especially with 0% tax rates
+function applyTaxTextDirectly(text) {
+  if (!window.lastAiResult || !window.lastAiResult.sections) return;
+  if (!text || typeof text !== 'string') return;
+
+  var t = text.trim().toLowerCase();
+  var allItems = [];
+  window.lastAiResult.sections.forEach(function(sec) {
+    (sec.items || []).forEach(function(item) {
+      allItems.push(item);
+    });
+  });
+  if (allItems.length === 0) return;
+
+  // Pattern 1: "remove all tax" / "გადასახადი მოხსენი" / "0 tax" / "ყველა 0"
+  var removeAllRe = /^(remove\s+all\s+tax|no\s+tax|0\s*%?\s*(tax|დღგ)|გადასახად\w*\s+(მოხსენ|წაშალ|არ)|ყველა\s+0\s*%?)\s*$/i;
+  if (removeAllRe.test(t)) {
+    allItems.forEach(function(item) { item.taxable = false; item.tax_rate = 0; });
+    updateUIWithoutTranscript(window.lastAiResult, true);
+    return;
+  }
+
+  // Pattern 2: "all X%" / "ყველა X%"
+  var allSameRe = /^(?:all|ყველა\w*)\s+(\d+)\s*%?\s*$/i;
+  var allMatch = t.match(allSameRe);
+  if (allMatch) {
+    var rate = parseInt(allMatch[1]);
+    allItems.forEach(function(item) {
+      if (rate > 0) { item.taxable = true; item.tax_rate = rate; }
+      else { item.taxable = false; item.tax_rate = 0; }
+    });
+    updateUIWithoutTranscript(window.lastAiResult, true);
+    return;
+  }
+
+  // Pattern 3: "itemName X(-ია/%), დანარჩენი/rest Y%" — per-item with rest
+  // Parse named rates and "rest" rate
+  var restRe = /(?:დანარჩენი|rest|others?|სხვა)\s+(\d+)\s*%?/i;
+  var restMatch = t.match(restRe);
+  var restRate = restMatch ? parseInt(restMatch[1]) : null;
+
+  // Extract "itemName X%" or "itemName X-ია" or "itemName X"
+  var namedRates = {};
+  var itemNames = allItems.map(function(item) { return (item.desc || item.name || '').toLowerCase(); });
+
+  // Try matching each item name in the text
+  itemNames.forEach(function(name) {
+    if (!name || name.length < 2) return;
+    // Escape special regex chars in name
+    var escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // Match: "name X%" or "name X-ია" or "name X" (number right after name)
+    var re = new RegExp(escaped + '\\s*[:\\-–]?\\s*(\\d+)\\s*(%|-?ია)?', 'i');
+    var m = t.match(re);
+    if (m) {
+      namedRates[name] = parseInt(m[1]);
+    }
+  });
+
+  var hasNamedRates = Object.keys(namedRates).length > 0;
+
+  if (hasNamedRates || restRate !== null) {
+    allItems.forEach(function(item) {
+      var iName = (item.desc || item.name || '').toLowerCase();
+      var rate;
+      if (namedRates[iName] !== undefined) {
+        rate = namedRates[iName];
+      } else if (restRate !== null) {
+        rate = restRate;
+      } else {
+        return; // no info for this item, leave unchanged
+      }
+      if (rate > 0) { item.taxable = true; item.tax_rate = rate; }
+      else { item.taxable = false; item.tax_rate = 0; }
+    });
+    updateUIWithoutTranscript(window.lastAiResult, true);
+    return;
+  }
+
+  // Pattern 4: Just a number → apply to all items
+  var justNumber = t.match(/^(\d+)\s*%?\s*$/);
+  if (justNumber) {
+    var r = parseInt(justNumber[1]);
+    allItems.forEach(function(item) {
+      if (r > 0) { item.taxable = true; item.tax_rate = r; }
+      else { item.taxable = false; item.tax_rate = 0; }
+    });
+    updateUIWithoutTranscript(window.lastAiResult, true);
+    return;
+  }
+
+  // No pattern matched — leave for AI to handle
+  console.log('[applyTaxTextDirectly] No pattern matched for:', text);
 }
 
 // ── CHIP HANDLER: ADD ITEM (conversation starter → AI) ──
@@ -8421,7 +8625,7 @@ function addUserBubble(text) {
   const div = document.createElement('div');
   div.className = "flex justify-end animate-in fade-in slide-in-from-right-2 duration-300";
   div.innerHTML = `
-    <div class="bg-orange-50 border-2 border-orange-200 rounded-2xl rounded-tr-none px-4 py-2 text-xs font-bold text-orange-800 shadow-sm max-w-[80%]">
+    <div class="bg-orange-50 border-2 border-orange-200 rounded-2xl rounded-tr-none px-4 py-2 text-xs font-bold text-orange-800 shadow-sm max-w-[80%]" style="white-space:pre-line">
       ${escapeHtml(text)}
     </div>
   `;
@@ -8666,6 +8870,13 @@ async function triggerAssistantReparse(userAnswer, type, questionsText) {
     } catch(e) { /* ignore serialization errors */ }
   }
 
+  // PRE-PROCESS: if this looks like a tax instruction, apply directly as safety net
+  // AI struggles with 0% tax, so frontend must handle it immediately
+  var taxTextRe = /(?:დღგ|tax|გადასახად|taxable|tax_rate)\s*.*\d+\s*%?|(?:\d+\s*%?\s*(?:დღგ|tax))|(?:დანარჩენი|rest|others?)\s+\d+|(?:0\s*[-–]?\s*(?:ია|%))|(?:\d+\s*[-–]?\s*ია)/i;
+  if (taxTextRe.test(userAnswer)) {
+    applyTaxTextDirectly(userAnswer);
+  }
+
   // Queue answer for display AFTER AI finishes
   window._pendingAnswer = { text: userAnswer, type: type, historyEntry: historyEntry };
   if (input) input.disabled = true;
@@ -8785,7 +8996,7 @@ async function triggerAssistantReparse(userAnswer, type, questionsText) {
 }
 
 // Special version of updateUI that doesn't touch the transcript
-function updateUIWithoutTranscript(data) {
+function updateUIWithoutTranscript(data, skipClarifications) {
   window.isAutoUpdating = true;
   logAlreadySaved = false;
   savedLogId = null;
@@ -8923,7 +9134,10 @@ function updateUIWithoutTranscript(data) {
     }
 
     // Handle AI Clarification Questions (shown as chat bubbles alongside invoice)
-    handleClarifications(data.clarifications || []);
+    // skipClarifications=true when called from undo/direct-apply (they handle chat themselves)
+    if (!skipClarifications) {
+      handleClarifications(data.clarifications || []);
+    }
 
     if (window.pendingClarifications && window.pendingClarifications.length === 0) {
       window.setupSaveButton();
@@ -9187,4 +9401,6 @@ Object.assign(window, {
   renderDiscountTypeMultiCard,
   toggleDiscountType,
   confirmDiscountTypes,
+  validateDiscountInput,
+  applyTaxTextDirectly,
 });
