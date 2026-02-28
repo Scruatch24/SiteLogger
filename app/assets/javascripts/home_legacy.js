@@ -5729,6 +5729,9 @@ function showNextQueueItem() {
     renderSectionTypeCard(c);
   } else if (c.field === 'currency' && c.options && c.options.length > 0) {
     renderCurrencyCard(c);
+  } else if (c.type === 'tax_management') {
+    renderTaxManagementInQueue(c);
+    return; // tax widget handles its own input flow
   } else if (c.type === 'item_input_list' && c.items && c.items.length > 0) {
     renderItemInputListCard(c);
   } else if (c.type === 'choice' && c.options && c.options.length > 0) {
@@ -7597,6 +7600,156 @@ function confirmTaxManagement() {
   window._taxManagementItems = null;
   showTypingIndicator();
   triggerAssistantReparse(instruction.trim(), 'refinement', 'User requested change');
+}
+
+// ── TAX MANAGEMENT WIDGET INSIDE QUEUE (uses same UI as chip handler but calls handleQueueAnswer) ──
+function renderTaxManagementInQueue(clarification) {
+  var conversation = document.getElementById('assistantConversation');
+  if (!conversation) return;
+  window.disablePreviousInteractiveElements();
+
+  var L = window.APP_LANGUAGES || {};
+  var items = [];
+
+  // Gather all items from invoice sections (same as renderTaxManagementCard)
+  if (window.lastAiResult && window.lastAiResult.sections) {
+    window.lastAiResult.sections.forEach(function(sec) {
+      (sec.items || []).forEach(function(item) {
+        var name = item.desc || item.name || '?';
+        var rate = 0;
+        if (item.tax_rate && item.tax_rate > 0) {
+          rate = item.tax_rate;
+        } else if (item.taxable === true) {
+          rate = 18;
+        }
+        items.push({ name: name, rate: rate, section: sec.type || 'labor' });
+      });
+    });
+  }
+
+  if (items.length === 0) {
+    // No items yet — fall back to text question
+    addAIBubble(clarification.question, null, clarification._progressTag);
+    return;
+  }
+
+  // Store items for confirm
+  window._taxQueueItems = items;
+
+  var itemsHtml = '';
+  items.forEach(function(item, idx) {
+    var pct = item.rate;
+    itemsHtml += '<div class="px-2.5 py-2 rounded-lg bg-white">'
+      + '<div class="flex items-center justify-between gap-2 mb-1">'
+      + '<span class="text-[11px] font-semibold text-gray-700 truncate flex-1">' + escapeHtml(item.name) + '</span>'
+      + '<div class="flex items-center gap-1 shrink-0">'
+      + '<input type="number" min="0" max="100" step="1" value="' + pct + '" data-taxq-idx="' + idx + '" onchange="onTaxQueueInputChange(this)" oninput="onTaxQueueInputChange(this)" class="taxq-rate-input w-10 text-center text-[11px] font-bold border border-gray-200 rounded-md px-0.5 py-0.5 focus:outline-none focus:border-orange-400 transition-all" style="color:' + (pct > 0 ? '#364153' : '#9ca3af') + '" />'
+      + '<span class="text-[10px] font-bold text-gray-400">%</span>'
+      + '</div></div>'
+      + '<input type="range" min="0" max="100" step="1" value="' + pct + '" data-taxq-idx="' + idx + '" oninput="onTaxQueueSliderChange(this)" class="taxq-rate-slider w-full h-1.5 rounded-full appearance-none cursor-pointer" style="accent-color:#364153;background:linear-gradient(to right,#364153 ' + pct + '%,#e5e7eb ' + pct + '%)" />'
+      + '</div>';
+  });
+
+  var div = document.createElement('div');
+  div.className = 'flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300';
+  div.id = 'taxQueueCard';
+  div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
+    + '<div class="max-w-[85%] w-full">'
+    + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm relative">'
+    + widgetCloseBtn()
+    + '<div class="text-xs font-bold text-gray-800 mb-2.5 pr-6">' + escapeHtml(clarification.question || L.tax_management_prompt || 'Set tax rates:') + (clarification._progressTag || '') + '</div>'
+    + '<div class="space-y-1.5">' + itemsHtml + '</div>'
+    + '<div class="flex gap-2 mt-2.5">'
+    + '<button type="button" onclick="taxQueueBulkAction(0)" class="flex-1 px-2 py-1.5 rounded-xl border-2 border-red-200 bg-red-50 hover:bg-red-100 transition-all cursor-pointer active:scale-[0.97] text-[10px] font-bold text-red-600">' + escapeHtml(L.tax_remove_all || 'None') + '</button>'
+    + '<button type="button" onclick="taxQueueBulkAction(18)" class="flex-1 px-2 py-1.5 rounded-xl border-2 border-green-200 bg-green-50 hover:bg-green-100 transition-all cursor-pointer active:scale-[0.97] text-[10px] font-bold text-green-600">' + escapeHtml(L.tax_apply_all || 'All') + '</button>'
+    + '<button type="button" onclick="confirmTaxQueue()" class="flex-1 px-2 py-1.5 rounded-xl border-2 border-orange-300 bg-orange-50 hover:bg-orange-100 transition-all cursor-pointer active:scale-[0.97] text-[10px] font-bold text-orange-700">' + escapeHtml(L.tax_apply_btn || 'Confirm') + '</button>'
+    + '</div>'
+    + '</div></div>';
+  conversation.appendChild(div);
+  conversation.scrollTop = conversation.scrollHeight;
+}
+
+function onTaxQueueSliderChange(slider) {
+  var idx = parseInt(slider.dataset.taxqIdx);
+  var val = parseInt(slider.value) || 0;
+  if (val < 0) val = 0; if (val > 100) val = 100;
+  slider.style.background = 'linear-gradient(to right,#364153 ' + val + '%,#e5e7eb ' + val + '%)';
+  var card = document.getElementById('taxQueueCard');
+  if (card) {
+    var inp = card.querySelector('.taxq-rate-input[data-taxq-idx="' + idx + '"]');
+    if (inp) { inp.value = val; inp.style.color = val > 0 ? '#364153' : '#9ca3af'; }
+  }
+  if (window._taxQueueItems && window._taxQueueItems[idx]) window._taxQueueItems[idx].rate = val;
+}
+
+function onTaxQueueInputChange(inp) {
+  var idx = parseInt(inp.dataset.taxqIdx);
+  var val = parseInt(inp.value) || 0;
+  if (val < 0) val = 0; if (val > 100) val = 100;
+  inp.value = val;
+  inp.style.color = val > 0 ? '#364153' : '#9ca3af';
+  var card = document.getElementById('taxQueueCard');
+  if (card) {
+    var slider = card.querySelector('.taxq-rate-slider[data-taxq-idx="' + idx + '"]');
+    if (slider) { slider.value = val; slider.style.background = 'linear-gradient(to right,#364153 ' + val + '%,#e5e7eb ' + val + '%)'; }
+  }
+  if (window._taxQueueItems && window._taxQueueItems[idx]) window._taxQueueItems[idx].rate = val;
+}
+
+function taxQueueBulkAction(rate) {
+  var card = document.getElementById('taxQueueCard');
+  if (!card) return;
+  card.querySelectorAll('.taxq-rate-slider').forEach(function(slider) {
+    slider.value = rate;
+    slider.style.background = 'linear-gradient(to right,#364153 ' + rate + '%,#e5e7eb ' + rate + '%)';
+  });
+  card.querySelectorAll('.taxq-rate-input').forEach(function(inp) {
+    inp.value = rate;
+    inp.style.color = rate > 0 ? '#364153' : '#9ca3af';
+  });
+  if (window._taxQueueItems) window._taxQueueItems.forEach(function(item) { item.rate = rate; });
+}
+
+function confirmTaxQueue() {
+  var items = window._taxQueueItems;
+  if (!items || items.length === 0) return;
+
+  // Build instruction for AI (same format as confirmTaxManagement)
+  var taxedItems = [];
+  var untaxedItems = [];
+  items.forEach(function(item) {
+    if (item.rate > 0) taxedItems.push({ name: item.name, rate: item.rate });
+    else untaxedItems.push(item.name);
+  });
+
+  var instruction = '';
+  if (untaxedItems.length === items.length) {
+    instruction = 'Remove all tax. Set taxable:false on everything.';
+  } else if (taxedItems.length === items.length) {
+    var allSameRate = taxedItems.every(function(i) { return i.rate === taxedItems[0].rate; });
+    if (allSameRate) {
+      instruction = 'Apply ' + taxedItems[0].rate + '% tax to every item.';
+    } else {
+      taxedItems.forEach(function(i) { instruction += 'Set tax_rate:' + i.rate + ' on "' + i.name + '". '; });
+    }
+  } else {
+    taxedItems.forEach(function(i) { instruction += 'Set tax_rate:' + i.rate + ' on "' + i.name + '". '; });
+    if (untaxedItems.length > 0) instruction += 'Set taxable:false on: ' + untaxedItems.join(', ') + '.';
+  }
+
+  // Build user bubble summary
+  var summary = items.map(function(item) { return item.name + ' ' + item.rate + '%'; }).join(', ');
+
+  window._taxQueueItems = null;
+
+  // Disable card
+  var card = document.getElementById('taxQueueCard');
+  if (card) {
+    card.querySelectorAll('button, input').forEach(function(el) { el.disabled = true; el.style.opacity = '0.5'; });
+  }
+
+  addUserBubble(summary);
+  handleQueueAnswer(instruction.trim());
 }
 
 // ── CHIP HANDLER: ADD ITEM (conversation starter → AI) ──
