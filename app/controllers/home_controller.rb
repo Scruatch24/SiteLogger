@@ -3895,23 +3895,26 @@ PROMPT
         next
       end
 
-      # Ambiguity: "რა სახის?", "რისი?", "what kind?" — NOT price/qty/disc/tax
-      if q.match?(ambig_re) && !q.match?(price_re) && !q.match?(qty_re) && !q.match?(disc_re) && !q.match?(tax_re)
+      # Ambiguity: field name OR question text ("რა სახის?", "what kind?") — NOT price/qty/disc/tax
+      is_ambig = f.match?(/description|clarif|item_type|kind/i) || (q.match?(ambig_re) && !q.match?(price_re) && !q.match?(qty_re))
+      if is_ambig && !q.match?(disc_re) && !q.match?(tax_re) && !f.match?(/discount|tax|price|qty|unit_price/i)
         absorbed << c.object_id
         name = resolve_name.call(c, c["guess"].to_s.presence || q.gsub(/[?？]/, "").gsub(ambig_re, "").gsub(/^რა\s+/i, "").strip)
         ambig_list << { clar: c, name: name }
         next
       end
 
-      # Price question (text about item cost, NOT discount/tax)
-      if t == "text" && q.match?(price_re) && !q.match?(exclude_re) && !f.match?(/discount|tax/i)
+      # Price question: field name (*.price, *.unit_price, *.cost) OR question text — NOT discount/tax
+      is_price = f.match?(/\.price|\.unit_price|\.cost|^item_price/i) || q.match?(price_re)
+      if t == "text" && is_price && !q.match?(exclude_re) && !f.match?(/discount|tax/i)
         absorbed << c.object_id
         price_list << c
         next
       end
 
-      # Quantity question
-      if t == "text" && q.match?(qty_re) && !q.match?(exclude_re)
+      # Quantity question: field name (*.qty, *.quantity) OR question text
+      is_qty = f.match?(/\.qty|\.quantity|^item_qty/i) || q.match?(qty_re)
+      if t == "text" && is_qty && !q.match?(exclude_re)
         absorbed << c.object_id
         qty_list << c
         next
