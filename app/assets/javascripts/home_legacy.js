@@ -5858,7 +5858,8 @@ function batchSubmitQueueAnswers() {
   }
 
   // Format batch as individual Q&A pairs for the AI
-  var batchMessage = aiAnswers.map(function(qa) {
+  var batchMessage = 'IMPORTANT: The following answers have ALREADY been applied to the current JSON (prices, quantities, discounts, tax rates). Do NOT re-interpret or recalculate these values — just confirm the current JSON is correct and return it unchanged. Only process any ambiguity/description answers that require item renaming.\n\n';
+  batchMessage += aiAnswers.map(function(qa) {
     return '[AI asked: "' + qa.question + '" → User answered: "' + qa.answer + '"]';
   }).join('\n');
 
@@ -7546,6 +7547,62 @@ function confirmItemInputList() {
 
   var answer = parts.length > 0 ? parts.join('\n\n') : (L.none_selected || 'none');
 
+  // ── DIRECT JSON APPLICATION: apply widget values immediately ──
+  // Widgets provide structured data — no need to wait for AI to re-parse text
+  if (window.lastAiResult && window.lastAiResult.sections) {
+    data.forEach(function(item) {
+      var itemCard = card.querySelector('div[data-iil-idx="' + item.idx + '"]');
+      if (!itemCard) return;
+      var itemName = (item.name || '').toLowerCase();
+      var isBillingToggle = item.toggle && item.toggle.key === 'billing_mode';
+      var isDiscountToggle = item.toggle && item.toggle.key === 'discount_type';
+
+      // Find matching section item by name
+      var matchedSItem = null;
+      window.lastAiResult.sections.forEach(function(sec) {
+        (sec.items || []).forEach(function(sItem) {
+          if ((sItem.desc || '').toLowerCase() === itemName) matchedSItem = sItem;
+        });
+      });
+      if (!matchedSItem) return;
+
+      if (isDiscountToggle) {
+        var amtInput = itemCard.querySelector('.iil-input');
+        var val = parseFloat(amtInput ? amtInput.value : '0') || 0;
+        if (item.activeMode === 'percentage') {
+          matchedSItem.discount_percent = val;
+          matchedSItem.discount_flat = '';
+        } else {
+          matchedSItem.discount_flat = val;
+          matchedSItem.discount_percent = '';
+        }
+      } else if (isBillingToggle) {
+        if (item.activeMode === 'hourly') {
+          var hInp = itemCard.querySelector('.iil-input[data-iil-key="hours"]');
+          var rInp = itemCard.querySelector('.iil-input[data-iil-key="rate"]');
+          matchedSItem.hours = parseFloat(hInp ? hInp.value : '') || null;
+          matchedSItem.rate = parseFloat(rInp ? rInp.value : '') || null;
+          matchedSItem.price = null;
+          matchedSItem.mode = 'hourly';
+        } else {
+          var pInp = itemCard.querySelector('.iil-input[data-iil-key="price"]');
+          matchedSItem.price = parseFloat(pInp ? pInp.value : '') || null;
+          matchedSItem.hours = null;
+          matchedSItem.rate = null;
+          matchedSItem.mode = 'fixed';
+        }
+      } else {
+        // Materials/expenses/fees: apply each input by key
+        itemCard.querySelectorAll('.iil-input').forEach(function(inp) {
+          var key = inp.getAttribute('data-iil-key');
+          var val = parseFloat(inp.value) || null;
+          if (key === 'qty') matchedSItem.qty = val;
+          else if (key === 'price') matchedSItem.unit_price = val;
+        });
+      }
+    });
+  }
+
   window._itemInputListData = null;
   window.disablePreviousInteractiveElements();
   addUserBubble(answer);
@@ -8818,9 +8875,13 @@ async function triggerAssistantReparse(userAnswer, type, questionsText) {
 
   // PRE-PROCESS: if this looks like a tax instruction, apply directly as safety net
   // AI struggles with 0% tax, so frontend must handle it immediately
-  var taxTextRe = /(?:დღგ|tax|გადასახად|taxable|tax_rate)\s*.*\d+\s*%?|(?:\d+\s*%?\s*(?:დღგ|tax))|(?:დანარჩენი|rest|others?)\s+\d+|(?:0\s*[-–]?\s*(?:ია|%))|(?:\d+\s*[-–]?\s*ია)/i;
-  if (taxTextRe.test(userAnswer)) {
-    applyTaxTextDirectly(userAnswer);
+  // SKIP for batch messages — tax already applied directly by confirmTaxQueue
+  var isBatchMsg = userAnswer && userAnswer.indexOf('[AI asked:') !== -1;
+  if (!isBatchMsg) {
+    var taxTextRe = /(?:დღგ|tax|გადასახად|taxable|tax_rate)\s*.*\d+\s*%?|(?:\d+\s*%?\s*(?:დღგ|tax))|(?:დანარჩენი|rest|others?)\s+\d+|(?:0\s*[-–]?\s*(?:ია|%))|(?:\d+\s*[-–]?\s*ია)/i;
+    if (taxTextRe.test(userAnswer)) {
+      applyTaxTextDirectly(userAnswer);
+    }
   }
 
   // Queue answer for display AFTER AI finishes

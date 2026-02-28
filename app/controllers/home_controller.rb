@@ -3825,9 +3825,11 @@ PROMPT
     labor_re   = /შეკეთება|რემონტი|მონტაჟი|ინსტალაცია|repair|install|service|maintenance|fix|labor|work|მომსახურება|წმენდა|cleaning|painting|შეღებვა/i
 
     # ── Section items for name matching & per-item widgets ──
+    # Support both symbol keys (from process_audio section building) and string keys (from refine_invoice)
     section_items = (data["sections"] || []).flat_map do |s|
-      cat = s["type"].to_s
-      (s["items"] || []).map { |i| { desc: i["desc"].to_s.strip, category: cat } }
+      cat = (s[:type] || s["type"]).to_s
+      items = s[:items] || s["items"] || []
+      items.map { |i| { desc: (i[:desc] || i["desc"]).to_s.strip, category: cat } }
     end
 
     # ── Name resolution: prefer AI-provided item_name, fallback to regex cleaning ──
@@ -3866,10 +3868,10 @@ PROMPT
       match ? match[:desc] : name
     end
 
-    # resolve_name: use AI-provided item_name if it matches a section item, otherwise fallback
+    # resolve_name: use AI-provided item_name if present, otherwise fallback to regex
     resolve_name = lambda do |clar_hash, fallback_raw|
       ai_name = clar_hash.is_a?(Hash) ? clar_hash["item_name"].to_s.strip : ""
-      return ai_name if ai_name.present? && section_items.any? { |s| s[:desc].downcase == ai_name.downcase }
+      return ai_name if ai_name.present?
       clean_name.call(fallback_raw)
     end
 
