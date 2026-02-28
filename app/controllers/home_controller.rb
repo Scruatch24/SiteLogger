@@ -3815,15 +3815,33 @@ PROMPT
     clean_name = lambda do |raw|
       name = raw.to_s.strip
       return "Item" if name.blank? || name.match?(/\A[\d.,\s]+\z/)
-      name = name.gsub(/^გსურთ\s+/i, "").gsub(/\s+დამატება$/i, "").gsub(/\s+შეცვლა$/i, "")
-                  .gsub(/\(.*?\)/, "").strip
+      # Strip full question patterns: "რა ფასად გსურთ X-ის დამატება?", "რა ღირს X?", etc.
+      name = name.gsub(/[?？]+\s*$/, "")                             # trailing ?
+                  .gsub(/^რა\s+ფასად\s+გსურთ\s+/i, "")              # რა ფასად გსურთ ...
+                  .gsub(/^რა\s+ღირს\s+/i, "")                       # რა ღირს ...
+                  .gsub(/^რამდენი?\s+/i, "")                         # რამდენი ...
+                  .gsub(/^რა\s+სახის\s+/i, "")                      # რა სახის ...
+                  .gsub(/^გსურთ\s+/i, "")                           # გსურთ ...
+                  .gsub(/\s+დამატება$/i, "")                        # ... დამატება
+                  .gsub(/\s+შეცვლა$/i, "")                         # ... შეცვლა
+                  .gsub(/\s+გსურთ$/i, "")                           # ... გსურთ (trailing)
+                  .gsub(/\(.*?\)/, "")                               # (...) parenthetical
+                  .gsub(/\s+/, " ").strip
+      # Strip Georgian genitive suffix -ის if it makes a match
+      if name.end_with?("ის") && name.length > 3
+        stem = name[0..-3]
+        si = section_items.find { |s| s[:desc].downcase == stem.downcase }
+        name = si[:desc] if si
+      elsif name.end_with?("ს") && name.length > 2
+        stem = name[0..-2]
+        si = section_items.find { |s| s[:desc].downcase == stem.downcase }
+        name = si[:desc] if si
+      end
       return "Item" if name.blank?
       norm = name.downcase
       match = section_items.find do |si|
         d = si[:desc].downcase
-        d == norm || norm.include?(d) || d.include?(norm) ||
-          (norm.end_with?("ის") && norm.length > 3 && d.include?(norm[0..-3])) ||
-          (norm.end_with?("ს") && norm.length > 2 && d.include?(norm[0..-2]))
+        d == norm || norm.include?(d) || d.include?(norm)
       end
       match ? match[:desc] : name
     end
@@ -3972,28 +3990,40 @@ PROMPT
 
     # ══════════════════════════════════════════════════════════════════
     # GROUP 3: PER-ITEM DISCOUNTS — amount + fixed/% toggle per item
+    # Use section_items first; if empty, fall back to item names from group 2 price card
     # ══════════════════════════════════════════════════════════════════
-    if disc_list.any? && section_items.any?
+    if disc_list.any?
       disc_q   = ui_ka ? "შეიყვანეთ ფასდაკლების ინფორმაცია:" : "Enter discount details:"
       amt_lbl  = ui_ka ? "თანხა" : "Amount"
-      items = section_items.map do |si|
-        {
-          "name" => si[:desc],
-          "inputs" => [{ "key" => "amount", "label" => amt_lbl, "type" => "number" }],
-          "toggle" => { "key" => "discount_type", "options" => ["fixed", "percentage"], "default" => "percentage" }
+
+      # Collect item names: prefer section_items, fall back to price card items
+      disc_item_names = section_items.map { |si| si[:desc] }
+      if disc_item_names.empty?
+        # Extract from the price card we just built in group 2
+        price_card = new_clars.find { |c| c["field"] == "item_prices" || (c["type"] == "item_input_list" && c["field"] != "item_clarification") }
+        if price_card && price_card["items"]
+          disc_item_names = price_card["items"].map { |i| i["name"] }
+        end
+      end
+
+      if disc_item_names.any?
+        items = disc_item_names.map do |item_name|
+          {
+            "name" => item_name,
+            "inputs" => [{ "key" => "amount", "label" => amt_lbl, "type" => "number" }],
+            "toggle" => { "key" => "discount_type", "options" => ["fixed", "percentage"], "default" => "percentage" }
+          }
+        end
+        new_clars << { "type" => "item_input_list", "field" => "discount_setup", "question" => disc_q, "items" => items }
+      else
+        # Absolute fallback: single generic discount entry
+        disc_label = ui_ka ? "ფასდაკლება" : "Discount"
+        new_clars << {
+          "type" => "item_input_list", "field" => "discount_setup", "question" => disc_q,
+          "items" => [{ "name" => disc_label, "inputs" => [{ "key" => "amount", "label" => amt_lbl, "type" => "number" }],
+                         "toggle" => { "key" => "discount_type", "options" => ["fixed", "percentage"], "default" => "percentage" } }]
         }
       end
-      new_clars << { "type" => "item_input_list", "field" => "discount_setup", "question" => disc_q, "items" => items }
-    elsif disc_list.any?
-      # No section items yet — single discount card fallback
-      disc_q  = ui_ka ? "შეიყვანეთ ფასდაკლების ინფორმაცია:" : "Enter discount details:"
-      amt_lbl = ui_ka ? "თანხა" : "Amount"
-      disc_label = ui_ka ? "ფასდაკლება" : "Discount"
-      new_clars << {
-        "type" => "item_input_list", "field" => "discount_setup", "question" => disc_q,
-        "items" => [{ "name" => disc_label, "inputs" => [{ "key" => "amount", "label" => amt_lbl, "type" => "number" }],
-                       "toggle" => { "key" => "discount_type", "options" => ["fixed", "percentage"], "default" => "percentage" } }]
-      }
     end
 
     # ══════════════════════════════════════════════════════════════════

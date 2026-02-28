@@ -7226,8 +7226,9 @@ function renderItemInputListCard(clarification) {
     // Item card
     itemsHtml += '<div class="px-2.5 py-2 rounded-lg bg-white border border-gray-100" data-iil-idx="' + idx + '">';
 
-    // Item name
-    itemsHtml += '<div class="text-[11px] font-bold text-gray-700 mb-1.5">' + escapeHtml(item.name) + '</div>';
+    // Item name (cleaned of Georgian question wrapping)
+    var cleanName = cleanItemDisplayName(item.name);
+    itemsHtml += '<div class="text-[11px] font-bold text-gray-700 mb-1.5">' + escapeHtml(cleanName) + '</div>';
 
     // Toggle (above inputs)
     if (toggle && toggle.options && toggle.options.length === 2) {
@@ -7348,6 +7349,26 @@ function toggleItemInputMode(btn) {
   }
 }
 
+// Clean Georgian question wrapping from item names (frontend safety net)
+function cleanItemDisplayName(raw) {
+  if (!raw) return 'Item';
+  var n = raw.replace(/[?？]+\s*$/, '')
+    .replace(/^რა\s+ფასად\s+გსურთ\s+/i, '')
+    .replace(/^რა\s+ღირს\s+/i, '')
+    .replace(/^რამდენი?\s+/i, '')
+    .replace(/^რა\s+სახის\s+/i, '')
+    .replace(/^გსურთ\s+/i, '')
+    .replace(/\s+დამატება$/i, '')
+    .replace(/\s+შეცვლა$/i, '')
+    .replace(/\s+გსურთ$/i, '')
+    .replace(/\(.*?\)/g, '')
+    .replace(/\s+/g, ' ').trim();
+  // Strip Georgian genitive -ის suffix
+  if (n.length > 3 && n.match(/ის$/)) n = n.slice(0, -2);
+  else if (n.length > 2 && n.match(/ს$/)) n = n.slice(0, -1);
+  return n || 'Item';
+}
+
 function confirmItemInputList() {
   var data = window._itemInputListData;
   if (!data || data.length === 0) return;
@@ -7361,6 +7382,7 @@ function confirmItemInputList() {
     var itemCard = card.querySelector('[data-iil-idx="' + item.idx + '"]');
     if (!itemCard) return;
 
+    var displayName = cleanItemDisplayName(item.name);
     var isBillingToggle = item.toggle && item.toggle.key === 'billing_mode';
     var isDiscountToggle = item.toggle && item.toggle.key === 'discount_type';
 
@@ -7370,24 +7392,35 @@ function confirmItemInputList() {
       var hours = hoursInput ? hoursInput.value.trim() : '';
       var rate = rateInput ? rateInput.value.trim() : '';
       if (hours || rate) {
-        parts.push(item.name + ': ' + (hours || '0') + ' ' + (L.per_hour_suffix || 'hour') + ' ' + (rate || '0') + ' ' + (L.currency_suffix || ''));
+        parts.push(displayName + ': ' + (hours || '0') + ' ' + (L.per_hour_suffix || 'hour') + ' × ' + (rate || '0'));
       }
     } else {
-      // Collect all inputs for this item
+      // Collect all inputs with their labels for structured display
       var inputs = itemCard.querySelectorAll('.iil-input');
-      var values = [];
-      inputs.forEach(function(inp) { if (inp.value.trim()) values.push(inp.value.trim()); });
-      if (values.length > 0) {
+      var labeledValues = [];
+      inputs.forEach(function(inp) {
+        var val = inp.value.trim();
+        if (!val) return;
+        var key = inp.dataset.iilKey || '';
+        var label = '';
+        if (key === 'qty') label = (L.qty_label || 'qty');
+        else if (key === 'price') label = (L.price_label || 'price');
+        else if (key === 'amount') label = (L.amount_label || 'amount');
+        else if (key === 'description') label = '';
+        if (label) labeledValues.push(label + ': ' + val);
+        else labeledValues.push(val);
+      });
+      if (labeledValues.length > 0) {
         var suffix = '';
         if (isDiscountToggle) {
-          suffix = item.activeMode === 'percentage' ? '%' : ' ' + (L.fixed_label || 'fixed');
+          suffix = ' (' + (item.activeMode === 'percentage' ? '%' : (L.fixed_label || 'fixed')) + ')';
         }
-        parts.push(item.name + ': ' + values.join(', ') + suffix);
+        parts.push(displayName + ' — ' + labeledValues.join(', ') + suffix);
       }
     }
   });
 
-  var answer = parts.length > 0 ? parts.join(', ') : (L.none_selected || 'none');
+  var answer = parts.length > 0 ? parts.join('\n') : (L.none_selected || 'none');
 
   window._itemInputListData = null;
   window.disablePreviousInteractiveElements();
@@ -7557,40 +7590,31 @@ function confirmTaxManagement() {
   if (!items || items.length === 0) return;
   var L = window.APP_LANGUAGES || {};
 
-  var taxedItems = [];
-  var untaxedItems = [];
-  items.forEach(function(item) {
-    if (item.rate > 0) {
-      taxedItems.push({ name: item.name, rate: item.rate });
-    } else {
-      untaxedItems.push(item.name);
-    }
-  });
-
+  // Build instruction — list EVERY item with explicit rate so nothing is ambiguous
+  var allZero = items.every(function(i) { return i.rate === 0; });
+  var allSame = items.every(function(i) { return i.rate === items[0].rate; });
   var instruction = '';
-  if (untaxedItems.length === items.length) {
-    instruction = 'Remove all tax from every item. Set taxable:false, labor_taxable:false, tax_rate:null, tax_scope:null on everything.';
-  } else if (taxedItems.length === items.length) {
-    var allSameRate = taxedItems.every(function(i) { return i.rate === taxedItems[0].rate; });
-    if (allSameRate) {
-      instruction = 'Apply ' + taxedItems[0].rate + '% tax to every item. Set taxable:true, tax_rate:' + taxedItems[0].rate + ' on all items.';
-    } else {
-      taxedItems.forEach(function(i) {
-        instruction += 'Set taxable:true, tax_rate:' + i.rate + ' on "' + i.name + '". ';
-      });
-    }
+
+  if (allZero) {
+    instruction = 'Remove all tax from every item. Set taxable:false, labor_taxable:false, tax_rate:0, tax_scope:null on everything.';
+  } else if (allSame) {
+    instruction = 'Apply exactly ' + items[0].rate + '% tax to every item. Set taxable:true, tax_rate:' + items[0].rate + ' on all items.';
   } else {
-    taxedItems.forEach(function(i) {
-      instruction += 'Set taxable:true, tax_rate:' + i.rate + ' on "' + i.name + '". ';
+    instruction = 'Set per-item tax rates EXACTLY as follows: ';
+    items.forEach(function(i) {
+      if (i.rate > 0) {
+        instruction += '"' + i.name + '": taxable=true, tax_rate=' + i.rate + '. ';
+      } else {
+        instruction += '"' + i.name + '": taxable=false, tax_rate=0. ';
+      }
     });
-    if (untaxedItems.length > 0) instruction += 'Set taxable:false, tax_rate:null on: ' + untaxedItems.join(', ') + '.';
+    instruction += 'Do NOT override these rates. Items with tax_rate=0 must have taxable:false.';
   }
 
   var summary;
-  if (untaxedItems.length === items.length) {
+  if (allZero) {
     summary = L.tax_all_removed || 'All tax removed';
   } else {
-    // Per-item summary: "Item1 18%, Item2 10%, Item3 0%"
     summary = items.map(function(item) {
       return item.name + ' ' + item.rate + '%';
     }).join(', ');
@@ -7714,27 +7738,26 @@ function confirmTaxQueue() {
   var items = window._taxQueueItems;
   if (!items || items.length === 0) return;
 
-  // Build instruction for AI (same format as confirmTaxManagement)
-  var taxedItems = [];
-  var untaxedItems = [];
-  items.forEach(function(item) {
-    if (item.rate > 0) taxedItems.push({ name: item.name, rate: item.rate });
-    else untaxedItems.push(item.name);
-  });
-
+  // Build instruction for AI — list EVERY item with explicit rate so nothing is ambiguous
+  var allZero = items.every(function(i) { return i.rate === 0; });
+  var allSame = items.every(function(i) { return i.rate === items[0].rate; });
   var instruction = '';
-  if (untaxedItems.length === items.length) {
-    instruction = 'Remove all tax. Set taxable:false on everything.';
-  } else if (taxedItems.length === items.length) {
-    var allSameRate = taxedItems.every(function(i) { return i.rate === taxedItems[0].rate; });
-    if (allSameRate) {
-      instruction = 'Apply ' + taxedItems[0].rate + '% tax to every item.';
-    } else {
-      taxedItems.forEach(function(i) { instruction += 'Set tax_rate:' + i.rate + ' on "' + i.name + '". '; });
-    }
+
+  if (allZero) {
+    instruction = 'Remove all tax. Set taxable:false and tax_rate:0 on every item.';
+  } else if (allSame) {
+    instruction = 'Apply exactly ' + items[0].rate + '% tax to every item. Set taxable:true and tax_rate:' + items[0].rate + ' on all.';
   } else {
-    taxedItems.forEach(function(i) { instruction += 'Set tax_rate:' + i.rate + ' on "' + i.name + '". '; });
-    if (untaxedItems.length > 0) instruction += 'Set taxable:false on: ' + untaxedItems.join(', ') + '.';
+    // List EVERY item explicitly — taxed AND untaxed
+    instruction = 'Set per-item tax rates EXACTLY as follows: ';
+    items.forEach(function(item) {
+      if (item.rate > 0) {
+        instruction += '"' + item.name + '": taxable=true, tax_rate=' + item.rate + '. ';
+      } else {
+        instruction += '"' + item.name + '": taxable=false, tax_rate=0. ';
+      }
+    });
+    instruction += 'Do NOT override these rates. Items with tax_rate=0 must have taxable:false.';
   }
 
   // Build user bubble summary
