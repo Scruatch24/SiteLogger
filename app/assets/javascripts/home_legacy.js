@@ -5518,6 +5518,7 @@ window.resetAssistantState = function() {
   window._pendingAnswer = null;
   window._analysisSucceeded = false;
   window.lastAiResult = null;
+  window._userTaxOverrides = null;
   window._clarificationQueue = null;
   window._queueAnswers = null;
   window._queueTotal = 0;
@@ -7452,8 +7453,8 @@ function validateDiscountInput(inp) {
       pctBtn.className = 'iil-toggle-btn px-2 py-1.5 text-[10px] font-bold transition-all ' + disabledColor;
       pctBtn.disabled = true;
     }
-    // Cap at maxPrice if available
-    if (item.maxPrice !== null && val > item.maxPrice) {
+    // Cap at maxPrice if known and positive (0 means price not set yet)
+    if (item.maxPrice > 0 && val > item.maxPrice) {
       inp.value = item.maxPrice;
     }
   } else {
@@ -7940,6 +7941,15 @@ function confirmTaxQueue() {
   var items = window._taxQueueItems;
   if (!items || items.length === 0) return;
 
+  // LOCK: save user-explicit tax rates so AI response can't overwrite them
+  window._userTaxOverrides = {};
+  items.forEach(function(item) {
+    window._userTaxOverrides[item.name.toLowerCase()] = {
+      taxable: item.rate > 0,
+      tax_rate: item.rate
+    };
+  });
+
   // DIRECTLY apply tax rates to invoice JSON as immediate safety net
   if (window.lastAiResult && window.lastAiResult.sections) {
     window.lastAiResult.sections.forEach(function(sec) {
@@ -7981,8 +7991,8 @@ function confirmTaxQueue() {
     instruction += 'Do NOT override these rates. Items with tax_rate=0 MUST have taxable:false.';
   }
 
-  // Build user bubble summary — one item per line
-  var summary = items.map(function(item) { return item.name + ': ' + item.rate + '%'; }).join('\n');
+  // Build user bubble summary — one item per double-spaced line
+  var summary = items.map(function(item) { return item.name + ': ' + item.rate + '%'; }).join('\n\n');
 
   window._taxQueueItems = null;
 
@@ -7995,6 +8005,39 @@ function confirmTaxQueue() {
   addUserBubble(summary);
   // Send BOTH: direct JSON already applied + AI instruction so AI understands too
   handleQueueAnswer(instruction.trim());
+}
+
+// Lock current tax rates from window.lastAiResult into _userTaxOverrides
+// Called after any explicit user tax action (widget confirm or text parse)
+function _lockCurrentTaxRates() {
+  if (!window.lastAiResult || !window.lastAiResult.sections) return;
+  window._userTaxOverrides = {};
+  window.lastAiResult.sections.forEach(function(sec) {
+    (sec.items || []).forEach(function(sItem) {
+      var name = (sItem.desc || sItem.name || '').toLowerCase();
+      if (name) {
+        window._userTaxOverrides[name] = {
+          taxable: !!sItem.taxable,
+          tax_rate: sItem.tax_rate || 0
+        };
+      }
+    });
+  });
+}
+
+// Re-apply locked tax overrides onto a data object (called after AI response)
+function _reapplyTaxOverrides(data) {
+  if (!window._userTaxOverrides || !data || !data.sections) return;
+  var overrides = window._userTaxOverrides;
+  data.sections.forEach(function(sec) {
+    (sec.items || []).forEach(function(sItem) {
+      var name = (sItem.desc || sItem.name || '').toLowerCase();
+      if (overrides[name] !== undefined) {
+        sItem.taxable = overrides[name].taxable;
+        sItem.tax_rate = overrides[name].tax_rate;
+      }
+    });
+  });
 }
 
 // ── TAX TEXT DIRECT APPLY: parse natural language tax instructions and apply to JSON ──
@@ -8016,6 +8059,7 @@ function applyTaxTextDirectly(text) {
   var removeAllRe = /^(remove\s+all\s+tax|no\s+tax|0\s*%?\s*(tax|დღგ)|გადასახად\w*\s+(მოხსენ|წაშალ|არ)|ყველა\s+0\s*%?)\s*$/i;
   if (removeAllRe.test(t)) {
     allItems.forEach(function(item) { item.taxable = false; item.tax_rate = 0; });
+    _lockCurrentTaxRates();
     updateUIWithoutTranscript(window.lastAiResult, true);
     return;
   }
@@ -8029,6 +8073,7 @@ function applyTaxTextDirectly(text) {
       if (rate > 0) { item.taxable = true; item.tax_rate = rate; }
       else { item.taxable = false; item.tax_rate = 0; }
     });
+    _lockCurrentTaxRates();
     updateUIWithoutTranscript(window.lastAiResult, true);
     return;
   }
@@ -8072,6 +8117,7 @@ function applyTaxTextDirectly(text) {
       if (rate > 0) { item.taxable = true; item.tax_rate = rate; }
       else { item.taxable = false; item.tax_rate = 0; }
     });
+    _lockCurrentTaxRates();
     updateUIWithoutTranscript(window.lastAiResult, true);
     return;
   }
@@ -8084,6 +8130,7 @@ function applyTaxTextDirectly(text) {
       if (r > 0) { item.taxable = true; item.tax_rate = r; }
       else { item.taxable = false; item.tax_rate = 0; }
     });
+    _lockCurrentTaxRates();
     updateUIWithoutTranscript(window.lastAiResult, true);
     return;
   }
@@ -8959,6 +9006,9 @@ async function triggerAssistantReparse(userAnswer, type, questionsText) {
         } catch(e) { /* ignore comparison errors */ }
       }
       window._aiReturnedNothing = aiReturnedNothing;
+
+      // Re-apply locked tax overrides BEFORE rendering — AI may have overwritten 0% with defaults
+      _reapplyTaxOverrides(data);
 
       // Update UI with refined result (without touching transcript)
       updateUIWithoutTranscript(data);
