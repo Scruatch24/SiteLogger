@@ -3831,13 +3831,6 @@ PROMPT
     end
 
     # ── Name resolution: prefer AI-provided item_name, fallback to regex cleaning ──
-    # resolve_name: use c["item_name"] if AI provided it, otherwise fall back to clean_name
-    resolve_name = lambda do |clar_hash, fallback_raw|
-      ai_name = clar_hash.is_a?(Hash) ? clar_hash["item_name"].to_s.strip : ""
-      return ai_name if ai_name.present? && section_items.any? { |s| s[:desc].downcase == ai_name.downcase }
-      clean_name.call(fallback_raw)
-    end
-
     # clean_name: FALLBACK regex extraction (only used when AI doesn't provide item_name)
     clean_name = lambda do |raw|
       name = raw.to_s.strip
@@ -3871,6 +3864,13 @@ PROMPT
         d == norm || norm.include?(d) || d.include?(norm)
       end
       match ? match[:desc] : name
+    end
+
+    # resolve_name: use AI-provided item_name if it matches a section item, otherwise fallback
+    resolve_name = lambda do |clar_hash, fallback_raw|
+      ai_name = clar_hash.is_a?(Hash) ? clar_hash["item_name"].to_s.strip : ""
+      return ai_name if ai_name.present? && section_items.any? { |s| s[:desc].downcase == ai_name.downcase }
+      clean_name.call(fallback_raw)
     end
 
     # ── Categorize every clarification ──
