@@ -8431,14 +8431,27 @@ async function triggerAssistantReparse(userAnswer, type, questionsText) {
         return;
       }
 
-      // Detect unchanged AI response: if no clarifications and JSON sections look identical, flag it
+      // Detect unchanged AI response: if no clarifications and full invoice data looks identical, flag it
+      // Skip check for batch clarification answers (already formatted as Q&A pairs)
       var aiReturnedNothing = false;
       var clars = data.clarifications || [];
-      if (clars.length === 0 && window.lastAiResult && type === 'refinement') {
+      var isBatchClarification = type === 'refinement' && userAnswer && userAnswer.indexOf('[AI asked:') !== -1;
+      if (clars.length === 0 && window.lastAiResult && type === 'refinement' && !isBatchClarification) {
         try {
-          var oldSections = JSON.stringify((window.lastAiResult.sections || []).map(function(s) { return { type: s.type, items: (s.items || []).map(function(i) { return i.desc; }) }; }));
-          var newSections = JSON.stringify((data.sections || []).map(function(s) { return { type: s.type, items: (s.items || []).map(function(i) { return i.desc; }) }; }));
-          if (oldSections === newSections && (data.client || '') === (window.lastAiResult.client || '')) {
+          var snap = function(d) {
+            return JSON.stringify({
+              sections: d.sections || [],
+              client: d.client || '',
+              global_discount: d.global_discount || null,
+              credits: d.credits || [],
+              date: d.date || '',
+              due_date: d.due_date || '',
+              tax_scope: d.tax_scope || '',
+              labor_taxable: d.labor_taxable,
+              discount_tax_mode: d.discount_tax_mode || ''
+            });
+          };
+          if (snap(data) === snap(window.lastAiResult)) {
             aiReturnedNothing = true;
           }
         } catch(e) { /* ignore comparison errors */ }

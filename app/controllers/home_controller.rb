@@ -2137,7 +2137,9 @@ PROMPT
          - Labor: { desc, price, rate, mode: "hourly"|"fixed", taxable, tax_rate, discount_flat, discount_percent, sub_categories: [] }
          - Materials: { desc, qty (default 1), price, taxable, tax_rate, discount_flat, discount_percent, sub_categories: [] }
          - Expenses/Fees: { desc, price, taxable, tax_rate, discount_flat, discount_percent, sub_categories: [] }
-         - PRICE REQUIRED: When adding new items without a price, you MUST ask. For multiple new items, prefer using type: "item_input_list" with per-item price inputs instead of asking one by one. For labor items, include billing_mode toggle. NEVER assume a default price.
+         - PRICE REQUIRED: When adding new items without a price, you MUST ask.
+           ██ MANDATORY: When adding 2+ new items, you MUST use a SINGLE type: "item_input_list" clarification to collect ALL missing values (price, quantity, etc.) in ONE card. NEVER ask about each item separately with individual text questions. ██
+           For labor items in item_input_list, include billing_mode toggle so user can pick fixed/hourly. For materials, include a quantity input. NEVER assume a default price.
       6b. SUB_CATEGORIES RULE: sub_categories is an array of strings for additional details.
          - WARRANTY: add to sub_categories. If 2+ items, ask with field: "warranty_scope", type: "multi_choice".
          - NOTES/DESCRIPTION: add to sub_categories of the target item.
