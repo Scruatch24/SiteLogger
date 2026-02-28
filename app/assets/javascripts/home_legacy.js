@@ -5518,7 +5518,7 @@ window.resetAssistantState = function() {
   window._pendingAnswer = null;
   window._analysisSucceeded = false;
   window.lastAiResult = null;
-  window._userTaxOverrides = null;
+  window._userItemOverrides = null;
   window._clarificationQueue = null;
   window._queueAnswers = null;
   window._queueTotal = 0;
@@ -5566,6 +5566,7 @@ window.finalizePendingAnswer = function() {
   if (pending.historyEntry) {
     if (!window.clarificationHistory) window.clarificationHistory = [];
     window.clarificationHistory.push(pending.historyEntry);
+    if (window.clarificationHistory.length > 20) window.clarificationHistory = window.clarificationHistory.slice(-20);
   }
 
   // Add to conversation history (data only)
@@ -5680,6 +5681,18 @@ function handleClarifications(clarifications) {
 
   // ── SEQUENTIAL QUESTION QUEUE ──
   window._clarificationQueue = filtered.slice();
+
+  // Sort queue: info → prices/qty → general → discounts → tax
+  // Ensures discount maxPrice is calculated after prices are set (#11)
+  function _queuePriority(c) {
+    if (c.type === 'info') return 0;
+    if (c.type === 'tax_management') return 4;
+    if (c.type === 'item_input_list' && c.items && c.items[0] && c.items[0].toggle && c.items[0].toggle.key === 'discount_type') return 3;
+    if (c.type === 'item_input_list') return 1;
+    return 2;
+  }
+  window._clarificationQueue.sort(function(a, b) { return _queuePriority(a) - _queuePriority(b); });
+
   window._queueAnswers = [];
   window._queueTotal = filtered.length;
 
@@ -6550,7 +6563,8 @@ async function directClientChange(newClientName) {
         chatHtml: conv ? conv.innerHTML : '',
         historyLength: (window.clarificationHistory || []).length,
         clientMatchResolved: !!window.clientMatchResolved,
-        recentQuestions: (window._recentQuestions || []).slice()
+        recentQuestions: (window._recentQuestions || []).slice(),
+        userItemOverrides: window._userItemOverrides ? JSON.parse(JSON.stringify(window._userItemOverrides)) : null
       });
       if (window._undoStack.length > 10) window._undoStack.shift();
     } catch(e) { /* ignore */ }
@@ -6780,7 +6794,8 @@ function confirmRemoveItems() {
         chatHtml: conv ? conv.innerHTML : '',
         historyLength: (window.clarificationHistory || []).length,
         clientMatchResolved: !!window.clientMatchResolved,
-        recentQuestions: (window._recentQuestions || []).slice()
+        recentQuestions: (window._recentQuestions || []).slice(),
+        userItemOverrides: window._userItemOverrides ? JSON.parse(JSON.stringify(window._userItemOverrides)) : null
       });
       if (window._undoStack.length > 10) window._undoStack.shift();
     } catch(e) { /* ignore */ }
@@ -6874,9 +6889,10 @@ function performUndoTo(targetIdx) {
     window.clarificationHistory = window.clarificationHistory.slice(0, snapshot.historyLength);
   }
 
-  // Restore client match and recent questions state
+  // Restore client match, recent questions, and user overrides state
   if (snapshot.clientMatchResolved !== undefined) window.clientMatchResolved = snapshot.clientMatchResolved;
   if (snapshot.recentQuestions !== undefined) window._recentQuestions = snapshot.recentQuestions.slice();
+  window._userItemOverrides = snapshot.userItemOverrides || null;
 
   window._collectingClientDetail = null;
   window._clarificationQueue = null;
@@ -7573,33 +7589,42 @@ function confirmItemInputList() {
         if (item.activeMode === 'percentage') {
           matchedSItem.discount_percent = val;
           matchedSItem.discount_flat = '';
+          _lockItemFields(itemName, { discount_percent: val, discount_flat: '' });
         } else {
           matchedSItem.discount_flat = val;
           matchedSItem.discount_percent = '';
+          _lockItemFields(itemName, { discount_flat: val, discount_percent: '' });
         }
       } else if (isBillingToggle) {
         if (item.activeMode === 'hourly') {
           var hInp = itemCard.querySelector('.iil-input[data-iil-key="hours"]');
           var rInp = itemCard.querySelector('.iil-input[data-iil-key="rate"]');
-          matchedSItem.hours = parseFloat(hInp ? hInp.value : '') || null;
-          matchedSItem.rate = parseFloat(rInp ? rInp.value : '') || null;
+          var hVal = parseFloat(hInp ? hInp.value : '') || null;
+          var rVal = parseFloat(rInp ? rInp.value : '') || null;
+          matchedSItem.hours = hVal;
+          matchedSItem.rate = rVal;
           matchedSItem.price = null;
           matchedSItem.mode = 'hourly';
+          _lockItemFields(itemName, { hours: hVal, rate: rVal, price: null, mode: 'hourly' });
         } else {
           var pInp = itemCard.querySelector('.iil-input[data-iil-key="price"]');
-          matchedSItem.price = parseFloat(pInp ? pInp.value : '') || null;
+          var pVal = parseFloat(pInp ? pInp.value : '') || null;
+          matchedSItem.price = pVal;
           matchedSItem.hours = null;
           matchedSItem.rate = null;
           matchedSItem.mode = 'fixed';
+          _lockItemFields(itemName, { price: pVal, hours: null, rate: null, mode: 'fixed' });
         }
       } else {
         // Materials/expenses/fees: apply each input by key
+        var lockedFields = {};
         itemCard.querySelectorAll('.iil-input').forEach(function(inp) {
           var key = inp.getAttribute('data-iil-key');
           var val = parseFloat(inp.value) || null;
-          if (key === 'qty') matchedSItem.qty = val;
-          else if (key === 'price') matchedSItem.unit_price = val;
+          if (key === 'qty') { matchedSItem.qty = val; lockedFields.qty = val; }
+          else if (key === 'price') { matchedSItem.unit_price = val; lockedFields.unit_price = val; }
         });
+        if (Object.keys(lockedFields).length > 0) _lockItemFields(itemName, lockedFields);
       }
     });
   }
@@ -7942,12 +7967,12 @@ function confirmTaxQueue() {
   if (!items || items.length === 0) return;
 
   // LOCK: save user-explicit tax rates so AI response can't overwrite them
-  window._userTaxOverrides = {};
+  if (!window._userItemOverrides) window._userItemOverrides = {};
   items.forEach(function(item) {
-    window._userTaxOverrides[item.name.toLowerCase()] = {
-      taxable: item.rate > 0,
-      tax_rate: item.rate
-    };
+    var key = item.name.toLowerCase();
+    if (!window._userItemOverrides[key]) window._userItemOverrides[key] = {};
+    window._userItemOverrides[key].taxable = item.rate > 0;
+    window._userItemOverrides[key].tax_rate = item.rate;
   });
 
   // DIRECTLY apply tax rates to invoice JSON as immediate safety net
@@ -8007,34 +8032,47 @@ function confirmTaxQueue() {
   handleQueueAnswer(instruction.trim());
 }
 
-// Lock current tax rates from window.lastAiResult into _userTaxOverrides
+// Lock current tax rates from window.lastAiResult into _userItemOverrides
 // Called after any explicit user tax action (widget confirm or text parse)
 function _lockCurrentTaxRates() {
   if (!window.lastAiResult || !window.lastAiResult.sections) return;
-  window._userTaxOverrides = {};
+  if (!window._userItemOverrides) window._userItemOverrides = {};
   window.lastAiResult.sections.forEach(function(sec) {
     (sec.items || []).forEach(function(sItem) {
       var name = (sItem.desc || sItem.name || '').toLowerCase();
       if (name) {
-        window._userTaxOverrides[name] = {
-          taxable: !!sItem.taxable,
-          tax_rate: sItem.tax_rate || 0
-        };
+        if (!window._userItemOverrides[name]) window._userItemOverrides[name] = {};
+        window._userItemOverrides[name].taxable = !!sItem.taxable;
+        window._userItemOverrides[name].tax_rate = sItem.tax_rate || 0;
       }
     });
   });
 }
 
-// Re-apply locked tax overrides onto a data object (called after AI response)
-function _reapplyTaxOverrides(data) {
-  if (!window._userTaxOverrides || !data || !data.sections) return;
-  var overrides = window._userTaxOverrides;
+// Lock specific fields for an item — called after direct-apply from widgets
+function _lockItemFields(itemName, fields) {
+  if (!window._userItemOverrides) window._userItemOverrides = {};
+  var key = (itemName || '').toLowerCase();
+  if (!key) return;
+  if (!window._userItemOverrides[key]) window._userItemOverrides[key] = {};
+  Object.keys(fields).forEach(function(f) {
+    window._userItemOverrides[key][f] = fields[f];
+  });
+}
+
+// Re-apply ALL locked user overrides onto a data object (called after AI response)
+// Replaces per-field locks with a single mechanism (#1, #2, #6)
+function _reapplyAllOverrides(data) {
+  if (!window._userItemOverrides || !data || !data.sections) return;
+  var overrides = window._userItemOverrides;
   data.sections.forEach(function(sec) {
     (sec.items || []).forEach(function(sItem) {
       var name = (sItem.desc || sItem.name || '').toLowerCase();
-      if (overrides[name] !== undefined) {
-        sItem.taxable = overrides[name].taxable;
-        sItem.tax_rate = overrides[name].tax_rate;
+      if (overrides[name]) {
+        var o = overrides[name];
+        Object.keys(o).forEach(function(field) {
+          sItem[field] = o[field];
+        });
       }
     });
   });
@@ -8914,7 +8952,8 @@ async function triggerAssistantReparse(userAnswer, type, questionsText) {
         chatHtml: conv ? conv.innerHTML : '',
         historyLength: (window.clarificationHistory || []).length,
         clientMatchResolved: !!window.clientMatchResolved,
-        recentQuestions: (window._recentQuestions || []).slice()
+        recentQuestions: (window._recentQuestions || []).slice(),
+        userItemOverrides: window._userItemOverrides ? JSON.parse(JSON.stringify(window._userItemOverrides)) : null
       });
       if (window._undoStack.length > 10) window._undoStack.shift();
     } catch(e) { /* ignore serialization errors */ }
@@ -9007,11 +9046,15 @@ async function triggerAssistantReparse(userAnswer, type, questionsText) {
       }
       window._aiReturnedNothing = aiReturnedNothing;
 
-      // Re-apply locked tax overrides BEFORE rendering — AI may have overwritten 0% with defaults
-      _reapplyTaxOverrides(data);
+      // Re-apply ALL locked user overrides BEFORE rendering — AI may have overwritten values
+      _reapplyAllOverrides(data);
 
-      // Update UI with refined result (without touching transcript)
-      updateUIWithoutTranscript(data);
+      // Suppress double render if AI returned identical data (#3 — avoid jarring UX flash)
+      if (aiReturnedNothing) {
+        window.lastAiResult = data;
+      } else {
+        updateUIWithoutTranscript(data);
+      }
 
       // Finalize the pending answer
       if (window._pendingAnswer && window._analysisSucceeded) {
