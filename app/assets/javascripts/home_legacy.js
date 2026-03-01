@@ -3417,7 +3417,7 @@ function addFullSection(title, items, isProtected = false, explicitType = null) 
           const taxable = typeof item === 'object' ? (item.taxable) : null;
           const discFlat = typeof item === 'object' ? (item.discount_flat || "") : "";
           const discPercent = typeof item === 'object' ? (item.discount_percent || "") : "";
-          const taxRate = typeof item === 'object' ? (item.tax_rate || "") : "";
+          const taxRate = typeof item === 'object' ? (item.tax_rate != null && item.tax_rate !== '' ? item.tax_rate : (item.taxable === true ? (profileTaxRate || 18) : "")) : "";
           const rate = typeof item === 'object' ? (item.rate ?? "") : "";
 
           const sub_categories = (item && typeof item === 'object') ? (item.sub_categories || []) : [];
@@ -3543,8 +3543,10 @@ function addFullSection(title, items, isProtected = false, explicitType = null) 
         if (item.taxable !== undefined && item.taxable !== null) {
           taxable = item.taxable;
         }
-        if (item.tax_rate) {
+        if (item.tax_rate != null && item.tax_rate !== '') {
           taxRate = item.tax_rate;
+        } else if (item.taxable === true) {
+          taxRate = profileTaxRate || 18;
         }
         discFlat = item.discount_flat || "";
         discPercent = item.discount_percent || "";
@@ -5878,7 +5880,9 @@ function batchSubmitQueueAnswers() {
   }
 
   // Format batch as individual Q&A pairs for the AI
-  var batchMessage = 'IMPORTANT: The following answers have ALREADY been applied to the current JSON (prices, quantities, discounts, tax rates). Do NOT re-interpret or recalculate these values — just confirm the current JSON is correct and return it unchanged. Only process any ambiguity/description answers that require item renaming.\n\n';
+  // NOTE: Some values (from widget confirms) are pre-applied to the JSON, others (text answers) are not.
+  // Tell the AI to apply ALL answers — _reapplyAllOverrides protects widget-confirmed values from being overwritten.
+  var batchMessage = 'Apply the following user answers to the invoice JSON. For prices/quantities/hours/rates, set the exact values given. For tax instructions, apply them exactly (0% means taxable:false, tax_rate:0). For descriptions, rename items accordingly. Return the updated JSON.\n\n';
   batchMessage += aiAnswers.map(function(qa) {
     return '[AI asked: "' + qa.question + '" → User answered: "' + qa.answer + '"]';
   }).join('\n');
@@ -8160,27 +8164,67 @@ function applyTaxTextDirectly(text) {
     return;
   }
 
+  // Pattern 2.5: "remove tax from X" / "მოაშორე დაბეგვრა X-ს" / "X-ს დღგ მოხსენი"
+  var removeTaxItemRe = /(?:remove\s+tax\s+(?:from|on)|მოაშორე\s+(?:დაბეგვრა|დღგ)\s*|დაბეგვრა\s+მოაშორე\s*|დღგ\s+მოხსენი?\s*|დღგ\s+მოაშორე\s*)([\p{Georgian}\w]+)/iu;
+  var removeTaxItemRe2 = /([\p{Georgian}\w]+)\s*-?ს?\s+(?:დღგ|დაბეგვრა)\s+(?:მოხსენ|მოაშორ|წაშალ)/iu;
+  var rmMatch = t.match(removeTaxItemRe) || t.match(removeTaxItemRe2);
+  if (rmMatch) {
+    var targetWord = rmMatch[1].toLowerCase();
+    // Strip Georgian case suffixes for matching
+    var targetStems = [targetWord];
+    if (targetWord.endsWith('ს')) targetStems.push(targetWord.slice(0, -1));
+    if (targetWord.endsWith('ის')) targetStems.push(targetWord.slice(0, -2));
+    if (targetWord.endsWith('ზე')) targetStems.push(targetWord.slice(0, -2));
+
+    var matched = false;
+    allItems.forEach(function(item) {
+      var iName = (item.desc || item.name || '').toLowerCase();
+      var iStem = iName.replace(/ი$/, '');
+      if (targetStems.some(function(s) { return s === iName || s === iStem || iName.indexOf(s) !== -1 || s.indexOf(iStem) !== -1; })) {
+        item.taxable = false; item.tax_rate = 0;
+        matched = true;
+      }
+    });
+    if (matched) {
+      _lockCurrentTaxRates();
+      updateUIWithoutTranscript(window.lastAiResult, true);
+      return;
+    }
+  }
+
   // Pattern 3: "itemName X(-ია/%), დანარჩენი/rest Y%" — per-item with rest
   // Parse named rates and "rest" rate
   var restRe = /(?:დანარჩენი|rest|others?|სხვა)\s+(\d+)\s*%?/i;
   var restMatch = t.match(restRe);
   var restRate = restMatch ? parseInt(restMatch[1]) : null;
 
-  // Extract "itemName X%" or "itemName X-ია" or "itemName X"
+  // Extract "itemName X%" or "itemName X-ია" or "itemName X" or "X% itemName"
   var namedRates = {};
   var itemNames = allItems.map(function(item) { return (item.desc || item.name || '').toLowerCase(); });
 
-  // Try matching each item name in the text
+  // Helper: get stem variations for Georgian name matching
+  function getStems(name) {
+    var stems = [name];
+    if (name.endsWith('ი')) stems.push(name.slice(0, -1)); // ტელეფონი → ტელეფონ
+    return stems;
+  }
+
+  // Try matching each item name in the text (including with Georgian suffixes)
   itemNames.forEach(function(name) {
     if (!name || name.length < 2) return;
-    // Escape special regex chars in name
-    var escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    // Match: "name X%" or "name X-ია" or "name X" (number right after name)
-    var re = new RegExp(escaped + '\\s*[:\\-–]?\\s*(\\d+)\\s*(%|-?ია)?', 'i');
-    var m = t.match(re);
-    if (m) {
-      namedRates[name] = parseInt(m[1]);
-    }
+    var stems = getStems(name);
+
+    stems.forEach(function(stem) {
+      if (namedRates[name] !== undefined) return; // already found
+      var escaped = stem.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      // Match: "stem(suffix) X%" or "X% stem(suffix)"
+      var re1 = new RegExp(escaped + '\\w*\\s*[:\\-–]?\\s*(\\d+)\\s*(%|-?ია)?', 'i');
+      var re2 = new RegExp('(\\d+)\\s*%?\\s*[-–]?\\s*' + escaped + '\\w*', 'i');
+      var m = t.match(re1) || t.match(re2);
+      if (m) {
+        namedRates[name] = parseInt(m[1]);
+      }
+    });
   });
 
   var hasNamedRates = Object.keys(namedRates).length > 0;

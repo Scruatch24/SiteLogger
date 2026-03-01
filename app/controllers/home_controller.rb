@@ -2142,6 +2142,11 @@ PROMPT
       gemini_model = ENV["GEMINI_PRIMARY_MODEL"].presence || "gemini-2.5-flash-lite"
       thinking_budget = (ENV["GEMINI_REFINE_THINKING_BUDGET"].presence || ENV["GEMINI_THINKING_BUDGET"].presence || 4096).to_i
 
+      # ── Comprehensive AI logging ──
+      ai_log = { ts: Time.current.iso8601, model: gemini_model, user_message: user_message.truncate(500) }
+      input_parsed = current_json.is_a?(String) ? (JSON.parse(current_json) rescue {}) : (current_json.respond_to?(:to_unsafe_h) ? current_json.to_unsafe_h : current_json.to_h).deep_stringify_keys
+      ai_log[:input_items] = (input_parsed["sections"] || []).flat_map { |s| (s["items"] || []).map { |i| { name: i["desc"] || i["name"], taxable: i["taxable"], tax_rate: i["tax_rate"], price: i["price"] || i["unit_price"] } } } rescue []
+
       body = gemini_generate_content(
         api_key: api_key,
         model: gemini_model,
@@ -2151,6 +2156,8 @@ PROMPT
       )
 
       if body["error"].present?
+        ai_log[:error] = body["error"]
+        log_ai_assistant(ai_log)
         Rails.logger.warn("REFINE ERROR (#{gemini_model}): #{body["error"].to_json}")
         return render json: { error: t("processing_error") }, status: 500
       end
@@ -2159,14 +2166,20 @@ PROMPT
       raw = parts&.reject { |p| p["thought"] }&.map { |p| p["text"] }&.join("\n")
 
       if raw.blank?
+        ai_log[:error] = "empty_response"
+        log_ai_assistant(ai_log)
         Rails.logger.warn("REFINE EMPTY RESPONSE")
         return render json: { error: t("processing_error") }, status: 500
       end
 
+      ai_log[:raw_length] = raw.length
       Rails.logger.info "REFINE RAW (#{gemini_model}): #{raw}"
 
       json_match = raw.match(/\{[\s\S]*\}/m)
       unless json_match
+        ai_log[:error] = "no_json_in_response"
+        ai_log[:raw_preview] = raw.truncate(300)
+        log_ai_assistant(ai_log)
         Rails.logger.error "REFINE NO JSON FOUND: #{raw}"
         return render json: { error: t("invalid_ai_output") }, status: 422
       end
@@ -2174,6 +2187,9 @@ PROMPT
       result = begin
         JSON.parse(json_match[0])
       rescue => e
+        ai_log[:error] = "json_parse: #{e.message}"
+        ai_log[:raw_preview] = raw.truncate(300)
+        log_ai_assistant(ai_log)
         Rails.logger.error "REFINE JSON PARSE ERROR: #{e.message}"
         nil
       end
@@ -2225,6 +2241,12 @@ PROMPT
 
       # ── Server-side clarification generation: catch anything AI missed ──
       generate_missing_clarifications(result, user_message, current_json)
+
+      # ── Backend tax enforcement: parse tax instructions from user message and apply deterministically ──
+      enforce_tax_from_message!(result, user_message)
+
+      # ── Backend price/hours enforcement: parse structured answers and apply ──
+      enforce_prices_from_message!(result, user_message)
 
       # Client matching for refine_invoice responses (paid users only)
       # Skip if frontend already resolved client matching (user confirmed/denied)
@@ -2307,6 +2329,12 @@ PROMPT
       # Sort clarifications: client fields first, then AI questions
       client_fields = %w[client_confirm_existing client_match add_client_to_list]
       result["clarifications"].sort_by! { |c| client_fields.include?(c["field"].to_s) ? 0 : 1 }
+
+      # ── Log final result ──
+      ai_log[:output_items] = (result["sections"] || []).flat_map { |s| (s["items"] || []).map { |i| { name: i["desc"] || i["name"], taxable: i["taxable"], tax_rate: i["tax_rate"], price: i["price"] || i["unit_price"] } } } rescue []
+      ai_log[:clarifications] = (result["clarifications"] || []).map { |c| { field: c["field"], type: c["type"], q: c["question"].to_s.truncate(60) } }
+      ai_log[:status] = "ok"
+      log_ai_assistant(ai_log)
 
       Rails.logger.info "REFINE RESULT: #{result.to_json}"
       render json: result
@@ -4147,6 +4175,203 @@ PROMPT
       Rails.logger.info "SMART-CLARS: Generated #{new_clars.length} missing clarifications (price=#{items_needing_price.length} vague=#{new_clars.count { |c| c["field"] == "item_description" }} disc=#{new_clars.count { |c| c["field"].to_s.match?(/discount/) }})"
       result["clarifications"] = result["clarifications"] + new_clars
     end
+  end
+
+  # ── STRUCTURED AI ASSISTANT LOGGING ──
+  # Writes to log/ai_assistant.log for debugging AI behavior
+  def log_ai_assistant(entry)
+    @_ai_log ||= Logger.new(Rails.root.join("log", "ai_assistant.log"), 5, 10.megabytes)
+    @_ai_log.info(entry.to_json)
+  rescue => e
+    Rails.logger.warn "AI LOG WRITE ERROR: #{e.message}"
+  end
+
+  # ── BACKEND TAX ENFORCEMENT ──
+  # Deterministically parses tax instructions from user message and applies them
+  # to the result JSON. Runs AFTER AI processing as a safety net.
+  def enforce_tax_from_message!(result, user_message)
+    msg = user_message.to_s.strip
+    return if msg.blank?
+    all_items = (result["sections"] || []).flat_map { |s| s["items"] || [] }
+    return if all_items.empty?
+
+    # Also extract tax instructions from batch Q&A pairs
+    texts_to_check = [msg]
+    msg.scan(/User answered:\s*"(.*?)"/m).each { |m_arr| texts_to_check << m_arr[0] }
+
+    item_names = all_items.map { |i| (i["desc"] || i["name"] || "").strip }.reject(&:blank?)
+
+    # Helper: fuzzy match Georgian item name (handles dative -ს, genitive -ის, etc.)
+    find_item = ->(text) {
+      text_down = text.downcase.strip
+      stems = [text_down]
+      stems << text_down.sub(/ს$/, "")      # dative: ტელეფონს → ტელეფონ
+      stems << text_down.sub(/ის$/, "")      # genitive: ტელეფონის → ტელეფონ
+      stems << text_down.sub(/ზე$/, "")      # postposition: ტელეფონზე → ტელეფონ
+      stems << text_down.sub(/იდან$/, "")    # ablative
+      stems << text_down.sub(/ში$/, "")      # locative
+      stems.uniq!
+
+      all_items.select { |i|
+        name = (i["desc"] || i["name"] || "").downcase.strip
+        name_stem = name.sub(/ი$/, "") # nominative ending: ტელეფონი → ტელეფონ
+        stems.any? { |s| s == name || s == name_stem || (name_stem.length >= 3 && (name.include?(s) || s.include?(name_stem))) }
+      }
+    }
+
+    changes_made = false
+
+    texts_to_check.each do |txt|
+      t = txt.strip
+      next if t.blank?
+      t_down = t.downcase
+
+      # Pattern 1: Remove tax — "მოაშორე დაბეგვრა", "დაბეგვრა მოაშორე", "no tax", "დღგ მოხსენი"
+      tax_remove_re = /(?:remove\s+(?:all\s+)?tax|no\s+tax|tax\s*free|მოაშორე\s+(?:დაბეგვრა|დღგ)|(?:დაბეგვრა|დღგ)\s+მოაშორე|დღგ\s*(?:მოხსენ|წაშალ|მოაშორ)|გადასახად\w*\s+(?:მოხსენ|წაშალ|მოაშორ))/i
+      if t.match?(tax_remove_re)
+        # Check if specific item mentioned
+        target_items = []
+        item_names.each do |name|
+          stems = [name.downcase, name.downcase.sub(/ი$/, "")]
+          # Also check with Georgian suffixes stripped
+          if stems.any? { |s| s.length >= 3 && t_down.match?(/#{Regexp.escape(s)}\w{0,3}/) }
+            target_items.concat(find_item.call(name))
+          end
+        end
+
+        if target_items.any?
+          target_items.uniq { |i| i.object_id }.each do |item|
+            item["taxable"] = false
+            item["tax_rate"] = 0
+            changes_made = true
+          end
+          Rails.logger.info "TAX-ENFORCE: Removed tax from #{target_items.map { |i| i["desc"] || i["name"] }.join(", ")}"
+        elsif t.match?(/\b(all|ყველა|everything)\b/i) || !item_names.any? { |n| t_down.include?(n.downcase.sub(/ი$/, "")) }
+          all_items.each { |item| item["taxable"] = false; item["tax_rate"] = 0 }
+          result["labor_taxable"] = false
+          changes_made = true
+          Rails.logger.info "TAX-ENFORCE: Removed all tax"
+        end
+      end
+
+      # Pattern 2: Per-item tax rates — "0% ტელეფონზე", "ტელეფონი 0%", "X 18%"
+      # Match: "X% itemStem(suffix)" — number before item
+      if item_names.any?
+        stems_re = item_names.map { |n| Regexp.escape(n.downcase.sub(/ი$/, "")) }.select { |s| s.length >= 2 }.uniq.join("|")
+        if stems_re.present?
+          t.scan(/(\d+)\s*%?\s*[-–]?\s*(#{stems_re})\w*/i).each do |rate_str, name_part|
+            rate = rate_str.to_i
+            find_item.call(name_part).each do |item|
+              item["taxable"] = rate > 0
+              item["tax_rate"] = rate
+              changes_made = true
+            end
+          end
+        end
+      end
+
+      # Also match: "itemStem(suffix) X%" — item name before number
+      item_names.each do |name|
+        stem = name.downcase.sub(/ი$/, "")
+        next if stem.length < 2
+        escaped = Regexp.escape(stem)
+        if m = t.match(/#{escaped}\w{0,4}\s*[:\-–]?\s*(\d+)\s*(%|-?ია)?/i)
+          rate = m[1].to_i
+          find_item.call(name).each do |item|
+            item["taxable"] = rate > 0
+            item["tax_rate"] = rate
+            changes_made = true
+          end
+        end
+      end
+
+      # Pattern 3: "დანარჩენი X%" / "rest X%" — apply to unmentioned items
+      if m = t.match(/(?:დანარჩენი|rest|others?|სხვა)\s+(\d+)\s*%?/i)
+        rest_rate = m[1].to_i
+        mentioned_items = Set.new
+        item_names.each do |name|
+          stem = name.downcase.sub(/ი$/, "")
+          mentioned_items.add(name.downcase) if stem.length >= 2 && t_down.match?(/#{Regexp.escape(stem)}\w{0,4}/)
+        end
+        # Only apply if at least one item IS mentioned (otherwise "rest" is ambiguous)
+        if mentioned_items.any?
+          all_items.each do |item|
+            iname = (item["desc"] || item["name"] || "").downcase
+            next if mentioned_items.include?(iname)
+            item["taxable"] = rest_rate > 0
+            item["tax_rate"] = rest_rate
+            changes_made = true
+          end
+        end
+      end
+    end
+
+    Rails.logger.info "TAX-ENFORCE: changes_made=#{changes_made} msg=#{msg.truncate(80)}" if changes_made
+  end
+
+  # ── BACKEND PRICE/HOURS ENFORCEMENT ──
+  # Parses structured batch answers like "შეკეთება 5 საათი 100 ლარი" and applies them
+  def enforce_prices_from_message!(result, user_message)
+    msg = user_message.to_s.strip
+    return if msg.blank?
+
+    all_items = (result["sections"] || []).flat_map { |s| s["items"] || [] }
+    return if all_items.empty?
+
+    changes_made = false
+
+    # Extract Q&A pairs from batch messages
+    msg.scan(/\[AI asked:.*?User answered:\s*"(.*?)"\]/m).each do |answer_text_arr|
+      answer = answer_text_arr[0]
+
+      # Pattern: "itemName X საათი Y ლარი" (X hours, Y lari)
+      answer.scan(/([\p{Georgian}\w]+)\s+(\d+(?:\.\d+)?)\s*საათ\w*\s+(\d+(?:\.\d+)?)\s*ლარ\w*/i).each do |name_part, hours_str, price_str|
+        hours = hours_str.to_f
+        price = price_str.to_f
+        next if hours <= 0 || price <= 0
+
+        # Find matching item
+        all_items.each do |item|
+          iname = (item["desc"] || item["name"] || "").downcase
+          next unless iname.include?(name_part.downcase) || name_part.downcase.include?(iname.sub(/ი$/, ""))
+
+          # "5 საათი 100 ლარი" = 5 hours at rate 20 (100/5), or fixed price 100
+          # If item is labor, set hourly mode
+          item["hours"] = hours
+          item["rate"] = (price / hours).round(2)
+          item["price"] = price
+          item["mode"] = "hourly"
+          changes_made = true
+          Rails.logger.info "PRICE-ENFORCE: #{iname} → hours=#{hours} rate=#{item["rate"]} price=#{price}"
+        end
+      end
+
+      # Pattern: "itemName X ლარი" (X lari — simple price)
+      answer.scan(/([\p{Georgian}\w]+)\s+(\d+(?:\.\d+)?)\s*ლარ\w*/i).each do |name_part, price_str|
+        price = price_str.to_f
+        next if price <= 0
+
+        all_items.each do |item|
+          iname = (item["desc"] || item["name"] || "").downcase
+          next unless iname.include?(name_part.downcase) || name_part.downcase.include?(iname.sub(/ი$/, ""))
+          # Only set if price not already set by hours pattern above
+          next if item["hours"].to_f > 0 && item["rate"].to_f > 0
+
+          # For materials, set unit_price; for others, set price
+          sec_type = (result["sections"] || []).find { |s| (s["items"] || []).include?(item) }&.dig("type")
+          if sec_type.to_s.match?(/material/i)
+            item["unit_price"] = price
+            item["price"] = price
+          else
+            item["price"] = price
+          end
+          changes_made = true
+          Rails.logger.info "PRICE-ENFORCE: #{iname} → price=#{price}"
+        end
+      end
+    end
+
+    Rails.logger.info "PRICE-ENFORCE: changes_made=#{changes_made}" if changes_made
   end
 
   # Normalize a client name for matching: strip legal forms, special quotes, downcase
