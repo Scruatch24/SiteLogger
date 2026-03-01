@@ -2071,65 +2071,69 @@ PROMPT
       payment_context = "\nSENDER PAYMENT INSTRUCTIONS: #{@profile.payment_instructions.to_s.strip}"
     end
 
-    # Stripped-down system instruction — AI focuses on JSON modification only.
-    # Backend handles clarification widget types, missing-field detection, and question formatting.
+    # ══════════════════════════════════════════════════════════════
+    # EXAMPLE-DRIVEN SYSTEM INSTRUCTION
+    # Teaches by showing, not by listing abstract rules.
+    # ══════════════════════════════════════════════════════════════
     refine_system_instruction = <<~SYSINSTRUCTION
-      You are the AI Assistant inside TalkInvoice — a voice-to-invoice app.
-      You receive CURRENT invoice JSON + user's chat message. Modify the JSON as requested and return it.
+      You are TalkInvoice's AI Assistant. You receive invoice JSON + a user message. Modify the JSON as requested and return the complete modified JSON.
 
-      ═══ ITEM SCHEMA (inside "sections" array) ═══
-      Labor/Service: { desc, price (total for fixed), hours, rate (per-hour), mode: "hourly"|"fixed", taxable, tax_rate, discount_flat, discount_percent, sub_categories: [] }
-      Materials: { desc, qty (default 1), price (PER-UNIT — NEVER total), taxable, tax_rate, discount_flat, discount_percent, sub_categories: [] }
-      Expenses/Fees: { desc, price, taxable, tax_rate, discount_flat, discount_percent, sub_categories: [] }
-      Credits: [{ amount, reason }]
+      ═══ SCHEMA ═══
+      sections: [{type: "labor_items"|"materials_items"|"expenses_items"|"fees_items", title, items: [...]}]
+      Labor item: {desc, price, hours, rate, mode: "hourly"|"fixed", taxable, tax_rate, discount_flat, discount_percent, sub_categories: []}
+      Material item: {desc, qty, price (PER UNIT, not total), taxable, tax_rate, discount_flat, discount_percent, sub_categories: []}
+      Expense/Fee item: {desc, price, taxable, tax_rate, discount_flat, discount_percent, sub_categories: []}
+      Top-level: client, date, due_date, global_discount_flat, global_discount_percent, credits: [{amount, reason}], clarifications: []
 
-      ═══ CATEGORIES ═══
-      LABOR/SERVICE: Any action — repair, install, deploy, configure, consult, clean. Georgian: "შეკეთება", "ინსტალაცია" = service.
-      MATERIALS: Physical goods — parts, equipment, supplies. NOT actions.
-      EXPENSES: Reimbursables — parking, tolls, travel.
-      FEES: Surcharges, rent ("ქირა"), utilities ("კომუნალური"), penalties ("ჯარიმა").
-      CREDITS: Post-tax reductions. "off the total" / "from the final" = CREDIT, not discount.
+      ═══ EXAMPLES ═══
 
-      ═══ ABSOLUTE RULES ═══
-      1. Materials "price" = UNIT PRICE. qty=5, price=50 means 50 per unit, NOT 250 total. NEVER multiply.
-      2. Modify ONLY what the user asks. Preserve ALL other fields and sections exactly.
-      3. Return the COMPLETE JSON in the same structure as input. Do not omit anything.
-      ⚠️ CRITICAL: "3 ვიდეო თვალი" = qty:3, NOT tax_rate:3. Numbers before item names are QUANTITIES, not tax rates.
-         Tax rates are ONLY when user explicitly says "%", "დღგ", "tax", or "დაბეგვრა".
-      4. TAX IS A COMMAND — apply directly, NEVER ask about it:
-         - "no tax" / "remove tax" → taxable:false + tax_rate:null on EVERY item, labor_taxable:false
-         - "0%" or "X 0-ია" → taxable:false, tax_rate:0 on that item. ZERO IS VALID.
-         - "18% tax" → tax_rate:18 on every item
-         - Per-item rates: apply EXACTLY as stated. 0 means ZERO TAX, not "skip".
-         - "დანარჩენი 0" / "rest 0" → ALL unmentioned items get taxable:false, tax_rate:0
-      5. Discounts are PRE-TAX. Either discount_flat OR discount_percent, never both. percent ≤ 100.
-         - "after tax" / "off the total" = CREDIT, not discount.
-         - If user says "X% discount" → just apply discount_percent. No questions needed.
-         - If user says "X off" or "X ფასდაკლება" → apply discount_flat. No questions needed.
-      6. "free" / "უფასოდ" → price=0, hours=0, rate=0, mode="fixed", taxable=false.
-      7. Keep "raw_summary" unchanged.
-      8. "[AI asked: ...]" in user_message → apply the answer DIRECTLY. Do not re-ask.
-      9. Dates: "date" for invoice, "due_date" for due date. Format "MMM DD, YYYY".
-      10. Credits default reason: "Courtesy Credit".
-      11. Do NOT ask about client names — system handles client matching separately.
-      12. Item names: Title Case. Georgian: nominative/dictionary singular form.
-      13. If confused, return UNCHANGED JSON + empty clarifications array.
-      14. When adding items, set price to null if unknown. The backend will generate a price input widget.
-      15. REMOVING items: delete from section's items array. Empty section → remove it.
-      16. sub_categories: array of strings for extra details. Don't repeat the item name.
-      17. ALWAYS return "clarifications": [] (empty array). The backend generates all clarification widgets. Do NOT preserve or copy clarifications from the input JSON.
+      User: "დაამატე 3 ვიდეო თვალი და 5 შოკოლადი"
+      → Add to materials_items: {desc: "ვიდეო თვალი", qty: 3, price: null}, {desc: "შოკოლადი", qty: 5, price: null}
+      Note: "3" is the QUANTITY, not the tax rate.
 
-      ═══ CLARIFICATIONS (simplified) ═══
-      For missing or ambiguous info, add to "clarifications" array:
-        { "field": "descriptive_name", "question": "short question?", "guess": "best guess or null", "item_name": "relevant item name" }
-      The backend converts these into interactive widgets automatically.
-      Keep questions under 15 words, end with "?", in the user's language.
-      NEVER ask about: tax, explicitly stated values, client names, hourly rates.
+      User: "ქეისსაც მოაშორე დაბეგვრა"
+      → Find the ქეისი item → set taxable: false, tax_rate: 0
 
-      Return ONLY valid JSON. No markdown, no explanation, no preamble.
+      User: "82% ყველაფერზე გარდა ქეისისა"
+      → All items EXCEPT ქეისი: taxable: true, tax_rate: 82. ქეისი stays unchanged.
+
+      User: "ფასდაკლება ქენი 50"
+      → global_discount_percent: 50
+
+      User: "ბოლო ვადა ხვალინდელზე და საწყისი 1 თვის წინ"
+      → due_date: tomorrow's date, date: one month before tomorrow
+
+      User: [AI asked: "ფასი?" → User answered: "ტელეფონი ორმოცი, ქეისი სამოცდასამი"]
+      → ტელეფონი price: 40, ქეისი price: 63. Apply DIRECTLY, do not re-ask.
+
+      User: "ტელეფონი ორმოცი, ქეისი სამოცდასამი, შეკეთება სამი საათი ხუთას ორმოცი ლარი"
+      → ტელეფონი price: 40, ქეისი price: 63, შეკეთება hours: 3, price: 540, rate: 180, mode: "hourly"
+
+      User: "წაშალე შოკოლადი"
+      → Remove შოკოლადი from its section's items array. If section becomes empty, remove the section.
+
+      ═══ KEY PRINCIPLES ═══
+      • Modify ONLY what's requested. Preserve everything else exactly.
+      • Numbers before item names = QUANTITIES (qty). Tax rates require "%", "დღგ", or "დაბეგვრა".
+      • Tax/discount are COMMANDS — apply them, never ask about them. 0% tax = taxable:false, tax_rate:0.
+      • Materials price = per-unit price. qty:5, price:50 means 50 each.
+      • New items without a stated price → set price: null (backend generates a price widget).
+      • Client names — don't ask about them. The system handles client matching separately.
+      • Georgian word numbers: ორმოცი=40, სამოცდასამი=63, ოთხმოცდაორი=82, ხუთას ორმოცი=540, ხუთასორმოცი=540.
+      • "clarifications" must be [] (empty). Backend generates all interactive widgets.
+      • Keep raw_summary unchanged.
+      • Dates format: "MMM DD, YYYY".
+      • Item names: Title Case. Georgian: nominative form.
+      • If confused, return the JSON UNCHANGED.
     SYSINSTRUCTION
 
-    # Dynamic content (changes every request)
+    # Dynamic content (changes every request) — trim conversation history to last 5 exchanges
+    trimmed_history = conversation_history.to_s
+    if trimmed_history.length > 2000
+      lines = trimmed_history.split("\n")
+      trimmed_history = lines.last(10).join("\n")
+    end
+
     prompt = <<~PROMPT
       #{lang_rule}
       #{client_list_context}#{payment_context}
@@ -2138,15 +2142,16 @@ PROMPT
       #{json_text}
 
       USER MESSAGE: "#{user_message}"
-      #{conversation_history.present? ? "\nCONVERSATION HISTORY:\n#{conversation_history}" : ""}
+      #{trimmed_history.present? ? "\nRECENT CONVERSATION:\n#{trimmed_history}" : ""}
 
       Today: #{today_for_prompt}. Questions in #{question_lang}.
-      Return the modified JSON.
     PROMPT
 
     begin
-      gemini_model = ENV["GEMINI_PRIMARY_MODEL"].presence || "gemini-2.5-flash-lite"
-      thinking_budget = (ENV["GEMINI_REFINE_THINKING_BUDGET"].presence || ENV["GEMINI_THINKING_BUDGET"].presence || 4096).to_i
+      # ── Model selection: GEMINI_REFINE_MODEL → GEMINI_PRIMARY_MODEL → flash-lite ──
+      gemini_model = ENV["GEMINI_REFINE_MODEL"].presence || ENV["GEMINI_PRIMARY_MODEL"].presence || "gemini-2.5-flash-lite"
+      fallback_model = ENV["GEMINI_FALLBACK_MODEL"].presence || "gemini-2.5-flash"
+      thinking_budget = (ENV["GEMINI_REFINE_THINKING_BUDGET"].presence || ENV["GEMINI_THINKING_BUDGET"].presence || 2048).to_i
 
       # ── Comprehensive AI logging ──
       ai_log = { ts: Time.current.iso8601, model: gemini_model, user_message: user_message.truncate(2000) }
@@ -2156,139 +2161,88 @@ PROMPT
       ai_log[:input_global_discount] = { flat: input_parsed["global_discount_flat"], pct: input_parsed["global_discount_percent"] }.compact.presence
       ai_log[:input_credits] = input_parsed["credits"] if input_parsed["credits"].present?
       ai_log[:input_items] = (input_parsed["sections"] || []).flat_map { |s| (s["items"] || []).map { |i| h = { name: i["desc"] || i["name"], sec: s["type"], taxable: i["taxable"], tax_rate: i["tax_rate"], price: i["price"] || i["unit_price"] }; h[:qty] = i["qty"] if i["qty"]; h[:hours] = i["hours"] if i["hours"]; h[:rate] = i["rate"] if i["rate"]; h[:mode] = i["mode"] if i["mode"]; h[:disc_flat] = i["discount_flat"] if i["discount_flat"].to_f > 0; h[:disc_pct] = i["discount_percent"] if i["discount_percent"].to_f > 0; h } } rescue []
-      ai_log[:conv_history_len] = conversation_history.to_s.length
+      ai_log[:conv_history_len] = trimmed_history.length
 
-      body = gemini_generate_content(
-        api_key: api_key,
-        model: gemini_model,
-        prompt_parts: [{ text: prompt }],
-        thinking_budget: thinking_budget,
-        system_instruction: refine_system_instruction
-      )
+      # ── Call AI with JSON mode (responseMimeType forces valid JSON output) ──
+      result = nil
+      used_model = gemini_model
+      [gemini_model, fallback_model].uniq.each_with_index do |model, attempt|
+        used_model = model
+        ai_log[:model] = model
+        ai_log[:attempt] = attempt + 1 if attempt > 0
 
-      if body["error"].present?
-        ai_log[:error] = body["error"]
-        log_ai_assistant(ai_log)
-        Rails.logger.warn("REFINE ERROR (#{gemini_model}): #{body["error"].to_json}")
-        return render json: { error: t("processing_error") }, status: 500
-      end
+        body = gemini_generate_content(
+          api_key: api_key,
+          model: model,
+          prompt_parts: [{ text: prompt }],
+          thinking_budget: thinking_budget,
+          system_instruction: refine_system_instruction,
+          response_mime_type: "application/json"
+        )
 
-      parts = body.dig("candidates", 0, "content", "parts")
-      raw = parts&.reject { |p| p["thought"] }&.map { |p| p["text"] }&.join("\n")
+        if body["error"].present?
+          Rails.logger.warn("REFINE ERROR (#{model}, attempt #{attempt + 1}): #{body["error"].to_json}")
+          ai_log[:error] = body["error"]
+          next # try fallback
+        end
 
-      if raw.blank?
-        ai_log[:error] = "empty_response"
-        log_ai_assistant(ai_log)
-        Rails.logger.warn("REFINE EMPTY RESPONSE")
-        return render json: { error: t("processing_error") }, status: 500
-      end
+        parts = body.dig("candidates", 0, "content", "parts")
+        raw = parts&.reject { |p| p["thought"] }&.map { |p| p["text"] }&.join("\n")
 
-      ai_log[:raw_length] = raw.length
-      ai_log[:raw_json] = raw.truncate(3000)
-      Rails.logger.info "REFINE RAW (#{gemini_model}): #{raw}"
+        if raw.blank?
+          Rails.logger.warn("REFINE EMPTY (#{model}, attempt #{attempt + 1})")
+          ai_log[:error] = "empty_response"
+          next
+        end
 
-      json_match = raw.match(/\{[\s\S]*\}/m)
-      unless json_match
-        ai_log[:error] = "no_json_in_response"
-        ai_log[:raw_preview] = raw.truncate(300)
-        log_ai_assistant(ai_log)
-        Rails.logger.error "REFINE NO JSON FOUND: #{raw}"
-        return render json: { error: t("invalid_ai_output") }, status: 422
-      end
+        ai_log[:raw_length] = raw.length
+        ai_log[:raw_json] = raw.truncate(3000)
+        Rails.logger.info "REFINE RAW (#{model}): #{raw}"
 
-      result = begin
-        JSON.parse(json_match[0])
-      rescue => e
-        ai_log[:error] = "json_parse: #{e.message}"
-        ai_log[:raw_preview] = raw.truncate(300)
-        log_ai_assistant(ai_log)
-        Rails.logger.error "REFINE JSON PARSE ERROR: #{e.message}"
-        nil
+        parsed = begin
+          JSON.parse(raw)
+        rescue => e
+          # With responseMimeType JSON mode this should be very rare
+          Rails.logger.warn("REFINE JSON PARSE (#{model}): #{e.message}")
+          ai_log[:error] = "json_parse: #{e.message}"
+          nil
+        end
+
+        # Structural validation: must have sections array with items that have desc/name
+        if parsed && parsed.is_a?(Hash) && parsed["sections"].is_a?(Array)
+          items_valid = parsed["sections"].all? { |s|
+            s.is_a?(Hash) && (s["items"].nil? || s["items"].is_a?(Array))
+          }
+          if items_valid
+            result = parsed
+            break
+          else
+            Rails.logger.warn("REFINE VALIDATION FAIL (#{model}): sections/items structure invalid")
+            ai_log[:error] = "validation_fail"
+          end
+        else
+          Rails.logger.warn("REFINE VALIDATION FAIL (#{model}): no sections array")
+          ai_log[:error] = "no_sections"
+        end
       end
 
       unless result
-        return render json: { error: t("invalid_ai_output") }, status: 422
+        log_ai_assistant(ai_log)
+        return render json: { error: t("processing_error") }, status: 500
       end
+
+      ai_log[:used_model] = used_model
 
       # Ensure required arrays exist
       result["sections"] ||= []
       result["credits"] ||= []
       result["clarifications"] = Array(result["clarifications"]).select { |c| c.is_a?(Hash) && c["question"].present? }
 
-      # Strip AI-generated client clarifications (backend handles client matching exclusively)
-      # Broadened: reject any clarification with "client" in field OR whose options overlap with DB client names
-      db_client_names = user_signed_in? ? current_user.clients.pluck(:name).map(&:downcase) : []
-      result["clarifications"].reject! do |c|
-        next false unless c.is_a?(Hash)
-        field_match = c["field"].to_s.match?(/\bclient\b/i) && !%w[client_match client_confirm_existing add_client_to_list].include?(c["field"].to_s)
-        options_match = c["options"].is_a?(Array) && c["options"].any? { |o| db_client_names.include?(o.to_s.downcase) }
-        field_match || options_match
-      end
-
-      # Sanitize AI clarifications: validate types, flatten object options, reject client-question patterns
-      valid_types = %w[choice multi_choice yes_no text info item_input_list tax_management]
-      result["clarifications"].reject! do |c|
-        next true unless c.is_a?(Hash)
-        # Reject unknown types (keep if type missing — treat as text)
-        if c["type"].present? && !valid_types.include?(c["type"].to_s)
-          Rails.logger.warn "CLARIFICATION REJECTED (unknown type): #{c.inspect}"
-          next true
-        end
-        # Reject if options contain objects instead of strings (causes [object Object])
-        if c["options"].is_a?(Array) && c["options"].any? { |o| o.is_a?(Hash) }
-          Rails.logger.warn "CLARIFICATION REJECTED (object in options): #{c['field']}"
-          next true
-        end
-        # Reject if question mentions client/კლიენტ patterns (AI shouldn't ask about clients)
-        q = c["question"].to_s
-        if q.match?(/\b(client|კლიენტ)/i) && !%w[client_match client_confirm_existing add_client_to_list].include?(c["field"].to_s)
-          Rails.logger.warn "CLARIFICATION REJECTED (client pattern in question): #{c['field']}"
-          next true
-        end
-        false
-      end
-
-      # ── Fix qty/tax_rate confusion: AI sometimes puts quantity into tax_rate for new items ──
-      # e.g. "3 ვიდეო თვალი" → AI sets tax_rate:3 instead of qty:3
-      if user_message.present?
-        (result["sections"] || []).each do |sec|
-          (sec["items"] || []).each do |item|
-            name = (item["desc"] || item["name"] || "").downcase
-            next if name.blank?
-            tr = item["tax_rate"].to_i
-            # If tax_rate is a small number (1-10) and matches a quantity in the user message for this item
-            next unless tr > 0 && tr <= 10
-            # Check if user message contains "N <item_name>" pattern (number before item = quantity)
-            stem = name.sub(/ი$/, "")
-            next if stem.length < 2
-            escaped = Regexp.escape(stem)
-            if user_message.match?(/\b#{tr}\b\s+#{escaped}/i) || user_message.match?(/#{escaped}\w{0,4}\s+#{tr}\b/i)
-              # Only fix if the item doesn't already have the correct qty
-              if item["qty"].to_i != tr
-                Rails.logger.info "QTY-FIX: #{name} tax_rate:#{tr} → qty:#{tr} (was quantity, not tax)"
-                item["qty"] = tr
-                item["tax_rate"] = nil
-                item["taxable"] = nil
-              end
-            end
-          end
-        end
-      end
-
       # ── Auto-upgrade clarifications: merge prices+qty, fix discount, convert tax ──
       auto_upgrade_clarifications!(result, params[:language].to_s)
 
       # ── Server-side clarification generation: catch anything AI missed ──
       generate_missing_clarifications(result, user_message, current_json)
-
-      # ── Backend tax enforcement: parse tax instructions from user message and apply deterministically ──
-      enforce_tax_from_message!(result, user_message)
-
-      # ── Backend price/hours enforcement: parse structured answers and apply ──
-      enforce_prices_from_message!(result, user_message)
-
-      # ── Backend discount enforcement: parse discount instructions and apply ──
-      enforce_discount_from_message!(result, user_message)
 
       # Client matching for refine_invoice responses (paid users only)
       # Skip if frontend already resolved client matching (user confirmed/denied)
@@ -2409,7 +2363,7 @@ PROMPT
     end
   end
 
-  def gemini_generate_content(api_key:, model:, prompt_parts:, cached_instruction_name: nil, temperature: 0, thinking_budget: 0, system_instruction: nil)
+  def gemini_generate_content(api_key:, model:, prompt_parts:, cached_instruction_name: nil, temperature: 0, thinking_budget: 0, system_instruction: nil, response_mime_type: nil)
     uri = URI("https://generativelanguage.googleapis.com/v1beta/models/#{model}:generateContent")
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = true
@@ -2419,6 +2373,7 @@ PROMPT
     req = Net::HTTP::Post.new(uri, "Content-Type" => "application/json", "x-goog-api-key" => api_key)
     gen_config = { temperature: temperature }
     gen_config[:thinkingConfig] = { thinkingBudget: thinking_budget } if thinking_budget > 0
+    gen_config[:responseMimeType] = response_mime_type if response_mime_type.present?
     payload = {
       contents: [ { parts: prompt_parts } ],
       generationConfig: gen_config
