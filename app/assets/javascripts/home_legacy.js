@@ -5621,13 +5621,19 @@ function handleClarifications(clarifications) {
       removeTypingIndicator();
       if (wasCreateNew) {
         renderClientDetailOptions();
-      } else if (window._aiReturnedNothing) {
+      } else if (window._aiReturnedNothing && !window._lastAiReply) {
         // AI failed to process the message — show retry prompt
         window._aiReturnedNothing = false;
         var L = window.APP_LANGUAGES || {};
         addAIBubble(L.ai_did_not_understand || 'ვერ გავიგე მოთხოვნა. სცადეთ სხვა ფორმულირებით ან დაყავით ნაწილებად.');
         renderQuickActionChips();
       } else {
+        // Show AI reply if available, otherwise generic "anything else?"
+        var aiReply = window._lastAiReply;
+        window._lastAiReply = null;
+        if (aiReply) {
+          addAIBubble(aiReply);
+        }
         addAIBubble(window.APP_LANGUAGES.anything_else || "Anything else to change?", null, null, {'anything-else': 'true'});
         renderQuickActionChips();
         window.setupSaveButton();
@@ -5711,6 +5717,11 @@ function handleClarifications(clarifications) {
   showTypingIndicator();
   setTimeout(function() {
     removeTypingIndicator();
+    // Show AI reply before clarification widgets (e.g. "ვიდეოთვალი დავამატე. ფასდაკლების ტიპი დავაზუსტოთ.")
+    if (window._lastAiReply) {
+      addAIBubble(window._lastAiReply);
+      window._lastAiReply = null;
+    }
     showNextQueueItem();
   }, 400);
 }
@@ -9230,9 +9241,16 @@ async function triggerAssistantReparse(userAnswer, type, questionsText) {
       }
       _reapplyAllOverrides(data);
 
+      // Capture AI reply text before rendering (handleClarifications will display it)
+      window._lastAiReply = data.reply || null;
+
       // Suppress double render if AI returned identical data (#3 — avoid jarring UX flash)
       if (aiReturnedNothing) {
         window.lastAiResult = data;
+        // Even if data is unchanged, still show the reply bubble
+        if (window._lastAiReply) {
+          handleClarifications(data.clarifications || []);
+        }
       } else {
         updateUIWithoutTranscript(data);
       }
