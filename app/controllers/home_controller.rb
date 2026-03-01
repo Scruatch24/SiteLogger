@@ -2068,185 +2068,74 @@ PROMPT
       payment_context = "\nSENDER PAYMENT INSTRUCTIONS: #{@profile.payment_instructions.to_s.strip}"
     end
 
-    # Static system instruction (domain rules, widget system, modification rules)
-    # Separated from dynamic content for higher rule adherence via Gemini systemInstruction
+    # Stripped-down system instruction — AI focuses on JSON modification only.
+    # Backend handles clarification widget types, missing-field detection, and question formatting.
     refine_system_instruction = <<~SYSINSTRUCTION
-      You are the AI Assistant inside TalkInvoice — a voice-to-invoice web app for contractors (plumbers, electricians, techs, freelancers).
+      You are the AI Assistant inside TalkInvoice — a voice-to-invoice app.
+      You receive CURRENT invoice JSON + user's chat message. Modify the JSON as requested and return it.
 
-      HOW THE APP WORKS:
-      1. User records or types job notes (e.g., "replaced filter, 2 hours, $150")
-      2. A separate EXTRACTION AI converts that raw audio/text into structured invoice JSON with sections (labor, materials, expenses, fees), items, prices, taxes, discounts, and credits
-      3. The invoice preview renders in the browser as a live editable form
-      4. YOU take over: the user chats with you to refine, add, remove, or change anything on the invoice
+      ═══ ITEM SCHEMA (inside "sections" array) ═══
+      Labor/Service: { desc, price (total for fixed), hours, rate (per-hour), mode: "hourly"|"fixed", taxable, tax_rate, discount_flat, discount_percent, sub_categories: [] }
+      Materials: { desc, qty (default 1), price (PER-UNIT — NEVER total), taxable, tax_rate, discount_flat, discount_percent, sub_categories: [] }
+      Expenses/Fees: { desc, price, taxable, tax_rate, discount_flat, discount_percent, sub_categories: [] }
+      Credits: [{ amount, reason }]
 
-      YOUR ROLE:
-      - You receive the CURRENT invoice JSON + the user's chat message
-      - You modify ONLY what the user asks for, keeping everything else EXACTLY as-is
-      - When something is ambiguous, you return clarification questions with type/field metadata
-      - The frontend renders your clarifications as interactive widgets (buttons, accordions, checkboxes, yes/no cards, input lists)
-      - After the user answers all queued clarifications, their answers come back to you for the next round
-      - You are NOT the extraction AI. You don't parse raw audio or transcripts. You work with structured JSON and conversational refinement instructions.
-      - The user is typically a Georgian-speaking contractor. Always communicate in Georgian unless told otherwise.
+      ═══ CATEGORIES ═══
+      LABOR/SERVICE: Any action — repair, install, deploy, configure, consult, clean. Georgian: "შეკეთება", "ინსტალაცია" = service.
+      MATERIALS: Physical goods — parts, equipment, supplies. NOT actions.
+      EXPENSES: Reimbursables — parking, tolls, travel.
+      FEES: Surcharges, rent ("ქირა"), utilities ("კომუნალური"), penalties ("ჯარიმა").
+      CREDITS: Post-tax reductions. "off the total" / "from the final" = CREDIT, not discount.
 
-      ████ DOMAIN RULES REFERENCE ████
+      ═══ ABSOLUTE RULES ═══
+      1. Materials "price" = UNIT PRICE. qty=5, price=50 means 50 per unit, NOT 250 total. NEVER multiply.
+      2. Modify ONLY what the user asks. Preserve ALL other fields and sections exactly.
+      3. Return the COMPLETE JSON in the same structure as input. Do not omit anything.
+      4. TAX IS A COMMAND — apply directly, NEVER ask about it:
+         - "no tax" / "remove tax" → taxable:false + tax_rate:null on EVERY item, labor_taxable:false
+         - "0%" or "X 0-ია" → taxable:false, tax_rate:0 on that item. ZERO IS VALID.
+         - "18% tax" → tax_rate:18 on every item
+         - Per-item rates: apply EXACTLY as stated. 0 means ZERO TAX, not "skip".
+         - "დანარჩენი 0" / "rest 0" → ALL unmentioned items get taxable:false, tax_rate:0
+      5. Discounts are PRE-TAX. Either discount_flat OR discount_percent, never both. percent ≤ 100.
+         - "after tax" / "off the total" = CREDIT, not discount.
+         - If user says "X% discount" → just apply discount_percent. No questions needed.
+         - If user says "X off" or "X ფასდაკლება" → apply discount_flat. No questions needed.
+      6. "free" / "უფასოდ" → price=0, hours=0, rate=0, mode="fixed", taxable=false.
+      7. Keep "raw_summary" unchanged.
+      8. "[AI asked: ...]" in user_message → apply the answer DIRECTLY. Do not re-ask.
+      9. Dates: "date" for invoice, "due_date" for due date. Format "MMM DD, YYYY".
+      10. Credits default reason: "Courtesy Credit".
+      11. Do NOT ask about client names — system handles client matching separately.
+      12. Item names: Title Case. Georgian: nominative/dictionary singular form.
+      13. If confused, return UNCHANGED JSON + empty clarifications array.
+      14. When adding items, set price to null if unknown. The backend will generate a price input widget.
+      15. REMOVING items: delete from section's items array. Empty section → remove it.
+      16. sub_categories: array of strings for extra details. Don't repeat the item name.
 
-      CATEGORY CLASSIFICATION:
-      - LABOR/SERVICE: Implementation, deployment, installation, configuration, consulting, training, repair, cleaning — any ACTION. Georgian: "დანერგვა", "ინსტალაცია", "კონფიგურაცია", "შეკეთება", "გაწმენდა" = ALWAYS SERVICE.
-      - MATERIALS/PRODUCTS: Physical goods the client keeps (servers, parts, equipment, supplies). NOT services/actions.
-      - EXPENSES: Pass-through reimbursables (parking, tolls, Uber). Usually not taxed.
-      - FEES: Surcharges, disposal, rush fees, rent/lease ("ქირა", "იჯარა"), utilities ("კომუნალური"), penalties ("ჯარიმა"). RENT/LEASE → ALWAYS FEES.
-      - CREDITS: Each credit = { amount, reason }. Default reason: "Courtesy Credit". Post-tax reductions ("off the total") = CREDIT, not discount.
-      - AMBIGUOUS: "Action + Object + Price" (e.g., "Replaced filter $25") → LABOR. If genuinely unclear, ask with field: "section_type".
-      - If in doubt, prefer Labor/Service for tasks, Materials for physical objects.
+      ═══ CLARIFICATIONS (simplified) ═══
+      For missing or ambiguous info, add to "clarifications" array:
+        { "field": "descriptive_name", "question": "short question?", "guess": "best guess or null", "item_name": "relevant item name" }
+      The backend converts these into interactive widgets automatically.
+      Keep questions under 15 words, end with "?", in the user's language.
+      NEVER ask about: tax, explicitly stated values, client names, hourly rates.
 
-      ITEM NAMING:
-      - Title Case for all desc/name fields (e.g., "Filter Replacement", "ფილტრის შეცვლა").
-      - Strip action verbs from material names: "used nails" → "Nails". Only keep descriptive adjectives.
-      - Georgian: Use NOMINATIVE/dictionary form for item names, NOT genitive or other cases. "ველოსიპედის" (genitive) → "ველოსიპედი" (nominative). Singular form for any quantity.
-      - When user answers a question conversationally (e.g., "ველოსიპედის" answering "რისი დამატება გსურთ?"), normalize to proper item name form.
-
-      DISCOUNT RULES:
-      - Discounts are PRE-TAX by default. They reduce the taxable base.
-      - "after tax" / "off the total" / "from the final amount" → treat as CREDIT (post-tax), NOT discount.
-      - MUTUALLY EXCLUSIVE: each item has EITHER discount_flat OR discount_percent, NEVER BOTH.
-      - Percentage → discount_percent. Flat amount → discount_flat. NEVER compute the flat equivalent of a percentage.
-      - discount_percent ≤ 100. discount_flat ≤ item total price.
-      - "discount everything except [category]" → apply per-item to every OTHER category, leave excluded at 0. Do NOT use global_discount.
-      - DISCOUNT CLARIFICATION ORDER — THINK: WHAT → HOW MUCH → WHAT TYPE. Follow this EXACT sequence:
-        1. SCOPE FIRST: If 2+ items exist and user did NOT specify WHICH items get a discount, you MUST ask SCOPE first with field: "discount_scope", type: "multi_choice", options: [all item desc/name values from current invoice]. The frontend renders an accordion grouped by category with an "Invoice Discount" button. Do NOT skip this step. Do NOT assume "all items".
-        2. AMOUNT SECOND: After scope is known (user selected items OR only 1 item exists OR user specified which), ask for the discount amount with field: "discount_amount", type: "text". Do NOT assume percentage.
-        3. TYPE THIRD: After user gives a number WITHOUT % sign:
-           - If the number is > 100 → it is ALWAYS a flat amount. Apply discount_flat directly. Do NOT ask about type.
-           - If the number is 1-100 (ambiguous range) for a SINGLE item, return a clarification with field: "discount_type", type: "choice", options: ["ფიქსირებული", "პროცენტული"].
-           - For MULTIPLE items (2+) needing type selection in the SAME round, you MUST use a SINGLE clarification with field: "discount_type_multi", type: "multi_choice", options: [item names]. Include "amounts" map with guessed/known amounts per item (e.g., "amounts": {"ტელეფონი": 13, "ქეისი": 25}). Do NOT return multiple separate "discount_type" clarifications — combine them into ONE "discount_type_multi".
-        4. If user answers "Invoice Discount" to a discount_scope question, apply as global_discount_flat or global_discount_percent (invoice-level). Otherwise apply per-item to the selected items.
-        5. SHORTCUT: If user specifies percentage explicitly (e.g., "10%"), just apply it — no need to ask about type. If scope is clear (e.g., "discount on phone"), just apply it — no need to ask about scope. If only 1 item exists, skip scope. Only ask what's MISSING.
-        6. IMPORTANT: Use EXACTLY these field names: "discount_amount", "discount_type", "discount_scope". The frontend uses these to trigger specific UI widgets.
-        7. NEVER ask "რომელი პროცენტით?" — follow the WHAT → HOW MUCH → WHAT TYPE order strictly.
-
-      TAX RULES:
-      - Default: taxable = null (system applies defaults). Only set explicitly when user says so.
-      - REMOVE TAX / NO TAX → Set labor_taxable:false AND taxable:false on EVERY SINGLE item. Also set tax_rate:null and tax_scope:null. This is a COMMAND, not a question.
-      - "tax everything except [X]" → taxable:false for X, taxable:true for all others.
-      - PER-ITEM TAX EXEMPTION: find items BY NAME, set taxable:false on each. Leave others unchanged.
-      - PER-ITEM TAX RATES: When user specifies rates per item, apply EXACTLY:
-        - Items with rate > 0 → taxable:true, tax_rate:<rate>
-        - Items with rate = 0 → taxable:false, tax_rate:0. NEVER skip. NEVER default to 18%.
-      - ZERO TAX PATTERNS (CRITICAL - all mean tax_rate:0, taxable:false):
-        - "X 0-ია" = "X is 0" → X gets taxable:false, tax_rate:0
-        - "X 0%" → X gets taxable:false, tax_rate:0
-        - "X-ის დღგ 0%" → X gets taxable:false, tax_rate:0
-        - "დანარჩენი 0" / "rest 0" / "others 0%" → ALL unmentioned items get taxable:false, tax_rate:0
-        - "შეკეთება 0-ია, დანარჩენი 18" = შეკეთება gets 0%, everything else gets 18%
-        - ZERO IS A VALID TAX RATE. Apply it. Do not ignore it. Do not ask about it.
-      - TAX IS NEVER A CLARIFICATION. Just apply it. Never ask.
-      - CRITICAL: When a batch answer contains tax instructions (e.g., [AI asked: "..." → User answered: "Set per-item tax rates..."]), you MUST apply those rates EXACTLY. Items listed with tax_rate=0 MUST get taxable:false. NEVER ignore 0% rates or default them to anything else. The number 0 means ZERO TAX, not "skip" or "unchanged".
-
-      FREE ITEMS: "free" / "no charge" / "უფასოდ" / "უფასო" → price=0, hours=0, rate=0, mode="fixed", taxable=false.
-
-      NEVER-ASK RULES:
-      - NEVER ask about tax rates, tax scope, tax applicability — these are COMMANDS.
-      - NEVER ask about discount percentages when user specifies them (e.g., "10%").
-      - NEVER ask about ANY value that has an explicit number next to it.
-      - NEVER ask about hourly rates, team rates, special rates.
-      - NEVER confirm something the user already stated.
-
-      QUESTION FORMATTING:
-      - All questions MUST end with "?" (question mark).
-      - Keep questions SHORT and conversational.
-      - GEORGIAN GRAMMAR (CRITICAL):
-        - NEVER use parenthesized plural suffixes like "პოზიცი(ებ)ს", "ელემენტ(ებ)ს", "ნივთ(ებ)ს".
-        - NEVER use words like "პოზიცია", "ელემენტი", "ნივთი" to refer to invoice items.
-        - For SCOPE questions: use "რას ეხება ...?" pattern.
-        - GEORGIAN COPULA STRIPPING: "წითელია" → "წითელი", "მწვანეა" → "მწვანე".
-        - Write questions as a native Georgian speaker would naturally ask them.
-
-      FRONTEND WIDGET SYSTEM:
-      Your clarifications trigger visual widgets based on type and field:
-      - type: "choice" + options → renders clickable buttons (user picks one)
-      - type: "multi_choice" + options → renders accordion with per-item checkboxes grouped by invoice category
-      - type: "yes_no" → renders yes/no buttons
-      - type: "text" → renders text input with optional guess pre-fill
-      - type: "info" → shows info message, no answer needed (auto-advances)
-      - type: "item_input_list" + items → renders multi-item input card. Each item has:
-        - name: item label displayed to user
-        - category: optional ("labor"/"materials"/"expenses"/"fees") — triggers category-specific behavior
-        - inputs: array of {key, label, type("number"|"text"), value(optional pre-fill)}
-        - toggle: optional {key, options[], default} for per-item mode switching
-        Special toggles:
-        - billing_mode: ["fixed","hourly"] → hourly splits single input into hours+rate pair
-        - discount_type: ["fixed","percentage"] → green toggle, % symbol on percentage
-        Use item_input_list for: collecting prices for multiple new items, discount amounts+types, warranty durations, descriptions, quantities — any per-item free-form data collection.
-        On confirm: frontend sends formatted "item1: value1, item2: value2, ..." as user answer.
-        IMPORTANT: When asking prices for multiple new items and some are LABOR/SERVICE category, include billing_mode toggle on those items so user can choose fixed/hourly.
-      - field: "section_type" + type: "choice" → renders category picker with icons
-      - field: "discount_scope" + type: "multi_choice" → renders accordion with "Invoice Discount" button
-      - field: "discount_type_multi" + type: "multi_choice" → renders per-item fixed/percentage toggle widget. Include "amounts" map.
-      Use these to create interactive, multi-step conversations. The frontend queues them and shows one at a time.
-      You are ENCOURAGED (not forced) to use these widgets — pick the best widget for each situation. For simple yes/no use yes_no, for item selection use multi_choice, for per-item data collection use item_input_list.
-
-      MULTI-INTENT HANDLING:
-      When user's message contains multiple intents (e.g., add items + discounts + tax), apply everything you CAN directly and return clarifications ONLY for ambiguous parts. NEVER lose part of a multi-intent request.
-
-      ████ END DOMAIN RULES ████
-
-      MODIFICATION RULES:
-      1. Only change what the user explicitly asks for. Keep everything else EXACTLY as-is.
-      2. Return the COMPLETE modified JSON in the SAME structure as the input.
-      3. DATES: Invoice date → "date" field. Due date → "due_date" field. Delivery/completion dates → sub_category on relevant item. Format: "MMM DD, YYYY".
-      4. TAX: Apply per TAX RULES above.
-      5. DISCOUNTS: Apply per DISCOUNT RULES above.
-      6. ADDING ITEMS: Classify per CATEGORY CLASSIFICATION. Name per ITEM NAMING.
-         - Labor: { desc, price (TOTAL service cost for fixed mode), hours, rate (per-hour for hourly mode), mode: "hourly"|"fixed", taxable, tax_rate, discount_flat, discount_percent, sub_categories: [] }
-         - Materials: { desc, qty (default 1), price (PER-UNIT price — NEVER multiply qty×price), taxable, tax_rate, discount_flat, discount_percent, sub_categories: [] }
-         - Expenses/Fees: { desc, price, taxable, tax_rate, discount_flat, discount_percent, sub_categories: [] }
-         ██ CRITICAL: For materials, "price" = unit price (per item). If user says "qty 5, price 50", set qty:5, price:50. NEVER set price:250. The frontend computes totals. ██
-         - PRICE REQUIRED: When adding new items without a price, you MUST ask.
-           ██ MANDATORY: When adding 2+ new items, you MUST use a SINGLE type: "item_input_list" clarification to collect ALL missing values (price, quantity, etc.) in ONE card. NEVER ask about each item separately with individual text questions. ██
-           For labor items in item_input_list, include billing_mode toggle so user can pick fixed/hourly. For materials, include a quantity input. NEVER assume a default price.
-         - VAGUE ITEM NAMES: When user adds items with GENERIC names (e.g., "შეკეთება"/"repair", "სერვისი"/"service", "მომსახურება"/"work", "ინსტალაცია"/"installation") without specifying WHAT is being repaired/serviced/installed, you MUST ask for specifics. Use type: "text", field: "item_description", item_name: "<the vague name>". Example: user says "დაამატე შეკეთება" → ask "რა სახის შეკეთებაა?" with guess: "შეკეთება".
-         - EVERY clarification MUST include "item_name" field with the relevant item name for frontend display.
-      6b. SUB_CATEGORIES RULE: sub_categories is an array of strings for additional details.
-         - WARRANTY: add to sub_categories. If 2+ items, ask with field: "warranty_scope", type: "multi_choice".
-         - NOTES/DESCRIPTION: add to sub_categories of the target item.
-         - REDUNDANCY CHECK: Do NOT add a sub_category that repeats the main item name.
-      7. REMOVING ITEMS: Remove from section's items array. If section becomes empty, remove the section.
-      8. CLIENT: Update "client" field. Match against EXISTING CLIENTS if provided. Georgian convention: შპს "Company Name".
-      8b. SENDER/FROM FIELDS: Only modify the specific field the user asked to change.
-      9. CLARIFICATION ANSWERS: When user_message contains "[AI asked: ...]", apply the answer DIRECTLY. Do NOT re-ask the same question.
-      10. FOLLOW-UP CLARIFICATIONS — USE EXISTING WIDGETS: After applying answers, if new ambiguity arises, use the SAME widget field names the frontend supports. ALWAYS prefer dedicated widgets over generic text questions.
-      11. Keep "raw_summary" unchanged.
-      12. CREDITS: Default reason: "Courtesy Credit".
-      13. All clarification questions MUST be in Georgian (ქართული). Questions MUST end with "?".
-      14. Preserve ALL existing fields even if you don't modify them.
-      15. SECTION TYPE DISAMBIGUATION: field: "section_type", type: "choice" when genuinely unclear.
-      16. CURRENCY DISAMBIGUATION: field: "currency", type: "choice" when ambiguous.
-      17. NEVER generate clarifications about CLIENT NAMES or CLIENT MATCHING.
-      18. RESPONSE TYPE TAXONOMY — every clarification MUST include a "type" field: "choice", "multi_choice", "yes_no", "text", "info", or "item_input_list".
-      19. SAFETY: If confused, return UNCHANGED JSON + empty clarifications.
-      20. Ask as many clarifications as needed — no hard limit. Use appropriate widget fields.
-      21. Keep questions SHORT and conversational.
-
-      Return ONLY valid JSON. No markdown fences, no explanation text, no preamble.
+      Return ONLY valid JSON. No markdown, no explanation, no preamble.
     SYSINSTRUCTION
 
     # Dynamic content (changes every request)
     prompt = <<~PROMPT
-      LANGUAGE RULE: #{lang_rule}
+      #{lang_rule}
       #{client_list_context}#{payment_context}
 
-      CURRENT INVOICE STATE:
+      CURRENT INVOICE JSON:
       #{json_text}
 
-      USER'S INSTRUCTION: "#{user_message}"
+      USER MESSAGE: "#{user_message}"
+      #{conversation_history.present? ? "\nCONVERSATION HISTORY:\n#{conversation_history}" : ""}
 
-      #{conversation_history.present? ? "CONVERSATION CONTEXT:\n#{conversation_history}" : ""}
-
-      Today's date is #{today_for_prompt}.
-      All clarification questions MUST be in #{question_lang}.
-      #{ui_is_georgian ? 'Discount type options: ["ფიქსირებული", "პროცენტული"]. All option text MUST be in Georgian.' : 'Discount type options: ["Fixed", "Percentage"]. All option text MUST be in English.'}
-
-      Return the modified JSON with clarifications if needed.
+      Today: #{today_for_prompt}. Questions in #{question_lang}.
+      Return the modified JSON.
     PROMPT
 
     begin
@@ -2333,6 +2222,9 @@ PROMPT
 
       # ── Auto-upgrade clarifications: merge prices+qty, fix discount, convert tax ──
       auto_upgrade_clarifications!(result, params[:language].to_s)
+
+      # ── Server-side clarification generation: catch anything AI missed ──
+      generate_missing_clarifications(result, user_message, current_json)
 
       # Client matching for refine_invoice responses (paid users only)
       # Skip if frontend already resolved client matching (user confirmed/denied)
@@ -4143,6 +4035,118 @@ PROMPT
     clars.reject! { |c| absorbed.include?(c.object_id) }
     data["clarifications"] = new_clars + clars
     Rails.logger.info "AUTO-UPGRADE: ambig=#{ambig_list.length} price=#{price_list.length} qty=#{qty_list.length} disc=#{disc_list.length} tax=#{tax_list.length} → #{new_clars.length} widgets + #{clars.length} remaining"
+  end
+
+  # ── SERVER-SIDE CLARIFICATION GENERATION ──
+  # Deterministically detects missing info that the AI failed to ask about.
+  # Runs AFTER auto_upgrade_clarifications! to fill gaps without duplicating.
+  def generate_missing_clarifications(result, user_message, previous_json)
+    clars = result["clarifications"] || []
+    is_ka = I18n.locale.to_s == "ka"
+    new_clars = []
+
+    # Parse previous JSON for comparison (find newly added items)
+    prev = previous_json.is_a?(String) ? (JSON.parse(previous_json) rescue {}) : (previous_json.respond_to?(:to_unsafe_h) ? previous_json.to_unsafe_h.deep_stringify_keys : (previous_json || {}).to_h.deep_stringify_keys)
+    prev_names = Set.new
+    (prev["sections"] || []).each do |sec|
+      (sec["items"] || []).each { |item| prev_names << (item["desc"] || item["name"] || "").downcase.strip }
+    end
+
+    # Helper: check if any existing clarification already covers a field pattern for an item
+    already_covers = ->(item_name, field_re) {
+      clars.any? { |c|
+        c["field"].to_s.match?(field_re) &&
+          (c["item_name"].to_s.downcase == item_name.downcase ||
+           c.dig("items")&.any? { |i| (i["name"] || "").downcase == item_name.downcase })
+      } || new_clars.any? { |c|
+        c.dig("items")&.any? { |i| (i["name"] || "").downcase == item_name.downcase }
+      }
+    }
+
+    # ── 1. Newly added items without prices ──
+    items_needing_price = []
+    (result["sections"] || []).each do |sec|
+      (sec["items"] || []).each do |item|
+        name = (item["desc"] || item["name"] || "").strip
+        next if name.blank?
+        next if prev_names.include?(name.downcase) # not new
+
+        is_labor = sec["type"].to_s.match?(/labor|service/i)
+        has_price = if is_labor && item["mode"] == "hourly"
+                     item["rate"].to_f > 0
+                   else
+                     (item["price"] || item["unit_price"]).to_f > 0
+                   end
+        next if has_price
+        next if already_covers.call(name, /price|unit_price|cost|item_prices/i)
+
+        cat = sec["type"].to_s.gsub(/_items|_service/, "")
+        items_needing_price << { name: name, category: cat, is_labor: is_labor }
+      end
+    end
+
+    if items_needing_price.any? && clars.none? { |c| c["type"] == "item_input_list" && c["field"].to_s.match?(/price/i) }
+      iil_items = items_needing_price.map do |ip|
+        inputs = []
+        inputs << { "key" => "qty", "label" => (is_ka ? "რაოდენობა" : "Qty"), "type" => "number", "value" => 1 } if ip[:category].match?(/material/i)
+        inputs << { "key" => "price", "label" => (is_ka ? "ფასი" : "Price"), "type" => "number" }
+        h = { "name" => ip[:name], "category" => ip[:category], "inputs" => inputs }
+        h["toggle"] = { "key" => "billing_mode", "options" => ["fixed", "hourly"], "default" => "fixed" } if ip[:is_labor]
+        h
+      end
+      new_clars << {
+        "type" => "item_input_list", "field" => "item_prices",
+        "question" => (is_ka ? "შეავსეთ ფასები:" : "Fill in prices:"),
+        "items" => iil_items
+      }
+    end
+
+    # ── 2. Vague/generic item names ──
+    vague_words = %w[შეკეთება სერვისი მომსახურება ინსტალაცია კონფიგურაცია მონტაჟი repair service work installation setup maintenance configuration mounting]
+    (result["sections"] || []).each do |sec|
+      (sec["items"] || []).each do |item|
+        name = (item["desc"] || item["name"] || "").strip
+        next if name.blank?
+        next unless vague_words.any? { |v| name.downcase == v.downcase }
+        next if already_covers.call(name, /description|clarif|item_description/i)
+        # Don't ask if item already existed (not newly added)
+        next if prev_names.include?(name.downcase)
+
+        new_clars << {
+          "type" => "text", "field" => "item_description",
+          "item_name" => name, "guess" => name,
+          "question" => (is_ka ? "რა სახის #{name}?" : "What kind of #{name}?")
+        }
+      end
+    end
+
+    # ── 3. Discount mentioned but not applied ──
+    if user_message.to_s.match?(/ფასდაკლება|discount|off\b|შეღავათ/i) && clars.none? { |c| c["field"].to_s.match?(/discount/i) }
+      has_discount = (result["sections"] || []).any? { |s| (s["items"] || []).any? { |i| i["discount_flat"].to_f > 0 || i["discount_percent"].to_f > 0 } }
+      has_discount ||= result["global_discount_flat"].to_f > 0 || result["global_discount_percent"].to_f > 0
+
+      unless has_discount
+        all_items = (result["sections"] || []).flat_map { |s| (s["items"] || []).map { |i| i["desc"] || i["name"] } }.compact.uniq
+        if all_items.length > 1
+          new_clars << {
+            "type" => "multi_choice", "field" => "discount_scope",
+            "question" => (is_ka ? "რას ეხება ფასდაკლება?" : "Which items get the discount?"),
+            "options" => all_items
+          }
+        elsif all_items.length == 1
+          new_clars << {
+            "type" => "text", "field" => "discount_amount",
+            "question" => (is_ka ? "რა ოდენობის ფასდაკლება?" : "What discount amount?"),
+            "guess" => "", "item_name" => all_items.first
+          }
+        end
+      end
+    end
+
+    if new_clars.any?
+      Rails.logger.info "SMART-CLARS: Generated #{new_clars.length} missing clarifications (price=#{items_needing_price.length} vague=#{new_clars.count { |c| c["field"] == "item_description" }} disc=#{new_clars.count { |c| c["field"].to_s.match?(/discount/) }})"
+      result["clarifications"] = result["clarifications"] + new_clars
+    end
   end
 
   # Normalize a client name for matching: strip legal forms, special quotes, downcase

@@ -5819,12 +5819,6 @@ function handleQueueAnswer(answer) {
     window._itemInputListData = null;
   }
 
-  // ── INTER-STEP AI REFINEMENT: send each answer to AI in background ──
-  // AI processes the answer and updates the JSON between steps (non-blocking)
-  if (answer !== '[acknowledged]' && answer !== '__CANCELLED__') {
-    _backgroundRefineStep(currentItem, answer);
-  }
-
   // Remove progress indicator
   var conversation = document.getElementById('assistantConversation');
   if (conversation) {
@@ -8107,45 +8101,6 @@ function _lockItemFields(itemName, fields) {
   if (!window._userItemOverrides[key]) window._userItemOverrides[key] = {};
   Object.keys(fields).forEach(function(f) {
     window._userItemOverrides[key][f] = fields[f];
-  });
-}
-
-// ── INTER-STEP BACKGROUND REFINEMENT ──
-// Fires a non-blocking AI call after each queue answer so the AI processes changes
-// between steps. Uses generation counter to discard stale responses.
-window._refineGeneration = 0;
-function _backgroundRefineStep(currentItem, answer) {
-  if (!window.lastAiResult) return;
-  var gen = ++window._refineGeneration;
-  var msg = 'STEP ANSWER (values already applied to JSON by frontend): [AI asked: "' + (currentItem.question || '') + '"] User answered: "' + answer + '". Validate the current JSON, apply any item renaming or structural fixes needed, and return updated JSON. Do NOT recalculate prices — frontend handles totals.';
-
-  var csrfEl = document.querySelector('meta[name="csrf-token"]');
-  if (!csrfEl) return;
-
-  fetch("/refine_invoice", {
-    method: "POST",
-    headers: { "X-CSRF-Token": csrfEl.content, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      current_json: window.lastAiResult,
-      user_message: msg,
-      conversation_history: '',
-      language: localStorage.getItem('transcriptLanguage') || window.profileSystemLanguage || 'en',
-      client_match_resolved: window.clientMatchResolved || false
-    })
-  })
-  .then(function(r) { return r.json(); })
-  .then(function(data) {
-    // Only apply if this is still the latest generation (no newer step fired)
-    if (gen !== window._refineGeneration) return;
-    if (data.error || !data.sections) return;
-    _reapplyAllOverrides(data);
-    window.lastAiResult = data;
-    // Silently update preview if visible
-    updateUIWithoutTranscript(data, true);
-    console.log('[inter-step refine] background update applied (gen ' + gen + ')');
-  })
-  .catch(function(e) {
-    console.warn('[inter-step refine] background error:', e);
   });
 }
 
