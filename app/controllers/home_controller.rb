@@ -2054,7 +2054,10 @@ PROMPT
     conversation_history = params[:conversation_history].to_s
 
     # Serialize current_json properly - it arrives as a hash from params
-    json_text = current_json.is_a?(String) ? current_json : current_json.to_json
+    # Strip old clarifications before sending to AI — backend generates them fresh each time
+    json_for_ai = current_json.is_a?(String) ? (JSON.parse(current_json) rescue {}) : (current_json.respond_to?(:to_unsafe_h) ? current_json.to_unsafe_h.deep_stringify_keys : current_json.to_h.deep_stringify_keys)
+    json_for_ai.delete("clarifications")
+    json_text = json_for_ai.to_json
 
     # Build client list context for refine (paid users only)
     client_list_context = ""
@@ -2091,6 +2094,8 @@ PROMPT
       1. Materials "price" = UNIT PRICE. qty=5, price=50 means 50 per unit, NOT 250 total. NEVER multiply.
       2. Modify ONLY what the user asks. Preserve ALL other fields and sections exactly.
       3. Return the COMPLETE JSON in the same structure as input. Do not omit anything.
+      ⚠️ CRITICAL: "3 ვიდეო თვალი" = qty:3, NOT tax_rate:3. Numbers before item names are QUANTITIES, not tax rates.
+         Tax rates are ONLY when user explicitly says "%", "დღგ", "tax", or "დაბეგვრა".
       4. TAX IS A COMMAND — apply directly, NEVER ask about it:
          - "no tax" / "remove tax" → taxable:false + tax_rate:null on EVERY item, labor_taxable:false
          - "0%" or "X 0-ია" → taxable:false, tax_rate:0 on that item. ZERO IS VALID.
@@ -2112,6 +2117,7 @@ PROMPT
       14. When adding items, set price to null if unknown. The backend will generate a price input widget.
       15. REMOVING items: delete from section's items array. Empty section → remove it.
       16. sub_categories: array of strings for extra details. Don't repeat the item name.
+      17. ALWAYS return "clarifications": [] (empty array). The backend generates all clarification widgets. Do NOT preserve or copy clarifications from the input JSON.
 
       ═══ CLARIFICATIONS (simplified) ═══
       For missing or ambiguous info, add to "clarifications" array:
@@ -2143,9 +2149,14 @@ PROMPT
       thinking_budget = (ENV["GEMINI_REFINE_THINKING_BUDGET"].presence || ENV["GEMINI_THINKING_BUDGET"].presence || 4096).to_i
 
       # ── Comprehensive AI logging ──
-      ai_log = { ts: Time.current.iso8601, model: gemini_model, user_message: user_message.truncate(500) }
+      ai_log = { ts: Time.current.iso8601, model: gemini_model, user_message: user_message.truncate(2000) }
       input_parsed = current_json.is_a?(String) ? (JSON.parse(current_json) rescue {}) : (current_json.respond_to?(:to_unsafe_h) ? current_json.to_unsafe_h : current_json.to_h).deep_stringify_keys
-      ai_log[:input_items] = (input_parsed["sections"] || []).flat_map { |s| (s["items"] || []).map { |i| { name: i["desc"] || i["name"], taxable: i["taxable"], tax_rate: i["tax_rate"], price: i["price"] || i["unit_price"] } } } rescue []
+      ai_log[:input_client] = input_parsed["client"]
+      ai_log[:input_dates] = { date: input_parsed["date"], due: input_parsed["due_date"] }.compact
+      ai_log[:input_global_discount] = { flat: input_parsed["global_discount_flat"], pct: input_parsed["global_discount_percent"] }.compact.presence
+      ai_log[:input_credits] = input_parsed["credits"] if input_parsed["credits"].present?
+      ai_log[:input_items] = (input_parsed["sections"] || []).flat_map { |s| (s["items"] || []).map { |i| h = { name: i["desc"] || i["name"], sec: s["type"], taxable: i["taxable"], tax_rate: i["tax_rate"], price: i["price"] || i["unit_price"] }; h[:qty] = i["qty"] if i["qty"]; h[:hours] = i["hours"] if i["hours"]; h[:rate] = i["rate"] if i["rate"]; h[:mode] = i["mode"] if i["mode"]; h[:disc_flat] = i["discount_flat"] if i["discount_flat"].to_f > 0; h[:disc_pct] = i["discount_percent"] if i["discount_percent"].to_f > 0; h } } rescue []
+      ai_log[:conv_history_len] = conversation_history.to_s.length
 
       body = gemini_generate_content(
         api_key: api_key,
@@ -2173,6 +2184,7 @@ PROMPT
       end
 
       ai_log[:raw_length] = raw.length
+      ai_log[:raw_json] = raw.truncate(3000)
       Rails.logger.info "REFINE RAW (#{gemini_model}): #{raw}"
 
       json_match = raw.match(/\{[\s\S]*\}/m)
@@ -2236,6 +2248,33 @@ PROMPT
         false
       end
 
+      # ── Fix qty/tax_rate confusion: AI sometimes puts quantity into tax_rate for new items ──
+      # e.g. "3 ვიდეო თვალი" → AI sets tax_rate:3 instead of qty:3
+      if user_message.present?
+        (result["sections"] || []).each do |sec|
+          (sec["items"] || []).each do |item|
+            name = (item["desc"] || item["name"] || "").downcase
+            next if name.blank?
+            tr = item["tax_rate"].to_i
+            # If tax_rate is a small number (1-10) and matches a quantity in the user message for this item
+            next unless tr > 0 && tr <= 10
+            # Check if user message contains "N <item_name>" pattern (number before item = quantity)
+            stem = name.sub(/ი$/, "")
+            next if stem.length < 2
+            escaped = Regexp.escape(stem)
+            if user_message.match?(/\b#{tr}\b\s+#{escaped}/i) || user_message.match?(/#{escaped}\w{0,4}\s+#{tr}\b/i)
+              # Only fix if the item doesn't already have the correct qty
+              if item["qty"].to_i != tr
+                Rails.logger.info "QTY-FIX: #{name} tax_rate:#{tr} → qty:#{tr} (was quantity, not tax)"
+                item["qty"] = tr
+                item["tax_rate"] = nil
+                item["taxable"] = nil
+              end
+            end
+          end
+        end
+      end
+
       # ── Auto-upgrade clarifications: merge prices+qty, fix discount, convert tax ──
       auto_upgrade_clarifications!(result, params[:language].to_s)
 
@@ -2248,10 +2287,17 @@ PROMPT
       # ── Backend price/hours enforcement: parse structured answers and apply ──
       enforce_prices_from_message!(result, user_message)
 
+      # ── Backend discount enforcement: parse discount instructions and apply ──
+      enforce_discount_from_message!(result, user_message)
+
       # Client matching for refine_invoice responses (paid users only)
       # Skip if frontend already resolved client matching (user confirmed/denied)
+      # Skip if client name hasn't changed from input (don't re-add confirm on every request)
       client_already_resolved = ActiveModel::Type::Boolean.new.cast(params[:client_match_resolved])
-      if user_signed_in? && @profile.paid? && result["client"].present? && !client_already_resolved
+      input_client_name = input_parsed["client"].to_s.strip.downcase
+      output_client_name = result["client"].to_s.strip.downcase
+      client_changed = output_client_name != input_client_name && output_client_name.present?
+      if user_signed_in? && @profile.paid? && result["client"].present? && !client_already_resolved && client_changed
         client_name = result["client"].to_s.strip
         current_client_name = params.dig(:current_json, :client).to_s.strip
         norm_spoken = normalize_client_name(client_name)
@@ -2326,13 +2372,31 @@ PROMPT
         }.compact
       end
 
+      # Deduplicate clarifications by field (keep first occurrence of each field type)
+      seen_fields = Set.new
+      result["clarifications"].select! do |c|
+        key = c["field"].to_s
+        # Allow multiple item_prices but dedupe everything else
+        next true if key == "item_prices"
+        if seen_fields.include?(key)
+          Rails.logger.info "CLARIFICATION DEDUP: removed duplicate #{key}"
+          next false
+        end
+        seen_fields << key
+        true
+      end
+
       # Sort clarifications: client fields first, then AI questions
       client_fields = %w[client_confirm_existing client_match add_client_to_list]
       result["clarifications"].sort_by! { |c| client_fields.include?(c["field"].to_s) ? 0 : 1 }
 
       # ── Log final result ──
-      ai_log[:output_items] = (result["sections"] || []).flat_map { |s| (s["items"] || []).map { |i| { name: i["desc"] || i["name"], taxable: i["taxable"], tax_rate: i["tax_rate"], price: i["price"] || i["unit_price"] } } } rescue []
-      ai_log[:clarifications] = (result["clarifications"] || []).map { |c| { field: c["field"], type: c["type"], q: c["question"].to_s.truncate(60) } }
+      ai_log[:output_client] = result["client"]
+      ai_log[:output_dates] = { date: result["date"], due: result["due_date"] }.compact
+      ai_log[:output_global_discount] = { flat: result["global_discount_flat"], pct: result["global_discount_percent"] }.compact.presence
+      ai_log[:output_credits] = result["credits"] if result["credits"].present?
+      ai_log[:output_items] = (result["sections"] || []).flat_map { |s| (s["items"] || []).map { |i| h = { name: i["desc"] || i["name"], sec: s["type"], taxable: i["taxable"], tax_rate: i["tax_rate"], price: i["price"] || i["unit_price"] }; h[:qty] = i["qty"] if i["qty"]; h[:hours] = i["hours"] if i["hours"]; h[:rate] = i["rate"] if i["rate"]; h[:mode] = i["mode"] if i["mode"]; h[:disc_flat] = i["discount_flat"] if i["discount_flat"].to_f > 0; h[:disc_pct] = i["discount_percent"] if i["discount_percent"].to_f > 0; h } } rescue []
+      ai_log[:clarifications] = (result["clarifications"] || []).map { |c| { field: c["field"], type: c["type"], q: c["question"].to_s.truncate(80) } }
       ai_log[:status] = "ok"
       log_ai_assistant(ai_log)
 
@@ -4372,6 +4436,96 @@ PROMPT
     end
 
     Rails.logger.info "PRICE-ENFORCE: changes_made=#{changes_made}" if changes_made
+  end
+
+  # ── BACKEND DISCOUNT ENFORCEMENT ──
+  # Deterministically parses discount instructions from user message and applies them.
+  # Handles: "ფასდაკლება ქენი 50" (discount 50), "50% discount", per-item discounts.
+  def enforce_discount_from_message!(result, user_message)
+    msg = user_message.to_s.strip
+    return if msg.blank?
+
+    all_items = (result["sections"] || []).flat_map { |s| s["items"] || [] }
+    return if all_items.empty?
+
+    # Also extract from batch Q&A pairs
+    texts_to_check = [msg]
+    msg.scan(/User answered:\s*"(.*?)"/m).each { |m_arr| texts_to_check << m_arr[0] }
+
+    changes_made = false
+
+    # Helper: fuzzy match Georgian item name
+    find_item = ->(text) {
+      text_down = text.to_s.downcase.strip
+      stems = [text_down]
+      stems << text_down.sub(/ს$/, "")
+      stems << text_down.sub(/ის$/, "")
+      stems << text_down.sub(/ზე$/, "")
+      stems.uniq!
+      all_items.select { |i|
+        name = (i["desc"] || i["name"] || "").downcase.strip
+        name_stem = name.sub(/ი$/, "")
+        stems.any? { |s| s == name || s == name_stem || (name_stem.length >= 3 && (name.include?(s) || s.include?(name_stem))) }
+      }
+    }
+
+    texts_to_check.each do |txt|
+      t = txt.strip
+      next if t.blank?
+
+      # Pattern 1: Global discount — "ფასდაკლება ქენი 50", "discount 50", "50% off"
+      if m = t.match(/(?:ფასდაკლება\s*(?:ქენი|დადე|გააკეთე|გავაკეთოთ)?\s*|discount\s+(?:of\s+)?|off\s+)(\d+(?:\.\d+)?)\s*(%|პროცენტ)?/i)
+        val = m[1].to_f
+        is_percent = m[2].present? || val <= 100 && !t.match?(/ლარ|₾|gel|flat|ფიქს/i)
+        # Check if specific item mentioned
+        item_specific = false
+        all_items.each do |item|
+          name = (item["desc"] || item["name"] || "").downcase
+          stem = name.sub(/ი$/, "")
+          if stem.length >= 2 && t.downcase.match?(/#{Regexp.escape(stem)}\w{0,4}/)
+            if is_percent
+              item["discount_percent"] = val
+              item["discount_flat"] = 0
+            else
+              item["discount_flat"] = val
+              item["discount_percent"] = 0
+            end
+            changes_made = true
+            item_specific = true
+          end
+        end
+        # If no specific item mentioned, apply globally
+        unless item_specific
+          if is_percent
+            result["global_discount_percent"] = val
+            result["global_discount_flat"] = 0
+          else
+            result["global_discount_flat"] = val
+            result["global_discount_percent"] = 0
+          end
+          changes_made = true
+          Rails.logger.info "DISCOUNT-ENFORCE: global #{is_percent ? "#{val}%" : "#{val} flat"}"
+        end
+      end
+
+      # Pattern 2: Per-item discounts from batch — "ქეისზე 67%, შეკეთებაზე 85%"
+      t.scan(/([\u10A0-\u10FF\w]+)\w{0,4}\s+(\d+(?:\.\d+)?)\s*(%|პროცენტ)/i).each do |name_part, val_str, _|
+        val = val_str.to_f
+        matched = find_item.call(name_part)
+        matched.each do |item|
+          item["discount_percent"] = val
+          item["discount_flat"] = 0
+          changes_made = true
+        end
+      end
+
+      # Pattern 3: "itemName-ზე X პროცენტიანი ფასდაკლება" / "X% on itemName"
+      t.scan(/(\d+(?:\.\d+)?)\s*(?:%|პროცენტ\w*)\w*\s*(?:ფასდაკლება|discount|off)\w*/i).each do |val_str_arr|
+        # This pattern alone doesn't specify an item — skip if already handled
+      end
+    end
+
+    Rails.logger.info "DISCOUNT-ENFORCE: changes_made=#{changes_made} msg=#{msg.truncate(80)}" if changes_made
   end
 
   # Normalize a client name for matching: strip legal forms, special quotes, downcase

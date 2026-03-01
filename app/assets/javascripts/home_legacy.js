@@ -8167,11 +8167,15 @@ function applyTaxTextDirectly(text) {
   // Pattern 2.5: "remove tax from X" / "მოაშორე დაბეგვრა X-ს" / "X-ს დღგ მოხსენი"
   var removeTaxItemRe = /(?:remove\s+tax\s+(?:from|on)|მოაშორე\s+(?:დაბეგვრა|დღგ)\s*|დაბეგვრა\s+მოაშორე\s*|დღგ\s+მოხსენი?\s*|დღგ\s+მოაშორე\s*)([\u10A0-\u10FF\u2D00-\u2D2F\w]+)/i;
   var removeTaxItemRe2 = /([\u10A0-\u10FF\u2D00-\u2D2F\w]+)\s*-?ს?\s+(?:დღგ|დაბეგვრა)\s+(?:მოხსენ|მოაშორ|წაშალ)/i;
-  var rmMatch = t.match(removeTaxItemRe) || t.match(removeTaxItemRe2);
+  // Pattern: "ქეისსაც მოაშორე დაბეგვრა" — item(+suffix) + მოაშორე/მოხსენი + დაბეგვრა/დღგ
+  var removeTaxItemRe3 = /([\u10A0-\u10FF\u2D00-\u2D2F\w]+)\w{0,4}\s+(?:მოაშორე|მოხსენი?|წაშალე?)\s+(?:დაბეგვრა|დღგ)/i;
+  var rmMatch = t.match(removeTaxItemRe) || t.match(removeTaxItemRe2) || t.match(removeTaxItemRe3);
   if (rmMatch) {
     var targetWord = rmMatch[1].toLowerCase();
     // Strip Georgian case suffixes for matching
     var targetStems = [targetWord];
+    if (targetWord.endsWith('საც')) targetStems.push(targetWord.slice(0, -3)); // ქეისსაც → ქეის
+    if (targetWord.endsWith('აც')) targetStems.push(targetWord.slice(0, -2));  // ქეისაც → ქეის
     if (targetWord.endsWith('ს')) targetStems.push(targetWord.slice(0, -1));
     if (targetWord.endsWith('ის')) targetStems.push(targetWord.slice(0, -2));
     if (targetWord.endsWith('ზე')) targetStems.push(targetWord.slice(0, -2));
@@ -9177,6 +9181,22 @@ async function triggerAssistantReparse(userAnswer, type, questionsText) {
       }
       window._aiReturnedNothing = aiReturnedNothing;
 
+      // When user sends tax/discount instructions via chat, clear stale overrides for those fields
+      // so _reapplyAllOverrides doesn't force back old locked values from widgets
+      if (window._userItemOverrides && userAnswer) {
+        var ua = userAnswer.toLowerCase();
+        var isTaxMsg = /(?:მოაშორე|მოხსენ|წაშალ|remove|tax|დღგ|დაბეგვრ|0\s*%)/i.test(ua);
+        var isDiscMsg = /(?:ფასდაკლება|discount|off)/i.test(ua);
+        if (isTaxMsg || isDiscMsg) {
+          var ov = window._userItemOverrides;
+          Object.keys(ov).forEach(function(itemKey) {
+            if (isTaxMsg) { delete ov[itemKey].taxable; delete ov[itemKey].tax_rate; }
+            if (isDiscMsg) { delete ov[itemKey].discount_flat; delete ov[itemKey].discount_percent; }
+            if (Object.keys(ov[itemKey]).length === 0) delete ov[itemKey];
+          });
+        }
+      }
+
       // Re-apply ALL locked user overrides BEFORE rendering — AI may have overwritten values
       // #17: Track which fields AI got wrong (overrides had to correct)
       var overrideDiffs = [];
@@ -9197,7 +9217,6 @@ async function triggerAssistantReparse(userAnswer, type, questionsText) {
       }
       if (overrideDiffs.length > 0) {
         console.warn('[AI ACCURACY] Override corrections applied:', JSON.stringify(overrideDiffs));
-        // Fire telemetry event if analytics endpoint exists
         try {
           var csrfEl = document.querySelector('meta[name="csrf-token"]');
           if (csrfEl && window._analysisSucceeded) {
