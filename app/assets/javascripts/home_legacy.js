@@ -8165,8 +8165,8 @@ function applyTaxTextDirectly(text) {
   }
 
   // Pattern 2.5: "remove tax from X" / "მოაშორე დაბეგვრა X-ს" / "X-ს დღგ მოხსენი"
-  var removeTaxItemRe = /(?:remove\s+tax\s+(?:from|on)|მოაშორე\s+(?:დაბეგვრა|დღგ)\s*|დაბეგვრა\s+მოაშორე\s*|დღგ\s+მოხსენი?\s*|დღგ\s+მოაშორე\s*)([\p{Georgian}\w]+)/iu;
-  var removeTaxItemRe2 = /([\p{Georgian}\w]+)\s*-?ს?\s+(?:დღგ|დაბეგვრა)\s+(?:მოხსენ|მოაშორ|წაშალ)/iu;
+  var removeTaxItemRe = /(?:remove\s+tax\s+(?:from|on)|მოაშორე\s+(?:დაბეგვრა|დღგ)\s*|დაბეგვრა\s+მოაშორე\s*|დღგ\s+მოხსენი?\s*|დღგ\s+მოაშორე\s*)([\u10A0-\u10FF\u2D00-\u2D2F\w]+)/i;
+  var removeTaxItemRe2 = /([\u10A0-\u10FF\u2D00-\u2D2F\w]+)\s*-?ს?\s+(?:დღგ|დაბეგვრა)\s+(?:მოხსენ|მოაშორ|წაშალ)/i;
   var rmMatch = t.match(removeTaxItemRe) || t.match(removeTaxItemRe2);
   if (rmMatch) {
     var targetWord = rmMatch[1].toLowerCase();
