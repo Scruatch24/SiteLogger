@@ -1025,7 +1025,9 @@ MATERIALS:
 - Extract ONLY the noun/item name, stripping action verbs.
 - NAMING: When user says "used nails" or "got filters", the action verb ("used", "got", "bought", "grabbed") is NOT part of the item name. Extract just "Nails", "Filters". Only include adjectives that describe the item itself (e.g., "new filters" → "New Filters", "copper pipe" → "Copper Pipe").
 #{target_is_georgian ? '- GEORGIAN NAMING: Keep material names in singular form (e.g., "ნაჯახი" for any quantity). Do NOT pluralize.' : '- TRANSLATION: If the input is in Georgian or any other non-English language, you MUST translate material names to English. E.g., "ნაჯახი" → "Axe", "ლურსმანი" → "Nail", "მილი" → "Pipe". Do NOT leave Georgian text in the name field.'}
-- UNIT PRICE RULE: If a total price is given for a quantity (e.g., "4 items cost 60" or "4 axes... but put 60"), set qty=4 and unit_price=60/4. Do NOT assign total as unit_price.
+- UNIT PRICE RULE: "unit_price" is ALWAYS per-unit (per-item). NEVER multiply qty × unit_price to compute a total.
+  - If user gives BOTH qty AND per-unit price (e.g., "5 phones, 50 each" or "რაოდენობა 5, ფასი 50"), set qty=5, unit_price=50. NOT unit_price=250.
+  - If a total price is given for a quantity (e.g., "4 items cost 60"), set qty=4 and unit_price=60/4=15. Do NOT assign total as unit_price.
 - DISTINCT ITEMS: If user lists multiple named items (e.g. "used nails, used filters"), create SEPARATE material entries for each. Do NOT bundle them as subcategories.
 - BUNDLING ONLY: Only bundle into subcategories when user gives a COLLECTIVE total (e.g. "materials were $500" or "parts cost 300 total"). In that case, create ONE item named "Materials" with that price, and list specific part names in 'sub_categories'.
 - Extract QUANTITY into the 'qty' field (default 1).
@@ -1140,7 +1142,13 @@ Ask ONLY when a category is mentioned but has NO number at all:
    - "a lot", "significant amount" → ask for exact value
 3. APPROXIMATE VALUES with hedging words:
    - "around 500", "just under 800", "about 2 hours" → ask for exact value
-4. AMBIGUOUS NOTES/METADATA — warranty, guarantee, condition, note applies to MULTIPLE possible items:
+4. VAGUE ITEM NAMES — generic service/labor descriptions without specifics:
+   - "შეკეთება" (repair), "სერვისი" (service), "მომსახურება" (work), "ინსტალაცია" (installation) — without specifying WHAT is being repaired/serviced/installed.
+   - THIS IS MANDATORY: When an item has a GENERIC name and there's no context specifying what it refers to, you MUST ask for specifics.
+   - Use type: "text", field: "item_description", item_name: "<the vague name>".
+   - Example: input has "შეკეთება" with no further detail → ask "რა სახის შეკეთებაა?" with guess: "შეკეთება".
+   - But if context makes it clear (e.g., "ტელეფონის შეკეთება" = phone repair), do NOT ask.
+5. AMBIGUOUS NOTES/METADATA — warranty, guarantee, condition, note applies to MULTIPLE possible items:
    - THIS IS MANDATORY: When 2+ items exist and a note/warranty/guarantee is mentioned without specifying EXACTLY which items it covers, you MUST add a clarification question. Do NOT silently assume it applies to one item.
    - ONE QUESTION ONLY: Create exactly ONE clarification for each ambiguous note/warranty. NEVER split into multiple questions per item.
      WRONG (3 separate questions):
@@ -2189,12 +2197,15 @@ PROMPT
       4. TAX: Apply per TAX RULES above.
       5. DISCOUNTS: Apply per DISCOUNT RULES above.
       6. ADDING ITEMS: Classify per CATEGORY CLASSIFICATION. Name per ITEM NAMING.
-         - Labor: { desc, price, rate, mode: "hourly"|"fixed", taxable, tax_rate, discount_flat, discount_percent, sub_categories: [] }
-         - Materials: { desc, qty (default 1), price, taxable, tax_rate, discount_flat, discount_percent, sub_categories: [] }
+         - Labor: { desc, price (TOTAL service cost for fixed mode), hours, rate (per-hour for hourly mode), mode: "hourly"|"fixed", taxable, tax_rate, discount_flat, discount_percent, sub_categories: [] }
+         - Materials: { desc, qty (default 1), price (PER-UNIT price — NEVER multiply qty×price), taxable, tax_rate, discount_flat, discount_percent, sub_categories: [] }
          - Expenses/Fees: { desc, price, taxable, tax_rate, discount_flat, discount_percent, sub_categories: [] }
+         ██ CRITICAL: For materials, "price" = unit price (per item). If user says "qty 5, price 50", set qty:5, price:50. NEVER set price:250. The frontend computes totals. ██
          - PRICE REQUIRED: When adding new items without a price, you MUST ask.
            ██ MANDATORY: When adding 2+ new items, you MUST use a SINGLE type: "item_input_list" clarification to collect ALL missing values (price, quantity, etc.) in ONE card. NEVER ask about each item separately with individual text questions. ██
            For labor items in item_input_list, include billing_mode toggle so user can pick fixed/hourly. For materials, include a quantity input. NEVER assume a default price.
+         - VAGUE ITEM NAMES: When user adds items with GENERIC names (e.g., "შეკეთება"/"repair", "სერვისი"/"service", "მომსახურება"/"work", "ინსტალაცია"/"installation") without specifying WHAT is being repaired/serviced/installed, you MUST ask for specifics. Use type: "text", field: "item_description", item_name: "<the vague name>". Example: user says "დაამატე შეკეთება" → ask "რა სახის შეკეთებაა?" with guess: "შეკეთება".
+         - EVERY clarification MUST include "item_name" field with the relevant item name for frontend display.
       6b. SUB_CATEGORIES RULE: sub_categories is an array of strings for additional details.
          - WARRANTY: add to sub_categories. If 2+ items, ask with field: "warranty_scope", type: "multi_choice".
          - NOTES/DESCRIPTION: add to sub_categories of the target item.

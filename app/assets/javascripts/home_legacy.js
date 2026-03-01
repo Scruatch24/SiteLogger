@@ -5682,14 +5682,24 @@ function handleClarifications(clarifications) {
   // ── SEQUENTIAL QUESTION QUEUE ──
   window._clarificationQueue = filtered.slice();
 
-  // Sort queue: info → prices/qty → general → discounts → tax
-  // Ensures discount maxPrice is calculated after prices are set (#11)
+  // Sort queue: category → info → name/description → qty/price → discount → tax
+  // Priority: user's desired flow for multi-step clarification
   function _queuePriority(c) {
-    if (c.type === 'info') return 0;
-    if (c.type === 'tax_management') return 4;
-    if (c.type === 'item_input_list' && c.items && c.items[0] && c.items[0].toggle && c.items[0].toggle.key === 'discount_type') return 3;
-    if (c.type === 'item_input_list') return 1;
-    return 2;
+    // 0: Category determination (section_type, currency)
+    if (c.field === 'section_type' || c.field === 'currency') return 0;
+    // 1: Info messages (auto-advance)
+    if (c.type === 'info') return 1;
+    // 2: Item name/description clarification (ambiguity like "რა სახის შეკეთებაა?")
+    if (c.field === 'item_description' || c.field === 'item_clarification') return 2;
+    if (c.type === 'text' && c.field && !c.field.match(/price|qty|discount|tax|unit_price/i)) return 2;
+    // 5: Tax management (always last)
+    if (c.type === 'tax_management') return 5;
+    // 4: Discounts (after prices are known)
+    if (c.type === 'item_input_list' && c.items && c.items[0] && c.items[0].toggle && c.items[0].toggle.key === 'discount_type') return 4;
+    // 3: Prices/qty (item_input_list without discount toggle)
+    if (c.type === 'item_input_list') return 3;
+    // 3: General (default)
+    return 3;
   }
   window._clarificationQueue.sort(function(a, b) { return _queuePriority(a) - _queuePriority(b); });
 
@@ -5809,9 +5819,11 @@ function handleQueueAnswer(answer) {
     window._itemInputListData = null;
   }
 
-  // Inter-step renaming REMOVED — the AI handles name interpretation via batch answers.
-  // Previously this regex-concatenated answers as prefixes (e.g., "კარების" + "შეკეთება"),
-  // causing bugs like "არა შეკეთება". Now the AI sees the full Q&A context and does it right.
+  // ── INTER-STEP AI REFINEMENT: send each answer to AI in background ──
+  // AI processes the answer and updates the JSON between steps (non-blocking)
+  if (answer !== '[acknowledged]' && answer !== '__CANCELLED__') {
+    _backgroundRefineStep(currentItem, answer);
+  }
 
   // Remove progress indicator
   var conversation = document.getElementById('assistantConversation');
@@ -7255,6 +7267,7 @@ function renderItemInputListCard(clarification) {
     var toggle = item.toggle || null;
     var activeMode = toggle ? (toggle.default || toggle.options[0]) : null;
     // For discount cards, calculate max price from invoice JSON
+    // Handles materials (qty*unit_price), hourly labor (hours*rate), fixed labor/fees (price)
     var maxPrice = null;
     if (toggle && toggle.key === 'discount_type' && window.lastAiResult && window.lastAiResult.sections) {
       var iName = (item.name || '').toLowerCase();
@@ -7262,9 +7275,15 @@ function renderItemInputListCard(clarification) {
         (sec.items || []).forEach(function(sItem) {
           var sName = (sItem.desc || sItem.name || '').toLowerCase();
           if (sName === iName) {
-            var qty = parseFloat(sItem.qty) || 1;
-            var price = parseFloat(sItem.price) || 0;
-            maxPrice = Math.round(qty * price * 100) / 100;
+            var total;
+            if (sItem.mode === 'hourly') {
+              total = (parseFloat(sItem.hours) || 0) * (parseFloat(sItem.rate) || 0);
+            } else if (sec.type === 'materials') {
+              total = (parseFloat(sItem.qty) || 1) * (parseFloat(sItem.unit_price || sItem.price) || 0);
+            } else {
+              total = parseFloat(sItem.price) || 0;
+            }
+            maxPrice = Math.round(total * 100) / 100;
           }
         });
       });
@@ -7456,15 +7475,22 @@ function validateDiscountInput(inp) {
   if (!itemCard) return;
 
   // #5: Recalculate maxPrice from LIVE lastAiResult (prices may have been set after card creation)
+  // Handles materials (qty*unit_price), hourly labor (hours*rate), and fixed labor (price)
   if (window.lastAiResult && window.lastAiResult.sections) {
     var iName = (item.name || '').toLowerCase();
     window.lastAiResult.sections.forEach(function(sec) {
       (sec.items || []).forEach(function(sItem) {
         var sName = (sItem.desc || sItem.name || '').toLowerCase();
         if (sName === iName) {
-          var qty = parseFloat(sItem.qty) || 1;
-          var price = parseFloat(sItem.unit_price || sItem.price) || 0;
-          item.maxPrice = Math.round(qty * price * 100) / 100;
+          var total;
+          if (sItem.mode === 'hourly') {
+            total = (parseFloat(sItem.hours) || 0) * (parseFloat(sItem.rate) || 0);
+          } else if (sec.type === 'materials') {
+            total = (parseFloat(sItem.qty) || 1) * (parseFloat(sItem.unit_price || sItem.price) || 0);
+          } else {
+            total = parseFloat(sItem.price) || 0;
+          }
+          item.maxPrice = Math.round(total * 100) / 100;
         }
       });
     });
@@ -8081,6 +8107,45 @@ function _lockItemFields(itemName, fields) {
   if (!window._userItemOverrides[key]) window._userItemOverrides[key] = {};
   Object.keys(fields).forEach(function(f) {
     window._userItemOverrides[key][f] = fields[f];
+  });
+}
+
+// ── INTER-STEP BACKGROUND REFINEMENT ──
+// Fires a non-blocking AI call after each queue answer so the AI processes changes
+// between steps. Uses generation counter to discard stale responses.
+window._refineGeneration = 0;
+function _backgroundRefineStep(currentItem, answer) {
+  if (!window.lastAiResult) return;
+  var gen = ++window._refineGeneration;
+  var msg = 'STEP ANSWER (values already applied to JSON by frontend): [AI asked: "' + (currentItem.question || '') + '"] User answered: "' + answer + '". Validate the current JSON, apply any item renaming or structural fixes needed, and return updated JSON. Do NOT recalculate prices — frontend handles totals.';
+
+  var csrfEl = document.querySelector('meta[name="csrf-token"]');
+  if (!csrfEl) return;
+
+  fetch("/refine_invoice", {
+    method: "POST",
+    headers: { "X-CSRF-Token": csrfEl.content, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      current_json: window.lastAiResult,
+      user_message: msg,
+      conversation_history: '',
+      language: localStorage.getItem('transcriptLanguage') || window.profileSystemLanguage || 'en',
+      client_match_resolved: window.clientMatchResolved || false
+    })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    // Only apply if this is still the latest generation (no newer step fired)
+    if (gen !== window._refineGeneration) return;
+    if (data.error || !data.sections) return;
+    _reapplyAllOverrides(data);
+    window.lastAiResult = data;
+    // Silently update preview if visible
+    updateUIWithoutTranscript(data, true);
+    console.log('[inter-step refine] background update applied (gen ' + gen + ')');
+  })
+  .catch(function(e) {
+    console.warn('[inter-step refine] background error:', e);
   });
 }
 
