@@ -2609,6 +2609,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const content = document.getElementById('pdfModalContent');
     overlay.classList.remove('opacity-100');
     content.classList.add('translate-y-full');
+    // Mark that user manually closed the invoice preview — no more auto-triggers
+    window._userClosedInvoice = true;
     // RESTORE SCROLLING BACKGROUND
     document.body.classList.remove('overflow-hidden');
     document.documentElement.classList.remove('overflow-hidden');
@@ -3912,13 +3914,14 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
   // Use the same tax fallback logic as addItem
   // true = Forced On, false = Forced Off, null = check defaults (only if price exists)
   if (taxable === null || taxable === undefined) {
-    // IMPORTANT: No price = no taxable. Can't tax something with no price.
-    const hasPrice = price && price !== "" && parseFloat(price) > 0;
+    // Check if item has any monetary value (price OR hours*rate for hourly labor)
+    const hasPrice = (price && price !== "" && parseFloat(price) > 0) ||
+                     (rate && rate !== "" && parseFloat(rate) > 0);
 
     if (!hasPrice) {
-      // No price, no taxable - regardless of scope
+      // No price and no rate, no taxable - regardless of scope
       taxable = false;
-      console.log(`[addLaborItem TAX DECISION] No price, setting taxable=false`);
+      console.log(`[addLaborItem TAX DECISION] No price/rate, setting taxable=false`);
     } else {
       const scopeData = (currentLogTaxScope || "").toLowerCase();
       const scope = scopeData.split(",").map(t => t.trim());
@@ -5469,8 +5472,12 @@ function updateUI(data) {
     // Handle AI Clarification Questions (shown as chat bubbles alongside invoice)
     handleClarifications(data.clarifications || []);
 
+    // Auto-trigger invoice preview ONCE per session (first generation only)
     if (window.pendingClarifications && window.pendingClarifications.length === 0) {
-      window.setupSaveButton();
+      if (!window._invoicePreviewShownOnce && !window._userClosedInvoice) {
+        window._invoicePreviewShownOnce = true;
+        window.setupSaveButton();
+      }
     }
 
     // Scroll to assistant chat if questions exist, otherwise to invoice
@@ -5531,6 +5538,7 @@ window.resetAssistantState = function() {
   window.clientMatchResolved = false;
   window._undoStack = [];
   window._userClosedInvoice = false;
+  window._invoicePreviewShownOnce = false;
   var conversation = document.getElementById('assistantConversation');
   if (conversation) conversation.innerHTML = '';
   var assistInput = document.getElementById('assistantInput');
@@ -5636,7 +5644,11 @@ function handleClarifications(clarifications) {
         }
         addAIBubble(window.APP_LANGUAGES.anything_else || "Anything else to change?", null, null, {'anything-else': 'true'});
         renderQuickActionChips();
-        window.setupSaveButton();
+        // Auto-trigger invoice preview ONCE per session, then manual-only
+        if (!window._invoicePreviewShownOnce && !window._userClosedInvoice) {
+          window._invoicePreviewShownOnce = true;
+          window.setupSaveButton();
+        }
       }
       var assistInput = document.getElementById('assistantInput');
       if (assistInput) {
@@ -5678,7 +5690,10 @@ function handleClarifications(clarifications) {
       removeTypingIndicator();
       addAIBubble(window.APP_LANGUAGES.anything_else || "Anything else to change?", null, null, {'anything-else': 'true'});
       renderQuickActionChips();
-      window.setupSaveButton();
+      if (!window._invoicePreviewShownOnce && !window._userClosedInvoice) {
+        window._invoicePreviewShownOnce = true;
+        window.setupSaveButton();
+      }
     }, 600);
     return;
   }
@@ -5752,7 +5767,9 @@ function showNextQueueItem() {
     c._showInvoiceDiscount = true;
   }
 
-  if (c.field === 'client_confirm_existing') {
+  if (c.field === 'client_browse' && c.clients && c.clients.length > 0) {
+    renderClientListCard(c);
+  } else if (c.field === 'client_confirm_existing') {
     renderClientConfirmExistingCard(c);
   } else if (c.field === 'add_client_to_list') {
     renderAddClientToListCard(c);
@@ -5882,7 +5899,10 @@ function batchSubmitQueueAnswers() {
         removeTypingIndicator();
         addAIBubble(window.APP_LANGUAGES.anything_else || "Anything else to change?", null, null, {'anything-else': 'true'});
         renderQuickActionChips();
-        window.setupSaveButton();
+        if (!window._invoicePreviewShownOnce && !window._userClosedInvoice) {
+          window._invoicePreviewShownOnce = true;
+          window.setupSaveButton();
+        }
         var assistInput = document.getElementById('assistantInput');
         if (assistInput) { assistInput.disabled = false; assistInput.focus(); }
       }, 400);
@@ -6005,7 +6025,10 @@ function cancelWidget() {
     removeTypingIndicator();
     addAIBubble(L.anything_else || 'Anything else to change?', null, null, {'anything-else': 'true'});
     renderQuickActionChips();
-    window.setupSaveButton();
+    if (!window._invoicePreviewShownOnce && !window._userClosedInvoice) {
+      window._invoicePreviewShownOnce = true;
+      window.setupSaveButton();
+    }
   }, 400);
 }
 
@@ -6519,6 +6542,8 @@ function renderQuickActionChips() {
   if (hasItems) {
     chips.push({ label: L.action_manage_tax || 'Manage Taxes', handler: 'handleChipManageTax', icon: '<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>', color: 'default' });
     chips.push({ label: L.action_remove_item || 'Remove', handler: 'handleChipRemoveItem', icon: '<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>', color: 'red' });
+    // Always show Create Invoice chip so user can manually open PDF preview
+    chips.push({ label: L.action_create_invoice || 'Create Invoice', handler: 'handleChipCreateInvoice', icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>', color: 'orange' });
   }
 
   var chipHtml = '';
@@ -6645,6 +6670,120 @@ function handleChipAddDiscount() {
   // Send directly to AI — it will ask about amount, type, scope via clarifications
   triggerAssistantReparse(L.action_add_discount || 'Add discount', 'refinement', 'User requested change');
 }
+
+// ── CHIP HANDLER: CREATE INVOICE (manual PDF preview trigger) ──
+function handleChipCreateInvoice() {
+  if (window._pendingAnswer) return;
+  window.disablePreviousInteractiveElements();
+  window.setupSaveButton();
+}
+
+// ── CLIENT LIST WIDGET: Selectable client cards with confirm ──
+function renderClientListCard(clarification) {
+  var conversation = document.getElementById('assistantConversation');
+  if (!conversation) return;
+
+  var L = window.APP_LANGUAGES || {};
+  var clients = clarification.clients || [];
+  var questionText = clarification.question || '';
+
+  var div = document.createElement('div');
+  div.className = "flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300";
+
+  var clientCards = '';
+  clients.forEach(function(c) {
+    var countLabel = c.invoices_count === 1
+      ? (L.invoices_count_one || '1 invoice')
+      : (L.invoices_count || '%{count} invoices').replace('__COUNT__', c.invoices_count || 0);
+    clientCards += '<button type="button" data-client-id="' + c.id + '" data-client-name="' + escapeHtml(c.name).replace(/"/g, '&quot;') + '" onclick="toggleClientListSelection(this)" class="client-list-btn w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border-2 border-gray-200 bg-white hover:bg-orange-50 hover:border-orange-300 transition-all cursor-pointer active:scale-[0.97] text-left">'
+      + '<div class="w-7 h-7 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center flex-shrink-0">'
+      + '<svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>'
+      + '</div>'
+      + '<div class="flex-1 min-w-0">'
+      + '<div class="text-[12px] font-bold text-gray-800 truncate">' + escapeHtml(c.name) + '</div>'
+      + '<div class="text-[10px] text-gray-400 font-semibold">' + escapeHtml(countLabel) + '</div>'
+      + '</div>'
+      + '<div class="client-check hidden w-5 h-5 rounded-full bg-orange-500 flex items-center justify-center flex-shrink-0">'
+      + '<svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>'
+      + '</div>'
+      + '</button>';
+  });
+
+  var confirmLabel = L.confirm_btn || 'დადასტურება';
+  var cancelLabel = L.cancel_btn || 'გაუქმება';
+
+  div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
+    + '<div class="max-w-[85%]">'
+    + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
+    + '<div class="text-xs font-bold text-gray-800 mb-2.5">' + escapeHtml(questionText) + '</div>'
+    + '<div class="space-y-1.5 max-h-[300px] overflow-y-auto client-list-scroll">' + clientCards + '</div>'
+    + '<div class="flex gap-2 mt-3">'
+    + '<button type="button" onclick="confirmClientListSelection(this)" class="client-list-confirm flex-1 px-3 py-2 rounded-xl bg-orange-500 text-white text-xs font-bold hover:bg-orange-600 transition-all active:scale-[0.97] opacity-40 cursor-not-allowed" disabled>' + escapeHtml(confirmLabel) + '</button>'
+    + '<button type="button" onclick="cancelClientListSelection(this)" class="px-3 py-2 rounded-xl border border-gray-300 text-gray-500 text-xs font-bold hover:bg-gray-100 transition-all active:scale-[0.97]">' + escapeHtml(cancelLabel) + '</button>'
+    + '</div>'
+    + '</div>'
+    + '</div>';
+
+  conversation.appendChild(div);
+  conversation.scrollTop = conversation.scrollHeight;
+}
+
+window.toggleClientListSelection = function(btn) {
+  // Single-select: deselect all others in the same widget
+  var widget = btn.closest('.bg-gray-50');
+  if (!widget) return;
+  widget.querySelectorAll('.client-list-btn').forEach(function(b) {
+    b.classList.remove('border-orange-400', 'bg-orange-50', 'ring-2', 'ring-orange-300');
+    b.classList.add('border-gray-200', 'bg-white');
+    var check = b.querySelector('.client-check');
+    if (check) check.classList.add('hidden');
+  });
+  // Select this one
+  btn.classList.remove('border-gray-200', 'bg-white');
+  btn.classList.add('border-orange-400', 'bg-orange-50', 'ring-2', 'ring-orange-300');
+  var check = btn.querySelector('.client-check');
+  if (check) check.classList.remove('hidden');
+  // Enable confirm button
+  var confirmBtn = widget.querySelector('.client-list-confirm');
+  if (confirmBtn) {
+    confirmBtn.disabled = false;
+    confirmBtn.classList.remove('opacity-40', 'cursor-not-allowed');
+  }
+};
+
+window.confirmClientListSelection = function(confirmBtn) {
+  var widget = confirmBtn.closest('.bg-gray-50');
+  if (!widget) return;
+  var selected = widget.querySelector('.client-list-btn.border-orange-400');
+  if (!selected) return;
+  var clientName = selected.getAttribute('data-client-name');
+  if (!clientName) return;
+
+  // Disable the widget
+  widget.querySelectorAll('button').forEach(function(b) { b.disabled = true; b.style.pointerEvents = 'none'; });
+  confirmBtn.textContent = clientName;
+  confirmBtn.classList.add('bg-green-500');
+  confirmBtn.classList.remove('bg-orange-500');
+
+  // Set client as BILLED TO via the directClientChange path (bypasses AI, uses backend matching)
+  window.clientMatchResolved = false;
+  directClientChange(clientName);
+};
+
+window.cancelClientListSelection = function(cancelBtn) {
+  var widget = cancelBtn.closest('.bg-gray-50');
+  if (!widget) return;
+  // Disable the widget visually
+  widget.querySelectorAll('button').forEach(function(b) { b.disabled = true; b.style.pointerEvents = 'none'; });
+  widget.style.opacity = '0.5';
+  // Advance the clarification queue
+  if (window._clarificationQueue && window._clarificationQueue.length > 0) {
+    window._clarificationQueue.shift();
+    showNextQueueItem();
+  } else {
+    handleClarifications([]);
+  }
+};
 
 // ── CHIP HANDLER: REMOVE ITEM (accordion-style picker) ──
 function handleChipRemoveItem() {
@@ -6937,7 +7076,10 @@ function performUndoTo(targetIdx) {
     addAIBubble(L.anything_else || 'Anything else to change?', null, null, {'anything-else': 'true'});
     window._skipNextUndoBtn = true;
     renderQuickActionChips();
-    window.setupSaveButton();
+    if (!window._invoicePreviewShownOnce && !window._userClosedInvoice) {
+      window._invoicePreviewShownOnce = true;
+      window.setupSaveButton();
+    }
     var assistInput = document.getElementById('assistantInput');
     if (assistInput) {
       assistInput.disabled = false;
@@ -8813,7 +8955,10 @@ function finishClientDetailCollection() {
     removeTypingIndicator();
     addAIBubble(window.APP_LANGUAGES.anything_else || 'Anything else to change?', null, null, {'anything-else': 'true'});
     renderQuickActionChips();
-    window.setupSaveButton();
+    if (!window._invoicePreviewShownOnce && !window._userClosedInvoice) {
+      window._invoicePreviewShownOnce = true;
+      window.setupSaveButton();
+    }
   }, 400);
 }
 
@@ -9438,8 +9583,12 @@ function updateUIWithoutTranscript(data, skipClarifications) {
       handleClarifications(data.clarifications || []);
     }
 
+    // Auto-trigger invoice preview ONCE per session, then manual-only
     if (window.pendingClarifications && window.pendingClarifications.length === 0) {
-      window.setupSaveButton();
+      if (!window._invoicePreviewShownOnce && !window._userClosedInvoice) {
+        window._invoicePreviewShownOnce = true;
+        window.setupSaveButton();
+      }
     }
 
     // Always scroll to assistant chat area during refinement

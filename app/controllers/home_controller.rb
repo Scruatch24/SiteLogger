@@ -2123,8 +2123,8 @@ PROMPT
       → reply: "ფასი 500 დავაყენე."
 
       User: [AI asked: "Fill in details:" → User answered: "ქეისი აღარ, შეკეთება 5 საათი 300 ლარი, ტელეფონი 5 ცალი 200 ლარი"]
-      → Remove ქეისი. შეკეთება: hours:5, price:300, rate:60. ტელეფონი: qty:5, price:200.
-      → reply: "ქეისი წავშალე. შეკეთება: 5სთ, 300₾. ტელეფონი: 5ც, 200₾."
+      → Remove ქეისი. შეკეთება: hours:5, rate:300, price:1500. ტელეფონი: qty:5, price:200.
+      → reply: "ქეისი წავშალე. შეკეთება: 5სთ, 300₾/სთ. ტელეფონი: 5ც, 200₾."
 
       7) MOVE DISCOUNT BETWEEN ITEMS
       User: "ეგ ფასდაკლება გადაიტანე ტელეფონზე და შეკეთებას მოაცილე"
@@ -2162,9 +2162,11 @@ PROMPT
 
       13) PRICES WITH GEORGIAN WORD NUMBERS
       User: "ტელეფონი ორმოცი, ქეისი სამოცდასამი, შეკეთება სამი საათი ხუთას ორმოცი"
-      → ტელეფონი price: 40, ქეისი price: 63, შეკეთება hours: 3, price: 540, rate: 180
+      → ტელეფონი price: 40, ქეისი price: 63, შეკეთება hours: 3, rate: 540, price: 1620
+      RULE: "X საათი Y ლარი/ლარზე" = hours:X, rate:Y (per hour), price:X*Y.
+      The number after საათი is the HOURLY RATE, not the total. price = hours × rate.
       Georgian numbers: ორმოცი=40, ორმოცდასამი=43, სამოცდასამი=63, ოთხმოცდაორი=82, ხუთასი=500, ხუთას ორმოცი=540, ორასი=200, ორას ოცდაორი=222, სამასი=300.
-      → reply: "ტელეფონი: 40₾, ქეისი: 63₾, შეკეთება: 3სთ, 540₾."
+      → reply: "ტელეფონი: 40₾, ქეისი: 63₾, შეკეთება: 3სთ × 540₾ = 1620₾."
 
       14) DISCOUNT WITH EXPLICIT TYPE
       User: "ტელეფონი ორას ოცდაორი ლარი ფასდაკლება" → discount_flat: 222
@@ -2177,11 +2179,15 @@ PROMPT
       • Modify ONLY what's requested. Preserve everything else exactly.
       • Numbers before item names = QUANTITIES (qty). Tax rates need "%", "დღგ", or "დაბეგვრა".
       • Tax is a COMMAND — apply directly, never ask. 0% = taxable:false, tax_rate:0.
+      • CRITICAL TAX RULE: taxable:false MUST always have tax_rate:0 (NEVER null/empty). taxable:true MUST always have a numeric tax_rate.
+      • "არ დაბეგრო" / "მოაშორე დაბეგვრა" / "don't tax" = taxable:false, tax_rate:0 on the target item(s).
+      • HOURLY RATE RULE: "X საათი Y ლარი" = hours:X, rate:Y, price:X*Y. Y is the RATE per hour, NOT the total.
       • Discount: if user says "X ფასდაკლება" for a SPECIFIC ITEM → apply to THAT item, NOT globally.
       • Discount: if user doesn't specify % or ₾ → ADD a clarification asking which type.
       • Materials price = per-unit. qty:5, price:50 = 50 each.
       • New items without price → price: null (backend makes a price widget).
       • Client names — don't ask, backend handles matching.
+      • When user asks to see/list clients → return JSON UNCHANGED + reply listing them. Backend generates a client selection widget.
       • When user says "დააბრუნე"/"undo" → check conversation history for what was changed and reverse it.
       • [AI asked: ...] messages: ALWAYS apply the answer. Never ignore, never re-ask.
       • Keep raw_summary unchanged.
@@ -2299,11 +2305,79 @@ PROMPT
       result["credits"] ||= []
       result["clarifications"] = Array(result["clarifications"]).select { |c| c.is_a?(Hash) && c["question"].present? }
 
+      # ── Normalize tax values: null tax_rate is ambiguous, force explicit values ──
+      default_tax_rate = (result["labor_tax_rate"] || @profile.try(:tax_rate) || 18).to_f
+      tax_scope_raw = (result["tax_scope"] || @profile.try(:tax_scope) || "").to_s.downcase
+      tax_scope_parts = tax_scope_raw.split(",").map(&:strip)
+      tax_all = tax_scope_parts.include?("all") || tax_scope_parts.include?("total") || tax_scope_parts.length >= 4
+
+      (result["sections"] || []).each do |section|
+        sec_type = section["type"].to_s
+        is_labor = sec_type.include?("labor")
+        is_material = sec_type.include?("material")
+        is_fee = sec_type.include?("fee")
+        is_expense = sec_type.include?("expense")
+        in_scope = tax_all || (is_labor && tax_scope_parts.any? { |s| s.include?("labor") }) ||
+                   (is_material && tax_scope_parts.any? { |s| s.include?("material") }) ||
+                   (is_fee && tax_scope_parts.any? { |s| s.include?("fee") }) ||
+                   (is_expense && tax_scope_parts.any? { |s| s.include?("expense") })
+
+        (section["items"] || []).each do |item|
+          if item["taxable"] == false || item["taxable"] == "false"
+            # CRITICAL: taxable:false must always have tax_rate:0, never null
+            item["tax_rate"] = 0 if item["tax_rate"].nil? || item["tax_rate"].to_s.strip == ""
+          elsif item["taxable"] == true || item["taxable"] == "true"
+            # taxable:true must have a numeric tax_rate
+            if item["tax_rate"].nil? || item["tax_rate"].to_s.strip == ""
+              item["tax_rate"] = default_tax_rate
+            end
+          elsif item["taxable"].nil?
+            # AI didn't set taxable — apply defaults from tax_scope
+            has_value = (item["price"].to_f > 0) || (item["rate"].to_f > 0 && item["hours"].to_f > 0)
+            if has_value && in_scope
+              item["taxable"] = true
+              item["tax_rate"] = default_tax_rate
+            else
+              item["taxable"] = false
+              item["tax_rate"] = 0
+            end
+          end
+        end
+      end
+
       # ── Auto-upgrade clarifications: merge prices+qty, fix discount, convert tax ──
       auto_upgrade_clarifications!(result, params[:language].to_s)
 
       # ── Server-side clarification generation: catch anything AI missed ──
       generate_missing_clarifications(result, user_message, current_json)
+
+      # ── Client list widget: detect when user asks about clients ──
+      if user_message =~ /კლიენტ|client|show.*client|მაჩვენე.*კლიენტ|კლიენტთა.*სია|სია.*კლიენტ/i && user_signed_in? && @profile.paid?
+        # Extract optional name filter from message
+        name_filter = nil
+        if user_message =~ /სახელად\s+(\S+)/i
+          name_filter = $1
+        elsif user_message =~ /named?\s+(\S+)/i
+          name_filter = $1
+        end
+
+        clients_q = current_user.clients.order(:name)
+        clients_q = clients_q.where("name ILIKE ?", "%#{name_filter}%") if name_filter.present?
+        client_records = clients_q.limit(20).to_a
+
+        if client_records.any?
+          client_data = client_records.map { |c| { "id" => c.id, "name" => c.name, "invoices_count" => c.logs.kept.count } }
+          question_text = I18n.locale.to_s == "ka" ? "აირჩიეთ კლიენტი:" : "Select a client:"
+          # Remove any existing client_browse clarification to avoid duplicates
+          result["clarifications"].reject! { |c| c["field"] == "client_browse" }
+          result["clarifications"] << {
+            "field" => "client_browse",
+            "type" => "client_list",
+            "question" => question_text,
+            "clients" => client_data
+          }
+        end
+      end
 
       # Client matching for refine_invoice responses (paid users only)
       # Skip if frontend already resolved client matching (user confirmed/denied)
