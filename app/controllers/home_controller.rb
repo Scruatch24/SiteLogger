@@ -2079,6 +2079,18 @@ PROMPT
       payment_context = "\nSENDER PAYMENT INSTRUCTIONS: #{@profile.payment_instructions.to_s.strip}"
     end
 
+    # Build plan restriction context so AI can inform users about limits
+    plan_context = ""
+    user_plan = @profile.plan.presence || "guest"
+    unless @profile.paid?
+      plan_features = if user_plan == "guest"
+        "Guest user (not signed in). Limits: #{@profile.char_limit} char transcript, #{@profile.audio_limit}s audio, #{@profile.export_limit} PDF exports/day, #{@profile.clarification_limit} AI questions per invoice. NO client list, NO custom invoice styles, NO logo upload, NO saved history. Must sign up (free) to save invoices."
+      else
+        "Free plan user. Limits: #{@profile.char_limit} char transcript, #{@profile.audio_limit}s audio, #{@profile.export_limit} PDF exports/day, #{@profile.clarification_limit} AI questions per invoice. NO client list/matching, NO custom invoice styles (classic only), NO logo upload. Upgrade to Pro for unlimited exports, 5min audio, 10K chars, custom styles, logo, client management."
+      end
+      plan_context = "\nUSER PLAN: #{plan_features}\nIf user asks about a feature they don't have access to, politely explain the limitation and suggest upgrading."
+    end
+
     # ══════════════════════════════════════════════════════════════
     # EXAMPLE-DRIVEN SYSTEM INSTRUCTION
     # Teaches by showing, not by listing abstract rules.
@@ -2212,7 +2224,7 @@ PROMPT
 
     prompt = <<~PROMPT
       #{lang_rule}
-      #{client_list_context}#{payment_context}
+      #{client_list_context}#{payment_context}#{plan_context}
 
       CURRENT INVOICE JSON:
       #{json_text}

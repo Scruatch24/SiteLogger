@@ -3917,12 +3917,18 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
   // Log ALL addLaborItem attempts for diagnostics
   console.log(`[addLaborItem CALL] Description: "${value}" | Price: "${price}" | TaxableArg: ${taxable} | Scope: "${currentLogTaxScope}"`);
 
+  // Resolve initial billing mode EARLY so tax logic can use effective defaults
+  let initialMode = mode || currentLogBillingMode;
+  if (initialMode === 'mixed') initialMode = 'hourly';
+  const effectiveRate = (rate !== "" && rate !== null && rate !== undefined) ? rate : profileHourlyRate;
+  const effectivePrice = (price === "" || price === null || price === undefined) ? (initialMode === 'hourly' ? "1" : "100") : price;
+
   // Use the same tax fallback logic as addItem
   // true = Forced On, false = Forced Off, null = check defaults (only if price exists)
   if (taxable === null || taxable === undefined) {
-    // Check if item has any monetary value (price OR hours*rate for hourly labor)
-    const hasPrice = (price && price !== "" && parseFloat(price) > 0) ||
-                     (rate && rate !== "" && parseFloat(rate) > 0);
+    // Check if item has any monetary value — use EFFECTIVE defaults, not raw params
+    const hasPrice = (effectivePrice && effectivePrice !== "" && parseFloat(effectivePrice) > 0) ||
+                     (effectiveRate && effectiveRate !== "" && parseFloat(effectiveRate) > 0);
 
     if (!hasPrice) {
       // No price and no rate, no taxable - regardless of scope
@@ -3955,14 +3961,12 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
   const currencySymbol = activeCurrencySymbol;
   div.dataset.symbol = currencySymbol;
 
-  // Resolve initial billing mode: default to 'hourly' if global is 'mixed'
-  let initialMode = mode || currentLogBillingMode;
-  if (initialMode === 'mixed') initialMode = 'hourly';
+  // initialMode already resolved above for tax logic
   div.dataset.billingMode = initialMode;
 
   const billingMode = initialMode;
-  const defaultRate = (rate !== "" && rate !== null && rate !== undefined) ? rate : profileHourlyRate;
-  const laborPriceVal = (price === "" || price === null || price === undefined) ? (billingMode === 'hourly' ? "1" : "100") : price;
+  const defaultRate = effectiveRate;
+  const laborPriceVal = effectivePrice;
 
   // DEFAULT LABOR NAME
   let finalValue = value;
@@ -5953,6 +5957,21 @@ function toggleSection(contentId, arrowId, btn) {
   }
 }
 
+function scrollAssistantToBottom() {
+  var conversation = document.getElementById('assistantConversation');
+  if (!conversation) return;
+  conversation.scrollTop = conversation.scrollHeight;
+  // Double-RAF + timeout ensures scroll happens after layout & animations
+  requestAnimationFrame(function() {
+    requestAnimationFrame(function() {
+      conversation.scrollTop = conversation.scrollHeight;
+    });
+  });
+  setTimeout(function() {
+    if (conversation) conversation.scrollTop = conversation.scrollHeight;
+  }, 80);
+}
+
 function showTypingIndicator() {
   const conversation = document.getElementById('assistantConversation');
   if (!conversation) return;
@@ -5973,10 +5992,7 @@ function showTypingIndicator() {
     </div>
   `;
   conversation.appendChild(div);
-  // Use rAF to scroll after the browser paints the indicator
-  requestAnimationFrame(function() {
-    conversation.scrollTop = conversation.scrollHeight;
-  });
+  scrollAssistantToBottom();
 }
 
 function removeTypingIndicator() {
@@ -5984,7 +6000,7 @@ function removeTypingIndicator() {
   if (!conversation) return;
   const indicator = conversation.querySelector('.typing-indicator');
   if (indicator) indicator.remove();
-  conversation.scrollTop = conversation.scrollHeight;
+  scrollAssistantToBottom();
 }
 
 function addAIBubble(text, guessHtml, progressTag, dataAttrs) {
@@ -6006,7 +6022,7 @@ function addAIBubble(text, guessHtml, progressTag, dataAttrs) {
     </div>
   `;
   conversation.appendChild(div);
-  conversation.scrollTop = conversation.scrollHeight;
+  scrollAssistantToBottom();
 }
 
 // ── WIDGET CLOSE (X) BUTTON HELPER ──
@@ -6518,8 +6534,7 @@ function renderInlineUndoBtn() {
   var snapshotIdx = window._undoStack.length - 1;
 
   var div = document.createElement('div');
-  div.className = 'flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300 ml-9';
-  div.style.marginTop = '2px';
+  div.className = 'flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300 ml-9 -mt-1';
   div.innerHTML = '<button type="button" onclick="performUndoTo(' + snapshotIdx + ')" class="undo-btn inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-red-200 bg-white hover:bg-red-50 hover:border-red-300 transition-all cursor-pointer active:scale-[0.95] text-[10px] font-bold text-red-400 hover:text-red-600 shadow-sm">'
     + '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>'
     + escapeHtml(L.undo_and_revert || 'Undo')
@@ -6572,8 +6587,7 @@ function renderQuickActionChips() {
   });
 
   var div = document.createElement('div');
-  div.className = "quick-action-chips flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300 ml-9";
-  div.style.marginTop = '8px';
+  div.className = "quick-action-chips flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300 ml-9 -mt-1";
   div.innerHTML = '<div class="flex flex-wrap gap-1.5 mt-0">' + chipHtml + '</div>';
 
   conversation.appendChild(div);
@@ -8980,7 +8994,7 @@ function addUserBubble(text) {
   div.className = "flex justify-end animate-in fade-in slide-in-from-right-2 duration-300";
   div.innerHTML = '<div class="bg-orange-50 border-2 border-orange-200 rounded-2xl rounded-tr-none px-4 py-2 text-xs font-bold text-orange-800 shadow-sm max-w-[80%]">' + safe + '</div>';
   conversation.appendChild(div);
-  conversation.scrollTop = conversation.scrollHeight;
+  scrollAssistantToBottom();
 }
 
 function renderConversationHistory() {
@@ -9812,6 +9826,7 @@ Object.assign(window, {
   updateUI,
   handleClarifications,
   toggleSection,
+  scrollAssistantToBottom,
   showTypingIndicator,
   removeTypingIndicator,
   addAIBubble,

@@ -28,6 +28,7 @@ class User < ApplicationRecord
     # Create a new user for first-time Google sign-in
     create do |user|
       user.email = auth.info.email
+      user.name = auth.info.name
       user.provider = auth.provider
       user.uid = auth.uid
       user.password = Devise.friendly_token[0, 20]

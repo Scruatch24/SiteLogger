@@ -95,18 +95,25 @@ class ApplicationController < ActionController::Base
   end
 
   def ensure_profile_exists!(user)
+    # Use Google display name if available, otherwise "My Business"
+    biz_name = user.name.presence || "My Business"
+
+    # Set note based on detected/selected system language
+    locale = I18n.locale.to_s
+    default_note = (locale == "ka") ? "მადლობა თანამშრომლობისთვის!" : "Thanks for your business!"
+
     Profile.create!(
       user: user,
-      business_name: "My Business",
+      business_name: biz_name,
       email: user.email,
       plan: "free",
       currency: "USD",
       hourly_rate: 100.00,
       tax_rate: 18.0,
-      note: I18n.t("guest_profile.note"),
+      note: default_note,
       billing_mode: "hourly",
       tax_scope: "labor,materials_only",
-      system_language: I18n.locale.to_s
+      system_language: locale
     )
   end
 
