@@ -3452,7 +3452,7 @@ function addFullSection(title, items, isProtected = false, explicitType = null) 
   else if (isFees) sectionDiv.dataset.protected = "fees";
 
   const resolvedTitle = isMaterials
-    ? (window.APP_LANGUAGES.materials || "Materials")
+    ? (window.APP_LANGUAGES.materials || "Products")
     : isExpenses
       ? (window.APP_LANGUAGES.expenses || "Expenses")
       : isFees
@@ -3675,7 +3675,7 @@ function insertSectionInOrder(sectionDiv, type) {
 }
 
 function addMaterialSection() {
-  addFullSection(window.APP_LANGUAGES.materials || "Materials", [], true, 'materials');
+  addFullSection(window.APP_LANGUAGES.materials || "Products", [], true, 'materials');
 }
 
 function addExpenseSection() {
@@ -4973,7 +4973,7 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
 
   // DEFAULT ITEM NAME based on section
   if (!finalValue || finalValue.trim() === "") {
-    if (isMaterialSection) finalValue = window.APP_LANGUAGES.item_material || "Material";
+    if (isMaterialSection) finalValue = window.APP_LANGUAGES.item_material || "Product";
     else if (isFeeSection) finalValue = window.APP_LANGUAGES.item_fee || "Fee";
     else if (isExpenseSection) finalValue = window.APP_LANGUAGES.item_expense || "Expense";
     else finalValue = window.APP_LANGUAGES.item || "Item";
@@ -5014,7 +5014,7 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
         else taxable = false;
       }
 
-      console.log(`[addItem TAX DECISION] Final: ${taxable} | SectionUsed: ${isLaborSection ? 'Labor' : isMaterialSection ? 'Materials' : 'Other'} | Scope: "${scopeData}"`);
+      console.log(`[addItem TAX DECISION] Final: ${taxable} | SectionUsed: ${isLaborSection ? 'Labor' : isMaterialSection ? 'Products' : 'Other'} | Scope: "${scopeData}"`);
     }
   }
 

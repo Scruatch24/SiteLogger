@@ -926,9 +926,9 @@ class HomeController < ApplicationController
     # The Transcript Language only affects item names/descriptions, not category titles
     ui_is_georgian = (I18n.locale.to_s == "ka")
     sec_labels = if ui_is_georgian
-      { labor: "პროფესიონალური მომსახურება", materials: "მასალები/პროდუქტები", expenses: "ხარჯები", fees: "მოსაკრებლები" }
+      { labor: "პროფესიონალური მომსახურება", materials: "პროდუქტები", expenses: "ხარჯები", fees: "მოსაკრებლები" }
     else
-      { labor: "Labor/Service", materials: "Materials/Products", expenses: "Expenses", fees: "Fees" }
+      { labor: "Labor/Service", materials: "Products", expenses: "Expenses", fees: "Fees" }
     end
 
     hours_per_workday = (@profile.hours_per_workday.presence || 8).to_f
@@ -956,10 +956,10 @@ CORE DIRECTIVES (non-negotiable)
 3. If user states a specific rate/price it overrides defaults. Provided values ALWAYS take priority.
 4. Respect strict accounting rule: ANY reduction spoken/written as occurring "after tax", "off the total", "from the final bill", "at the end", "off the invoice" must be treated as a CREDIT (credit_flat), NOT a discount (global or otherwise). Item prices and taxes must remain unchanged in this case.
 5. TAXABILITY: Return `taxable: null` (literal null) for all items unless the user EXPLICITLY says "tax free", "no tax", "exempt", or "add tax". Do NOT infer taxability yourself; allow the system default (based on tax scope) to apply.
-6. GROUPS & BUNDLING: If a total price is given for a category (e.g. "Materials were 2300" or "Labor was 1200"), you MUST create ONE priced item for that category.
-   - Example Input: "Condenser, coil, line set... materials were 2300"
-   - Output: ONE Materials item { "name": "Materials", "qty": 1, "unit_price": 2300, "sub_categories": ["Condenser", "Coil", "Line set"], "taxable": null }.
-   - LATE TOTAL RULE: Even if items are listed first without prices (e.g. "Got a condenser and a coil... total materials 2300"), consolidate them into a single item with the total price. Do NOT leave them priced at 0.
+6. GROUPS & BUNDLING: If a total price is given for a category (e.g. "Products were 2300" or "Labor was 1200"), you MUST create ONE priced item for that category.
+   - Example Input: "Condenser, coil, line set... products were 2300"
+   - Output: ONE Products item { "name": "Products", "qty": 1, "unit_price": 2300, "sub_categories": ["Condenser", "Coil", "Line set"], "taxable": null }.
+   - LATE TOTAL RULE: Even if items are listed first without prices (e.g. "Got a condenser and a coil... total products 2300"), consolidate them into a single item with the total price. Do NOT leave them priced at 0.
 7. NUMERIC WORDS: "twelve hundred" -> 1200, "twenty-three hundred" -> 2300, "thirty-five hundred" -> 3500. Always return numbers as numeric strings or integers.
 8. CLIENT EXTRACTION: Explicitly look for introductions like "This is [Name]", "Invoice for [Name]", "Bill to [Name]".
    - "Hello, this is Apex Roofing" -> Client: "Apex Roofing"
@@ -976,7 +976,7 @@ CORE DIRECTIVES (non-negotiable)
 EXTRACTION STRATEGY
 ----------------------------
 - STEP 1: Scan the ENTIRE text for currency totals (e.g., "$2300", "twelve hundred").
-- STEP 2: Map totals to categories (Labor, Materials, Fees).
+- STEP 2: Map totals to categories (Labor, Products, Fees).
 - STEP 3: ONLY then gather descriptions and sub-categories.
 - LATE TOTAL RULE: Items listed first + price follows later → consolidate into ONE priced item with parts as sub_categories. Never leave items at $0.
 - SEPARATE PRICES = SEPARATE ITEMS: If two items each have their OWN explicit price, they are ALWAYS separate items. NEVER merge them. "ERP system 45,000" + "3 servers at 8,500 each" = TWO separate items.
@@ -1003,8 +1003,8 @@ NATURAL LANGUAGE / SLANG RULESET (pragmatic)
 ----------------------------
 CATEGORY RULES (must map correctly)
 ----------------------------
-Categories: LABOR/SERVICE, MATERIALS, EXPENSES, FEES, CREDITS.
-THESE ARE THE ONLY 5 CATEGORIES. You MUST classify every item into one of these. There is NO "other", "notes", "miscellaneous", or any other category. If an item does not clearly fit LABOR, EXPENSES, or FEES, classify it as MATERIALS.
+Categories: LABOR/SERVICE, PRODUCTS (type: "materials"), EXPENSES, FEES, CREDITS.
+THESE ARE THE ONLY 5 CATEGORIES. You MUST classify every item into one of these. There is NO "other", "notes", "miscellaneous", or any other category. If an item does not clearly fit LABOR, EXPENSES, or FEES, classify it as PRODUCTS (section type: "materials" in JSON).
 
 LABOR:
 - SERVICE ACTIONS: Implementation, deployment, installation, configuration, setup, migration, integration, consulting, training are ALWAYS labor/service — even if the object sounds like a product (e.g., "ERP system implementation" = SERVICE, "server installation" = SERVICE, "database migration" = SERVICE). Georgian: "დანერგვა", "ინსტალაცია", "კონფიგურაცია", "მიგრაცია", "ინტეგრაცია" = ALWAYS SERVICE.
@@ -1019,7 +1019,7 @@ LABOR:
 - Put additional task details into 'sub_categories' ONLY if they add new information.
 - FREE LABOR ITEMS: If user mentions "free", "no charge", "complimentary", "on the house" (Georgian: "უფასოდ", "უფასო", "უფასოდ ჩავუთვლი", "უფასოდ გავუკეთე") for a labor item, you MUST set price=0, hours=0, rate=0, mode="fixed", and taxable=false. Do NOT assign any default rate or price.
 
-MATERIALS:
+PRODUCTS (JSON type: "materials"):
 - Physical goods the client keeps or receives (servers, parts, equipment, supplies). NOT services/actions.
 - "hardware" / "აპარატურა" / "equipment" = ONLY physical items (servers, devices, parts). Implementation, installation, configuration are NOT hardware.
 - Extract ONLY the noun/item name, stripping action verbs.
@@ -1028,8 +1028,8 @@ MATERIALS:
 - UNIT PRICE RULE: "unit_price" is ALWAYS per-unit (per-item). NEVER multiply qty × unit_price to compute a total.
   - If user gives BOTH qty AND per-unit price (e.g., "5 phones, 50 each" or "რაოდენობა 5, ფასი 50"), set qty=5, unit_price=50. NOT unit_price=250.
   - If a total price is given for a quantity (e.g., "4 items cost 60"), set qty=4 and unit_price=60/4=15. Do NOT assign total as unit_price.
-- DISTINCT ITEMS: If user lists multiple named items (e.g. "used nails, used filters"), create SEPARATE material entries for each. Do NOT bundle them as subcategories.
-- BUNDLING ONLY: Only bundle into subcategories when user gives a COLLECTIVE total (e.g. "materials were $500" or "parts cost 300 total"). In that case, create ONE item named "Materials" with that price, and list specific part names in 'sub_categories'.
+- DISTINCT ITEMS: If user lists multiple named items (e.g. "used nails, used filters"), create SEPARATE product entries for each. Do NOT bundle them as subcategories.
+- BUNDLING ONLY: Only bundle into subcategories when user gives a COLLECTIVE total (e.g. "products were $500" or "parts cost 300 total"). In that case, create ONE item named "Products" with that price, and list specific part names in 'sub_categories'.
 - Extract QUANTITY into the 'qty' field (default 1).
 - Extract UNIT PRICE (price per item) into 'unit_price'. If an item has no price mentioned, leave unit_price as null.
 - DO NOT put "(x2)" or quantity info in the description/name if you are setting the 'qty' field.
@@ -1037,11 +1037,11 @@ MATERIALS:
 - If quantity is "3 or 4", "3 to 4", use the HIGHER value (4) for the 'qty' field.
 - Never include internal cost unless explicitly spoken (avoid exposing cost).
 
-AMBIGUOUS ITEMS (Labor vs Materials):
+AMBIGUOUS ITEMS (Labor vs Products):
 - "Action + Object + Price" (e.g. "Replaced filter $25", "Cleaned vents $15") -> CLASSIFY AS LABOR/SERVICE. Name it "Filter Replacement" or "Vent Cleaning".
 - "[System/Software] + [action noun] + Price" → ALWAYS LABOR. E.g., "ERP სისტემის დანერგვა 45000" → LABOR (desc: "ERP System Implementation", mode: fixed, price: 45000). The system name is the OBJECT of the service, not a product being sold.
 - REDUNDANCY CHECK: Do NOT add a sub_category that just repeats the main title or is a variation of it. (e.g. if desc is "AC Repair", do NOT add "Repaired AC" as a subcategory). Subcategories are ONLY for additional details (e.g. specific part names, location) not implied by the title.
-- Only classify as Materials if the spoken text purely describes the object (e.g. "The filter cost $25", "New filter: $25").
+- Only classify as Products if the spoken text purely describes the object (e.g. "The filter cost $25", "New filter: $25").
 - If in doubt, prefer Labor/Service for tasks.
 - SECTION TYPE DISAMBIGUATION: When you genuinely cannot determine which section an item belongs to (e.g., "100 ლარი" with no context, or an item that could equally be labor, materials, or fees), add a clarification with field: "section_type", guess: your best guess section name (e.g., "labor"), options: ["labor", "materials", "expenses", "fees"] (only include plausible sections), and question asking the user where to categorize the item. Place the item in your guessed section initially. Example: { "field": "section_type", "guess": "materials", "options": ["labor", "materials", "fees"], "question": "სად ჩავწეროთ ეს ელემენტი?" }
 - CURRENCY DISAMBIGUATION: When the currency is ambiguous (e.g., user says a number with no currency indicator and the context doesn't make it clear, or mixed currency signals), add a clarification with field: "currency", guess: your best guess ISO code (e.g., "GEL"), options: ["GEL", "USD", "EUR"] (plausible currencies), and question asking which currency. Example: { "field": "currency", "guess": "GEL", "options": ["GEL", "USD", "EUR"], "question": "რომელი ვალუტა გამოვიყენოთ?" }
@@ -2192,7 +2192,7 @@ PROMPT
       • HOURLY RATE RULE: "X საათი Y ლარი" = hours:X, rate:Y, price:X*Y. Y is the RATE per hour, NOT the total.
       • Discount: if user says "X ფასდაკლება" for a SPECIFIC ITEM → apply to THAT item, NOT globally.
       • Discount: if user doesn't specify % or ₾ → ADD a clarification asking which type.
-      • Materials price = per-unit. qty:5, price:50 = 50 each.
+      • Products price = per-unit. qty:5, price:50 = 50 each.
       • New items without price → price: null (backend makes a price widget).
       • Client names — don't ask, backend handles matching.
       • When user asks to see/list clients → return JSON UNCHANGED + reply with a short acknowledgment. Backend generates a client selection widget. Do NOT list client IDs or names in reply.

@@ -242,7 +242,7 @@ ka:
   done_btn: "მზადაა"
   ai_guess: "AI-ს ვარაუდი"
   section_labor: "სერვისი / შრომა"
-  section_materials: "მასალები / პროდუქცია"
+  section_materials: "პროდუქტები"
   section_expenses: "ხარჯები"
   section_fees: "საკომისიო"
   action_change_client: "კლიენტის შეცვლა"
