@@ -1834,7 +1834,12 @@ PROMPT
       end
 
       # ── Auto-upgrade clarifications: merge prices+qty, fix discount, convert tax ──
-      auto_upgrade_clarifications!(json, (params[:language] || lang).to_s)
+      auto_upgrade_clarifications!(json, (params[:language] || doc_language).to_s)
+
+      # ── Backend safety-net: enforce tax/price/discount instructions the AI may have ignored ──
+      enforce_tax_from_message!(json, original_input)
+      enforce_prices_from_message!(json, original_input)
+      enforce_discount_from_message!(json, original_input)
 
       # ── Client Matching Post-Processing (paid users only) ──
       recipient_info = nil
@@ -1872,7 +1877,7 @@ PROMPT
           end
 
           if similar.any?
-            similar_with_counts = similar.map { |c| { "id" => c.id, "name" => c.name, "invoices_count" => c.logs.kept.count } }
+            similar_with_counts = similar.map { |c| { "id" => c.id, "name" => c.name, "invoices_count" => c.logs.kept.count, "email" => c.email, "phone" => c.phone } }
               .sort_by { |c| -c["invoices_count"] }
               .first(3)
             best_guess = similar_with_counts.first["name"]
@@ -2047,7 +2052,7 @@ PROMPT
               result["clarifications"] << { "field" => "client_confirm_existing", "type" => "yes_no", "question" => confirm_q, "client_name" => match.name, "client_id" => match.id }
             end
           elsif similar.length > 1
-            similar_with_counts = similar.map { |c| { "id" => c.id, "name" => c.name, "invoices_count" => c.logs.kept.count } }
+            similar_with_counts = similar.map { |c| { "id" => c.id, "name" => c.name, "invoices_count" => c.logs.kept.count, "email" => c.email, "phone" => c.phone } }
               .sort_by { |c| -c["invoices_count"] }
               .first(5)
             best_guess = similar_with_counts.first["name"]
@@ -2394,6 +2399,11 @@ PROMPT
       # ── Auto-upgrade clarifications: merge prices+qty, fix discount, convert tax ──
       auto_upgrade_clarifications!(result, params[:language].to_s)
 
+      # ── Backend safety-net: enforce tax/price/discount instructions the AI may have ignored ──
+      enforce_tax_from_message!(result, user_message)
+      enforce_prices_from_message!(result, user_message)
+      enforce_discount_from_message!(result, user_message)
+
       # ── Server-side clarification generation: catch anything AI missed ──
       generate_missing_clarifications(result, user_message, current_json)
 
@@ -2474,7 +2484,7 @@ PROMPT
             result["recipient_info"] = { "client_id" => match.id, "name" => match.name, "email" => match.email, "phone" => match.phone, "address" => match.address }
             result["client"] = match.name
           elsif similar.length > 1
-            similar_with_counts = similar.map { |c| { "id" => c.id, "name" => c.name, "invoices_count" => c.logs.kept.count } }
+            similar_with_counts = similar.map { |c| { "id" => c.id, "name" => c.name, "invoices_count" => c.logs.kept.count, "email" => c.email, "phone" => c.phone } }
               .sort_by { |c| -c["invoices_count"] }
               .first(3)
             best_guess = similar_with_counts.first["name"]
@@ -3559,6 +3569,8 @@ PROMPT
         end
         if log.paid_at && log.paid_at >= last_month_start.to_time && log.paid_at < month_start.to_time
           last_month_revenue += amount
+        elsif log.paid_at.nil? && log.updated_at >= last_month_start.to_time && log.updated_at < month_start.to_time
+          last_month_revenue += amount
         end
       when "overdue"
         total_outstanding += amount
@@ -3702,17 +3714,17 @@ PROMPT
     last_month_new_clients_count = all_client_first_seen.count { |_, first| first >= last_month_start.to_time && first < month_start.to_time }
 
     # ── Financial Health Score ──
-    health_score = total_invoiced > 0 ? ((total_paid_amount / total_invoiced) * 100).round(0) : 100
+    health_score = (total_invoiced > 0 ? ((total_paid_amount / total_invoiced) * 100).round(0) : 100).clamp(0, 100)
     health_level = if health_score >= 90 then "healthy"
                    elsif health_score >= 60 then "risk"
                    else "critical"
                    end
 
     # ── Collection Rate ──
-    collection_rate = total_sent_amount > 0 ? ((total_paid_amount / total_sent_amount) * 100).round(0) : 100
+    collection_rate = (total_sent_amount > 0 ? ((total_paid_amount / total_sent_amount) * 100).round(0) : 100).clamp(0, 100)
 
     # ── Outstanding Ratio ──
-    outstanding_ratio = total_invoiced > 0 ? ((total_outstanding / total_invoiced) * 100).round(0) : 0
+    outstanding_ratio = (total_invoiced > 0 ? ((total_outstanding / total_invoiced) * 100).round(0) : 0).clamp(0, 100)
 
     # ── Revenue Projection ──
     days_elapsed = [today.day, 1].max
@@ -3918,7 +3930,7 @@ PROMPT
     clients_ka = ["აქმე კორპ", "ბილდრაიტი", "ნოვა სტუდია", "პიქ სოლუშენსი", "ბრაიტ მედია"]
     client_names = ka ? clients_ka : clients_en
 
-    @currency_symbol   = "₾"
+    @currency_symbol   = currency_symbol_for(@profile.currency.presence || "GEL")
     @total_invoiced    = 18_450.0
     @total_outstanding = 4_200.0
     @total_overdue_amt = 1_840.0
@@ -4433,8 +4445,8 @@ PROMPT
       next if t.blank?
       t_down = t.downcase
 
-      # Pattern 1: Remove tax — "მოაშორე დაბეგვრა", "დაბეგვრა მოაშორე", "no tax", "დღგ მოხსენი"
-      tax_remove_re = /(?:remove\s+(?:all\s+)?tax|no\s+tax|tax\s*free|მოაშორე\s+(?:დაბეგვრა|დღგ)|(?:დაბეგვრა|დღგ)\s+მოაშორე|დღგ\s*(?:მოხსენ|წაშალ|მოაშორ)|გადასახად\w*\s+(?:მოხსენ|წაშალ|მოაშორ))/i
+      # Pattern 1: Remove tax — "მოაშორე დაბეგვრა", "დაბეგვრა მოაშორე", "no tax", "დღგ მოხსენი", "არ დაბეგრო"
+      tax_remove_re = /(?:remove\s+(?:all\s+)?tax|no\s+tax|tax\s*free|მოაშორე\s+(?:დაბეგვრა|დღგ)|(?:დაბეგვრა|დღგ)\s+მოაშორე|დღგ\s*(?:მოხსენ|წაშალ|მოაშორ)|გადასახად\w*\s+(?:მოხსენ|წაშალ|მოაშორ)|არ\s+დაბეგრ|ნუ\s+დაბეგრავ|არაფერი\s+დაბეგრ|არცერთ\w*\s+დაბეგრ)/i
       if t.match?(tax_remove_re)
         # Check if specific item mentioned
         target_items = []
@@ -4542,14 +4554,14 @@ PROMPT
           iname = (item["desc"] || item["name"] || "").downcase
           next unless iname.include?(name_part.downcase) || name_part.downcase.include?(iname.sub(/ი$/, ""))
 
-          # "5 საათი 100 ლარი" = 5 hours at rate 20 (100/5), or fixed price 100
-          # If item is labor, set hourly mode
+          # "5 საათი 100 ლარი" = 5 hours at rate 100/hr, price = 500
+          # Per prompt rule: Y is the HOURLY RATE, price = hours × rate
           item["hours"] = hours
-          item["rate"] = (price / hours).round(2)
-          item["price"] = price
+          item["rate"] = price
+          item["price"] = (hours * price).round(2)
           item["mode"] = "hourly"
           changes_made = true
-          Rails.logger.info "PRICE-ENFORCE: #{iname} → hours=#{hours} rate=#{item["rate"]} price=#{price}"
+          Rails.logger.info "PRICE-ENFORCE: #{iname} → hours=#{hours} rate=#{item["rate"]} price=#{item["price"]}"
         end
       end
 

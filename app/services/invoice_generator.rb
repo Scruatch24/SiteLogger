@@ -302,8 +302,8 @@ class InvoiceGenerator
     # -- LEFT COLUMN: BILLED TO + FROM --
     @pdf.bounding_box([ 0, y_start ], width: col_width) do
       # 1. BILLED TO
-      pill_width = 60
       pill_height = 15
+      pill_width = [@pdf.width_of(labels[:billed_to], size: 6, style: :bold) + 14, 40].max
 
       # Pill
       @pdf.fill_color @orange_color
@@ -313,7 +313,7 @@ class InvoiceGenerator
         @pdf.text_box labels[:billed_to], at: [ 0, @pdf.cursor - 4 ], width: pill_width, height: pill_height, align: :center, character_spacing: 0.5
       end
 
-      @pdf.move_down 25
+      @pdf.move_down 18
 
       # Client Content (BILLED TO)
       @pdf.fill_color @dark_charcoal
@@ -341,10 +341,10 @@ class InvoiceGenerator
       end
       @pdf.font(@base_font_name, size: 9) { @pdf.formatted_text recipient_contact, leading: 2 } if recipient_contact.any?
 
-      @pdf.move_down 25
+      @pdf.move_down 18
 
       # 2. FROM (Under Billed To)
-      pill_width_from = 40
+      pill_width_from = [@pdf.width_of(labels[:from], size: 6, style: :bold) + 14, 35].max
 
       # Pill
       @pdf.fill_color @soft_gray
@@ -354,11 +354,11 @@ class InvoiceGenerator
         @pdf.text_box labels[:from], at: [ 0, @pdf.cursor - 4 ], width: pill_width_from, height: pill_height, align: :center, character_spacing: 0.5
       end
 
-      @pdf.move_down 25
+      @pdf.move_down 18
 
       # Sender Content (Left Aligned)
       @pdf.fill_color @dark_charcoal
-      @pdf.font(@base_font_name, size: 9) do
+      @pdf.font(@base_font_name, size: 10) do
         # Company Name + Black Dot + Tax ID
         name_text = []
         name_text << { text: @sender.business_name, styles: [ :bold ], color: @dark_charcoal }
@@ -372,16 +372,16 @@ class InvoiceGenerator
         @pdf.fill_color @mid_gray
         @pdf.text @sender.address.to_s, leading: 2
 
-        # Phone + Orange Dot + Email (with accent color + underline for visual link cue)
+        # Phone • Email (matching BILLED TO style — gray, no underline)
         contact_text = []
         if @sender.phone.present?
-          contact_text << { text: @sender.phone.to_s, color: @orange_color, link: "tel:#{@sender.phone.to_s.gsub(/\s/, '')}", styles: [:underline] }
-          contact_text << { text: "  ", color: @mid_gray }
-          contact_text << { text: "•", color: "000000" }
-          contact_text << { text: "  ", color: @mid_gray }
+          contact_text << { text: @sender.phone.to_s, color: @mid_gray }
+        end
+        if @sender.phone.present? && @sender.email.present?
+          contact_text << { text: "  •  ", color: @mid_gray }
         end
         if @sender.email.present?
-          contact_text << { text: @sender.email.to_s, color: @orange_color, link: "mailto:#{@sender.email}", styles: [:underline] }
+          contact_text << { text: @sender.email.to_s, color: @mid_gray }
         end
 
         @pdf.formatted_text contact_text, leading: 2
@@ -392,60 +392,61 @@ class InvoiceGenerator
     # -- RIGHT COLUMN: DATES + LOGO (Right aligned) --
     @pdf.bounding_box([ col_width + gap, y_start ], width: col_width) do
       pill_height = 15
-      pill_width = 45
       date_val_width = 100
       x_edge = @pdf.bounds.width
-      x_pill = x_edge - pill_width
-      x_value = x_pill - date_val_width - 10
 
       current_y = @pdf.cursor
 
       # 1. ISSUED section (right aligned)
+      pw_issued = [@pdf.width_of(labels[:issued], size: 6, style: :bold) + 14, 35].max
       @pdf.fill_color @soft_gray
-      @pdf.fill_rounded_rectangle [ x_pill, current_y ], pill_width, pill_height, 2
+      @pdf.fill_rounded_rectangle [ x_edge - pw_issued, current_y ], pw_issued, pill_height, 2
       @pdf.fill_color @dark_charcoal
       @pdf.font(@base_font_name, size: 6, style: :bold) do
-        @pdf.text_box labels[:issued], at: [ x_pill, current_y - 4 ], width: pill_width, height: pill_height, align: :center, character_spacing: 0.5
+        @pdf.text_box labels[:issued], at: [ x_edge - pw_issued, current_y - 4 ], width: pw_issued, height: pill_height, align: :center, character_spacing: 0.5
       end
 
       # ISSUED value
       @pdf.fill_color @dark_charcoal
       @pdf.font(@base_font_name, size: 9) do
-        @pdf.text_box @invoice_date, at: [ x_value, current_y - 2.5 ], width: date_val_width, align: :right
+        @pdf.text_box @invoice_date, at: [ x_edge - pw_issued - date_val_width - 10, current_y - 2.5 ], width: date_val_width, align: :right
       end
 
       @pdf.move_down 22
       current_y = @pdf.cursor
 
       # 2. DUE section (below ISSUED, right aligned)
+      pw_due = [@pdf.width_of(labels[:due], size: 6, style: :bold) + 14, 35].max
       @pdf.fill_color @orange_color
-      @pdf.fill_rounded_rectangle [ x_pill, current_y ], pill_width, pill_height, 2
+      @pdf.fill_rounded_rectangle [ x_edge - pw_due, current_y ], pw_due, pill_height, 2
       @pdf.fill_color "FFFFFF"
       @pdf.font(@base_font_name, size: 6, style: :bold) do
-        @pdf.text_box labels[:due], at: [ x_pill, current_y - 4 ], width: pill_width, height: pill_height, align: :center, character_spacing: 0.5
+        @pdf.text_box labels[:due], at: [ x_edge - pw_due, current_y - 4 ], width: pw_due, height: pill_height, align: :center, character_spacing: 0.5
       end
 
       # DUE value
       @pdf.fill_color @dark_charcoal
       @pdf.font(@base_font_name, size: 9) do
-        @pdf.text_box @due_date, at: [ x_value, current_y - 2.5 ], width: date_val_width, align: :right
+        @pdf.text_box @due_date, at: [ x_edge - pw_due - date_val_width - 10, current_y - 2.5 ], width: date_val_width, align: :right
       end
 
       @pdf.move_down 22
       current_y = @pdf.cursor
 
       # 3. NUM section (below DUE, right aligned) - Invoice Number
+      num_label = labels[:num] || "NUM"
+      pw_num = [@pdf.width_of(num_label, size: 6, style: :bold) + 14, 35].max
       @pdf.fill_color @soft_gray
-      @pdf.fill_rounded_rectangle [ x_pill, current_y ], pill_width, pill_height, 2
+      @pdf.fill_rounded_rectangle [ x_edge - pw_num, current_y ], pw_num, pill_height, 2
       @pdf.fill_color @dark_charcoal
       @pdf.font(@base_font_name, size: 6, style: :bold) do
-        @pdf.text_box labels[:num] || "NUM", at: [ x_pill, current_y - 4 ], width: pill_width, height: pill_height, align: :center, character_spacing: 0.5
+        @pdf.text_box num_label, at: [ x_edge - pw_num, current_y - 4 ], width: pw_num, height: pill_height, align: :center, character_spacing: 0.5
       end
 
       # NUM value (invoice number) - Orange text (always Latin, use NotoSans for bold)
       @pdf.fill_color @orange_color
       @pdf.font("NotoSans", size: 9, style: :bold) do
-        @pdf.text_box @invoice_number, at: [ x_value, current_y - 2.5 ], width: date_val_width, align: :right
+        @pdf.text_box @invoice_number, at: [ x_edge - pw_num - date_val_width - 10, current_y - 2.5 ], width: date_val_width, align: :right
       end
     end
 

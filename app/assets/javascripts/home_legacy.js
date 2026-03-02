@@ -6092,6 +6092,11 @@ function confirmExistingClientYes() {
 function confirmExistingClientNo() {
   window.clientMatchResolved = true;
   window._wasAddClientYes = true;
+  // Clear the old client_id so new details aren't merged into the wrong client
+  if (window.lastAiResult && window.lastAiResult.recipient_info) {
+    delete window.lastAiResult.recipient_info.client_id;
+    window.lastAiResult.recipient_info.is_new = true;
+  }
   window.disablePreviousInteractiveElements();
   autoSubmitAssistantMessage(window.APP_LANGUAGES.no_btn || 'No');
 }
@@ -6147,7 +6152,9 @@ function renderClientMatchCard(clarification) {
       + '</div>'
       + '<div class="flex-1 min-w-0">'
       + '<div class="text-[12px] font-bold text-gray-800 truncate">' + escapeHtml(c.name) + '</div>'
-      + '<div class="text-[10px] text-gray-400 font-semibold">' + escapeHtml(countLabel) + '</div>'
+      + '<div class="text-[10px] text-gray-400 font-semibold">' + escapeHtml(countLabel)
+      + (c.email || c.phone ? ' · ' + escapeHtml([c.email, c.phone].filter(Boolean).join(' · ')) : '')
+      + '</div>'
       + '</div>'
       + '</button>';
   });
@@ -6998,6 +7005,14 @@ function confirmRemoveItems() {
   // Update UI (skip clarifications — triggerAssistantReparse will handle chat)
   updateUIWithoutTranscript(window.lastAiResult, true);
   window._removeSelectedItems = {};
+
+  // Show follow-up prompt
+  showTypingIndicator();
+  setTimeout(function() {
+    removeTypingIndicator();
+    addAIBubble(L.anything_else || 'Anything else to change?', null, null, {'anything-else': 'true'});
+    renderQuickActionChips();
+  }, 400);
 }
 
 function removeEntireInvoice() {
@@ -7011,6 +7026,16 @@ function removeEntireInvoice() {
     window.lastAiResult.client = null;
     window.lastAiResult.recipient_info = null;
   }
+  // Reset all conversation state so stale data doesn't leak into new recordings
+  window.clarificationHistory = [];
+  window._recentQuestions = [];
+  window._undoStack = [];
+  window._userItemOverrides = null;
+  window.clientMatchResolved = false;
+  window._wasAddClientYes = false;
+  window._newClientDetails = {};
+  window._collectingClientDetail = null;
+
   updateUIWithoutTranscript(window.lastAiResult || { sections: [], credits: [] }, true);
 
   addUserBubble(L.entire_invoice || 'Entire Invoice');
@@ -7846,7 +7871,7 @@ function handleChipRemoveTax() {
 
   addUserBubble(L.action_remove_tax || 'Remove tax');
   showTypingIndicator();
-  triggerAssistantReparse('Remove all tax from every item. Set taxable:false, labor_taxable:false, tax_rate:null, tax_scope:null on everything.', 'refinement', 'User requested change');
+  triggerAssistantReparse('Remove all tax from every item. Set taxable:false, labor_taxable:false, tax_rate:0, tax_scope:null on everything.', 'refinement', 'User requested change');
 }
 
 // ── CHIP HANDLER: MANAGE TAXES (per-item toggle widget) ──
@@ -7881,7 +7906,7 @@ function renderTaxManagementCard() {
         if (item.tax_rate && item.tax_rate > 0) {
           rate = item.tax_rate;
         } else if (item.taxable === true) {
-          rate = 18; // Default Georgian VAT
+          rate = window.profileTaxRate || 18;
         }
         items.push({ name: name, rate: rate, section: sec.type || 'labor' });
       });
@@ -8083,7 +8108,7 @@ function renderTaxManagementInQueue(clarification) {
         if (item.tax_rate && item.tax_rate > 0) {
           rate = item.tax_rate;
         } else if (item.taxable === true) {
-          rate = 18;
+          rate = window.profileTaxRate || 18;
         }
         items.push({ name: name, rate: rate, section: sec.type || 'labor' });
       });
@@ -8305,9 +8330,13 @@ function applyTaxTextDirectly(text) {
   });
   if (allItems.length === 0) return;
 
-  // Pattern 1: "remove all tax" / "გადასახადი მოხსენი" / "0 tax" / "ყველა 0" / "tax free" / "ნუ დაადებ დღგ-ს" / "დღგ-ს გარეშე"
-  var removeAllRe = /^(remove\s+all\s+tax|no\s+tax|tax\s*free|without\s+tax|0\s*%?\s*(tax|დღგ)|გადასახად\w*\s+(მოხსენ|წაშალ|არ)|ყველა\s+0\s*%?|ნუ\s+დაადებ\s+დღგ|დღგ[‐\-]?ს?\s+გარეშე|არ\s+დაადო\s+გადასახად|დღგ\s+(მოხსენ|წაშალ|არ)|დღგ\s+ნუ)\s*$/i;
-  if (removeAllRe.test(t)) {
+  // Pattern 1: Remove all tax — keyword-based detection (no anchored regex)
+  var removeAllKeywords = ['remove all tax','no tax','tax free','without tax','0% tax','0 tax',
+    'გადასახად','ყველა 0','ნუ დაადებ დღგ','დღგ გარეშე','არ დაადო','დღგ მოხსენ',
+    'დღგ მოაშორ','დღგ წაშალ','დღგ ნუ','არ დაბეგრ','არაფერი დაბეგრ','ნუ დაბეგრავ',
+    'მოაშორე დაბეგვრ','დაბეგვრა მოაშორ'];
+  var isRemoveAll = removeAllKeywords.some(function(k){ return t.indexOf(k) !== -1; });
+  if (isRemoveAll) {
     allItems.forEach(function(item) { item.taxable = false; item.tax_rate = 0; });
     _lockCurrentTaxRates();
     updateUIWithoutTranscript(window.lastAiResult, true);
@@ -8938,6 +8967,10 @@ function finishClientDetailCollection() {
     if (!window.lastAiResult.recipient_info) {
       window.lastAiResult.recipient_info = {};
     }
+    // Guard: if user rejected existing client, ensure client_id stays cleared
+    if (window.lastAiResult.recipient_info.is_new) {
+      delete window.lastAiResult.recipient_info.client_id;
+    }
     if (details.email) window.lastAiResult.recipient_info.email = details.email;
     if (details.phone) window.lastAiResult.recipient_info.phone = details.phone;
     if (details.address) window.lastAiResult.recipient_info.address = details.address;
@@ -9198,6 +9231,96 @@ async function submitAssistantMessage() {
   triggerAssistantReparse(userMessage, type, questionsText);
 }
 
+// ── Sync manual DOM edits back into lastAiResult so AI sees current state ──
+function syncLastAiResultFromDOM() {
+  if (!window.lastAiResult || !window.lastAiResult.sections) return;
+
+  // Build a map of current DOM values by section type
+  var domSections = [];
+
+  // Labor items
+  var laborContainer = document.getElementById('laborItemsContainer');
+  var laborGroup = document.getElementById('laborGroup');
+  if (laborContainer && (!laborGroup || !laborGroup.classList.contains('hidden'))) {
+    var laborItems = [];
+    laborContainer.querySelectorAll('.labor-item-row').forEach(function(row) {
+      var desc = (row.querySelector('.labor-item-input') || {}).value || '';
+      var price = (row.querySelector('.labor-price-input') || {}).value || '';
+      var taxRate = (row.querySelector('.tax-menu-input') || {}).value || '';
+      var rateVal = (row.querySelector('.rate-menu-input') || {}).value || '';
+      var discFlat = (row.querySelector('.discount-flat-input') || {}).value || '';
+      var discPercent = (row.querySelector('.discount-percent-input') || {}).value || '';
+      if (desc.trim() || parseFloat(price) > 0) {
+        laborItems.push({
+          desc: desc, price: parseFloat(price) || 0, rate: parseFloat(rateVal) || 0,
+          taxable: taxRate !== '' && parseFloat(taxRate) > 0,
+          tax_rate: parseFloat(taxRate) || 0,
+          mode: row.dataset.billingMode || 'hourly',
+          discount_flat: parseFloat(discFlat) || 0,
+          discount_percent: parseFloat(discPercent) || 0
+        });
+      }
+    });
+    if (laborItems.length > 0) domSections.push({ type: 'labor', items: laborItems });
+  }
+
+  // Dynamic sections (materials, expenses, fees, etc.)
+  document.querySelectorAll('.dynamic-section').forEach(function(sec) {
+    var titleEl = sec.querySelector('.section-title');
+    var title = titleEl ? (titleEl.value || titleEl.innerText || '').trim() : '';
+    var secType = sec.dataset.protected || title.toLowerCase();
+    var items = [];
+    sec.querySelectorAll('.item-row').forEach(function(row) {
+      var desc = (row.querySelector('.item-input') || {}).value || '';
+      var price = (row.querySelector('.price-menu-input') || {}).value || '';
+      var taxRate = (row.querySelector('.tax-menu-input') || {}).value || '';
+      var qty = (row.querySelector('.qty-input') || {}).value || '1';
+      var discFlat = (row.querySelector('.discount-flat-input') || {}).value || '';
+      var discPercent = (row.querySelector('.discount-percent-input') || {}).value || '';
+      if (desc.trim() || parseFloat(price) > 0) {
+        items.push({
+          desc: desc, price: parseFloat(price) || 0, qty: qty,
+          taxable: taxRate !== '' && parseFloat(taxRate) > 0,
+          tax_rate: parseFloat(taxRate) || 0,
+          discount_flat: parseFloat(discFlat) || 0,
+          discount_percent: parseFloat(discPercent) || 0
+        });
+      }
+    });
+    if (items.length > 0) domSections.push({ type: secType, items: items });
+  });
+
+  // Match DOM sections back to lastAiResult sections by type
+  domSections.forEach(function(domSec) {
+    var match = window.lastAiResult.sections.find(function(s) {
+      return s.type && s.type.toLowerCase().indexOf(domSec.type) !== -1;
+    });
+    if (match && match.items) {
+      // Update item-level fields from DOM (prices, quantities, tax, discounts)
+      domSec.items.forEach(function(domItem, i) {
+        if (i < match.items.length) {
+          var aiItem = match.items[i];
+          aiItem.price = domItem.price;
+          aiItem.taxable = domItem.taxable;
+          aiItem.tax_rate = domItem.tax_rate;
+          aiItem.discount_flat = domItem.discount_flat;
+          aiItem.discount_percent = domItem.discount_percent;
+          if (domItem.qty) aiItem.qty = domItem.qty;
+          if (domItem.rate) aiItem.rate = domItem.rate;
+          if (domItem.mode) aiItem.mode = domItem.mode;
+          if (domItem.desc && domItem.desc.trim()) aiItem.desc = domItem.desc;
+        }
+      });
+    }
+  });
+
+  // Also sync client name from DOM
+  var clientInput = document.getElementById('editClient');
+  if (clientInput && clientInput.value && window.lastAiResult) {
+    window.lastAiResult.client = clientInput.value;
+  }
+}
+
 async function triggerAssistantReparse(userAnswer, type, questionsText) {
   const input = document.getElementById('assistantInput');
   const currentQuestions = questionsText || (type === 'clarification'
@@ -9228,8 +9351,9 @@ async function triggerAssistantReparse(userAnswer, type, questionsText) {
   // SKIP for batch messages — tax already applied directly by confirmTaxQueue
   var isBatchMsg = userAnswer && userAnswer.indexOf('[AI asked:') !== -1;
   if (!isBatchMsg) {
-    var taxTextRe = /(?:დღგ|tax|გადასახად|taxable|tax_rate)\s*.*\d+\s*%?|(?:\d+\s*%?\s*(?:დღგ|tax))|(?:დანარჩენი|rest|others?)\s+\d+|(?:0\s*[-–]?\s*(?:ია|%))|(?:\d+\s*[-–]?\s*ია)/i;
-    if (taxTextRe.test(userAnswer)) {
+    var lc = userAnswer.toLowerCase();
+    var hasTaxKeyword = ['tax','დღგ','დაბეგვრ','დაბეგრ','მოაშორე','გადასახად','taxable','tax free','ია%','% tax'].some(function(k){ return lc.indexOf(k) !== -1; });
+    if (hasTaxKeyword || /\d+\s*%/.test(lc)) {
       applyTaxTextDirectly(userAnswer);
     }
   }
@@ -9271,6 +9395,8 @@ async function triggerAssistantReparse(userAnswer, type, questionsText) {
 
   // Use /refine_invoice with existing JSON if available
   if (window.lastAiResult) {
+    // Sync any manual DOM edits (prices, quantities, etc.) back into lastAiResult
+    syncLastAiResultFromDOM();
     try {
       var reqBody = JSON.stringify({
         current_json: window.lastAiResult,
