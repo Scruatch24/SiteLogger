@@ -3414,12 +3414,15 @@ function addFullSection(title, items, isProtected = false, explicitType = null) 
         items.forEach(item => {
           if (!item) return;
           const val = typeof item === 'object' ? (item.desc || "") : item;
-          const price = typeof item === 'object' ? (item.price ?? "") : "";
-          const mode = typeof item === 'object' ? (item.mode || "") : "";
+          const itemMode = typeof item === 'object' ? (item.mode || "") : "";
+          const resolvedMode = itemMode || currentLogBillingMode;
+          // For hourly mode, the "price" field in addLaborItem = hours count, not total price
+          const price = typeof item === 'object' ? (resolvedMode === 'hourly' && item.hours != null && item.hours !== '' ? item.hours : (item.price ?? "")) : "";
+          const mode = itemMode;
           const taxable = typeof item === 'object' ? (item.taxable) : null;
           const discFlat = typeof item === 'object' ? (item.discount_flat || "") : "";
           const discPercent = typeof item === 'object' ? (item.discount_percent || "") : "";
-          const taxRate = typeof item === 'object' ? (item.tax_rate != null && item.tax_rate !== '' ? item.tax_rate : (item.taxable === true ? (profileTaxRate || 18) : "")) : "";
+          const taxRate = typeof item === 'object' ? (item.taxable === false ? 0 : (item.tax_rate != null && item.tax_rate !== '' ? item.tax_rate : (item.taxable === true ? (profileTaxRate || 18) : ""))) : "";
           const rate = typeof item === 'object' ? (item.rate ?? "") : "";
 
           const sub_categories = (item && typeof item === 'object') ? (item.sub_categories || []) : [];
@@ -3545,7 +3548,10 @@ function addFullSection(title, items, isProtected = false, explicitType = null) 
         if (item.taxable !== undefined && item.taxable !== null) {
           taxable = item.taxable;
         }
-        if (item.tax_rate != null && item.tax_rate !== '') {
+        // CRITICAL: taxable===false → taxRate=0, taxable===true → use item rate or profile default
+        if (item.taxable === false) {
+          taxRate = 0;
+        } else if (item.tax_rate != null && item.tax_rate !== '') {
           taxRate = item.tax_rate;
         } else if (item.taxable === true) {
           taxRate = profileTaxRate || 18;
@@ -3936,12 +3942,15 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
     }
   }
 
-  // If taxable is true but no explicit taxRate, pre-fill with profileTaxRate for inline input
-  if (taxable && (!taxRate || taxRate === '' || taxRate === '0')) {
+  // CRITICAL: taxable===false must ALWAYS have taxRate=0, never profileTaxRate
+  if (taxable === false) {
+    taxRate = 0;
+  } else if (taxable === true && (!taxRate || taxRate === '' || parseFloat(taxRate) <= 0)) {
+    // Only pre-fill with profileTaxRate when taxable is explicitly true
     taxRate = profileTaxRate;
   }
 
-  div.dataset.taxable = (taxRate !== null && taxRate !== undefined && taxRate !== '' && parseFloat(taxRate) > 0) ? 'true' : 'false';
+  div.dataset.taxable = (taxable === true && taxRate !== null && taxRate !== undefined && taxRate !== '' && parseFloat(taxRate) > 0) ? 'true' : 'false';
 
   const currencySymbol = activeCurrencySymbol;
   div.dataset.symbol = currencySymbol;
@@ -5011,10 +5020,11 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
 
 
 
-  // Default Tax Rate
-  const globalRate = profileTaxRate;
-  if ((taxRate === null || taxRate === undefined || taxRate === '') && taxable) {
-    taxRate = globalRate;
+  // CRITICAL: taxable===false must ALWAYS have taxRate=0, never profileTaxRate
+  if (taxable === false) {
+    taxRate = 0;
+  } else if (taxable === true && (taxRate === null || taxRate === undefined || taxRate === '' || parseFloat(taxRate) <= 0)) {
+    taxRate = profileTaxRate;
   }
 
   // Determine divider color based on section type
@@ -6542,8 +6552,6 @@ function renderQuickActionChips() {
   if (hasItems) {
     chips.push({ label: L.action_manage_tax || 'Manage Taxes', handler: 'handleChipManageTax', icon: '<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>', color: 'default' });
     chips.push({ label: L.action_remove_item || 'Remove', handler: 'handleChipRemoveItem', icon: '<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>', color: 'red' });
-    // Always show Create Invoice chip so user can manually open PDF preview
-    chips.push({ label: L.action_create_invoice || 'Create Invoice', handler: 'handleChipCreateInvoice', icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>', color: 'orange' });
   }
 
   var chipHtml = '';
@@ -6716,7 +6724,7 @@ function renderClientListCard(clarification) {
     + '<div class="max-w-[85%]">'
     + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
     + '<div class="text-xs font-bold text-gray-800 mb-2.5">' + escapeHtml(questionText) + '</div>'
-    + '<div class="space-y-1.5 max-h-[300px] overflow-y-auto client-list-scroll">' + clientCards + '</div>'
+    + '<div class="space-y-1.5 max-h-[300px] overflow-y-auto client-list-scroll p-1 -m-1">' + clientCards + '</div>'
     + '<div class="flex gap-2 mt-3">'
     + '<button type="button" onclick="confirmClientListSelection(this)" class="client-list-confirm flex-1 px-3 py-2 rounded-xl bg-orange-500 text-white text-xs font-bold hover:bg-orange-600 transition-all active:scale-[0.97] opacity-40 cursor-not-allowed" disabled>' + escapeHtml(confirmLabel) + '</button>'
     + '<button type="button" onclick="cancelClientListSelection(this)" class="px-3 py-2 rounded-xl border border-gray-300 text-gray-500 text-xs font-bold hover:bg-gray-100 transition-all active:scale-[0.97]">' + escapeHtml(cancelLabel) + '</button>'
@@ -7891,7 +7899,7 @@ function renderTaxManagementCard() {
       + '<input type="number" min="0" max="100" step="1" value="' + pct + '" data-tax-idx="' + idx + '" onchange="onTaxInputChange(this)" oninput="onTaxInputChange(this)" class="tax-rate-input w-10 text-center text-[11px] font-bold border border-gray-200 rounded-md px-0.5 py-0.5 focus:outline-none focus:border-orange-400 transition-all" style="color:' + (pct > 0 ? '#364153' : '#9ca3af') + '" />' 
       + '<span class="text-[10px] font-bold text-gray-400">%</span>'
       + '</div></div>'
-      + '<input type="range" min="0" max="100" step="1" value="' + pct + '" data-tax-idx="' + idx + '" oninput="onTaxSliderChange(this)" class="tax-rate-slider w-full h-1.5 rounded-full appearance-none cursor-pointer ' + barColor + '" style="accent-color:#364153;background:linear-gradient(to right,#364153 ' + pct + '%,#e5e7eb ' + pct + '%)" />'
+      + '<input type="range" min="0" max="100" step="1" value="' + pct + '" data-tax-idx="' + idx + '" oninput="onTaxSliderChange(this)" onchange="onTaxSliderChange(this)" ontouchmove="onTaxSliderChange(this)" class="tax-rate-slider w-full h-1.5 rounded-full appearance-none cursor-pointer ' + barColor + '" style="accent-color:#364153;background:linear-gradient(to right,#364153 ' + pct + '%,#e5e7eb ' + pct + '%)" />'
       + '</div>';
   });
 
@@ -8099,7 +8107,7 @@ function renderTaxManagementInQueue(clarification) {
       + '<input type="number" min="0" max="100" step="1" value="' + pct + '" data-taxq-idx="' + idx + '" onchange="onTaxQueueInputChange(this)" oninput="onTaxQueueInputChange(this)" class="taxq-rate-input w-10 text-center text-[11px] font-bold border border-gray-200 rounded-md px-0.5 py-0.5 focus:outline-none focus:border-orange-400 transition-all" style="color:' + (pct > 0 ? '#364153' : '#9ca3af') + '" />'
       + '<span class="text-[10px] font-bold text-gray-400">%</span>'
       + '</div></div>'
-      + '<input type="range" min="0" max="100" step="1" value="' + pct + '" data-taxq-idx="' + idx + '" oninput="onTaxQueueSliderChange(this)" class="taxq-rate-slider w-full h-1.5 rounded-full appearance-none cursor-pointer" style="accent-color:#364153;background:linear-gradient(to right,#364153 ' + pct + '%,#e5e7eb ' + pct + '%)" />'
+      + '<input type="range" min="0" max="100" step="1" value="' + pct + '" data-taxq-idx="' + idx + '" oninput="onTaxQueueSliderChange(this)" onchange="onTaxQueueSliderChange(this)" ontouchmove="onTaxQueueSliderChange(this)" class="taxq-rate-slider w-full h-1.5 rounded-full appearance-none cursor-pointer" style="accent-color:#364153;background:linear-gradient(to right,#364153 ' + pct + '%,#e5e7eb ' + pct + '%)" />'
       + '</div>';
   });
 

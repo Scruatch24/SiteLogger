@@ -1826,10 +1826,12 @@ PROMPT
         if exact_match
           recipient_info = { "client_id" => exact_match.id, "name" => exact_match.name, "email" => exact_match.email, "phone" => exact_match.phone, "address" => exact_match.address }
           json["client"] = exact_match.name
-          # Ask user to confirm this is the right client
-          confirm_q = I18n.locale.to_s == "ka" ? t("client_exists_confirm") : t("client_exists_confirm")
-          json["clarifications"] ||= []
-          json["clarifications"] << { "field" => "client_confirm_existing", "type" => "yes_no", "question" => confirm_q, "client_name" => exact_match.name, "client_id" => exact_match.id }
+          # Only confirm if client is new/rare (<3 invoices) — well-known clients don't need confirmation
+          if exact_match.logs.kept.count < 3
+            confirm_q = t("client_exists_confirm")
+            json["clarifications"] ||= []
+            json["clarifications"] << { "field" => "client_confirm_existing", "type" => "yes_no", "question" => confirm_q, "client_name" => exact_match.name, "client_id" => exact_match.id }
+          end
         else
           # Tier 2: Fuzzy match — ILIKE pattern + normalized comparison
           safe_name = client_name.gsub(/[%_]/, "")
@@ -1992,8 +1994,11 @@ PROMPT
         if exact_match
           result["recipient_info"] = { "client_id" => exact_match.id, "name" => exact_match.name, "email" => exact_match.email, "phone" => exact_match.phone, "address" => exact_match.address }
           result["client"] = exact_match.name
-          confirm_q = t("client_exists_confirm")
-          result["clarifications"] << { "field" => "client_confirm_existing", "type" => "yes_no", "question" => confirm_q, "client_name" => exact_match.name, "client_id" => exact_match.id }
+          # Only confirm if client is new/rare (<3 invoices)
+          if exact_match.logs.kept.count < 3
+            confirm_q = t("client_exists_confirm")
+            result["clarifications"] << { "field" => "client_confirm_existing", "type" => "yes_no", "question" => confirm_q, "client_name" => exact_match.name, "client_id" => exact_match.id }
+          end
         else
           # Tier 2: Fuzzy match
           safe_name = new_client_name.gsub(/[%_]/, "")
@@ -2011,8 +2016,11 @@ PROMPT
             match = similar.first
             result["recipient_info"] = { "client_id" => match.id, "name" => match.name, "email" => match.email, "phone" => match.phone, "address" => match.address }
             result["client"] = match.name
-            confirm_q = t("client_exists_confirm")
-            result["clarifications"] << { "field" => "client_confirm_existing", "type" => "yes_no", "question" => confirm_q, "client_name" => match.name, "client_id" => match.id }
+            # Only confirm if client is new/rare (<3 invoices)
+            if match.logs.kept.count < 3
+              confirm_q = t("client_exists_confirm")
+              result["clarifications"] << { "field" => "client_confirm_existing", "type" => "yes_no", "question" => confirm_q, "client_name" => match.name, "client_id" => match.id }
+            end
           elsif similar.length > 1
             similar_with_counts = similar.map { |c| { "id" => c.id, "name" => c.name, "invoices_count" => c.logs.kept.count } }
               .sort_by { |c| -c["invoices_count"] }
@@ -2187,7 +2195,8 @@ PROMPT
       • Materials price = per-unit. qty:5, price:50 = 50 each.
       • New items without price → price: null (backend makes a price widget).
       • Client names — don't ask, backend handles matching.
-      • When user asks to see/list clients → return JSON UNCHANGED + reply listing them. Backend generates a client selection widget.
+      • When user asks to see/list clients → return JSON UNCHANGED + reply with a short acknowledgment. Backend generates a client selection widget. Do NOT list client IDs or names in reply.
+      • GEORGIAN LANGUAGE: NEVER use "ელემენტები" or "პოზიციები" in replies. Use natural terms: "ნივთი", "სერვისი", "მასალა", or item names directly.
       • When user says "დააბრუნე"/"undo" → check conversation history for what was changed and reverse it.
       • [AI asked: ...] messages: ALWAYS apply the answer. Never ignore, never re-ask.
       • Keep raw_summary unchanged.
@@ -2376,6 +2385,8 @@ PROMPT
             "question" => question_text,
             "clients" => client_data
           }
+          # Suppress AI reply text — the widget is the reply
+          result["reply"] = nil
         end
       end
 
@@ -2400,9 +2411,13 @@ PROMPT
         if exact_match
           result["recipient_info"] = { "client_id" => exact_match.id, "name" => exact_match.name, "email" => exact_match.email, "phone" => exact_match.phone, "address" => exact_match.address }
           result["client"] = exact_match.name
-          # Confirm existing client
-          confirm_q = t("client_exists_confirm")
-          result["clarifications"] << { "field" => "client_confirm_existing", "type" => "yes_no", "question" => confirm_q, "client_name" => exact_match.name, "client_id" => exact_match.id }
+          # Only confirm existing client if: <3 invoices (new/rare client) AND initial analysis (not refinement)
+          is_initial_analysis = params[:source].to_s == "initial" || params[:source].to_s == "live_transcript"
+          invoice_count = exact_match.logs.kept.count
+          if invoice_count < 3 && is_initial_analysis
+            confirm_q = t("client_exists_confirm")
+            result["clarifications"] << { "field" => "client_confirm_existing", "type" => "yes_no", "question" => confirm_q, "client_name" => exact_match.name, "client_id" => exact_match.id }
+          end
         else
           # Tier 2: Fuzzy match — ILIKE + normalized comparison, exclude current client
           safe_name = client_name.gsub(/[%_]/, "")

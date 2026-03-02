@@ -251,7 +251,7 @@ ka:
   action_change_date: "თარიღის შეცვლა"
   action_remove_tax: "გადასახადის მოშორება"
   action_manage_tax: "გადასახადის მართვა"
-  tax_management_prompt: "რომელ ელემენტებს ეხება გადასახადი?"
+  tax_management_prompt: "რას ეხება გადასახადი?"
   tax_on: "ჩართულია"
   tax_off: "გამორთულია"
   tax_remove_all: "არცერთ"
