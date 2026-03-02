@@ -16,7 +16,7 @@ Rails.application.configure do
                        "https://buy.paddle.com",
                        "https://sandbox-buy.paddle.com"
     policy.media_src   :self, :blob  # For audio recording
-    policy.script_src  :self, :https, :unsafe_inline, :unsafe_eval,
+    policy.script_src  :self, :https, :unsafe_inline,
                        "https://cdn.paddle.com", "https://sandbox-cdn.paddle.com",  # Paddle JS
                        "https://eu.i.posthog.com", "https://eu-assets.i.posthog.com",  # PostHog
                        "https://t.talkinvoice.online"  # PostHog reverse proxy

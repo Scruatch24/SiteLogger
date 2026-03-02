@@ -9,10 +9,9 @@ development:
   url: <%= ENV["DATABASE_URL"] %>
 
 test:
-  adapter: sqlite3
-  database: db/test.sqlite3
+  adapter: postgresql
+  url: <%= ENV.fetch("DATABASE_URL", "postgres://localhost/sitelogger2_test") %>
   pool: 5
-  timeout: 5000
 
 production:
   <<: *default

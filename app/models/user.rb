@@ -3,6 +3,8 @@ class User < ApplicationRecord
   # :confirmable, :lockable, :timeoutable, :trackable and :omniauthable
   devise :database_authenticatable, :registerable,
          :recoverable, :rememberable, :validatable, :confirmable,
+         :lockable, lock_strategy: :failed_attempts, unlock_strategy: :time,
+         maximum_attempts: 10, unlock_in: 15.minutes,
          :omniauthable, omniauth_providers: [ :google_oauth2 ]
 
   has_many :logs, dependent: :destroy

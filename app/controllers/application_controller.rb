@@ -51,22 +51,16 @@ class ApplicationController < ActionController::Base
 
   def detect_country_by_ip
     ip = client_ip
-    # Use nil for local/unknown to trigger default
     return nil if ip.blank? || ip == "127.0.0.1" || ip == "::1" || ip.start_with?("192.168.", "10.", "172.")
 
-    begin
-      require "net/http"
-      require "json"
-      uri = URI("http://ip-api.com/json/#{ip}?fields=countryCode")
-      http = Net::HTTP.new(uri.host, uri.port)
-      http.read_timeout = 2
-      http.open_timeout = 2
-      response = http.request(Net::HTTP::Get.new(uri))
-      JSON.parse(response.body)["countryCode"] if response.is_a?(Net::HTTPSuccess)
-    rescue StandardError => e
-      Rails.logger.warn("detect_country_by_ip failed for #{ip}: #{e.message}")
-      nil
-    end
+    # Use Accept-Language header as a lightweight locale hint instead of
+    # making a synchronous external HTTP call that blocks the request.
+    accept_lang = request.env["HTTP_ACCEPT_LANGUAGE"].to_s.downcase
+    return "GE" if accept_lang.start_with?("ka")
+    nil
+  rescue StandardError => e
+    Rails.logger.warn("detect_country_by_ip failed: #{e.message}")
+    nil
   end
 
   def set_profile

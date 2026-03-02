@@ -20,6 +20,28 @@ class Rack::Attack
     end
   end
 
+  ### Login/Registration Brute-Force Protection ###
+  # Limit login attempts to 10 per minute per IP.
+  throttle("logins/ip", limit: 10, period: 1.minute) do |req|
+    if req.path == "/users/sign_in" && req.post?
+      req.ip
+    end
+  end
+
+  # Limit registration attempts to 5 per minute per IP.
+  throttle("signups/ip", limit: 5, period: 1.minute) do |req|
+    if req.path == "/users" && req.post?
+      req.ip
+    end
+  end
+
+  # Limit password reset requests to 5 per minute per IP.
+  throttle("password_resets/ip", limit: 5, period: 1.minute) do |req|
+    if req.path == "/users/password" && req.post?
+      req.ip
+    end
+  end
+
   ### Settings Save Protection ###
   # Limit to 10 requests per minute per IP.
   throttle("save_settings/ip", limit: 10, period: 1.minute) do |req|

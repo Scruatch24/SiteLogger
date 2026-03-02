@@ -7,4 +7,5 @@ class Category < ApplicationRecord
   has_one_attached :custom_icon
 
   validates :name, presence: true
+  validates :name, uniqueness: { scope: :user_id, case_sensitive: false }
 end

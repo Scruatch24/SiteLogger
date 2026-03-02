@@ -2445,7 +2445,6 @@ document.addEventListener("DOMContentLoaded", () => {
               }
             }
 
-            console.log("PDF Resize:", { isIOS, isMobile, width, pageCount });
           }
         };
 
@@ -3002,8 +3001,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (reviewCont) {
     reviewCont.addEventListener('input', () => {
       if (logAlreadySaved) {
-        console.log("Form changed - resetting save state");
-        logAlreadySaved = false;
+          logAlreadySaved = false;
         savedLogId = null;
         savedLogDisplayNumber = null;
         savedLogClient = null;
@@ -3914,8 +3912,6 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
   const div = document.createElement('div');
   div.className = "flex flex-col gap-2 w-full labor-item-row animate-in fade-in slide-in-from-left-2 duration-300 border-t-2 border-dashed pt-6 mt-6 first:border-0 first:pt-0 first:mt-0";
   div.style.borderColor = "#EA580C";
-  // Log ALL addLaborItem attempts for diagnostics
-  console.log(`[addLaborItem CALL] Description: "${value}" | Price: "${price}" | TaxableArg: ${taxable} | Scope: "${currentLogTaxScope}"`);
 
   // Resolve initial billing mode EARLY so tax logic can use effective defaults
   let initialMode = mode || currentLogBillingMode;
@@ -3933,7 +3929,6 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
     if (!hasPrice) {
       // No price and no rate, no taxable - regardless of scope
       taxable = false;
-      console.log(`[addLaborItem TAX DECISION] No price/rate, setting taxable=false`);
     } else {
       const scopeData = (currentLogTaxScope || "").toLowerCase();
       const scope = scopeData.split(",").map(t => t.trim());
@@ -3944,7 +3939,6 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
       // If scope includes "all" or "labor", the item should be taxable by default
       taxable = (taxAll || hasLaborScope);
 
-      console.log(`[addLaborItem TAX DECISION] Final: ${taxable} | Scope: "${scopeData}"`);
     }
   }
 
@@ -4983,8 +4977,6 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
     else finalValue = window.APP_LANGUAGES.item || "Item";
   }
 
-  // Log ALL addItem attempts for diagnostics
-  console.log(`[addItem CALL] Section: "${sectionTitle}" | Price: "${price}" | TaxableArg: ${taxable} | Scope: "${currentLogTaxScope}"`);
 
   // If taxable is exactly false, we respect it as "No Tax".
   // null = check defaults, BUT only if there's a price to tax!
@@ -4995,7 +4987,6 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
     if (!hasPrice) {
       // No price, no taxable - regardless of scope
       taxable = false;
-      console.log(`[addItem TAX DECISION] No price, setting taxable=false`);
     } else {
       // Has price, check tax scope
       const scopeData = (currentLogTaxScope || "").toLowerCase();
@@ -5018,7 +5009,6 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
         else taxable = false;
       }
 
-      console.log(`[addItem TAX DECISION] Final: ${taxable} | SectionUsed: ${isLaborSection ? 'Labor' : isMaterialSection ? 'Products' : 'Other'} | Scope: "${scopeData}"`);
     }
   }
 
@@ -5289,7 +5279,6 @@ function updateUI(data) {
 
     // Set tax scope (AI-detected or profile default)
     currentLogTaxScope = data.tax_scope || window.profileTaxScope || "tax_excluded";
-    console.log("[updateUI] currentLogTaxScope set to:", currentLogTaxScope);
 
     // Hide all protected sections by default - they will be shown only if AI returns relevant data
     removeLaborSection();
@@ -8441,7 +8430,6 @@ function applyTaxTextDirectly(text) {
   }
 
   // No pattern matched — leave for AI to handle
-  console.log('[applyTaxTextDirectly] No pattern matched for:', text);
 }
 
 // ── CHIP HANDLER: ADD ITEM (conversation starter → AI) ──

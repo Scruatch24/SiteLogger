@@ -36,3 +36,17 @@
 /app/assets/builds/*
 !/app/assets/builds/.keep
 !/app/assets/javascripts/home_legacy.js
+
+# Debug/temp scripts (never commit these)
+/check_*.rb
+/cleanup_*.rb
+/debug_*.rb
+/simple_webhook_test.rb
+/test_*.rb
+!/test/
+/temp_input.txt
+/server_log.txt
+/brakeman_report.json
+
+# Test database
+/db/test.sqlite3

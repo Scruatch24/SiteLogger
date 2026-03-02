@@ -95,12 +95,10 @@ Rails.application.configure do
   config.active_record.attributes_for_inspect = [ :id ]
 
   # Enable DNS rebinding protection and other `Host` header attacks.
-  # Enable DNS rebinding protection and other `Host` header attacks.
   config.hosts = [
     "talkinvoice.online",
     "www.talkinvoice.online",
-    "sitelogger-vsn9.onrender.com",
-    /.*\.onrender\.com/ # Allow any render subdomain for safety
+    "sitelogger-vsn9.onrender.com"
   ]
   #
   # Skip DNS rebinding protection for the default health check endpoint.

@@ -5,8 +5,7 @@ class TrackingController < ApplicationController
 
   def track
     event_name = params[:event_name]
-    user_id = params[:user_id].to_s
-    user_id = nil if user_id.blank? || user_id == "null"
+    user_id = user_signed_in? ? current_user.id : nil
     session_id = params[:session_id].presence
     target_id = params[:target_id].presence
     ip_address = client_ip

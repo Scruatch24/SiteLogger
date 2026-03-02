@@ -39,6 +39,16 @@ class HomeController < ApplicationController
           <priority>1.0</priority>
         </url>
         <url>
+          <loc>https://talkinvoice.online/pricing</loc>
+          <changefreq>monthly</changefreq>
+          <priority>0.8</priority>
+        </url>
+        <url>
+          <loc>https://talkinvoice.online/contact</loc>
+          <changefreq>monthly</changefreq>
+          <priority>0.6</priority>
+        </url>
+        <url>
           <loc>https://talkinvoice.online/users/sign_in</loc>
           <changefreq>monthly</changefreq>
           <priority>0.5</priority>
@@ -47,6 +57,21 @@ class HomeController < ApplicationController
           <loc>https://talkinvoice.online/users/sign_up</loc>
           <changefreq>monthly</changefreq>
           <priority>0.6</priority>
+        </url>
+        <url>
+          <loc>https://talkinvoice.online/terms</loc>
+          <changefreq>yearly</changefreq>
+          <priority>0.3</priority>
+        </url>
+        <url>
+          <loc>https://talkinvoice.online/privacy</loc>
+          <changefreq>yearly</changefreq>
+          <priority>0.3</priority>
+        </url>
+        <url>
+          <loc>https://talkinvoice.online/refund</loc>
+          <changefreq>yearly</changefreq>
+          <priority>0.3</priority>
         </url>
       </urlset>
     XML
