@@ -2140,7 +2140,7 @@ document.addEventListener("DOMContentLoaded", () => {
           laborItems.push({
             desc: desc, price: price, rate: rateVal, taxable: taxable,
             mode: row.dataset.billingMode || "hourly",
-            tax_rate: taxable ? taxRate : null,
+            tax_rate: taxable ? taxRate : 0,
             discount_flat: discFlat || "0", discount_percent: discPercent || "0",
             discount_message: discMessage, sub_categories: subs
           });
@@ -2171,7 +2171,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (hasVal || hasPrice) {
           items.push({
             desc: desc, price: price, qty: qty, taxable: taxable,
-            tax_rate: (taxable && taxRate) ? taxRate : null,
+            tax_rate: taxable ? taxRate : 0,
             discount_flat: discFlat || "0", discount_percent: discPercent || "0",
             discount_message: discMessage, sub_categories: subs
           });

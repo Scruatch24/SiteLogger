@@ -869,6 +869,7 @@ class HomeController < ApplicationController
 
   def process_audio
     @_analytics_start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    ai_log = { ts: Time.current.iso8601, action: "process_audio", user_id: current_user&.id }
     api_key = ENV["GEMINI_API_KEY"]
     has_audio = params[:audio].present?
     is_manual_text = !has_audio && params[:manual_text].present?
@@ -939,6 +940,20 @@ class HomeController < ApplicationController
     # NOTE: AI language should not be affected by UI/system language
     doc_language = params[:language] || @profile.try(:transcription_language) || session[:transcription_language] || @profile.try(:document_language) || "en"
     target_is_georgian = (doc_language == "ge" || doc_language == "ka")
+
+    ai_log[:input] = {
+      type: is_manual_text ? "manual_text" : "audio",
+      language: doc_language,
+      billing_mode: mode,
+      tax_scope: @profile.tax_scope,
+      tax_rate: @profile.tax_rate,
+      hourly_rate: @profile.hourly_rate,
+      text_preview: (params[:manual_text].to_s.truncate(500) if is_manual_text),
+      text_length: (params[:manual_text].to_s.length if is_manual_text),
+      audio_duration: (params[:audio_duration].to_f if has_audio),
+      has_browser_transcript: params[:browser_transcript].present?,
+      browser_transcript_preview: (params[:browser_transcript].to_s.truncate(300) if params[:browser_transcript].present?)
+    }.compact
 
     lang_context = if target_is_georgian
       "████ TARGET LANGUAGE: GEORGIAN (ქართული) ████ ALL text content in the output JSON MUST be in Georgian. This applies to: \"desc\", \"name\", \"reason\", \"raw_summary\", \"sub_categories\" text, and \"client\". JSON field NAMES and section keys (\"labor\", \"materials\", etc.) stay in English — only VALUES are Georgian. WARNING: The examples in this prompt are in English for readability; you MUST output Georgian text regardless. E.g., 'Filter Replacement' → 'ფილტრის შეცვლა', 'Nails' → 'ლურსმნები', 'AC Repair' → 'კონდიციონერის შეკეთება'. If user input is already Georgian, keep it Georgian. If user input is English, translate values to Georgian."
@@ -1360,6 +1375,14 @@ PROMPT
 
       thinking_budget = (ENV["GEMINI_THINKING_BUDGET"].presence || 2048).to_i
 
+      ai_log[:ai_call] = {
+        model: gemini_model,
+        cache_hit: use_cached_instruction,
+        thinking_budget: thinking_budget,
+        prompt_text_parts: prompt_parts.count { |p| p[:text].present? },
+        prompt_has_audio: prompt_parts.any? { |p| p[:inline_data].present? }
+      }
+
       body = gemini_generate_content(
         api_key: api_key,
         model: gemini_model,
@@ -1388,6 +1411,9 @@ PROMPT
 
       if body["error"].present?
         Rails.logger.error("AI MODEL ERROR (#{gemini_model}): #{body["error"].to_json}")
+        ai_log[:error] = body["error"]
+        ai_log[:status] = "model_error"
+        log_ai_assistant(ai_log)
         return render json: { error: t('ai_failed_response') }, status: 500
       end
 
@@ -1396,8 +1422,22 @@ PROMPT
 
       if raw.blank?
         Rails.logger.error "AI FAILURE: No raw text in response. Body: #{body.to_json}"
+        ai_log[:error] = "empty_raw_response"
+        ai_log[:status] = "empty_response"
+        log_ai_assistant(ai_log)
         return render json: { error: t('ai_failed_response') }, status: 500
       end
+
+      # ── Log AI thinking if present ──
+      thinking_parts = parts&.select { |p| p["thought"] }&.map { |p| p["text"] }&.compact
+      if thinking_parts&.any?
+        ai_log[:ai_thinking] = thinking_parts.join("\n").truncate(3000)
+      end
+
+      ai_log[:ai_response] = {
+        raw_length: raw.length,
+        raw_preview: raw.truncate(3000)
+      }
 
       Rails.logger.info "AI RAW RESPONSE (#{gemini_model}): #{raw}"
 
@@ -1408,17 +1448,26 @@ PROMPT
           json = JSON.parse(json_match[0])
         rescue => e
           Rails.logger.error "AI JSON PARSE ERROR (#{gemini_model}): #{e.message}. Raw: #{raw}"
+          ai_log[:error] = "json_parse: #{e.message}"
         end
       else
         Rails.logger.error "AI NO JSON FOUND IN RAW (#{gemini_model}): #{raw}"
+        ai_log[:error] = "no_json_in_raw"
       end
 
-      return render json: { error: t('invalid_ai_output') }, status: 422 unless json
+      unless json
+        ai_log[:status] = "parse_failed"
+        log_ai_assistant(ai_log)
+        return render json: { error: t('invalid_ai_output') }, status: 422
+      end
 
       Rails.logger.info "AI MODEL USED: #{gemini_model}"
 
       if json["error"]
         Rails.logger.warn "AI RETURNED ERROR: #{json["error"]}"
+        ai_log[:error] = "ai_returned_error: #{json["error"]}"
+        ai_log[:status] = "ai_error"
+        log_ai_assistant(ai_log)
         return render json: { error: json["error"] }, status: 422
       end
 
@@ -1458,6 +1507,37 @@ PROMPT
 
       Rails.logger.info "AI_PROCESSED: #{json}"
 
+      # ── Log what AI returned (raw parsed, before any post-processing) ──
+      ai_log[:ai_parsed] = {
+        client: json["client"],
+        raw_summary_preview: json["raw_summary"].to_s.truncate(200),
+        billing_mode: json["billing_mode"],
+        labor_taxable: json["labor_taxable"],
+        labor_tax_rate: json["labor_tax_rate"],
+        tax_scope: json["tax_scope"],
+        global_discount: { flat: json["global_discount_flat"], pct: json["global_discount_percent"] }.compact.presence,
+        credits: json["credits"],
+        date: json["date"],
+        due_date: json["due_date"],
+        labor_items: (json["labor_service_items"] || []).map { |i|
+          next i.to_s.truncate(60) unless i.is_a?(Hash)
+          { desc: i["desc"].to_s.truncate(60), hours: i["hours"], rate: i["rate"], price: i["price"], mode: i["mode"], taxable: i["taxable"], tax_rate: i["tax_rate"], disc_flat: i["discount_flat"], disc_pct: i["discount_percent"] }.compact
+        },
+        materials: (json["materials"] || []).map { |m|
+          next m.to_s.truncate(60) unless m.is_a?(Hash)
+          { name: (m["name"] || m["desc"]).to_s.truncate(60), qty: m["qty"], price: m["unit_price"], taxable: m["taxable"], tax_rate: m["tax_rate"] }.compact
+        },
+        expenses: (json["expenses"] || []).map { |e|
+          next e.to_s.truncate(60) unless e.is_a?(Hash)
+          { name: (e["name"] || e["desc"]).to_s.truncate(60), price: e["price"], taxable: e["taxable"], tax_rate: e["tax_rate"] }.compact
+        },
+        fees: (json["fees"] || []).map { |f|
+          next f.to_s.truncate(60) unless f.is_a?(Hash)
+          { name: (f["name"] || f["desc"]).to_s.truncate(60), price: f["price"], taxable: f["taxable"], tax_rate: f["tax_rate"] }.compact
+        },
+        clarifications_from_ai: (json["clarifications"] || []).map { |c| { field: c["field"], q: c["question"].to_s.truncate(80), guess: c["guess"] }.compact }
+      }.compact
+
       # Enforce Array Safety
       %w[labor_service_items materials expenses fees credits].each { |k| json[k] = Array(json[k]) }
 
@@ -1475,6 +1555,8 @@ PROMPT
 
       unless has_any_items || has_client || has_summary
         Rails.logger.warn "AI RETURNED EMPTY RESULT: no items, no client, no meaningful summary"
+        ai_log[:status] = "empty_result"
+        log_ai_assistant(ai_log)
         return render json: { error: t('empty_audio') }, status: 422
       end
 
@@ -1833,13 +1915,70 @@ PROMPT
         json["clarifications"].reject! { |c| c.is_a?(Hash) && c["field"].to_s.match?(/\bclient\b/i) && c["field"] != "client_match" }
       end
 
+      # ── CRITICAL: Convert symbol keys → string keys so enforce methods can find items ──
+      # Section-building above uses Ruby symbol keys (type:, items:, desc:, price:, etc.)
+      # but enforce_tax/price/discount and snapshot_items_for_log use string keys ("desc", "price").
+      json["sections"].each do |sec|
+        next unless sec.is_a?(Hash)
+        sec.transform_keys!(&:to_s)
+        (sec["items"] || []).each { |item| item.transform_keys!(&:to_s) if item.is_a?(Hash) }
+      end
+
+      # ── Tax normalization: ensure tax_rate is never null/empty ──
+      # AI often returns tax_rate:null even when taxable:false — frontend interprets null as "use default" (18%)
+      pa_default_tax = (json["labor_tax_rate"] || @profile.try(:tax_rate) || 18).to_f
+      pa_tax_scope = (json["tax_scope"] || @profile.try(:tax_scope) || "").to_s.downcase
+      pa_scope_parts = pa_tax_scope.split(",").map(&:strip)
+      pa_tax_all = pa_scope_parts.include?("all") || pa_scope_parts.include?("total") || pa_scope_parts.length >= 4
+
+      json["sections"].each do |section|
+        sec_type = section["type"].to_s
+        in_scope = pa_tax_all ||
+                   (sec_type.include?("labor") && pa_scope_parts.any? { |s| s.include?("labor") }) ||
+                   (sec_type.include?("material") && pa_scope_parts.any? { |s| s.include?("material") }) ||
+                   (sec_type.include?("fee") && pa_scope_parts.any? { |s| s.include?("fee") }) ||
+                   (sec_type.include?("expense") && pa_scope_parts.any? { |s| s.include?("expense") })
+
+        (section["items"] || []).each do |item|
+          if item["taxable"] == false || item["taxable"] == "false"
+            item["tax_rate"] = 0 if item["tax_rate"].nil? || item["tax_rate"].to_s.strip == ""
+          elsif item["taxable"] == true || item["taxable"] == "true"
+            item["tax_rate"] = pa_default_tax if item["tax_rate"].nil? || item["tax_rate"].to_s.strip == ""
+          elsif item["taxable"].nil?
+            has_value = (item["price"].to_f > 0) || (item["rate"].to_f > 0 && item["hours"].to_f > 0)
+            if has_value && in_scope
+              item["taxable"] = true
+              item["tax_rate"] = pa_default_tax
+            else
+              item["taxable"] = false
+              item["tax_rate"] = 0
+            end
+          end
+        end
+      end
+
+      # ── Snapshot items BEFORE enforcement for diff logging ──
+      items_before_enforcement = snapshot_items_for_log(json)
+      ai_log[:items_after_section_build] = items_before_enforcement
+
       # ── Auto-upgrade clarifications: merge prices+qty, fix discount, convert tax ──
       auto_upgrade_clarifications!(json, (params[:language] || doc_language).to_s)
 
       # ── Backend safety-net: enforce tax/price/discount instructions the AI may have ignored ──
       enforce_tax_from_message!(json, original_input)
+      snap_after_tax = snapshot_items_for_log(json)
+      tax_diff = diff_item_snapshots(items_before_enforcement, snap_after_tax)
+      ai_log[:enforce_tax] = { changed: tax_diff.present?, diffs: tax_diff } if tax_diff
+
       enforce_prices_from_message!(json, original_input)
+      snap_after_prices = snapshot_items_for_log(json)
+      price_diff = diff_item_snapshots(snap_after_tax, snap_after_prices)
+      ai_log[:enforce_prices] = { changed: price_diff.present?, diffs: price_diff } if price_diff
+
       enforce_discount_from_message!(json, original_input)
+      snap_after_discount = snapshot_items_for_log(json)
+      discount_diff = diff_item_snapshots(snap_after_prices, snap_after_discount)
+      ai_log[:enforce_discount] = { changed: discount_diff.present?, diffs: discount_diff } if discount_diff
 
       # ── Client Matching Post-Processing (paid users only) ──
       recipient_info = nil
@@ -1889,6 +2028,19 @@ PROMPT
             # No match at all — treat as new client
             recipient_info = { "client_id" => nil, "name" => client_name, "is_new" => true }
           end
+        end
+      end
+
+      # ── Log client matching result ──
+      if json["client"].present?
+        ai_log[:client_matching] = if defined?(exact_match) && exact_match
+          { type: "exact", matched_id: exact_match.id, matched_name: exact_match.name, invoices: exact_match.logs.kept.count }
+        elsif defined?(similar) && similar.is_a?(Array) && similar.any?
+          { type: "fuzzy", candidates: similar.map { |c| c.name }, count: similar.size }
+        elsif user_signed_in? && @profile.paid?
+          { type: "new", name: json["client"] }
+        else
+          { type: "no_matching", reason: "guest_or_free" }
         end
       end
 
@@ -1945,6 +2097,25 @@ PROMPT
 
       Rails.logger.info "FINAL NORMALIZED JSON: #{final_response.to_json}"
 
+      # ── Log final output ──
+      processing_time_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - @_analytics_start_time) * 1000).round rescue nil
+      ai_log[:output] = {
+        client: final_response["client"],
+        sections_count: (final_response["sections"] || []).size,
+        items: snapshot_items_for_log(final_response),
+        clarifications: (final_response["clarifications"] || []).map { |c| { field: c["field"], type: c["type"], q: c["question"].to_s.truncate(80), guess: c["guess"] }.compact },
+        dates: { date: final_response["date"], due_date: final_response["due_date"], due_days: final_response["due_days"] }.compact.presence,
+        billing_mode: final_response["billing_mode"],
+        hourly_rate: final_response["hourly_rate"],
+        global_discount: { flat: final_response["global_discount_flat"], pct: final_response["global_discount_percent"] }.compact.presence,
+        credits: final_response["credits"].presence,
+        has_recipient: final_response["recipient_info"].present?,
+        has_sender: final_response["sender_info"].present?
+      }.compact
+      ai_log[:timing_ms] = processing_time_ms
+      ai_log[:status] = "ok"
+      log_ai_assistant(ai_log)
+
       # ── Analytics Event Tracking ──
       if user_signed_in?
         processing_time = (Process.clock_gettime(Process::CLOCK_MONOTONIC) - @_analytics_start_time rescue nil)
@@ -1979,6 +2150,10 @@ PROMPT
 
     rescue => e
       Rails.logger.error "AUDIO PROCESSING ERROR: #{e.message}\n#{e.backtrace.join("\n")}"
+      ai_log[:error] = "#{e.class}: #{e.message}"
+      ai_log[:backtrace] = e.backtrace.first(5)
+      ai_log[:status] = "exception"
+      log_ai_assistant(ai_log) rescue nil
 
       # Track transcription failure
       if user_signed_in?
@@ -2305,6 +2480,13 @@ PROMPT
         end
 
         parts = body.dig("candidates", 0, "content", "parts")
+
+        # ── Capture AI thinking for debugging ──
+        thinking_parts = parts&.select { |p| p["thought"] }&.map { |p| p["text"] }&.compact
+        if thinking_parts&.any?
+          ai_log[:ai_thinking] = thinking_parts.join("\n").truncate(3000)
+        end
+
         raw = parts&.reject { |p| p["thought"] }&.map { |p| p["text"] }&.join("\n")
 
         if raw.blank?
@@ -2396,13 +2578,28 @@ PROMPT
         end
       end
 
+      # ── Snapshot items BEFORE enforcement for diff logging ──
+      items_before_refine_enforce = snapshot_items_for_log(result)
+      ai_log[:items_after_ai] = items_before_refine_enforce
+
       # ── Auto-upgrade clarifications: merge prices+qty, fix discount, convert tax ──
       auto_upgrade_clarifications!(result, params[:language].to_s)
 
       # ── Backend safety-net: enforce tax/price/discount instructions the AI may have ignored ──
       enforce_tax_from_message!(result, user_message)
+      snap_after_tax = snapshot_items_for_log(result)
+      tax_diff = diff_item_snapshots(items_before_refine_enforce, snap_after_tax)
+      ai_log[:enforce_tax] = { changed: true, diffs: tax_diff } if tax_diff
+
       enforce_prices_from_message!(result, user_message)
+      snap_after_prices = snapshot_items_for_log(result)
+      price_diff = diff_item_snapshots(snap_after_tax, snap_after_prices)
+      ai_log[:enforce_prices] = { changed: true, diffs: price_diff } if price_diff
+
       enforce_discount_from_message!(result, user_message)
+      snap_after_discount = snapshot_items_for_log(result)
+      discount_diff = diff_item_snapshots(snap_after_prices, snap_after_discount)
+      ai_log[:enforce_discount] = { changed: true, diffs: discount_diff } if discount_diff
 
       # ── Server-side clarification generation: catch anything AI missed ──
       generate_missing_clarifications(result, user_message, current_json)
@@ -2499,6 +2696,19 @@ PROMPT
         end
       end
 
+      # ── Log client matching for refine ──
+      if client_changed && result["client"].present?
+        ai_log[:client_matching] = if defined?(exact_match) && exact_match
+          { type: "exact", matched_id: exact_match.id, matched_name: exact_match.name }
+        elsif defined?(similar) && similar.is_a?(Array) && similar.any?
+          { type: "fuzzy", candidates: similar.map(&:name), count: similar.size }
+        else
+          { type: "new", name: result["client"] }
+        end
+      elsif !client_changed
+        ai_log[:client_matching] = { type: "unchanged" }
+      end
+
       # Merge AI-extracted contact fields into recipient_info for refine
       ri = result["recipient_info"]
       if ri
@@ -2542,13 +2752,18 @@ PROMPT
       result["clarifications"].sort_by! { |c| client_fields.include?(c["field"].to_s) ? 0 : 1 }
 
       # ── Log final result ──
-      ai_log[:output_client] = result["client"]
-      ai_log[:output_dates] = { date: result["date"], due: result["due_date"] }.compact
-      ai_log[:output_global_discount] = { flat: result["global_discount_flat"], pct: result["global_discount_percent"] }.compact.presence
-      ai_log[:output_credits] = result["credits"] if result["credits"].present?
-      ai_log[:output_items] = (result["sections"] || []).flat_map { |s| (s["items"] || []).map { |i| h = { name: i["desc"] || i["name"], sec: s["type"], taxable: i["taxable"], tax_rate: i["tax_rate"], price: i["price"] || i["unit_price"] }; h[:qty] = i["qty"] if i["qty"]; h[:hours] = i["hours"] if i["hours"]; h[:rate] = i["rate"] if i["rate"]; h[:mode] = i["mode"] if i["mode"]; h[:disc_flat] = i["discount_flat"] if i["discount_flat"].to_f > 0; h[:disc_pct] = i["discount_percent"] if i["discount_percent"].to_f > 0; h } } rescue []
-      ai_log[:reply] = result["reply"].to_s.truncate(200) if result["reply"].present?
-      ai_log[:clarifications] = (result["clarifications"] || []).map { |c| { field: c["field"], type: c["type"], q: c["question"].to_s.truncate(80) } }
+      ai_log[:output] = {
+        client: result["client"],
+        sections_count: (result["sections"] || []).size,
+        items: snapshot_items_for_log(result),
+        dates: { date: result["date"], due: result["due_date"] }.compact.presence,
+        global_discount: { flat: result["global_discount_flat"], pct: result["global_discount_percent"] }.compact.presence,
+        credits: result["credits"].presence,
+        reply: result["reply"].to_s.truncate(300),
+        has_recipient: result["recipient_info"].present?,
+        has_sender: result["sender_info"].present?
+      }.compact
+      ai_log[:clarifications] = (result["clarifications"] || []).map { |c| { field: c["field"], type: c["type"], q: c["question"].to_s.truncate(80), guess: c["guess"] }.compact }
       ai_log[:status] = "ok"
       log_ai_assistant(ai_log)
 
@@ -2557,6 +2772,10 @@ PROMPT
 
     rescue => e
       Rails.logger.error "REFINE ERROR: #{e.message}\n#{e.backtrace.first(5).join("\n")}"
+      ai_log[:error] = "#{e.class}: #{e.message}"
+      ai_log[:backtrace] = e.backtrace.first(5)
+      ai_log[:status] = "exception"
+      log_ai_assistant(ai_log) rescue nil
       render json: { error: t("processing_error") }, status: 500
     end
   end
@@ -4397,12 +4616,57 @@ PROMPT
   end
 
   # ── STRUCTURED AI ASSISTANT LOGGING ──
-  # Writes to log/ai_assistant.log for debugging AI behavior
+  # Writes to log/ai_assistant.log for debugging AI behavior.
+  # Each entry is a single JSON line with action, stage details, and item snapshots.
   def log_ai_assistant(entry)
     @_ai_log ||= Logger.new(Rails.root.join("log", "ai_assistant.log"), 5, 10.megabytes)
+    @_ai_log.formatter = proc { |_sev, _ts, _prog, msg| "#{msg}\n" }
     @_ai_log.info(entry.to_json)
   rescue => e
     Rails.logger.warn "AI LOG WRITE ERROR: #{e.message}"
+  end
+
+  # Snapshot all items across sections for logging comparison (before/after enforcement)
+  def snapshot_items_for_log(result)
+    (result["sections"] || []).flat_map { |s|
+      (s["items"] || []).map { |i|
+        h = { name: (i["desc"] || i["name"]).to_s.truncate(60), sec: s["type"].to_s }
+        h[:price] = i["price"] if i["price"]
+        h[:rate] = i["rate"] if i["rate"]
+        h[:hours] = i["hours"] if i["hours"]
+        h[:qty] = i["qty"] if i["qty"]
+        h[:mode] = i["mode"] if i["mode"]
+        h[:taxable] = i["taxable"] unless i["taxable"].nil?
+        h[:tax_rate] = i["tax_rate"] unless i["tax_rate"].nil?
+        h[:disc_flat] = i["discount_flat"] if i["discount_flat"].to_f > 0
+        h[:disc_pct] = i["discount_percent"] if i["discount_percent"].to_f > 0
+        h
+      }
+    }
+  rescue => e
+    [{ error: e.message }]
+  end
+
+  # Diff two item snapshots — returns only changed items with before/after values
+  def diff_item_snapshots(before, after)
+    changes = []
+    max = [before.size, after.size].max
+    max.times do |i|
+      b = before[i] || {}
+      a = after[i] || {}
+      if i >= before.size
+        changes << { action: "added", item: a }
+      elsif i >= after.size
+        changes << { action: "removed", item: b }
+      else
+        diffs = {}
+        (a.keys | b.keys).each do |k|
+          diffs[k] = { was: b[k], now: a[k] } if b[k] != a[k]
+        end
+        changes << { item: a[:name] || b[:name], changed: diffs } if diffs.any?
+      end
+    end
+    changes.presence
   end
 
   # ── BACKEND TAX ENFORCEMENT ──
@@ -4445,9 +4709,15 @@ PROMPT
       next if t.blank?
       t_down = t.downcase
 
-      # Pattern 1: Remove tax — "მოაშორე დაბეგვრა", "დაბეგვრა მოაშორე", "no tax", "დღგ მოხსენი", "არ დაბეგრო"
-      tax_remove_re = /(?:remove\s+(?:all\s+)?tax|no\s+tax|tax\s*free|მოაშორე\s+(?:დაბეგვრა|დღგ)|(?:დაბეგვრა|დღგ)\s+მოაშორე|დღგ\s*(?:მოხსენ|წაშალ|მოაშორ)|გადასახად\w*\s+(?:მოხსენ|წაშალ|მოაშორ)|არ\s+დაბეგრ|ნუ\s+დაბეგრავ|არაფერი\s+დაბეგრ|არცერთ\w*\s+დაბეგრ)/i
-      if t.match?(tax_remove_re)
+      # Pattern 1: Remove tax — flexible dual-check for Georgian verb forms + words in between
+      # Old rigid regex missed: "მოაშორეთქო ეს დაბეგვრა", "დაბეგვრა, მოაშორე!!!", "მოხსენი დაბეგვრა"
+      has_tax_keyword = t_down.match?(/დაბეგვრ|დღგ|გადასახად|\btax\b/i)
+      has_remove_verb = t_down.match?(/მოაშორ|მოხსენ|წაშალ|მოშალ|გაანულ|remove|without/i)
+      has_negated_tax = t_down.match?(/არ\s+(?:\w+\s+){0,3}დაბეგრ|ნუ\s+(?:\w+\s+){0,3}დაბეგრ|არაფერ\w*\s+(?:\w+\s+){0,3}დაბეგრ|არცერთ\w*\s+(?:\w+\s+){0,3}დაბეგრ/i)
+      has_english_remove = t_down.match?(/no\s+tax|tax\s*free|remove\s+(?:all\s+)?tax|without\s+tax/i)
+      has_zero_tax = t_down.match?(/0\s*%?\s*(?:დაბეგვრ|გადასახად|tax)|(?:დაბეგვრ|tax)\w*\s*0\s*%?/i)
+      tax_removal_detected = (has_tax_keyword && has_remove_verb) || has_negated_tax || has_english_remove || has_zero_tax
+      if tax_removal_detected
         # Check if specific item mentioned
         target_items = []
         item_names.each do |name|
@@ -4478,7 +4748,7 @@ PROMPT
       if item_names.any?
         stems_re = item_names.map { |n| Regexp.escape(n.downcase.sub(/ი$/, "")) }.select { |s| s.length >= 2 }.uniq.join("|")
         if stems_re.present?
-          t.scan(/(\d+)\s*%?\s*[-–]?\s*(#{stems_re})\w*/i).each do |rate_str, name_part|
+          t.scan(/(\d+)\s*%\s*[-–]?\s*(#{stems_re})\w*/i).each do |rate_str, name_part|
             rate = rate_str.to_i
             find_item.call(name_part).each do |item|
               item["taxable"] = rate > 0
@@ -4494,7 +4764,7 @@ PROMPT
         stem = name.downcase.sub(/ი$/, "")
         next if stem.length < 2
         escaped = Regexp.escape(stem)
-        if m = t.match(/#{escaped}\w{0,4}\s*[:\-–]?\s*(\d+)\s*(%|-?ია)?/i)
+        if m = t.match(/#{escaped}\w{0,4}\s*[:\-–]?\s*(\d+)\s*(%|პროცენტ\w*)/i)
           rate = m[1].to_i
           find_item.call(name).each do |item|
             item["taxable"] = rate > 0
