@@ -1649,7 +1649,34 @@ function startLiveTranscription(targetInput) {
 
   // Dynamic language based on selected transcription language
   const savedLang = localStorage.getItem('transcriptLanguage') || 'en';
-  recognition.lang = (savedLang === 'ge' || savedLang === 'ka') ? 'ka-GE' : 'en-US';
+  const isGeorgian = (savedLang === 'ge' || savedLang === 'ka');
+  const languageFallbacks = isGeorgian ? ['ka-GE', 'ka'] : ['en-US', 'en'];
+  let fallbackIndex = 0;
+  let switchingLanguage = false;
+  recognition.lang = languageFallbacks[fallbackIndex];
+
+  const startRecognition = () => {
+    try {
+      recognition.start();
+      window.liveRecognition = recognition;
+      return true;
+    } catch (e) {
+      console.error("Speech recognition start failed:", e);
+
+      if (fallbackIndex < languageFallbacks.length - 1) {
+        fallbackIndex += 1;
+        recognition.lang = languageFallbacks[fallbackIndex];
+        return startRecognition();
+      }
+
+      if (isGeorgian && typeof window.showError === 'function') {
+        window.showError(window.APP_LANGUAGES?.speech_not_recognized || "Georgian live transcription is not supported in this browser. Try Chrome.");
+      }
+
+      window.liveRecognition = null;
+      return false;
+    }
+  };
 
   let typeTimer = null;
 
@@ -1707,15 +1734,35 @@ function startLiveTranscription(targetInput) {
 
   recognition.onerror = (event) => {
     console.error("Speech recognition error:", event.error);
+
+    // Some engines reject "ka-GE" but accept the generic "ka".
+    if (event?.error === 'language-not-supported' && fallbackIndex < languageFallbacks.length - 1) {
+      fallbackIndex += 1;
+      switchingLanguage = true;
+      recognition.lang = languageFallbacks[fallbackIndex];
+      try { recognition.stop(); } catch (e) { }
+      return;
+    }
+
+    if (event?.error === 'language-not-supported' && isGeorgian && typeof window.showError === 'function') {
+      window.showError(window.APP_LANGUAGES?.speech_not_recognized || "Georgian live transcription is not supported in this browser. Try Chrome.");
+    }
   };
 
   recognition.onend = () => {
     if (typeTimer) { clearInterval(typeTimer); typeTimer = null; }
-    window.liveRecognition = null;
+
+    if (switchingLanguage) {
+      switchingLanguage = false;
+      if (startRecognition()) return;
+    }
+
+    if (window.liveRecognition === recognition) {
+      window.liveRecognition = null;
+    }
   };
 
-  recognition.start();
-  window.liveRecognition = recognition;
+  startRecognition();
 }
 
 document.addEventListener("DOMContentLoaded", () => {
