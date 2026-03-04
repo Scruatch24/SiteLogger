@@ -102,6 +102,26 @@
       });
     </script>
 
+    <script>
+      (function() {
+        try {
+          var inStandalone =
+            window.matchMedia('(display-mode: standalone)').matches ||
+            window.matchMedia('(display-mode: fullscreen)').matches ||
+            window.matchMedia('(display-mode: minimal-ui)').matches ||
+            window.matchMedia('(display-mode: window-controls-overlay)').matches ||
+            window.navigator.standalone === true;
+          var isHomePath = window.location.pathname === '/';
+
+          if (inStandalone && isHomePath) {
+            document.documentElement.classList.add('pwa-launch-splash-enabled');
+          }
+        } catch (e) {
+          // no-op
+        }
+      })();
+    </script>
+
     <!-- Paddle.js -->
     <script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
     <script>
@@ -453,6 +473,127 @@
         animation: premiumRowPulse 2s ease-in-out infinite;
         border-radius: 16px;
       }
+
+      /* PWA launch splash (shown only in standalone mode on home route) */
+      #pwaLaunchSplash {
+        position: fixed;
+        inset: 0;
+        z-index: 70000;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.45s ease;
+      }
+      .pwa-launch-splash-enabled #pwaLaunchSplash {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      #pwaLaunchSplash.pwa-launch-splash-exit {
+        opacity: 0;
+        pointer-events: none;
+      }
+      .pwa-launch-bg {
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(circle at 20% 20%, rgba(249, 115, 22, 0.28), transparent 46%),
+          radial-gradient(circle at 80% 70%, rgba(234, 88, 12, 0.22), transparent 44%),
+          linear-gradient(160deg, #030303 0%, #0a0a0a 100%);
+      }
+      .pwa-launch-grid {
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+        background-size: 38px 38px;
+        opacity: 0.55;
+      }
+      .pwa-launch-core {
+        position: relative;
+        min-height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem;
+      }
+      .pwa-launch-card {
+        width: min(90vw, 320px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 24px;
+        background: rgba(8, 8, 8, 0.7);
+        backdrop-filter: blur(8px);
+        text-align: center;
+        padding: 1.25rem 1.25rem 1rem;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(234, 88, 12, 0.14) inset;
+        animation: pwaLaunchCardIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+      }
+      .pwa-launch-logo-wrap {
+        width: 86px;
+        height: 86px;
+        margin: 0 auto 0.9rem;
+        border-radius: 22px;
+        padding: 3px;
+        background: linear-gradient(135deg, rgba(249, 115, 22, 0.85), rgba(251, 146, 60, 0.7));
+        box-shadow: 0 8px 30px rgba(249, 115, 22, 0.35);
+        animation: pwaLaunchPulse 1.7s ease-in-out infinite;
+      }
+      .pwa-launch-logo {
+        width: 100%;
+        height: 100%;
+        border-radius: 19px;
+        object-fit: cover;
+        background: #111;
+      }
+      .pwa-launch-title {
+        margin: 0;
+        color: #fff;
+        font-size: clamp(1.1rem, 5vw, 1.45rem);
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      .pwa-launch-sub {
+        margin: 0.45rem 0 0;
+        color: rgba(255, 255, 255, 0.58);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .pwa-launch-bars {
+        margin: 1rem auto 0;
+        width: 88px;
+        height: 24px;
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        gap: 6px;
+      }
+      .pwa-launch-bars span {
+        width: 8px;
+        border-radius: 999px;
+        background: linear-gradient(180deg, #fb923c, #ea580c);
+        box-shadow: 0 0 14px rgba(249, 115, 22, 0.42);
+        transform-origin: bottom;
+        animation: pwaLaunchBar 0.95s ease-in-out infinite;
+      }
+      .pwa-launch-bars span:nth-child(1) { height: 10px; animation-delay: 0s; }
+      .pwa-launch-bars span:nth-child(2) { height: 18px; animation-delay: 0.12s; }
+      .pwa-launch-bars span:nth-child(3) { height: 14px; animation-delay: 0.24s; }
+      .pwa-launch-bars span:nth-child(4) { height: 20px; animation-delay: 0.36s; }
+
+      @keyframes pwaLaunchCardIn {
+        from { opacity: 0; transform: translateY(18px) scale(0.96); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+      }
+      @keyframes pwaLaunchPulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.04); }
+      }
+      @keyframes pwaLaunchBar {
+        0%, 100% { transform: scaleY(0.45); opacity: 0.55; }
+        50% { transform: scaleY(1); opacity: 1; }
+      }
     </style>
 
     <script>
@@ -677,6 +818,23 @@
 
   <body class="min-h-screen flex flex-col" style="background: #050505;" oncontextmenu="return false;">
 
+    <div id="pwaLaunchSplash" aria-hidden="true">
+      <div class="pwa-launch-bg"></div>
+      <div class="pwa-launch-grid"></div>
+      <div class="pwa-launch-core">
+        <div class="pwa-launch-card">
+          <div class="pwa-launch-logo-wrap">
+            <img src="/logo-no-shadow.svg" alt="TalkInvoice" class="pwa-launch-logo">
+          </div>
+          <h2 class="pwa-launch-title">TalkInvoice</h2>
+          <p class="pwa-launch-sub">Voice to invoice</p>
+          <div class="pwa-launch-bars" aria-hidden="true">
+            <span></span><span></span><span></span><span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="app-content-wrap flex-1 flex flex-col">
     <%= render 'home/site_header' %>
 
@@ -687,6 +845,35 @@
     </div>
 
     <%= render 'home/site_footer' %>
+
+    <script>
+      (function() {
+        if (!document.documentElement.classList.contains('pwa-launch-splash-enabled')) return;
+
+        var splash = document.getElementById('pwaLaunchSplash');
+        if (!splash) return;
+
+        var hidden = false;
+        function hideSplash() {
+          if (hidden) return;
+          hidden = true;
+          splash.classList.add('pwa-launch-splash-exit');
+          setTimeout(function() {
+            if (splash && splash.parentNode) splash.parentNode.removeChild(splash);
+            document.documentElement.classList.remove('pwa-launch-splash-enabled');
+          }, 460);
+        }
+
+        if (document.readyState === 'complete') {
+          setTimeout(hideSplash, 850);
+        } else {
+          window.addEventListener('load', function() {
+            setTimeout(hideSplash, 850);
+          }, { once: true });
+          setTimeout(hideSplash, 2800);
+        }
+      })();
+    </script>
 
     <!-- Premium Tier Modal (Futuristic Industrial Glassmorphism) -->
     <div id="premiumTierModal" class="fixed inset-0 h-[100dvh] z-[20000] hidden items-center justify-center p-4 overflow-hidden overscroll-none">
@@ -795,7 +982,7 @@
                     <div class="w-8 h-8 rounded-xl bg-orange-500 text-white flex items-center justify-center shrink-0 shadow-lg shadow-orange-500/20">
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M4 17a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1" />
-                        <path d="m12 15 4-4m-4 4-4-4m4 4V4" />
+                        <path d="M12 15 4 3m0 0l4 12" />
                       </svg>
                     </div>
                     <span class="text-[11px] font-black text-orange-600 uppercase"><%= t('modal.exports') %></span>
@@ -885,7 +1072,7 @@
                 <% else %>
                   <%= link_to new_user_registration_path, class: "group/btn block w-full py-4 bg-black text-white rounded-2xl text-[10px] font-black uppercase text-center transition-all hover:bg-orange-600 hover:scale-[1.02] shadow-[0_10px_20px_rgba(0,0,0,0.1)] active:scale-95 flex items-center justify-center gap-2" do %>
                     <%= t('modal.signup_free') %>
-                    <svg class="w-3 h-3 group-hover/btn:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    <svg class="w-3 h-3 group-hover/btn:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M17 8l4 4m0 0l-4 4m4-4H3" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
                   <% end %>
                 <% end %>
               </div>
