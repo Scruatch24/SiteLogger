@@ -1798,106 +1798,93 @@ body {
   }
 
   /* ════════════════════════════════════════════════ */
-  /* MAGICAL INVOICE REVEAL                           */
+  /* MAGICAL PDF INVOICE REVEAL                       */
   /* ════════════════════════════════════════════════ */
 
-  #invoicePreview.invoice-reveal {
-    animation: invoiceMaterialize 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  /* PDF canvas/container materializes when PDF loads */
+  #pdfCanvas.pdf-reveal,
+  #pdfJSContainer.pdf-reveal {
+    animation: pdfMaterialize 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
 
-  @keyframes invoiceMaterialize {
+  @keyframes pdfMaterialize {
     0% {
       opacity: 0;
-      transform: translateY(40px) scale(0.97);
-      filter: blur(8px);
+      transform: scale(0.92);
+      filter: blur(12px) brightness(1.3);
     }
-    60% {
+    50% {
       opacity: 1;
-      filter: blur(0);
+      filter: blur(2px) brightness(1.05);
     }
-    80% {
-      transform: translateY(-4px) scale(1.005);
+    75% {
+      transform: scale(1.01);
     }
     100% {
       opacity: 1;
-      transform: translateY(0) scale(1);
-      filter: blur(0);
+      transform: scale(1);
+      filter: blur(0) brightness(1);
     }
   }
 
-  /* Shimmer sweep across the review card */
-  #invoicePreview.invoice-reveal .review-content {
-    position: relative;
-    overflow: hidden;
-  }
-
-  #invoicePreview.invoice-reveal .review-content::after {
+  /* Shimmer sweep across the PDF after it appears */
+  #pdfCanvas.pdf-reveal::after,
+  #pdfJSContainer.pdf-reveal::after {
     content: '';
     position: absolute;
     top: 0;
     left: -100%;
-    width: 60%;
+    width: 50%;
     height: 100%;
     background: linear-gradient(
       105deg,
       transparent 30%,
-      rgba(249, 115, 22, 0.08) 45%,
-      rgba(255, 255, 255, 0.25) 50%,
-      rgba(249, 115, 22, 0.08) 55%,
+      rgba(255, 255, 255, 0.06) 42%,
+      rgba(255, 255, 255, 0.18) 50%,
+      rgba(255, 255, 255, 0.06) 58%,
       transparent 70%
     );
-    animation: invoiceShimmer 1.2s 0.3s ease-out forwards;
+    animation: pdfShimmer 1s 0.4s ease-out forwards;
     pointer-events: none;
-    z-index: 10;
+    z-index: 20;
   }
 
-  @keyframes invoiceShimmer {
+  @keyframes pdfShimmer {
     0%   { left: -100%; }
     100% { left: 200%; }
   }
 
-  /* Soft orange glow pulse on the card border */
-  #invoicePreview.invoice-reveal .review-container {
-    animation: invoiceGlow 1.6s ease-out forwards;
+  /* Warm glow pulse on the PDF viewer area */
+  #pdfViewerContainer.pdf-glow {
+    animation: pdfGlow 2s ease-out forwards;
   }
 
-  @keyframes invoiceGlow {
-    0%   { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0); }
-    30%  { box-shadow: 0 0 40px 8px rgba(249, 115, 22, 0.25); }
-    100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0); }
+  @keyframes pdfGlow {
+    0%   { box-shadow: inset 0 0 0 0 rgba(249, 115, 22, 0); }
+    20%  { box-shadow: inset 0 0 80px 20px rgba(249, 115, 22, 0.15); }
+    100% { box-shadow: inset 0 0 0 0 rgba(249, 115, 22, 0); }
   }
 
-  /* Staggered children reveal inside the review card */
-  #invoicePreview.invoice-reveal .review-content > * {
+  /* Mobile: staggered page reveals for PDF.js multi-page canvases */
+  #pdfJSContainer.pdf-reveal .pdf-js-page {
     opacity: 0;
-    animation: invoiceChildReveal 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation: pdfPageReveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
 
-  #invoicePreview.invoice-reveal .review-content > *:nth-child(1) { animation-delay: 0.15s; }
-  #invoicePreview.invoice-reveal .review-content > *:nth-child(2) { animation-delay: 0.25s; }
-  #invoicePreview.invoice-reveal .review-content > *:nth-child(3) { animation-delay: 0.35s; }
-  #invoicePreview.invoice-reveal .review-content > *:nth-child(4) { animation-delay: 0.45s; }
-  #invoicePreview.invoice-reveal .review-content > *:nth-child(5) { animation-delay: 0.55s; }
-  #invoicePreview.invoice-reveal .review-content > *:nth-child(6) { animation-delay: 0.65s; }
-  #invoicePreview.invoice-reveal .review-content > *:nth-child(7) { animation-delay: 0.70s; }
-  #invoicePreview.invoice-reveal .review-content > *:nth-child(8) { animation-delay: 0.75s; }
-  #invoicePreview.invoice-reveal .review-content > *:nth-child(n+9) { animation-delay: 0.80s; }
+  #pdfJSContainer.pdf-reveal .pdf-js-page:nth-child(1) { animation-delay: 0.2s; }
+  #pdfJSContainer.pdf-reveal .pdf-js-page:nth-child(2) { animation-delay: 0.45s; }
+  #pdfJSContainer.pdf-reveal .pdf-js-page:nth-child(3) { animation-delay: 0.65s; }
+  #pdfJSContainer.pdf-reveal .pdf-js-page:nth-child(n+4) { animation-delay: 0.8s; }
 
-  @keyframes invoiceChildReveal {
+  @keyframes pdfPageReveal {
     0% {
       opacity: 0;
-      transform: translateY(16px);
+      transform: translateY(20px) scale(0.98);
     }
     100% {
       opacity: 1;
-      transform: translateY(0);
+      transform: translateY(0) scale(1);
     }
-  }
-
-  /* Don't animate the analyzing overlay itself */
-  #invoicePreview.invoice-reveal .review-content > .analyzing-overlay {
-    animation: none;
-    opacity: 0;
   }
 
   /* ════════════════════════════════════════════════ */

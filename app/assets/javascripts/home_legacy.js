@@ -2477,12 +2477,49 @@ document.addEventListener("DOMContentLoaded", () => {
         const isMobile = window.innerWidth < 768;
         if (isMobile) {
           const jsContainer = document.getElementById('pdfJSContainer');
-          if (jsContainer) jsContainer.classList.remove('hidden');
+          if (jsContainer) {
+            jsContainer.classList.remove('hidden');
+            // Magical reveal animation
+            jsContainer.classList.remove('pdf-reveal');
+            void jsContainer.offsetWidth;
+            jsContainer.classList.add('pdf-reveal');
+            jsContainer.addEventListener('animationend', function onEnd(e) {
+              if (e.animationName === 'pdfMaterialize') {
+                jsContainer.classList.remove('pdf-reveal');
+                jsContainer.removeEventListener('animationend', onEnd);
+              }
+            });
+          }
         } else if (iframe) {
           iframe.classList.remove('hidden');
           iframe.style.display = 'block';
           iframe.style.opacity = '1';
           if (typeof updateSizing === 'function') updateSizing();
+          // Magical reveal animation on desktop PDF canvas
+          var pdfCanvas = document.getElementById('pdfCanvas');
+          if (pdfCanvas) {
+            pdfCanvas.classList.remove('pdf-reveal');
+            void pdfCanvas.offsetWidth;
+            pdfCanvas.classList.add('pdf-reveal');
+            pdfCanvas.addEventListener('animationend', function onEnd(e) {
+              if (e.animationName === 'pdfMaterialize') {
+                pdfCanvas.classList.remove('pdf-reveal');
+                pdfCanvas.removeEventListener('animationend', onEnd);
+              }
+            });
+          }
+        }
+        // Glow effect on the viewer container
+        if (viewer) {
+          viewer.classList.remove('pdf-glow');
+          void viewer.offsetWidth;
+          viewer.classList.add('pdf-glow');
+          viewer.addEventListener('animationend', function onGlow(e) {
+            if (e.animationName === 'pdfGlow') {
+              viewer.classList.remove('pdf-glow');
+              viewer.removeEventListener('animationend', onGlow);
+            }
+          });
         }
       };
 
@@ -5467,21 +5504,9 @@ function updateUI(data) {
     // Update totals summary after all items are added
     updateTotalsSummary();
 
-    // Show invoice preview with magical reveal animation (respect user close flag)
+    // Show invoice preview (respect user close flag)
     if (!window._userClosedInvoice) {
-      var invoiceEl = document.getElementById("invoicePreview");
-      invoiceEl.classList.remove("invoice-reveal");
-      invoiceEl.classList.remove("hidden");
-      // Force reflow so the animation restarts cleanly
-      void invoiceEl.offsetWidth;
-      invoiceEl.classList.add("invoice-reveal");
-      // Clean up class after animation finishes to avoid interfering with later UI
-      invoiceEl.addEventListener('animationend', function onRevealEnd(e) {
-        if (e.animationName === 'invoiceMaterialize') {
-          invoiceEl.classList.remove("invoice-reveal");
-          invoiceEl.removeEventListener('animationend', onRevealEnd);
-        }
-      });
+      document.getElementById("invoicePreview").classList.remove("hidden");
     }
 
     // Handle AI Clarification Questions (shown as chat bubbles alongside invoice)
