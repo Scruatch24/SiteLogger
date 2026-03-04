@@ -5467,9 +5467,21 @@ function updateUI(data) {
     // Update totals summary after all items are added
     updateTotalsSummary();
 
-    // Show invoice preview (respect user close flag)
+    // Show invoice preview with magical reveal animation (respect user close flag)
     if (!window._userClosedInvoice) {
-      document.getElementById("invoicePreview").classList.remove("hidden");
+      var invoiceEl = document.getElementById("invoicePreview");
+      invoiceEl.classList.remove("invoice-reveal");
+      invoiceEl.classList.remove("hidden");
+      // Force reflow so the animation restarts cleanly
+      void invoiceEl.offsetWidth;
+      invoiceEl.classList.add("invoice-reveal");
+      // Clean up class after animation finishes to avoid interfering with later UI
+      invoiceEl.addEventListener('animationend', function onRevealEnd(e) {
+        if (e.animationName === 'invoiceMaterialize') {
+          invoiceEl.classList.remove("invoice-reveal");
+          invoiceEl.removeEventListener('animationend', onRevealEnd);
+        }
+      });
     }
 
     // Handle AI Clarification Questions (shown as chat bubbles alongside invoice)

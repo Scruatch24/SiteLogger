@@ -1798,6 +1798,109 @@ body {
   }
 
   /* ════════════════════════════════════════════════ */
+  /* MAGICAL INVOICE REVEAL                           */
+  /* ════════════════════════════════════════════════ */
+
+  #invoicePreview.invoice-reveal {
+    animation: invoiceMaterialize 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  @keyframes invoiceMaterialize {
+    0% {
+      opacity: 0;
+      transform: translateY(40px) scale(0.97);
+      filter: blur(8px);
+    }
+    60% {
+      opacity: 1;
+      filter: blur(0);
+    }
+    80% {
+      transform: translateY(-4px) scale(1.005);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      filter: blur(0);
+    }
+  }
+
+  /* Shimmer sweep across the review card */
+  #invoicePreview.invoice-reveal .review-content {
+    position: relative;
+    overflow: hidden;
+  }
+
+  #invoicePreview.invoice-reveal .review-content::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 60%;
+    height: 100%;
+    background: linear-gradient(
+      105deg,
+      transparent 30%,
+      rgba(249, 115, 22, 0.08) 45%,
+      rgba(255, 255, 255, 0.25) 50%,
+      rgba(249, 115, 22, 0.08) 55%,
+      transparent 70%
+    );
+    animation: invoiceShimmer 1.2s 0.3s ease-out forwards;
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  @keyframes invoiceShimmer {
+    0%   { left: -100%; }
+    100% { left: 200%; }
+  }
+
+  /* Soft orange glow pulse on the card border */
+  #invoicePreview.invoice-reveal .review-container {
+    animation: invoiceGlow 1.6s ease-out forwards;
+  }
+
+  @keyframes invoiceGlow {
+    0%   { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0); }
+    30%  { box-shadow: 0 0 40px 8px rgba(249, 115, 22, 0.25); }
+    100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0); }
+  }
+
+  /* Staggered children reveal inside the review card */
+  #invoicePreview.invoice-reveal .review-content > * {
+    opacity: 0;
+    animation: invoiceChildReveal 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  #invoicePreview.invoice-reveal .review-content > *:nth-child(1) { animation-delay: 0.15s; }
+  #invoicePreview.invoice-reveal .review-content > *:nth-child(2) { animation-delay: 0.25s; }
+  #invoicePreview.invoice-reveal .review-content > *:nth-child(3) { animation-delay: 0.35s; }
+  #invoicePreview.invoice-reveal .review-content > *:nth-child(4) { animation-delay: 0.45s; }
+  #invoicePreview.invoice-reveal .review-content > *:nth-child(5) { animation-delay: 0.55s; }
+  #invoicePreview.invoice-reveal .review-content > *:nth-child(6) { animation-delay: 0.65s; }
+  #invoicePreview.invoice-reveal .review-content > *:nth-child(7) { animation-delay: 0.70s; }
+  #invoicePreview.invoice-reveal .review-content > *:nth-child(8) { animation-delay: 0.75s; }
+  #invoicePreview.invoice-reveal .review-content > *:nth-child(n+9) { animation-delay: 0.80s; }
+
+  @keyframes invoiceChildReveal {
+    0% {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Don't animate the analyzing overlay itself */
+  #invoicePreview.invoice-reveal .review-content > .analyzing-overlay {
+    animation: none;
+    opacity: 0;
+  }
+
+  /* ════════════════════════════════════════════════ */
   /* SMALL-SCREEN (≤430px) GLOBAL RESPONSIVE FIXES   */
   /* ════════════════════════════════════════════════ */
   @media (max-width: 430px) {
