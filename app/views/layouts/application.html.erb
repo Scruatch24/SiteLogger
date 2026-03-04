@@ -574,12 +574,10 @@
         background: linear-gradient(180deg, #fb923c, #ea580c);
         box-shadow: 0 0 14px rgba(249, 115, 22, 0.42);
         transform-origin: bottom;
-        animation: pwaLaunchBar 0.95s ease-in-out infinite;
+        transform: scaleY(0.5);
+        opacity: 0.6;
+        will-change: transform, opacity;
       }
-      .pwa-launch-bars span:nth-child(1) { height: 10px; animation-delay: 0s; }
-      .pwa-launch-bars span:nth-child(2) { height: 18px; animation-delay: 0.12s; }
-      .pwa-launch-bars span:nth-child(3) { height: 14px; animation-delay: 0.24s; }
-      .pwa-launch-bars span:nth-child(4) { height: 20px; animation-delay: 0.36s; }
 
       @keyframes pwaLaunchCardIn {
         from { opacity: 0; transform: translateY(18px) scale(0.96); }
@@ -588,10 +586,6 @@
       @keyframes pwaLaunchPulse {
         0%, 100% { transform: scale(1); }
         50% { transform: scale(1.04); }
-      }
-      @keyframes pwaLaunchBar {
-        0%, 100% { transform: scaleY(0.45); opacity: 0.55; }
-        50% { transform: scaleY(1); opacity: 1; }
       }
     </style>
 
@@ -851,10 +845,54 @@
         var splash = document.getElementById('pwaLaunchSplash');
         if (!splash) return;
 
+        function startRandomEqualizer() {
+          var bars = splash.querySelectorAll('.pwa-launch-bars span');
+          if (!bars.length) return null;
+
+          var states = Array.prototype.map.call(bars, function() {
+            return {
+              current: 0.42 + Math.random() * 0.28,
+              target: 0.42 + Math.random() * 0.45,
+              nextShiftAt: 0
+            };
+          });
+
+          var rafId = null;
+
+          function animate(ts) {
+            for (var i = 0; i < bars.length; i += 1) {
+              var state = states[i];
+
+              if (ts >= state.nextShiftAt) {
+                state.target = 0.32 + Math.random() * 0.95;
+                state.nextShiftAt = ts + 120 + Math.random() * 300;
+              }
+
+              state.current += (state.target - state.current) * 0.14;
+              bars[i].style.transform = 'scaleY(' + state.current.toFixed(3) + ')';
+              bars[i].style.opacity = (0.42 + state.current * 0.56).toFixed(3);
+            }
+
+            rafId = window.requestAnimationFrame(animate);
+          }
+
+          rafId = window.requestAnimationFrame(animate);
+
+          return function stopEqualizer() {
+            if (rafId) window.cancelAnimationFrame(rafId);
+          };
+        }
+
+        var stopEqualizer = startRandomEqualizer();
+
         var hidden = false;
         function hideSplash() {
           if (hidden) return;
           hidden = true;
+          if (stopEqualizer) {
+            stopEqualizer();
+            stopEqualizer = null;
+          }
           splash.classList.add('pwa-launch-splash-exit');
           setTimeout(function() {
             if (splash && splash.parentNode) splash.parentNode.removeChild(splash);
