@@ -105,6 +105,7 @@
     <script>
       (function() {
         try {
+          var splashSessionKey = 'pwa_launch_splash_seen';
           var inStandalone =
             window.matchMedia('(display-mode: standalone)').matches ||
             window.matchMedia('(display-mode: fullscreen)').matches ||
@@ -112,9 +113,21 @@
             window.matchMedia('(display-mode: window-controls-overlay)').matches ||
             window.navigator.standalone === true;
           var isHomePath = window.location.pathname === '/';
+          var hasSeenSplash = false;
 
-          if (inStandalone && isHomePath) {
+          try {
+            hasSeenSplash = window.sessionStorage.getItem(splashSessionKey) === '1';
+          } catch (storageError) {
+            hasSeenSplash = false;
+          }
+
+          if (inStandalone && isHomePath && !hasSeenSplash) {
             document.documentElement.classList.add('pwa-launch-splash-enabled');
+            try {
+              window.sessionStorage.setItem(splashSessionKey, '1');
+            } catch (storageWriteError) {
+              // no-op
+            }
           }
         } catch (e) {
           // no-op
