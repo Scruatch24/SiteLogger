@@ -295,8 +295,21 @@ window.setTranscriptLanguage = function (lang) {
   document.getElementById('langChevron')?.classList.remove('rotate-180');
   window.hidePopupBackdrop();
 
-  // Language change takes effect on the next /live_transcribe call automatically
-  // (language is read from localStorage each time)
+  // If actively recording, restart transcription with new language
+  if (window._liveRecordingActive) {
+    // Web Speech API: stop and let auto-restart pick up new language from localStorage
+    if (window.liveRecognition) {
+      try { window.liveRecognition.stop(); } catch (e) { }
+      // onend handler will auto-restart with the new language
+    }
+    // ElevenLabs realtime: reconnect with new language
+    if (window._sttWs) {
+      _cleanupElevenLabsRealtime();
+      var targetInput = document.getElementById('mainTranscript');
+      if (targetInput) _startElevenLabsTranscription(targetInput, window._liveStream);
+    }
+    // Chunked REST: language is read from localStorage each time — no action needed
+  }
 
   // Sync with server (document_language) to prevent flickering on reload
   fetch('/set_transcript_language?language=' + normalizedLang, {
@@ -1649,37 +1662,327 @@ window.recordingStartTime = 0;
 
 window._liveRecordingActive = false;
 window._liveTargetInput = null;
+window._liveStream = null;
+window._webSpeechFailed = false;
+window._webSpeechGotResult = false;
+window._webSpeechFailsafe = null;
+
+// ElevenLabs realtime state
+window._sttWs = null;
+window._sttAudioCtx = null;
+window._sttProcessor = null;
+window._sttSource = null;
+window._sttMuteGain = null;
+window._sttCommittedText = '';
+window._sttPartialText = '';
+
+// Chunked REST fallback state
 window._liveAudioChunks = [];
 window._pendingTranscription = false;
 window._transcriptionTimer = null;
 
-function startLiveTranscription(targetInput) {
+function _shouldUseWebSpeechAPI() {
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return false;
+  if (window._webSpeechFailed) return false;
+  // iOS: Web Speech API is broken/unavailable
+  if (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream) return false;
+  return true;
+}
+
+function startLiveTranscription(targetInput, stream) {
   if (!targetInput) return;
   window._liveRecordingActive = true;
   window._liveTargetInput = targetInput;
+  window._liveStream = stream || null;
   window._liveAudioChunks = [];
+
+  if (_shouldUseWebSpeechAPI()) {
+    _startWebSpeechTranscription(targetInput, stream);
+  } else {
+    _startElevenLabsTranscription(targetInput, stream);
+  }
+}
+
+// ── Tier 1: Web Speech API (free, works on desktop Chrome/Edge/Android Chrome) ──
+function _startWebSpeechTranscription(targetInput, stream) {
+  var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    _startElevenLabsTranscription(targetInput, stream);
+    return;
+  }
+
+  if (window.liveRecognition) {
+    try { window.liveRecognition.stop(); } catch (e) { }
+  }
+
+  window._webSpeechGotResult = false;
+  var restartAttempts = 0;
+  var maxRestarts = 50;
+
+  // Failsafe: if no results after 8s, switch to ElevenLabs
+  window._webSpeechFailsafe = setTimeout(function() {
+    if (!window._webSpeechGotResult && window._liveRecordingActive) {
+      console.warn('Web Speech API produced no results — switching to ElevenLabs');
+      window._webSpeechFailed = true;
+      if (window.liveRecognition) {
+        try { window.liveRecognition.stop(); } catch (e) { }
+        window.liveRecognition = null;
+      }
+      _startElevenLabsTranscription(targetInput, stream);
+    }
+  }, 8000);
+
+  function createRecognition() {
+    var recognition = new SpeechRecognition();
+    var isMobileDevice = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    recognition.continuous = !isMobileDevice;
+    recognition.interimResults = true;
+
+    var savedLang = localStorage.getItem('transcriptLanguage') || 'en';
+    recognition.lang = (savedLang === 'ge' || savedLang === 'ka') ? 'ka-GE' : 'en-US';
+
+    var typeTimer = null;
+
+    recognition.onresult = function(event) {
+      window._webSpeechGotResult = true;
+      if (window._webSpeechFailsafe) {
+        clearTimeout(window._webSpeechFailsafe);
+        window._webSpeechFailsafe = null;
+      }
+      restartAttempts = 0;
+
+      var fullTranscript = '';
+      for (var i = 0; i < event.results.length; ++i) {
+        fullTranscript += event.results[i][0].transcript;
+      }
+      if (!fullTranscript) return;
+
+      if (typeTimer) { clearInterval(typeTimer); typeTimer = null; }
+
+      var target = fullTranscript;
+      var current = targetInput.value || '';
+
+      var commonPrefixLen = function(a, b) {
+        var max = Math.min(a.length, b.length);
+        var j = 0;
+        while (j < max && a[j] === b[j]) j += 1;
+        return j;
+      };
+
+      if (current === target) return;
+
+      typeTimer = setInterval(function() {
+        if (current === target) {
+          clearInterval(typeTimer);
+          typeTimer = null;
+          if (window.updateDynamicCountersCheck) {
+            window.updateDynamicCountersCheck(targetInput);
+          } else if (window.updateDynamicCounters) {
+            window.updateDynamicCounters();
+          }
+          return;
+        }
+
+        var prefix = commonPrefixLen(current, target);
+        if (current.length > target.length || prefix < current.length) {
+          var toDelete = Math.max(1, Math.ceil((current.length - prefix) / 3));
+          current = current.slice(0, Math.max(prefix, current.length - toDelete));
+        } else {
+          var remaining = target.length - current.length;
+          var toAdd = Math.max(1, Math.ceil(remaining / 8));
+          current = target.slice(0, current.length + toAdd);
+        }
+
+        targetInput.value = current;
+        autoResize(targetInput);
+      }, 18);
+    };
+
+    recognition.onerror = function(event) {
+      console.warn("Speech recognition error:", event.error);
+      if (event.error === 'no-speech' || event.error === 'aborted') return;
+      if (event.error === 'not-allowed' || event.error === 'service-not-available') {
+        window._webSpeechFailed = true;
+        if (window._webSpeechFailsafe) {
+          clearTimeout(window._webSpeechFailsafe);
+          window._webSpeechFailsafe = null;
+        }
+        window.liveRecognition = null;
+        _startElevenLabsTranscription(targetInput, stream);
+      }
+    };
+
+    recognition.onend = function() {
+      if (typeTimer) { clearInterval(typeTimer); typeTimer = null; }
+      window.liveRecognition = null;
+
+      if (window._liveRecordingActive && !window._webSpeechFailed && restartAttempts < maxRestarts) {
+        restartAttempts++;
+        var delay = Math.min(restartAttempts * 100, 1000);
+        setTimeout(function() {
+          if (!window._liveRecordingActive || window._webSpeechFailed) return;
+          try {
+            var newRec = createRecognition();
+            newRec.start();
+            window.liveRecognition = newRec;
+          } catch (e) {
+            console.warn("Speech recognition restart failed:", e);
+            window._webSpeechFailed = true;
+            _startElevenLabsTranscription(targetInput, stream);
+          }
+        }, delay);
+      }
+    };
+
+    return recognition;
+  }
+
+  var recognition = createRecognition();
+  try {
+    recognition.start();
+  } catch (e) {
+    console.warn("Speech recognition start failed:", e);
+    window._webSpeechFailed = true;
+    _startElevenLabsTranscription(targetInput, stream);
+    return;
+  }
+  window.liveRecognition = recognition;
+}
+
+// ── Tier 2: ElevenLabs Realtime WebSocket (AudioWorklet + scribe_v2_realtime) ──
+function _startElevenLabsTranscription(targetInput, stream) {
+  if (!window._liveRecordingActive) return;
+  if (!stream) {
+    console.warn('No audio stream for ElevenLabs realtime — chunked fallback');
+    _startChunkedTranscription(targetInput);
+    return;
+  }
+  if (!window.AudioWorkletNode) {
+    console.warn('AudioWorklet not supported — chunked fallback');
+    _startChunkedTranscription(targetInput);
+    return;
+  }
+
+  var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+  var lang = localStorage.getItem('transcriptLanguage') || 'en';
+
+  fetch('/stt_ws_auth?language=' + lang, {
+    method: 'POST',
+    headers: csrfMeta ? { 'X-CSRF-Token': csrfMeta.content } : {}
+  })
+  .then(function(r) {
+    if (!r.ok) throw new Error('Token request failed: ' + r.status);
+    return r.json();
+  })
+  .then(function(config) {
+    if (!config.ws_url) throw new Error('No WebSocket URL');
+    if (!window._liveRecordingActive) return;
+
+    var ws = new WebSocket(config.ws_url);
+    window._sttWs = ws;
+    window._sttCommittedText = '';
+    window._sttPartialText = '';
+
+    ws.onmessage = function(event) {
+      try {
+        var msg = JSON.parse(event.data);
+
+        if (msg.message_type === 'session_started') {
+          console.log('ElevenLabs STT session:', msg.session_id);
+        } else if (msg.message_type === 'partial_transcript') {
+          window._sttPartialText = msg.text || '';
+          if (targetInput && window._liveRecordingActive) {
+            targetInput.value = (window._sttCommittedText + window._sttPartialText).trim();
+            autoResize(targetInput);
+          }
+        } else if (msg.message_type === 'final_transcript' || msg.message_type === 'committed_transcript') {
+          window._sttCommittedText += (msg.text || '') + ' ';
+          window._sttPartialText = '';
+          if (targetInput && window._liveRecordingActive) {
+            targetInput.value = window._sttCommittedText.trim();
+            autoResize(targetInput);
+            if (window.updateDynamicCountersCheck) {
+              window.updateDynamicCountersCheck(targetInput);
+            } else if (window.updateDynamicCounters) {
+              window.updateDynamicCounters();
+            }
+          }
+        } else if (msg.text !== undefined && targetInput && window._liveRecordingActive) {
+          targetInput.value = msg.text;
+          autoResize(targetInput);
+        }
+      } catch (e) { }
+    };
+
+    ws.onerror = function() {
+      console.warn('ElevenLabs STT WebSocket error');
+    };
+
+    ws.onclose = function() {
+      window._sttWs = null;
+      if (window._liveRecordingActive) {
+        _cleanupElevenLabsRealtime();
+        _startChunkedTranscription(targetInput);
+      }
+    };
+
+    // Set up AudioWorklet for mic capture → PCM Int16 16kHz
+    var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    window._sttAudioCtx = audioCtx;
+
+    audioCtx.audioWorklet.addModule('/audio-processor.js').then(function() {
+      if (!window._liveRecordingActive) return;
+      var source = audioCtx.createMediaStreamSource(stream);
+      var processor = new AudioWorkletNode(audioCtx, 'audio-processor');
+      var muteGain = audioCtx.createGain();
+      muteGain.gain.value = 0;
+
+      processor.port.onmessage = function(e) {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(new Uint8Array(e.data));
+        }
+      };
+
+      source.connect(processor);
+      processor.connect(muteGain);
+      muteGain.connect(audioCtx.destination);
+
+      window._sttSource = source;
+      window._sttProcessor = processor;
+      window._sttMuteGain = muteGain;
+    }).catch(function(e) {
+      console.warn('AudioWorklet setup failed:', e);
+      _cleanupElevenLabsRealtime();
+      _startChunkedTranscription(targetInput);
+    });
+  })
+  .catch(function(e) {
+    console.warn('ElevenLabs realtime failed — chunked fallback:', e.message);
+    _cleanupElevenLabsRealtime();
+    _startChunkedTranscription(targetInput);
+  });
+}
+
+function _cleanupElevenLabsRealtime() {
+  if (window._sttProcessor) { try { window._sttProcessor.disconnect(); } catch (e) { } window._sttProcessor = null; }
+  if (window._sttSource) { try { window._sttSource.disconnect(); } catch (e) { } window._sttSource = null; }
+  if (window._sttMuteGain) { try { window._sttMuteGain.disconnect(); } catch (e) { } window._sttMuteGain = null; }
+  if (window._sttAudioCtx) { try { window._sttAudioCtx.close(); } catch (e) { } window._sttAudioCtx = null; }
+  if (window._sttWs) { try { window._sttWs.close(); } catch (e) { } window._sttWs = null; }
+}
+
+// ── Tier 3: Chunked REST fallback (ElevenLabs Scribe v1 via /live_transcribe) ──
+function _startChunkedTranscription(targetInput) {
+  if (!window._liveRecordingActive) return;
   window._pendingTranscription = false;
 
-  // Poll every 4 seconds — send accumulated audio to server for ElevenLabs STT
   window._transcriptionTimer = setInterval(function() {
     if (!window._liveRecordingActive) return;
     if (window._liveAudioChunks.length === 0) return;
     if (window._pendingTranscription) return;
-    _sendLiveTranscription();
+    _sendChunkedTranscription();
   }, 4000);
-}
-
-function stopLiveTranscription() {
-  window._liveRecordingActive = false;
-  if (window._transcriptionTimer) {
-    clearInterval(window._transcriptionTimer);
-    window._transcriptionTimer = null;
-  }
-  // Final transcription of remaining audio
-  if (window._liveAudioChunks.length > 0 && !window._pendingTranscription) {
-    _sendLiveTranscription();
-  }
-  window._liveTargetInput = null;
 }
 
 function _onLiveAudioChunk(chunk) {
@@ -1687,7 +1990,7 @@ function _onLiveAudioChunk(chunk) {
   window._liveAudioChunks.push(chunk);
 }
 
-function _sendLiveTranscription() {
+function _sendChunkedTranscription() {
   if (window._pendingTranscription) return;
   if (window._liveAudioChunks.length === 0) return;
 
@@ -1699,22 +2002,43 @@ function _sendLiveTranscription() {
 
   var csrfMeta = document.querySelector('meta[name="csrf-token"]');
   var headers = csrfMeta ? { 'X-CSRF-Token': csrfMeta.content } : {};
+  var targetInput = window._liveTargetInput;
 
   fetch('/live_transcribe', { method: 'POST', headers: headers, body: formData })
     .then(function(r) { return r.json(); })
     .then(function(data) {
-      if (data.text && window._liveTargetInput) {
-        window._liveTargetInput.value = data.text;
-        autoResize(window._liveTargetInput);
+      if (data.text && targetInput) {
+        targetInput.value = data.text;
+        autoResize(targetInput);
         if (window.updateDynamicCountersCheck) {
-          window.updateDynamicCountersCheck(window._liveTargetInput);
+          window.updateDynamicCountersCheck(targetInput);
         } else if (window.updateDynamicCounters) {
           window.updateDynamicCounters();
         }
       }
     })
-    .catch(function(e) { console.warn('Live transcription error:', e); })
+    .catch(function(e) { console.warn('Chunked transcription error:', e); })
     .finally(function() { window._pendingTranscription = false; });
+}
+
+function stopLiveTranscription() {
+  window._liveRecordingActive = false;
+
+  // Stop Web Speech API
+  if (window._webSpeechFailsafe) { clearTimeout(window._webSpeechFailsafe); window._webSpeechFailsafe = null; }
+  if (window.liveRecognition) { try { window.liveRecognition.stop(); } catch (e) { } window.liveRecognition = null; }
+
+  // Stop ElevenLabs realtime
+  _cleanupElevenLabsRealtime();
+
+  // Stop chunked REST
+  if (window._transcriptionTimer) { clearInterval(window._transcriptionTimer); window._transcriptionTimer = null; }
+  if (window._liveAudioChunks && window._liveAudioChunks.length > 0 && !window._pendingTranscription) {
+    _sendChunkedTranscription();
+  }
+
+  window._liveTargetInput = null;
+  window._liveStream = null;
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -1823,7 +2147,7 @@ document.addEventListener("DOMContentLoaded", () => {
         mediaRecorder.onstop = processAudio;
 
         mediaRecorder.start(3000);
-        startLiveTranscription(transcriptArea);
+        startLiveTranscription(transcriptArea, stream);
         window.recordingStartTime = Date.now();
 
         isRecording = true;

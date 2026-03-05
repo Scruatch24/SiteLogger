@@ -2156,6 +2156,44 @@ PROMPT
     end
   end
 
+  def stt_ws_auth
+    api_key = ENV["ELEVENLABS_API_KEY"]
+    return render json: { error: "Not configured" }, status: 503 unless api_key
+
+    language = params[:language].to_s
+    lang_code = (language == "ge" || language == "ka") ? "kat" : "eng"
+
+    token = nil
+    begin
+      uri = URI("https://api.elevenlabs.io/v1/speech-to-text/get-token")
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = true
+      http.read_timeout = 10
+      http.open_timeout = 5
+
+      request = Net::HTTP::Get.new(uri.path)
+      request["xi-api-key"] = api_key
+
+      response = http.request(request)
+      if response.code.to_i == 200
+        result = JSON.parse(response.body)
+        token = result["token"]
+      else
+        Rails.logger.warn("[ElevenLabs Token] #{response.code}: #{response.body.truncate(200)}")
+      end
+    rescue => e
+      Rails.logger.warn("[ElevenLabs Token] #{e.message}")
+    end
+
+    if token
+      ws_url = "wss://api.elevenlabs.io/v1/speech-to-text/realtime?model_id=scribe_v2_realtime&language_code=#{lang_code}&sample_rate=16000&encoding=pcm_s16le&token=#{token}"
+    else
+      ws_url = "wss://api.elevenlabs.io/v1/speech-to-text/realtime?model_id=scribe_v2_realtime&language_code=#{lang_code}&sample_rate=16000&encoding=pcm_s16le&xi_api_key=#{api_key}"
+    end
+
+    render json: { ws_url: ws_url }
+  end
+
   def refine_invoice
     api_key = ENV["GEMINI_API_KEY"]
     current_json = params[:current_json]
