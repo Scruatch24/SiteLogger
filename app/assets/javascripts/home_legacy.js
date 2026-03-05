@@ -296,10 +296,14 @@ window.setTranscriptLanguage = function (lang) {
   window.hidePopupBackdrop();
 
   // Restart live recognition with new language if currently active
-  if (window.liveRecognition) {
+  if (window.liveRecognition || window._liveRecordingActive) {
     const targetInput = document.getElementById('mainTranscript');
-    try { window.liveRecognition.stop(); } catch (e) { }
-    window.liveRecognition = null;
+    // Disable auto-restart before stopping so onend doesn't race with new start
+    window._liveRecordingActive = false;
+    if (window.liveRecognition) {
+      try { window.liveRecognition.stop(); } catch (e) { }
+      window.liveRecognition = null;
+    }
     if (targetInput) startLiveTranscription(targetInput);
   }
 
@@ -1652,6 +1656,8 @@ window.liveRecognition = null;
 window.totalVoiceUsed = 0; // Tracks seconds spent in current session (since last main recording)
 window.recordingStartTime = 0;
 
+window._liveRecordingActive = false;
+
 function startLiveTranscription(targetInput) {
   if (!targetInput) return;
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1661,79 +1667,127 @@ function startLiveTranscription(targetInput) {
     try { window.liveRecognition.stop(); } catch (e) { }
   }
 
-  const recognition = new SpeechRecognition();
-  recognition.continuous = true;
-  recognition.interimResults = true;
+  window._liveRecordingActive = true;
+  var restartAttempts = 0;
+  var maxRestarts = 50;
 
-  // Dynamic language based on selected transcription language
-  const savedLang = localStorage.getItem('transcriptLanguage') || 'en';
-  recognition.lang = (savedLang === 'ge' || savedLang === 'ka') ? 'ka-GE' : 'en-US';
+  function createRecognition() {
+    var recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
 
-  let typeTimer = null;
+    // Dynamic language based on selected transcription language
+    var savedLang = localStorage.getItem('transcriptLanguage') || 'en';
+    recognition.lang = (savedLang === 'ge' || savedLang === 'ka') ? 'ka-GE' : 'en-US';
 
-  recognition.onresult = (event) => {
-    let fullTranscript = '';
-    for (let i = 0; i < event.results.length; ++i) {
-      fullTranscript += event.results[i][0].transcript;
-    }
-    if (!fullTranscript) return;
+    var typeTimer = null;
 
-    // Typing animation for insertions and speech corrections
-    if (typeTimer) { clearInterval(typeTimer); typeTimer = null; }
+    recognition.onresult = function(event) {
+      restartAttempts = 0; // Reset on successful result
+      var fullTranscript = '';
+      for (var i = 0; i < event.results.length; ++i) {
+        fullTranscript += event.results[i][0].transcript;
+      }
+      if (!fullTranscript) return;
 
-    const target = fullTranscript;
-    let current = targetInput.value || '';
+      // Typing animation for insertions and speech corrections
+      if (typeTimer) { clearInterval(typeTimer); typeTimer = null; }
 
-    const commonPrefixLen = (a, b) => {
-      const max = Math.min(a.length, b.length);
-      let i = 0;
-      while (i < max && a[i] === b[i]) i += 1;
-      return i;
+      var target = fullTranscript;
+      var current = targetInput.value || '';
+
+      var commonPrefixLen = function(a, b) {
+        var max = Math.min(a.length, b.length);
+        var i = 0;
+        while (i < max && a[i] === b[i]) i += 1;
+        return i;
+      };
+
+      if (current === target) return;
+
+      typeTimer = setInterval(function() {
+        if (current === target) {
+          clearInterval(typeTimer);
+          typeTimer = null;
+          if (window.updateDynamicCountersCheck) {
+            window.updateDynamicCountersCheck(targetInput);
+          } else if (window.updateDynamicCounters) {
+            window.updateDynamicCounters();
+          }
+          return;
+        }
+
+        var prefix = commonPrefixLen(current, target);
+
+        if (current.length > target.length || prefix < current.length) {
+          // Backspace animation for corrections/deletions
+          var toDelete = Math.max(1, Math.ceil((current.length - prefix) / 3));
+          current = current.slice(0, Math.max(prefix, current.length - toDelete));
+        } else {
+          // Type forward animation for additions
+          var remaining = target.length - current.length;
+          var toAdd = Math.max(1, Math.ceil(remaining / 8));
+          current = target.slice(0, current.length + toAdd);
+        }
+
+        targetInput.value = current;
+        autoResize(targetInput);
+      }, 18);
     };
 
-    if (current === target) return;
-
-    typeTimer = setInterval(() => {
-      if (current === target) {
-        clearInterval(typeTimer);
-        typeTimer = null;
-        if (window.updateDynamicCountersCheck) {
-          window.updateDynamicCountersCheck(targetInput);
-        } else if (window.updateDynamicCounters) {
-          window.updateDynamicCounters();
-        }
+    recognition.onerror = function(event) {
+      console.warn("Speech recognition error:", event.error);
+      // On mobile, 'no-speech' and 'aborted' are common non-fatal errors
+      if (event.error === 'no-speech' || event.error === 'aborted') {
+        // Will auto-restart via onend
         return;
       }
-
-      const prefix = commonPrefixLen(current, target);
-
-      if (current.length > target.length || prefix < current.length) {
-        // Backspace animation for corrections/deletions
-        const toDelete = Math.max(1, Math.ceil((current.length - prefix) / 3));
-        current = current.slice(0, Math.max(prefix, current.length - toDelete));
-      } else {
-        // Type forward animation for additions
-        const remaining = target.length - current.length;
-        const toAdd = Math.max(1, Math.ceil(remaining / 8));
-        current = target.slice(0, current.length + toAdd);
+      if (event.error === 'not-allowed' || event.error === 'service-not-available') {
+        // Fatal — stop trying
+        window._liveRecordingActive = false;
       }
+    };
 
-      targetInput.value = current;
-      autoResize(targetInput);
-    }, 18);
-  };
+    recognition.onend = function() {
+      if (typeTimer) { clearInterval(typeTimer); typeTimer = null; }
+      window.liveRecognition = null;
 
-  recognition.onerror = (event) => {
-    console.error("Speech recognition error:", event.error);
-  };
+      // Auto-restart if recording is still active (mobile browsers stop after silence)
+      if (window._liveRecordingActive && restartAttempts < maxRestarts) {
+        restartAttempts++;
+        var delay = Math.min(restartAttempts * 100, 1000);
+        setTimeout(function() {
+          if (!window._liveRecordingActive) return;
+          try {
+            var newRec = createRecognition();
+            newRec.start();
+            window.liveRecognition = newRec;
+          } catch (e) {
+            console.warn("Speech recognition restart failed:", e);
+          }
+        }, delay);
+      }
+    };
 
-  recognition.onend = () => {
-    if (typeTimer) { clearInterval(typeTimer); typeTimer = null; }
-    window.liveRecognition = null;
-  };
+    return recognition;
+  }
 
-  recognition.start();
+  var recognition = createRecognition();
+  try {
+    recognition.start();
+  } catch (e) {
+    console.warn("Speech recognition start failed:", e);
+    return;
+  }
   window.liveRecognition = recognition;
+}
+
+function stopLiveTranscription() {
+  window._liveRecordingActive = false;
+  if (window.liveRecognition) {
+    try { window.liveRecognition.stop(); } catch (e) { }
+    window.liveRecognition = null;
+  }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -1899,10 +1953,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (mediaRecorder.stream) {
         mediaRecorder.stream.getTracks().forEach(t => t.stop());
       }
-      if (window.liveRecognition) {
-        try { window.liveRecognition.stop(); } catch (e) { }
-        window.liveRecognition = null;
-      }
+      stopLiveTranscription();
       isRecording = false;
       window.totalVoiceUsed = Math.floor(duration / 1000); // Set initial bank usage
       startAnalysisUI();
@@ -1921,10 +1972,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const timerDisplay = document.getElementById("currentAudioTime");
     if (timerDisplay) timerDisplay.classList.remove("text-red-600");
 
-    if (window.liveRecognition) {
-      try { window.liveRecognition.stop(); } catch (e) { }
-      window.liveRecognition = null;
-    }
+    stopLiveTranscription();
 
     isRecording = false;
     isAnalyzing = false;

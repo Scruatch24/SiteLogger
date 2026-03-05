@@ -151,13 +151,19 @@
 
   /* ── Priority-Plus Nav: jank-free single-pass fitting ── */
   (function() {
-    var header   = document.getElementById('siteHeaderInner');
-    var logo     = document.getElementById('siteLogo');
-    var navWrap  = document.getElementById('siteNavLinks');
-    var authWrap = document.getElementById('siteAuthLinks');
-    var burger   = document.getElementById('siteHamburger');
-    var menuNav  = document.getElementById('siteMenuNav');
-    if (!header || !navWrap || !burger) return;
+    var header, logo, navWrap, authWrap, burger, menuNav;
+
+    function acquireRefs() {
+      header   = document.getElementById('siteHeaderInner');
+      logo     = document.getElementById('siteLogo');
+      navWrap  = document.getElementById('siteNavLinks');
+      authWrap = document.getElementById('siteAuthLinks');
+      burger   = document.getElementById('siteHamburger');
+      menuNav  = document.getElementById('siteMenuNav');
+      return !!(header && navWrap && burger);
+    }
+
+    if (!acquireRefs()) return;
 
     /*
      * Display order (visual left→right when shown):
@@ -283,6 +289,15 @@
       /* Step 1: Measure natural widths while everything is still hidden */
       var natW = measureNatural();
 
+      /* Guard: if all measured widths are 0, layout isn't ready — defer and retry */
+      var allZero = true;
+      for (var zk in natW) { if (natW[zk] > 0) { allZero = false; break; } }
+      if (allZero && Object.keys(natW).length > 0) {
+        lastResult = '';
+        setTimeout(fitNav, 120);
+        return;
+      }
+
       /* Step 2: Hide ALL nav items BEFORE making container visible (prevents flash) */
       allItems.forEach(function(el) {
         el.classList.add('nav-hidden');
@@ -390,6 +405,13 @@
       resizeTimer = setTimeout(fitNav, 80);
     });
 
+    /* ── Expose globally for Turbo / external triggers ── */
+    window._fitNav = function() {
+      acquireRefs();
+      lastResult = '';
+      fitNav();
+    };
+
     /* ── Initial run: once immediately, once after fonts settle ── */
     fitNav();
     if (document.fonts && document.fonts.ready) {
@@ -398,6 +420,19 @@
         requestAnimationFrame(fitNav);
       });
     }
+
+    /* ── Re-run on Turbo navigation (replaces body, inline script re-runs but refs may be stale) ── */
+    document.addEventListener('turbo:load', function() {
+      if (acquireRefs()) { lastResult = ''; requestAnimationFrame(fitNav); }
+    });
+
+    /* ── Re-run when mobile tab is restored from bfcache or suspension ── */
+    window.addEventListener('pageshow', function(e) {
+      if (e.persisted && acquireRefs()) { lastResult = ''; requestAnimationFrame(fitNav); }
+    });
+    document.addEventListener('visibilitychange', function() {
+      if (!document.hidden && acquireRefs()) { lastResult = ''; requestAnimationFrame(fitNav); }
+    });
 
     /* ── Logo hover animation (unchanged) ── */
     const isMobile = () => window.innerWidth < 1280;
