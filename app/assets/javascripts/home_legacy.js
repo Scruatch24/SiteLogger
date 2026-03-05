@@ -1,3 +1,21 @@
+/* ── Sanitize filename for cross-platform sharing (Georgian → Latin transliteration) ── */
+window.sanitizeFileName = function(name) {
+  var map = {
+    'ა':'a','ბ':'b','გ':'g','დ':'d','ე':'e','ვ':'v','ზ':'z','თ':'t','ი':'i',
+    'კ':'k','ლ':'l','მ':'m','ნ':'n','ო':'o','პ':'p','ჟ':'zh','რ':'r','ს':'s',
+    'ტ':'t','უ':'u','ფ':'p','ქ':'k','ღ':'gh','ყ':'q','შ':'sh','ჩ':'ch',
+    'ც':'ts','ძ':'dz','წ':'ts','ჭ':'ch','ხ':'kh','ჯ':'j','ჰ':'h'
+  };
+  var result = '';
+  for (var i = 0; i < name.length; i++) {
+    var c = name[i];
+    if (map[c]) { result += map[c]; }
+    else if (/[a-zA-Z0-9 _\-.]/.test(c)) { result += c; }
+    else { result += ''; }
+  }
+  return result.replace(/\s+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '') || 'Client';
+};
+
 /* ── Global Popup Backdrop ── */
 window._activePopupClose = null;
 
@@ -1649,34 +1667,7 @@ function startLiveTranscription(targetInput) {
 
   // Dynamic language based on selected transcription language
   const savedLang = localStorage.getItem('transcriptLanguage') || 'en';
-  const isGeorgian = (savedLang === 'ge' || savedLang === 'ka');
-  const languageFallbacks = isGeorgian ? ['ka-GE', 'ka'] : ['en-US', 'en'];
-  let fallbackIndex = 0;
-  let switchingLanguage = false;
-  recognition.lang = languageFallbacks[fallbackIndex];
-
-  const startRecognition = () => {
-    try {
-      recognition.start();
-      window.liveRecognition = recognition;
-      return true;
-    } catch (e) {
-      console.error("Speech recognition start failed:", e);
-
-      if (fallbackIndex < languageFallbacks.length - 1) {
-        fallbackIndex += 1;
-        recognition.lang = languageFallbacks[fallbackIndex];
-        return startRecognition();
-      }
-
-      if (isGeorgian && typeof window.showError === 'function') {
-        window.showError(window.APP_LANGUAGES?.speech_not_recognized || "Georgian live transcription is not supported in this browser. Try Chrome.");
-      }
-
-      window.liveRecognition = null;
-      return false;
-    }
-  };
+  recognition.lang = (savedLang === 'ge' || savedLang === 'ka') ? 'ka-GE' : 'en-US';
 
   let typeTimer = null;
 
@@ -1734,35 +1725,15 @@ function startLiveTranscription(targetInput) {
 
   recognition.onerror = (event) => {
     console.error("Speech recognition error:", event.error);
-
-    // Some engines reject "ka-GE" but accept the generic "ka".
-    if (event?.error === 'language-not-supported' && fallbackIndex < languageFallbacks.length - 1) {
-      fallbackIndex += 1;
-      switchingLanguage = true;
-      recognition.lang = languageFallbacks[fallbackIndex];
-      try { recognition.stop(); } catch (e) { }
-      return;
-    }
-
-    if (event?.error === 'language-not-supported' && isGeorgian && typeof window.showError === 'function') {
-      window.showError(window.APP_LANGUAGES?.speech_not_recognized || "Georgian live transcription is not supported in this browser. Try Chrome.");
-    }
   };
 
   recognition.onend = () => {
     if (typeTimer) { clearInterval(typeTimer); typeTimer = null; }
-
-    if (switchingLanguage) {
-      switchingLanguage = false;
-      if (startRecognition()) return;
-    }
-
-    if (window.liveRecognition === recognition) {
-      window.liveRecognition = null;
-    }
+    window.liveRecognition = null;
   };
 
-  startRecognition();
+  recognition.start();
+  window.liveRecognition = recognition;
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -3003,7 +2974,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Use cached numbers from preview header or fallback
     const logNo = savedLogDisplayNumber || "1001";
     const clientName = document.getElementById("editClient")?.value?.trim() || "Client";
-    const fileName = `INV-${logNo}_${clientName}.pdf`;
+    const fileName = `INV-${logNo}_${window.sanitizeFileName(clientName)}.pdf`;
 
     try {
       // Use cached blob if available (INSTANT)

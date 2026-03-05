@@ -319,7 +319,13 @@ class InvoiceGenerator
       @pdf.fill_color @dark_charcoal
       @pdf.font(@base_font_name, style: :bold, size: 10) do
         client_name = (@recipient.name.presence || labels[:valued_client]).upcase
-        @pdf.text client_name, leading: 2
+        if @document_language == "ka"
+          @pdf.stroke_color @dark_charcoal
+          @pdf.line_width(0.35)
+          @pdf.text client_name, leading: 2, mode: :fill_stroke
+        else
+          @pdf.text client_name, leading: 2
+        end
       end
 
       # Recipient address
@@ -397,56 +403,59 @@ class InvoiceGenerator
 
       current_y = @pdf.cursor
 
+      # Compute uniform pill width for ISSUED / DUE / NUM badges
+      num_label = labels[:num] || "NUM"
+      pw_issued_raw = @pdf.width_of(labels[:issued], size: 6, style: :bold) + 14
+      pw_due_raw = @pdf.width_of(labels[:due], size: 6, style: :bold) + 14
+      pw_num_raw = @pdf.width_of(num_label, size: 6, style: :bold) + 14
+      uniform_pw = [pw_issued_raw, pw_due_raw, pw_num_raw, 35].max
+
       # 1. ISSUED section (right aligned)
-      pw_issued = [@pdf.width_of(labels[:issued], size: 6, style: :bold) + 14, 35].max
       @pdf.fill_color @soft_gray
-      @pdf.fill_rounded_rectangle [ x_edge - pw_issued, current_y ], pw_issued, pill_height, 2
+      @pdf.fill_rounded_rectangle [ x_edge - uniform_pw, current_y ], uniform_pw, pill_height, 2
       @pdf.fill_color @dark_charcoal
       @pdf.font(@base_font_name, size: 6, style: :bold) do
-        @pdf.text_box labels[:issued], at: [ x_edge - pw_issued, current_y - 4 ], width: pw_issued, height: pill_height, align: :center, character_spacing: 0.5
+        @pdf.text_box labels[:issued], at: [ x_edge - uniform_pw, current_y - 4 ], width: uniform_pw, height: pill_height, align: :center, character_spacing: 0.5
       end
 
       # ISSUED value
       @pdf.fill_color @dark_charcoal
       @pdf.font(@base_font_name, size: 9) do
-        @pdf.text_box @invoice_date, at: [ x_edge - pw_issued - date_val_width - 10, current_y - 2.5 ], width: date_val_width, align: :right
+        @pdf.text_box @invoice_date, at: [ x_edge - uniform_pw - date_val_width - 10, current_y - 2.5 ], width: date_val_width, align: :right
       end
 
       @pdf.move_down 22
       current_y = @pdf.cursor
 
       # 2. DUE section (below ISSUED, right aligned)
-      pw_due = [@pdf.width_of(labels[:due], size: 6, style: :bold) + 14, 35].max
       @pdf.fill_color @orange_color
-      @pdf.fill_rounded_rectangle [ x_edge - pw_due, current_y ], pw_due, pill_height, 2
+      @pdf.fill_rounded_rectangle [ x_edge - uniform_pw, current_y ], uniform_pw, pill_height, 2
       @pdf.fill_color "FFFFFF"
       @pdf.font(@base_font_name, size: 6, style: :bold) do
-        @pdf.text_box labels[:due], at: [ x_edge - pw_due, current_y - 4 ], width: pw_due, height: pill_height, align: :center, character_spacing: 0.5
+        @pdf.text_box labels[:due], at: [ x_edge - uniform_pw, current_y - 4 ], width: uniform_pw, height: pill_height, align: :center, character_spacing: 0.5
       end
 
       # DUE value
       @pdf.fill_color @dark_charcoal
       @pdf.font(@base_font_name, size: 9) do
-        @pdf.text_box @due_date, at: [ x_edge - pw_due - date_val_width - 10, current_y - 2.5 ], width: date_val_width, align: :right
+        @pdf.text_box @due_date, at: [ x_edge - uniform_pw - date_val_width - 10, current_y - 2.5 ], width: date_val_width, align: :right
       end
 
       @pdf.move_down 22
       current_y = @pdf.cursor
 
       # 3. NUM section (below DUE, right aligned) - Invoice Number
-      num_label = labels[:num] || "NUM"
-      pw_num = [@pdf.width_of(num_label, size: 6, style: :bold) + 14, 35].max
       @pdf.fill_color @soft_gray
-      @pdf.fill_rounded_rectangle [ x_edge - pw_num, current_y ], pw_num, pill_height, 2
+      @pdf.fill_rounded_rectangle [ x_edge - uniform_pw, current_y ], uniform_pw, pill_height, 2
       @pdf.fill_color @dark_charcoal
       @pdf.font(@base_font_name, size: 6, style: :bold) do
-        @pdf.text_box num_label, at: [ x_edge - pw_num, current_y - 4 ], width: pw_num, height: pill_height, align: :center, character_spacing: 0.5
+        @pdf.text_box num_label, at: [ x_edge - uniform_pw, current_y - 4 ], width: uniform_pw, height: pill_height, align: :center, character_spacing: 0.5
       end
 
       # NUM value (invoice number) - Orange text (always Latin, use NotoSans for bold)
       @pdf.fill_color @orange_color
       @pdf.font("NotoSans", size: 9, style: :bold) do
-        @pdf.text_box @invoice_number, at: [ x_edge - pw_num - date_val_width - 10, current_y - 2.5 ], width: date_val_width, align: :right
+        @pdf.text_box @invoice_number, at: [ x_edge - uniform_pw - date_val_width - 10, current_y - 2.5 ], width: date_val_width, align: :right
       end
     end
 
@@ -859,14 +868,14 @@ class InvoiceGenerator
     instr_block_h = 0
     @pdf.font(@base_font_name) do
       if @sender.payment_instructions.present?
-        p_title_h = @pdf.height_of(labels[:payment_details], width: instructions_width, size: 10, style: :bold, character_spacing: 1)
+        p_title_h = @pdf.height_of(labels[:payment_details], width: instructions_width, size: 10, style: :bold, character_spacing: 0.3)
         p_text_h = @pdf.height_of(@sender.payment_instructions, width: instructions_width, size: 9, leading: 3)
         instr_block_h += p_title_h + 5 + 2 + 10 + p_text_h
       end
 
       if @sender.note.present?
         note_gap = @sender.payment_instructions.present? ? 20 : 0
-        n_text_h = @pdf.height_of(@sender.note.upcase, width: instructions_width, size: 12, style: :bold, leading: 3)
+        n_text_h = @pdf.height_of(@sender.note.upcase, width: instructions_width, size: 10, style: :bold, leading: 3)
         instr_block_h += note_gap + n_text_h
       end
     end
@@ -898,7 +907,7 @@ class InvoiceGenerator
         @pdf.bounding_box([ 0, h_final ], width: instructions_width, height: instr_block_h) do
           if @sender.payment_instructions.present?
             @pdf.fill_color @dark_charcoal
-            @pdf.font(@base_font_name, style: :bold, size: 10) { @pdf.text labels[:payment_details], character_spacing: 1 }
+            @pdf.font(@base_font_name, style: :bold, size: 10) { @pdf.text labels[:payment_details], character_spacing: 0.3 }
             @pdf.move_down 5
             @pdf.stroke_color accent_color
             @pdf.line_width(2)
@@ -911,7 +920,7 @@ class InvoiceGenerator
           if @sender.note.present?
             @pdf.move_down 20 if @sender.payment_instructions.present?
             @pdf.fill_color accent_color
-            @pdf.font(@base_font_name, style: :bold, size: 12) do
+            @pdf.font(@base_font_name, style: :bold, size: 10) do
               @pdf.text @sender.note.upcase, leading: 3
             end
           end
@@ -977,7 +986,7 @@ class InvoiceGenerator
                       height: banner_h,
                       align: :left,
                       valign: :center,
-                      character_spacing: 1.5
+                      character_spacing: 0.5
       end
 
       @pdf.font(@base_font_name, style: :bold, size: 20) do
@@ -1342,7 +1351,14 @@ class InvoiceGenerator
       @pdf.move_down 8
       @pdf.fill_color "000000"
       @pdf.font(@base_font_name, style: :bold, size: 11) do
-        @pdf.text (@log.client.presence || "VALUED CLIENT").upcase, leading: 2
+        bold_client = (@log.client.presence || "VALUED CLIENT").upcase
+        if @document_language == "ka"
+          @pdf.stroke_color "000000"
+          @pdf.line_width(0.35)
+          @pdf.text bold_client, leading: 2, mode: :fill_stroke
+        else
+          @pdf.text bold_client, leading: 2
+        end
       end
       @pdf.move_down 5
       @pdf.fill_color @mid_gray
@@ -1427,7 +1443,14 @@ class InvoiceGenerator
       end
       @pdf.move_down 10
       @pdf.font(@base_font_name, style: :bold, size: 12) do
-        @pdf.text (@log.client.presence || "CLIENT").upcase
+        modern_client = (@log.client.presence || "CLIENT").upcase
+        if @document_language == "ka"
+          @pdf.stroke_color "000000"
+          @pdf.line_width(0.35)
+          @pdf.text modern_client, mode: :fill_stroke
+        else
+          @pdf.text modern_client
+        end
       end
       @pdf.move_down 4
       @pdf.font(@base_font_name, size: 9) do
@@ -1498,7 +1521,14 @@ class InvoiceGenerator
       end
       @pdf.move_down 5
       @pdf.font(@base_font_name, style: :bold, size: 16) do
-        @pdf.text (@log.client.presence || "CLIENT").upcase, leading: 2
+        bold_style_client = (@log.client.presence || "CLIENT").upcase
+        if @document_language == "ka"
+          @pdf.stroke_color "000000"
+          @pdf.line_width(0.4)
+          @pdf.text bold_style_client, leading: 2, mode: :fill_stroke
+        else
+          @pdf.text bold_style_client, leading: 2
+        end
       end
     end
 
@@ -1546,7 +1576,14 @@ class InvoiceGenerator
       @pdf.move_down 5
       @pdf.font(@base_font_name, style: :bold, size: 10) do
         @pdf.fill_color "000000"
-        @pdf.text (@log.client.presence || "CLIENT").upcase, leading: 2
+        min_client = (@log.client.presence || "CLIENT").upcase
+        if @document_language == "ka"
+          @pdf.stroke_color "000000"
+          @pdf.line_width(0.35)
+          @pdf.text min_client, leading: 2, mode: :fill_stroke
+        else
+          @pdf.text min_client, leading: 2
+        end
       end
       @pdf.font(@base_font_name, size: 8) do
         @pdf.fill_color @mid_gray

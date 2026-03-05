@@ -334,7 +334,7 @@
     <!-- Tabs / Selectors -->
     <div class="mb-4 px-4 <%= 'opacity-30 grayscale pointer-events-none select-none' if @profile.guest? %>">
        <!-- Brutalist Premium View Selector -->
-       <div class="relative flex p-1 bg-white rounded-2xl border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden h-14">
+       <div class="relative flex p-1 bg-white rounded-2xl border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all overflow-hidden h-14">
         <!-- Sliding Highlight Pill (Slim/Inset version) -->
          <div id="tab-highlight" 
               class="absolute top-0 bottom-0 left-0 w-1/3 p-2 transition-all duration-500 ease-[cubic-bezier(0.19,1,0.22,1)]">

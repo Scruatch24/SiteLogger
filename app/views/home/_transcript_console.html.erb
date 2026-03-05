@@ -13,7 +13,7 @@
       <button id="languageSelectorBtn" type="button" 
               class="flex items-center gap-1.5 px-2.5 py-1 bg-white border-2 border-black rounded-lg text-[10px] font-black uppercase tracking-widest shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all hover:bg-orange-50">
         <span id="currentLangFlag" class="fi fi-<%= is_ka ? 'ge' : 'us' %> scale-90 rounded-sm"></span>
-        <span id="currentLangText"><%= is_ka ? t('georgian') : t('english') %></span>
+        <span id="currentLangText"><%= is_ka ? t('transcript_georgian') : t('transcript_english') %></span>
         <svg class="h-2.5 w-2.5 transition-transform duration-200" id="langChevron" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path d="M19 9l-7 7-7-7" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
@@ -23,13 +23,13 @@
         <button type="button" onclick="setTranscriptLanguage('en')" 
                 class="w-full flex items-center gap-2.5 px-4 py-3 text-xs font-black hover:bg-orange-50 transition-colors border-b-2 border-black group whitespace-nowrap">
             <span class="fi fi-us rounded-sm scale-110 shrink-0"></span> 
-            <span><%= t('english') %></span>
+            <span><%= t('transcript_english') %></span>
             <svg id="check-en" class="h-3.5 w-3.5 text-orange-600 shrink-0 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="4"><path d="M5 13l4 4L19 7" /></svg>
         </button>
         <button type="button" onclick="setTranscriptLanguage('ge')" 
                 class="w-full flex items-center gap-2.5 px-4 py-3 text-xs font-black hover:bg-orange-50 transition-colors group whitespace-nowrap">
             <span class="fi fi-ge rounded-sm scale-110 shrink-0"></span> 
-            <span><%= t('georgian') %></span>
+            <span><%= t('transcript_georgian') %></span>
             <svg id="check-ge" class="h-3.5 w-3.5 text-orange-600 shrink-0 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="4"><path d="M5 13l4 4L19 7" /></svg>
         </button>
       </div>

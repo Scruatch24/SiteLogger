@@ -121,7 +121,7 @@
             hasSeenSplash = false;
           }
 
-          if (inStandalone && isHomePath && !hasSeenSplash) {
+          if (isHomePath && !hasSeenSplash) {
             document.documentElement.classList.add('pwa-launch-splash-enabled');
             try {
               window.sessionStorage.setItem(splashSessionKey, '1');
@@ -1732,23 +1732,6 @@
           deferredPrompt = e;
           setTimeout(showModal, 2500);
         });
-
-        // iOS — show browser-specific manual steps
-        if (isIOS() && !isStandalone()) {
-          setTimeout(function() {
-            if (wasDismissed()) return;
-            installBtn.textContent = '<%= t("pwa.ios_btn") %>';
-            installBtn.onclick = function() {
-              if (isIOSChrome()) {
-                iosChromeSteps.style.display = 'block';
-              } else {
-                iosSafariSteps.style.display = 'block';
-              }
-              installBtn.style.display = 'none';
-            };
-            showModal();
-          }, 3000);
-        }
 
         // Install button (Android)
         installBtn.addEventListener('click', function() {

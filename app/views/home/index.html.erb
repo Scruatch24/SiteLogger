@@ -253,8 +253,8 @@
   window.currentUserId = <%= user_signed_in? ? current_user.id.to_json : 'null' %>;
   window.profileTaxRate = <%= @profile.tax_rate || 0 %>;
   window.APP_LANGUAGES = {
-    en: "<%= t('english') %>",
-    ka: "<%= t('georgian') %>",
+    en: "<%= t('transcript_english') %>",
+    ka: "<%= t('transcript_georgian') %>",
         labor_hours_caps: "<%= j t('labor_hours_caps') %>",
         labor_price_caps: "<%= j t('labor_price_caps') %>",
         after_tax: "<%= j t('after_tax') %>",

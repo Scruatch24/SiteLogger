@@ -18,6 +18,8 @@ en:
   document_language: "Default Document Language"
   english: "English (US)"
   georgian: "Georgian"
+  transcript_english: "English"
+  transcript_georgian: "Georgian"
   current_guess: "Current guess:"
   not_specified: "Not specified"
   empty_audio: "Audio was empty or unclear. Please try again."

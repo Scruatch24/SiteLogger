@@ -370,7 +370,8 @@ class LogsController < ApplicationController
       generator = InvoiceGenerator.new(log, profile)
       pdf_data = generator.render
       response.headers["X-PDF-Pages"] = generator.page_count.to_s
-      send_data pdf_data, filename: "INV-#{log.display_number}_#{log.client}.pdf", type: "application/pdf", disposition: "inline"
+      safe_client = transliterate_filename(log.client.to_s)
+      send_data pdf_data, filename: "INV-#{log.display_number}_#{safe_client}.pdf", type: "application/pdf", disposition: "inline"
     end
 
     def preview_pdf
@@ -634,6 +635,18 @@ class LogsController < ApplicationController
         @profile.note = I18n.t("guest_profile.note") if @profile.note.blank?
         @profile.payment_instructions = "Please remit payment within 14 days.\nZelle: payments@titan-auto.com\nWire: First National Bank (Routing: 00001234)"
       end
+    end
+
+    def transliterate_filename(name)
+      georgian_map = {
+        'ა'=>'a','ბ'=>'b','გ'=>'g','დ'=>'d','ე'=>'e','ვ'=>'v','ზ'=>'z','თ'=>'t','ი'=>'i',
+        'კ'=>'k','ლ'=>'l','მ'=>'m','ნ'=>'n','ო'=>'o','პ'=>'p','ჟ'=>'zh','რ'=>'r','ს'=>'s',
+        'ტ'=>'t','უ'=>'u','ფ'=>'p','ქ'=>'k','ღ'=>'gh','ყ'=>'q','შ'=>'sh','ჩ'=>'ch',
+        'ც'=>'ts','ძ'=>'dz','წ'=>'ts','ჭ'=>'ch','ხ'=>'kh','ჯ'=>'j','ჰ'=>'h'
+      }
+      result = name.to_s.chars.map { |c| georgian_map[c] || (c =~ /[a-zA-Z0-9 _\-.]/ ? c : '') }.join
+      result = result.gsub(/\s+/, '_').gsub(/_+/, '_').gsub(/\A_|_\z/, '')
+      result.presence || 'Client'
     end
 
     def log_params
