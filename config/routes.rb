@@ -10,6 +10,7 @@ Rails.application.routes.draw do
   post "complete_onboarding", to: "home#complete_onboarding"
   post "set_transcript_language", to: "home#set_transcript_language"
   post "process_audio", to: "home#process_audio"
+  post "live_transcribe", to: "home#live_transcribe"
   post "refine_invoice", to: "home#refine_invoice"
   post "enhance_transcript_text", to: "home#enhance_transcript_text"
   get "history", to: "home#history"

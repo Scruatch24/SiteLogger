@@ -295,17 +295,8 @@ window.setTranscriptLanguage = function (lang) {
   document.getElementById('langChevron')?.classList.remove('rotate-180');
   window.hidePopupBackdrop();
 
-  // Restart live recognition with new language if currently active
-  if (window.liveRecognition || window._liveRecordingActive) {
-    const targetInput = document.getElementById('mainTranscript');
-    // Disable auto-restart before stopping so onend doesn't race with new start
-    window._liveRecordingActive = false;
-    if (window.liveRecognition) {
-      try { window.liveRecognition.stop(); } catch (e) { }
-      window.liveRecognition = null;
-    }
-    if (targetInput) startLiveTranscription(targetInput);
-  }
+  // Language change takes effect on the next /live_transcribe call automatically
+  // (language is read from localStorage each time)
 
   // Sync with server (document_language) to prevent flickering on reload
   fetch('/set_transcript_language?language=' + normalizedLang, {
@@ -1657,139 +1648,73 @@ window.totalVoiceUsed = 0; // Tracks seconds spent in current session (since las
 window.recordingStartTime = 0;
 
 window._liveRecordingActive = false;
+window._liveTargetInput = null;
+window._liveAudioChunks = [];
+window._pendingTranscription = false;
+window._transcriptionTimer = null;
 
 function startLiveTranscription(targetInput) {
   if (!targetInput) return;
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) return console.warn("Speech Recognition not supported in this browser.");
-
-  if (window.liveRecognition) {
-    try { window.liveRecognition.stop(); } catch (e) { }
-  }
-
   window._liveRecordingActive = true;
-  var restartAttempts = 0;
-  var maxRestarts = 50;
+  window._liveTargetInput = targetInput;
+  window._liveAudioChunks = [];
+  window._pendingTranscription = false;
 
-  function createRecognition() {
-    var recognition = new SpeechRecognition();
-    // Android Chrome doesn't support continuous mode — use single-shot + auto-restart
-    var isMobileDevice = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-    recognition.continuous = !isMobileDevice;
-    recognition.interimResults = true;
-
-    // Dynamic language based on selected transcription language
-    var savedLang = localStorage.getItem('transcriptLanguage') || 'en';
-    recognition.lang = (savedLang === 'ge' || savedLang === 'ka') ? 'ka-GE' : 'en-US';
-
-    var typeTimer = null;
-
-    recognition.onresult = function(event) {
-      restartAttempts = 0; // Reset on successful result
-      var fullTranscript = '';
-      for (var i = 0; i < event.results.length; ++i) {
-        fullTranscript += event.results[i][0].transcript;
-      }
-      if (!fullTranscript) return;
-
-      // Typing animation for insertions and speech corrections
-      if (typeTimer) { clearInterval(typeTimer); typeTimer = null; }
-
-      var target = fullTranscript;
-      var current = targetInput.value || '';
-
-      var commonPrefixLen = function(a, b) {
-        var max = Math.min(a.length, b.length);
-        var i = 0;
-        while (i < max && a[i] === b[i]) i += 1;
-        return i;
-      };
-
-      if (current === target) return;
-
-      typeTimer = setInterval(function() {
-        if (current === target) {
-          clearInterval(typeTimer);
-          typeTimer = null;
-          if (window.updateDynamicCountersCheck) {
-            window.updateDynamicCountersCheck(targetInput);
-          } else if (window.updateDynamicCounters) {
-            window.updateDynamicCounters();
-          }
-          return;
-        }
-
-        var prefix = commonPrefixLen(current, target);
-
-        if (current.length > target.length || prefix < current.length) {
-          // Backspace animation for corrections/deletions
-          var toDelete = Math.max(1, Math.ceil((current.length - prefix) / 3));
-          current = current.slice(0, Math.max(prefix, current.length - toDelete));
-        } else {
-          // Type forward animation for additions
-          var remaining = target.length - current.length;
-          var toAdd = Math.max(1, Math.ceil(remaining / 8));
-          current = target.slice(0, current.length + toAdd);
-        }
-
-        targetInput.value = current;
-        autoResize(targetInput);
-      }, 18);
-    };
-
-    recognition.onerror = function(event) {
-      console.warn("Speech recognition error:", event.error);
-      // On mobile, 'no-speech' and 'aborted' are common non-fatal errors
-      if (event.error === 'no-speech' || event.error === 'aborted') {
-        // Will auto-restart via onend
-        return;
-      }
-      if (event.error === 'not-allowed' || event.error === 'service-not-available') {
-        // Fatal — stop trying
-        window._liveRecordingActive = false;
-      }
-    };
-
-    recognition.onend = function() {
-      if (typeTimer) { clearInterval(typeTimer); typeTimer = null; }
-      window.liveRecognition = null;
-
-      // Auto-restart if recording is still active (mobile browsers stop after silence)
-      if (window._liveRecordingActive && restartAttempts < maxRestarts) {
-        restartAttempts++;
-        var delay = Math.min(restartAttempts * 100, 1000);
-        setTimeout(function() {
-          if (!window._liveRecordingActive) return;
-          try {
-            var newRec = createRecognition();
-            newRec.start();
-            window.liveRecognition = newRec;
-          } catch (e) {
-            console.warn("Speech recognition restart failed:", e);
-          }
-        }, delay);
-      }
-    };
-
-    return recognition;
-  }
-
-  var recognition = createRecognition();
-  try {
-    recognition.start();
-  } catch (e) {
-    console.warn("Speech recognition start failed:", e);
-    return;
-  }
-  window.liveRecognition = recognition;
+  // Poll every 4 seconds — send accumulated audio to server for ElevenLabs STT
+  window._transcriptionTimer = setInterval(function() {
+    if (!window._liveRecordingActive) return;
+    if (window._liveAudioChunks.length === 0) return;
+    if (window._pendingTranscription) return;
+    _sendLiveTranscription();
+  }, 4000);
 }
 
 function stopLiveTranscription() {
   window._liveRecordingActive = false;
-  if (window.liveRecognition) {
-    try { window.liveRecognition.stop(); } catch (e) { }
-    window.liveRecognition = null;
+  if (window._transcriptionTimer) {
+    clearInterval(window._transcriptionTimer);
+    window._transcriptionTimer = null;
   }
+  // Final transcription of remaining audio
+  if (window._liveAudioChunks.length > 0 && !window._pendingTranscription) {
+    _sendLiveTranscription();
+  }
+  window._liveTargetInput = null;
+}
+
+function _onLiveAudioChunk(chunk) {
+  if (!window._liveRecordingActive) return;
+  window._liveAudioChunks.push(chunk);
+}
+
+function _sendLiveTranscription() {
+  if (window._pendingTranscription) return;
+  if (window._liveAudioChunks.length === 0) return;
+
+  window._pendingTranscription = true;
+  var blob = new Blob(window._liveAudioChunks, { type: 'audio/webm' });
+  var formData = new FormData();
+  formData.append('audio', blob, 'audio.webm');
+  formData.append('language', localStorage.getItem('transcriptLanguage') || 'en');
+
+  var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+  var headers = csrfMeta ? { 'X-CSRF-Token': csrfMeta.content } : {};
+
+  fetch('/live_transcribe', { method: 'POST', headers: headers, body: formData })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.text && window._liveTargetInput) {
+        window._liveTargetInput.value = data.text;
+        autoResize(window._liveTargetInput);
+        if (window.updateDynamicCountersCheck) {
+          window.updateDynamicCountersCheck(window._liveTargetInput);
+        } else if (window.updateDynamicCounters) {
+          window.updateDynamicCounters();
+        }
+      }
+    })
+    .catch(function(e) { console.warn('Live transcription error:', e); })
+    .finally(function() { window._pendingTranscription = false; });
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -1881,24 +1806,24 @@ document.addEventListener("DOMContentLoaded", () => {
         if (questionsList) questionsList.innerHTML = '';
       }
 
-      // Start live transcription IMMEDIATELY — must happen within user gesture
-      // context (before any await) or Android Chrome will block recognition.start()
-      if (transcriptArea) startLiveTranscription(transcriptArea);
-
       // Enforce Guest/Free Limits BEFORE starting
       if (typeof window.trackEvent === 'function') {
         const canProceed = await window.trackEvent('recording_started', window.currentUserId);
-        if (!canProceed) { stopLiveTranscription(); return; }
+        if (!canProceed) return;
       }
 
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         mediaRecorder = new MediaRecorder(stream);
         audioChunks = [];
-        mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
+        mediaRecorder.ondataavailable = (e) => {
+          audioChunks.push(e.data);
+          _onLiveAudioChunk(e.data);
+        };
         mediaRecorder.onstop = processAudio;
 
-        mediaRecorder.start();
+        mediaRecorder.start(3000);
+        startLiveTranscription(transcriptArea);
         window.recordingStartTime = Date.now();
 
         isRecording = true;
