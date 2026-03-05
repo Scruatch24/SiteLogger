@@ -135,23 +135,23 @@ body {
     }
   }
 
-  /* Nav Links — hidden on mobile (JS controls which show), always visible on desktop */
+  /* Nav Links — always visible; on sub-desktop, clips overflow until JS refines */
   .site-nav-links {
-    display: none;
+    display: flex;
     align-items: center;
     gap: 0.25rem;
   }
-  @media (min-width: 1280px) {
-    .site-nav-links {
-      display: flex;
-    }
-  }
   @media (max-width: 1279px) {
-    .site-nav-links.mobile-fit-active {
-      display: flex;
-      flex: 0 0 auto;
+    .site-nav-links {
+      flex: 1 1 0;
+      min-width: 0;
+      overflow: hidden;
       gap: 4px;
       justify-content: center;
+    }
+    .site-nav-links.mobile-fit-active {
+      flex: 0 0 auto;
+      overflow: visible;
     }
   }
   .site-nav-link.nav-hidden {
@@ -290,9 +290,9 @@ body {
     box-shadow: 2px 2px 0px 0px #dc2626;
   }
 
-  /* Hamburger — shown on mobile (JS .has-overflow), always hidden on desktop */
+  /* Hamburger — visible by default on sub-desktop, always hidden on desktop */
   .site-hamburger {
-    display: none;
+    display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
@@ -307,8 +307,19 @@ body {
     transition: all 0.2s ease;
     flex-shrink: 0;
   }
-  .site-hamburger.has-overflow {
-    display: flex;
+  .site-hamburger:not(.has-overflow) {
+    display: none;
+  }
+  @media (max-width: 1279px) {
+    .site-hamburger {
+      display: flex !important;
+    }
+    .site-hamburger:not(.has-overflow) {
+      visibility: hidden;
+    }
+    .site-hamburger.has-overflow {
+      visibility: visible;
+    }
   }
   @media (min-width: 1280px) {
     .site-hamburger, .site-hamburger.has-overflow {

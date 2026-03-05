@@ -1673,7 +1673,9 @@ function startLiveTranscription(targetInput) {
 
   function createRecognition() {
     var recognition = new SpeechRecognition();
-    recognition.continuous = true;
+    // Android Chrome doesn't support continuous mode — use single-shot + auto-restart
+    var isMobileDevice = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    recognition.continuous = !isMobileDevice;
     recognition.interimResults = true;
 
     // Dynamic language based on selected transcription language
@@ -1879,10 +1881,14 @@ document.addEventListener("DOMContentLoaded", () => {
         if (questionsList) questionsList.innerHTML = '';
       }
 
+      // Start live transcription IMMEDIATELY — must happen within user gesture
+      // context (before any await) or Android Chrome will block recognition.start()
+      if (transcriptArea) startLiveTranscription(transcriptArea);
+
       // Enforce Guest/Free Limits BEFORE starting
       if (typeof window.trackEvent === 'function') {
         const canProceed = await window.trackEvent('recording_started', window.currentUserId);
-        if (!canProceed) return;
+        if (!canProceed) { stopLiveTranscription(); return; }
       }
 
       try {
@@ -1893,7 +1899,6 @@ document.addEventListener("DOMContentLoaded", () => {
         mediaRecorder.onstop = processAudio;
 
         mediaRecorder.start();
-        startLiveTranscription(transcriptArea);
         window.recordingStartTime = Date.now();
 
         isRecording = true;
@@ -1929,6 +1934,7 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         }, 1000);
       } catch (e) {
+        stopLiveTranscription();
         showError(window.APP_LANGUAGES.microphone_access_denied || "Microphone access required.");
       }
     } else {

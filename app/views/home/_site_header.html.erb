@@ -298,14 +298,7 @@
         return;
       }
 
-      /* Step 2: Hide ALL nav items BEFORE making container visible (prevents flash) */
-      allItems.forEach(function(el) {
-        el.classList.add('nav-hidden');
-        el.style.width = '';
-      });
-      navWrap.classList.add('mobile-fit-active');
-
-      /* Step 3: Calculate available budget */
+      /* Step 2: Calculate available budget */
       var isTablet = vw >= 768;
       var logoW = logo.offsetWidth;
       var authW = 0;
@@ -337,9 +330,11 @@
       if (resultKey === lastResult) return;
       lastResult = resultKey;
 
-      /* Step 4: Build fitted list in DISPLAY_ORDER for visual ordering */
+      /* Step 3: Build show set */
       var showSet = {};
       showKeys.forEach(function(k) { showSet[k] = true; });
+
+      /* Step 4: Build fitted list in DISPLAY_ORDER for width calculation */
       var fitted = [];
       DISPLAY_ORDER.forEach(function(key) {
         if (!showSet[key]) return;
@@ -348,6 +343,7 @@
       });
 
       /* Step 5: Calculate widths — equalize if all fit, else proportional */
+      var widthMap = {};
       if (fitted.length > 0) {
         var totalGaps = (fitted.length - 1) * NAV_GAP;
         var space = Math.max(budget - totalGaps, 0);
@@ -358,12 +354,10 @@
         }
 
         if (maxNat <= targetW) {
-          /* All items fit at equal width — use equalized */
           for (var i = 0; i < fitted.length; i++) {
-            fitted[i].el.style.width = targetW + 'px';
+            widthMap[fitted[i].key] = targetW;
           }
         } else {
-          /* Can't equalize — lock wide items at natural, share remaining among smaller */
           var locked = 0, lockedW = 0;
           for (var i = 0; i < fitted.length; i++) {
             if (fitted[i].minW > targetW) { locked++; lockedW += fitted[i].minW; }
@@ -371,15 +365,23 @@
           var rest = fitted.length - locked;
           var restW = rest > 0 ? Math.floor((space - lockedW) / rest) : 0;
           for (var i = 0; i < fitted.length; i++) {
-            fitted[i].el.style.width = (fitted[i].minW > targetW ? fitted[i].minW : Math.max(restW, fitted[i].minW)) + 'px';
+            widthMap[fitted[i].key] = fitted[i].minW > targetW ? fitted[i].minW : Math.max(restW, fitted[i].minW);
           }
         }
-
-        /* Step 6: Reveal fitted items (single paint) */
-        for (var i = 0; i < fitted.length; i++) {
-          fitted[i].el.classList.remove('nav-hidden');
-        }
       }
+
+      /* Step 6: Single-pass DOM update — never hides a visible item before showing it */
+      navWrap.classList.add('mobile-fit-active');
+      allItems.forEach(function(el) {
+        var key = el.dataset.navKey;
+        if (showSet[key]) {
+          el.style.width = (widthMap[key] || '') + 'px';
+          el.classList.remove('nav-hidden');
+        } else {
+          el.classList.add('nav-hidden');
+          el.style.width = '';
+        }
+      });
 
       /* Step 7: Update hamburger menu — show items NOT in header */
       menuNav.querySelectorAll('[data-menu-key]').forEach(function(el) {
