@@ -1685,8 +1685,9 @@ function _shouldUseWebSpeechAPI() {
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) return false;
   if (window._webSpeechFailed) return false;
-  // iOS: Web Speech API is broken/unavailable
-  if (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream) return false;
+  // Mobile: skip Web Speech entirely — use ElevenLabs realtime instead
+  // Web Speech loops/restarts unreliably on Android and is broken on iOS
+  if (/Android|iPhone|iPad|iPod|Mobile|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) return false;
   return true;
 }
 

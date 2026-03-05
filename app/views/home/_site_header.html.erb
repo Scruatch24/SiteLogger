@@ -143,302 +143,21 @@
 
 <script>
   function toggleSiteMenu() {
-    const menu = document.getElementById('siteMenuMobile');
-    const btn = document.getElementById('siteHamburger');
+    var menu = document.getElementById('siteMenuMobile');
+    var btn = document.getElementById('siteHamburger');
     menu.classList.toggle('open');
     btn.classList.toggle('open');
   }
 
-  /* ── Priority-Plus Nav: jank-free single-pass fitting ── */
+  /* No-op for any code that calls _fitNav externally */
+  window._fitNav = function() {};
+
+  /* ── Logo hover animation (desktop only) ── */
   (function() {
-    var header, logo, navWrap, authWrap, burger, menuNav;
+    var logo = document.getElementById('siteLogo');
+    if (!logo) return;
 
-    function acquireRefs() {
-      header   = document.getElementById('siteHeaderInner');
-      logo     = document.getElementById('siteLogo');
-      navWrap  = document.getElementById('siteNavLinks');
-      authWrap = document.getElementById('siteAuthLinks');
-      burger   = document.getElementById('siteHamburger');
-      menuNav  = document.getElementById('siteMenuNav');
-      return !!(header && navWrap && burger);
-    }
-
-    if (!acquireRefs()) return;
-
-    /*
-     * Display order (visual left→right when shown):
-     *   HOME  HISTORY  SETTINGS  PROFILE  ANALYTICS  PRICING
-     *
-     * Fitting priority:
-     *   1. Home  2. History  (always tried first)
-     *   3. Settings preferred over Profile; show both if budget allows
-     *   4. Analytics  5. Pricing
-     */
-    var DISPLAY_ORDER = ['home', 'history', 'settings', 'profile', 'analytics', 'pricing'];
-    var M = 10;        /* margin per slot (CSS padding + gap) */
-    var NAV_GAP = 4;   /* gap between nav buttons */
-    var BURGER_W = 40; /* 36px + 2px border + 2px shadow = ~40px */
-
-    function getEl(key) {
-      return navWrap.querySelector('[data-nav-key="' + key + '"]');
-    }
-
-    var totalNavCount = DISPLAY_ORDER.filter(function(k) { return !!getEl(k); }).length;
-
-    /* ── Measure natural widths in a single hidden pass (zero visual impact) ── */
-    function measureNatural() {
-      var natW = {};
-      var items = navWrap.querySelectorAll('[data-nav-key]');
-      /* Make nav container measurable but invisible */
-      navWrap.style.setProperty('display', 'flex', 'important');
-      navWrap.style.setProperty('position', 'absolute', 'important');
-      navWrap.style.setProperty('visibility', 'hidden', 'important');
-      navWrap.style.setProperty('pointer-events', 'none', 'important');
-      items.forEach(function(el) {
-        el.style.setProperty('display', 'inline-flex', 'important');
-        el.style.setProperty('visibility', 'hidden', 'important');
-        el.style.setProperty('width', 'auto', 'important');
-      });
-      /* Single forced layout read */
-      items.forEach(function(el) {
-        natW[el.dataset.navKey] = Math.ceil(el.getBoundingClientRect().width);
-      });
-      /* Reset — remove only the properties we set */
-      items.forEach(function(el) {
-        el.style.removeProperty('display');
-        el.style.removeProperty('visibility');
-        el.style.removeProperty('width');
-      });
-      navWrap.style.removeProperty('display');
-      navWrap.style.removeProperty('position');
-      navWrap.style.removeProperty('visibility');
-      navWrap.style.removeProperty('pointer-events');
-      return natW;
-    }
-
-    /* ── Priority fitting — returns array of keys that fit in budget ── */
-    function runFitting(budget, natW) {
-      var keys = [];
-      var used = 0;
-      function canFit(key) {
-        if (!getEl(key)) return false;
-        return (used + (natW[key] || 0) + (keys.length ? NAV_GAP : 0) <= budget);
-      }
-      function add(key) {
-        if (keys.length) used += NAV_GAP;
-        used += (natW[key] || 0);
-        keys.push(key);
-      }
-
-      /* 1-2: Home, History */
-      if (!canFit('home')) return keys;
-      add('home');
-      if (!canFit('history')) return keys;
-      add('history');
-
-      /* 3: Settings > Profile; show both if space allows */
-      var pEl = getEl('profile'), sEl = getEl('settings');
-      var bothNeed = (pEl && sEl)
-        ? (natW['settings'] || 0) + NAV_GAP + (natW['profile'] || 0) + NAV_GAP
-        : Infinity;
-
-      if (used + bothNeed <= budget) {
-        add('settings'); add('profile');
-      } else if (canFit('settings')) {
-        add('settings');
-      } else if (canFit('profile')) {
-        add('profile');
-      } else {
-        return keys;
-      }
-
-      /* 4-5: Analytics, Pricing */
-      if (canFit('analytics')) {
-        add('analytics');
-        if (canFit('pricing')) add('pricing');
-      }
-      return keys;
-    }
-
-    /* ── Cache last result to skip redundant DOM writes ── */
-    var lastResult = '';
-
-    function fitNav() {
-      var allItems = navWrap.querySelectorAll('[data-nav-key]');
-      var vw = window.innerWidth;
-
-      /* Desktop (≥ 1280): CSS handles everything */
-      if (vw >= 1280) {
-        if (lastResult === 'desktop') return;
-        lastResult = 'desktop';
-        navWrap.classList.remove('mobile-fit-active');
-        allItems.forEach(function(el) {
-          el.classList.remove('nav-hidden');
-          el.style.width = '';
-        });
-        burger.classList.remove('has-overflow');
-        burger.style.display = '';
-        if (authWrap) authWrap.classList.remove('auth-hidden');
-        menuNav.querySelectorAll('[data-menu-key]').forEach(function(el) { el.classList.remove('menu-visible'); });
-        return;
-      }
-
-      /* ── Sub-desktop ── */
-      try {
-
-      /* Step 1: Measure natural widths while everything is still hidden */
-      var natW = measureNatural();
-
-      /* Guard: if all measured widths are 0, layout isn't ready — defer and retry */
-      var allZero = true;
-      for (var zk in natW) { if (natW[zk] > 0) { allZero = false; break; } }
-      if (allZero && Object.keys(natW).length > 0) {
-        lastResult = '';
-        setTimeout(fitNav, 120);
-        return;
-      }
-
-      /* Step 2: Calculate available budget */
-      var isTablet = vw >= 768;
-      var logoW = logo.offsetWidth;
-      var authW = 0;
-      var budget, showKeys;
-
-      if (isTablet) {
-        if (authWrap) authWrap.classList.remove('auth-hidden');
-        authW = authWrap ? authWrap.offsetWidth : 0;
-        burger.classList.remove('has-overflow');
-
-        /* Try without hamburger first */
-        budget = header.clientWidth - logoW - authW - (4 * M);
-        showKeys = runFitting(Math.max(budget, 0), natW);
-
-        if (showKeys.length < totalNavCount) {
-          burger.classList.add('has-overflow');
-          budget = header.clientWidth - logoW - authW - BURGER_W - (5 * M);
-          showKeys = runFitting(Math.max(budget, 0), natW);
-        }
-      } else {
-        if (authWrap) authWrap.classList.add('auth-hidden');
-        burger.classList.add('has-overflow');
-        budget = header.clientWidth - logoW - BURGER_W - (4 * M);
-        showKeys = runFitting(Math.max(budget, 0), natW);
-      }
-
-      /* Skip DOM writes if result is identical to last run */
-      var resultKey = showKeys.join(',') + '|' + budget;
-      if (resultKey === lastResult) return;
-      lastResult = resultKey;
-
-      /* Step 3: Build show set */
-      var showSet = {};
-      showKeys.forEach(function(k) { showSet[k] = true; });
-
-      /* Step 4: Build fitted list in DISPLAY_ORDER for width calculation */
-      var fitted = [];
-      DISPLAY_ORDER.forEach(function(key) {
-        if (!showSet[key]) return;
-        var el = getEl(key);
-        if (el) fitted.push({ key: key, el: el, minW: natW[key] || 0 });
-      });
-
-      /* Step 5: Calculate widths — equalize if all fit, else proportional */
-      var widthMap = {};
-      if (fitted.length > 0) {
-        var totalGaps = (fitted.length - 1) * NAV_GAP;
-        var space = Math.max(budget - totalGaps, 0);
-        var targetW = Math.floor(space / fitted.length);
-        var maxNat = 0;
-        for (var i = 0; i < fitted.length; i++) {
-          if (fitted[i].minW > maxNat) maxNat = fitted[i].minW;
-        }
-
-        if (maxNat <= targetW) {
-          for (var i = 0; i < fitted.length; i++) {
-            widthMap[fitted[i].key] = targetW;
-          }
-        } else {
-          var locked = 0, lockedW = 0;
-          for (var i = 0; i < fitted.length; i++) {
-            if (fitted[i].minW > targetW) { locked++; lockedW += fitted[i].minW; }
-          }
-          var rest = fitted.length - locked;
-          var restW = rest > 0 ? Math.floor((space - lockedW) / rest) : 0;
-          for (var i = 0; i < fitted.length; i++) {
-            widthMap[fitted[i].key] = fitted[i].minW > targetW ? fitted[i].minW : Math.max(restW, fitted[i].minW);
-          }
-        }
-      }
-
-      /* Step 6: Single-pass DOM update — never hides a visible item before showing it */
-      navWrap.classList.add('mobile-fit-active');
-      allItems.forEach(function(el) {
-        var key = el.dataset.navKey;
-        if (showSet[key]) {
-          el.style.width = (widthMap[key] || '') + 'px';
-          el.classList.remove('nav-hidden');
-        } else {
-          el.classList.add('nav-hidden');
-          el.style.width = '';
-        }
-      });
-
-      /* Step 7: Update hamburger menu — show items NOT in header */
-      menuNav.querySelectorAll('[data-menu-key]').forEach(function(el) {
-        el.classList.toggle('menu-visible', !showSet[el.dataset.menuKey]);
-      });
-
-      } catch(e) {
-        /* Fallback: show all items without width constraints */
-        navWrap.classList.add('mobile-fit-active');
-        navWrap.querySelectorAll('[data-nav-key]').forEach(function(el) {
-          el.classList.remove('nav-hidden');
-          el.style.width = '';
-        });
-        burger.classList.add('has-overflow');
-      }
-    }
-
-    /* ── Run on resize (debounced) ── */
-    var resizeTimer;
-    window.addEventListener('resize', function() {
-      clearTimeout(resizeTimer);
-      lastResult = '';          /* force recalc on resize */
-      resizeTimer = setTimeout(fitNav, 80);
-    });
-
-    /* ── Expose globally for Turbo / external triggers ── */
-    window._fitNav = function() {
-      acquireRefs();
-      lastResult = '';
-      fitNav();
-    };
-
-    /* ── Initial run: once immediately, once after fonts settle ── */
-    fitNav();
-    if (document.fonts && document.fonts.ready) {
-      document.fonts.ready.then(function() {
-        lastResult = '';        /* fonts may change measurements */
-        requestAnimationFrame(fitNav);
-      });
-    }
-
-    /* ── Re-run on Turbo navigation (replaces body, inline script re-runs but refs may be stale) ── */
-    document.addEventListener('turbo:load', function() {
-      if (acquireRefs()) { lastResult = ''; requestAnimationFrame(fitNav); }
-    });
-
-    /* ── Re-run when mobile tab is restored from bfcache or suspension ── */
-    window.addEventListener('pageshow', function(e) {
-      if (e.persisted && acquireRefs()) { lastResult = ''; requestAnimationFrame(fitNav); }
-    });
-    document.addEventListener('visibilitychange', function() {
-      if (!document.hidden && acquireRefs()) { lastResult = ''; requestAnimationFrame(fitNav); }
-    });
-
-    /* ── Logo hover animation (unchanged) ── */
-    const isMobile = () => window.innerWidth < 1280;
-    const VISITED_KEY = 'logoTextVisited';
+    var isMobile = function() { return window.innerWidth < 1280; };
 
     function attachDesktopHover() {
       logo.addEventListener('mouseenter', function() {
@@ -449,12 +168,7 @@
       });
     }
 
-    var hasVisited = localStorage.getItem(VISITED_KEY) === 'true';
-
     if (!isMobile()) {
-      if (!hasVisited) {
-        localStorage.setItem(VISITED_KEY, 'true');
-      }
       setTimeout(function() {
         logo.classList.add('logo-text-open');
         setTimeout(function() {
@@ -462,12 +176,7 @@
           attachDesktopHover();
         }, 3000);
       }, 800);
-
-      if (hasVisited) {
-        attachDesktopHover();
-      }
-    } else {
-      attachDesktopHover();
     }
+    attachDesktopHover();
   })();
 </script>

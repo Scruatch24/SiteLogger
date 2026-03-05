@@ -135,47 +135,22 @@ body {
     }
   }
 
-  /* Nav Links — always visible; on sub-desktop, clips overflow until JS refines */
+  /* Nav Links — desktop: horizontal row; mobile: hidden (all in hamburger) */
   .site-nav-links {
-    display: flex;
+    display: none;
     align-items: center;
     gap: 0.25rem;
   }
-  @media (max-width: 1279px) {
+  @media (min-width: 1280px) {
     .site-nav-links {
-      flex: 1 1 0;
-      min-width: 0;
-      overflow: hidden;
-      gap: 4px;
-      justify-content: center;
+      display: flex;
     }
-    .site-nav-links.mobile-fit-active {
-      flex: 0 0 auto;
-      overflow: visible;
-    }
-  }
-  .site-nav-link.nav-hidden {
-    display: none !important;
   }
   .site-nav-link:not(.site-nav-active):not(.site-nav-pricing) {
     background: #f3f4f6;
   }
   .site-nav-link.site-nav-pricing:not(.site-nav-active) {
     background: #fff7ed;
-  }
-  /* Georgian: ~15% smaller nav buttons on sub-desktop */
-  @media (max-width: 1279px) {
-    html[lang="ka"] .site-nav-link {
-      font-size: 9.5px;
-      padding: 0.3rem 0.625rem;
-      gap: 3px;
-    }
-    html[lang="ka"] .site-nav-link svg {
-      width: 12px;
-      height: 12px;
-      min-width: 12px;
-      min-height: 12px;
-    }
   }
   .site-nav-link {
     display: inline-flex;
@@ -193,7 +168,6 @@ body {
     border-radius: 10px;
     transition: all 0.2s ease;
     white-space: nowrap;
-    overflow: hidden;
   }
   .site-nav-link svg {
     flex-shrink: 0;
@@ -222,24 +196,16 @@ body {
     background: #fff7ed;
   }
 
-  /* Auth — hidden on mobile, shown on desktop; JS may hide via .auth-hidden */
+  /* Auth — desktop only */
   .site-auth-links {
     display: none;
     align-items: center;
     gap: 0.5rem;
   }
-  @media (min-width: 768px) {
+  @media (min-width: 1280px) {
     .site-auth-links {
       display: flex;
     }
-  }
-  @media (min-width: 768px) and (max-width: 1279px) {
-    .site-auth-links {
-      flex-shrink: 0;
-    }
-  }
-  .site-auth-links.auth-hidden {
-    display: none !important;
   }
   .site-auth-btn {
     display: inline-flex;
@@ -290,7 +256,7 @@ body {
     box-shadow: 2px 2px 0px 0px #dc2626;
   }
 
-  /* Hamburger — visible by default on sub-desktop, always hidden on desktop */
+  /* Hamburger — mobile only */
   .site-hamburger {
     display: flex;
     flex-direction: column;
@@ -307,22 +273,8 @@ body {
     transition: all 0.2s ease;
     flex-shrink: 0;
   }
-  .site-hamburger:not(.has-overflow) {
-    display: none;
-  }
-  @media (max-width: 1279px) {
-    .site-hamburger {
-      display: flex !important;
-    }
-    .site-hamburger:not(.has-overflow) {
-      visibility: hidden;
-    }
-    .site-hamburger.has-overflow {
-      visibility: visible;
-    }
-  }
   @media (min-width: 1280px) {
-    .site-hamburger, .site-hamburger.has-overflow {
+    .site-hamburger {
       display: none !important;
     }
   }
@@ -346,26 +298,24 @@ body {
     transform: translateY(-7px) rotate(-45deg);
   }
 
-  /* Mobile Menu */
+  /* Mobile Menu — all items always visible when open */
   .site-mobile-menu {
     display: none;
     flex-direction: column;
     border-top: 2px solid black;
     background: white;
-    padding: 1rem;
+    padding: 0;
     gap: 0.75rem;
-    max-height: 0;
     overflow: hidden;
-    opacity: 0;
-    transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
-                opacity 0.25s ease,
-                padding 0.3s ease;
   }
   .site-mobile-menu.open {
     display: flex;
-    max-height: 500px;
-    opacity: 1;
     padding: 1rem;
+  }
+  @media (min-width: 1280px) {
+    .site-mobile-menu {
+      display: none !important;
+    }
   }
   .site-mobile-nav {
     display: flex;
@@ -373,9 +323,6 @@ body {
     gap: 0.25rem;
   }
   .site-mobile-link {
-    display: none;
-  }
-  .site-mobile-link.menu-visible {
     display: flex;
     align-items: center;
     gap: 0.75rem;
@@ -398,8 +345,7 @@ body {
     color: #ea580c;
     border: 1px solid #fed7aa;
   }
-  .site-mobile-pricing,
-  .site-mobile-link.site-mobile-pricing.menu-visible {
+  .site-mobile-pricing {
     color: #ea580c;
   }
   .site-mobile-auth {

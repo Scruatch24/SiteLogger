@@ -17,7 +17,7 @@ Rails.application.configure do
                        "https://sandbox-buy.paddle.com"
     policy.media_src   :self, :blob  # For audio recording
     policy.worker_src  :self, :blob  # For AudioWorklet (ElevenLabs realtime STT)
-    policy.script_src  :self, :https, :unsafe_inline,
+    policy.script_src  :self, :https, :unsafe_inline, :blob,  # blob: needed for AudioWorklet inline module
                        "https://cdn.paddle.com", "https://sandbox-cdn.paddle.com",  # Paddle JS
                        "https://eu.i.posthog.com", "https://eu-assets.i.posthog.com",  # PostHog
                        "https://t.talkinvoice.online"  # PostHog reverse proxy
