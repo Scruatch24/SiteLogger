@@ -1851,14 +1851,37 @@ function _startWebSpeechTranscription(targetInput, stream) {
 }
 
 // ── Tier 2: ElevenLabs Realtime WebSocket (AudioWorklet + scribe_v2_realtime) ──
+var _audioProcessorCode = [
+  'class AudioProcessor extends AudioWorkletProcessor {',
+  '  constructor() { super(); this._buf = []; this._ratio = 0; }',
+  '  process(inputs) {',
+  '    var inp = inputs[0]; if (!inp || !inp[0] || !inp[0].length) return true;',
+  '    if (!this._ratio) this._ratio = sampleRate / 16000;',
+  '    var d = inp[0], r = this._ratio;',
+  '    for (var i = 0; i < d.length; i += r) {',
+  '      var x = Math.round(i); if (x >= d.length) break;',
+  '      var s = d[x] < -1 ? -1 : (d[x] > 1 ? 1 : d[x]);',
+  '      this._buf.push(s < 0 ? s * 32768 : s * 32767);',
+  '    }',
+  '    while (this._buf.length >= 1600) {',
+  '      var c = this._buf.splice(0, 1600);',
+  '      var a = new Int16Array(c);',
+  '      this.port.postMessage(a.buffer, [a.buffer]);',
+  '    }',
+  '    return true;',
+  '  }',
+  '}',
+  "registerProcessor('audio-processor', AudioProcessor);"
+].join('\n');
+
 function _startElevenLabsTranscription(targetInput, stream) {
   if (!window._liveRecordingActive) return;
   if (!stream) {
-    console.warn('No audio stream for ElevenLabs realtime — chunked fallback');
+    console.warn('No audio stream — chunked fallback');
     _startChunkedTranscription(targetInput);
     return;
   }
-  if (!window.AudioWorkletNode) {
+  if (typeof AudioWorkletNode === 'undefined') {
     console.warn('AudioWorklet not supported — chunked fallback');
     _startChunkedTranscription(targetInput);
     return;
@@ -1883,20 +1906,27 @@ function _startElevenLabsTranscription(targetInput, stream) {
     window._sttWs = ws;
     window._sttCommittedText = '';
     window._sttPartialText = '';
+    var wsConnected = false;
+
+    ws.onopen = function() {
+      wsConnected = true;
+      console.log('ElevenLabs STT WebSocket connected');
+    };
 
     ws.onmessage = function(event) {
       try {
         var msg = JSON.parse(event.data);
+        var mt = msg.message_type || msg.type || '';
 
-        if (msg.message_type === 'session_started') {
+        if (mt === 'session_started') {
           console.log('ElevenLabs STT session:', msg.session_id);
-        } else if (msg.message_type === 'partial_transcript') {
+        } else if (mt === 'partial_transcript') {
           window._sttPartialText = msg.text || '';
           if (targetInput && window._liveRecordingActive) {
             targetInput.value = (window._sttCommittedText + window._sttPartialText).trim();
             autoResize(targetInput);
           }
-        } else if (msg.message_type === 'final_transcript' || msg.message_type === 'committed_transcript') {
+        } else if (mt === 'final_transcript' || mt === 'committed_transcript') {
           window._sttCommittedText += (msg.text || '') + ' ';
           window._sttPartialText = '';
           if (targetInput && window._liveRecordingActive) {
@@ -1909,30 +1939,44 @@ function _startElevenLabsTranscription(targetInput, stream) {
             }
           }
         } else if (msg.text !== undefined && targetInput && window._liveRecordingActive) {
-          targetInput.value = msg.text;
+          targetInput.value = (window._sttCommittedText + msg.text).trim();
           autoResize(targetInput);
+        } else {
+          console.log('ElevenLabs STT msg:', mt, JSON.stringify(msg).substring(0, 200));
         }
-      } catch (e) { }
+      } catch (e) { console.warn('STT parse error:', e); }
     };
 
-    ws.onerror = function() {
-      console.warn('ElevenLabs STT WebSocket error');
+    ws.onerror = function(e) {
+      console.warn('ElevenLabs STT WebSocket error:', e);
     };
 
-    ws.onclose = function() {
+    ws.onclose = function(e) {
+      console.log('ElevenLabs STT WebSocket closed:', e.code, e.reason);
       window._sttWs = null;
-      if (window._liveRecordingActive) {
+      if (window._liveRecordingActive && !wsConnected) {
+        console.warn('WebSocket never connected — chunked fallback');
         _cleanupElevenLabsRealtime();
         _startChunkedTranscription(targetInput);
       }
     };
 
-    // Set up AudioWorklet for mic capture → PCM Int16 16kHz
+    // AudioWorklet via inline blob (works on iOS/Android, no file path issues)
+    var blob = new Blob([_audioProcessorCode], { type: 'application/javascript' });
+    var blobUrl = URL.createObjectURL(blob);
+
     var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     window._sttAudioCtx = audioCtx;
 
-    audioCtx.audioWorklet.addModule('/audio-processor.js').then(function() {
+    // iOS requires AudioContext resume after user gesture
+    var resumePromise = (audioCtx.state === 'suspended') ? audioCtx.resume() : Promise.resolve();
+
+    resumePromise.then(function() {
+      return audioCtx.audioWorklet.addModule(blobUrl);
+    }).then(function() {
+      URL.revokeObjectURL(blobUrl);
       if (!window._liveRecordingActive) return;
+
       var source = audioCtx.createMediaStreamSource(stream);
       var processor = new AudioWorkletNode(audioCtx, 'audio-processor');
       var muteGain = audioCtx.createGain();
@@ -1951,8 +1995,10 @@ function _startElevenLabsTranscription(targetInput, stream) {
       window._sttSource = source;
       window._sttProcessor = processor;
       window._sttMuteGain = muteGain;
+      console.log('ElevenLabs AudioWorklet pipeline ready (sample rate: ' + audioCtx.sampleRate + ')');
     }).catch(function(e) {
       console.warn('AudioWorklet setup failed:', e);
+      URL.revokeObjectURL(blobUrl);
       _cleanupElevenLabsRealtime();
       _startChunkedTranscription(targetInput);
     });
@@ -2270,9 +2316,15 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       const formData = new FormData();
-      formData.append("audio", audioBlob);
-      formData.append("audio_duration", durationSec);
-      formData.append("browser_transcript", currentText);
+      // If live transcription produced meaningful text, send as manual_text
+      // (skips audio upload to Gemini — saves ~90% input tokens and is faster)
+      if (currentText && currentText.trim().length > 10) {
+        formData.append("manual_text", currentText.trim());
+      } else {
+        formData.append("audio", audioBlob);
+        formData.append("audio_duration", durationSec);
+        formData.append("browser_transcript", currentText);
+      }
       formData.append("language", localStorage.getItem('transcriptLanguage') || window.profileSystemLanguage || 'en');
 
       const res = await fetch("/process_audio", {
@@ -9442,7 +9494,7 @@ async function startAssistantRecording() {
     assistantRecorder.onstop = processAssistantAudio;
 
     assistantRecorder.start();
-    if (input) startLiveTranscription(input);
+    if (input) startLiveTranscription(input, stream);
 
     btn.classList.remove('bg-black', 'hover:bg-gray-800');
     btn.classList.add('bg-red-500', 'animate-pulse');
@@ -9491,10 +9543,7 @@ async function processAssistantAudio() {
     btn.classList.add('bg-black', 'hover:bg-gray-800');
     btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>`;
   }
-  if (window.liveRecognition) {
-    try { window.liveRecognition.stop(); } catch (e) { }
-    window.liveRecognition = null;
-  }
+  stopLiveTranscription();
   const duration = window.recordingStartTime ? Math.floor((Date.now() - window.recordingStartTime) / 1000) : 0;
   window.totalVoiceUsed = (window.totalVoiceUsed || 0) + duration;
 
@@ -9515,12 +9564,11 @@ async function processAssistantAudio() {
 
   const audioBlob = new Blob(assistantChunks, { type: 'audio/webm' });
   const formData = new FormData();
-  formData.append("audio", audioBlob);
-  formData.append("transcribe_only", "true");
+  formData.append("audio", audioBlob, "audio.webm");
   formData.append("language", localStorage.getItem('transcriptLanguage') || window.profileSystemLanguage || 'en');
 
   try {
-    const res = await fetch("/process_audio", {
+    const res = await fetch("/live_transcribe", {
       method: "POST",
       headers: { "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]').content },
       body: formData
@@ -9528,14 +9576,11 @@ async function processAssistantAudio() {
     const data = await res.json();
     if (input) {
       input.placeholder = window.APP_LANGUAGES.assistant_placeholder || "Tell me what to change...";
-      const transcribed = (data.raw_summary || '').trim();
-      // Guard against AI returning descriptive text about silence instead of actual transcription
-      var silencePatterns = /^(empty|silent|no\s*(speech|audio|sound)|i\s*can'?t|the\s*audio\s*(is|clip|contains|was)|there\s*(is|was)\s*no)/i;
-      if (transcribed.length >= 2 && !silencePatterns.test(transcribed)) {
+      const transcribed = (data.text || '').trim();
+      if (transcribed.length >= 2) {
         input.value = transcribed;
         setTimeout(() => submitAssistantMessage(), 300);
-      } else if (transcribed.length < 2 || silencePatterns.test(transcribed)) {
-        // Show localized snackbar error for empty/silent audio
+      } else {
         showError(window.APP_LANGUAGES.audio_empty_error || 'Audio is empty — please try again');
       }
     }

@@ -2163,32 +2163,37 @@ PROMPT
     language = params[:language].to_s
     lang_code = (language == "ge" || language == "ka") ? "kat" : "eng"
 
+    ws_params = "model_id=scribe_v2_realtime&language_code=#{lang_code}&sample_rate=16000&encoding=pcm_s16le&strategy=vad&include_timestamps=false"
+
     token = nil
     begin
-      uri = URI("https://api.elevenlabs.io/v1/speech-to-text/get-token")
+      uri = URI("https://api.elevenlabs.io/v1/tokens")
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = true
       http.read_timeout = 10
       http.open_timeout = 5
 
-      request = Net::HTTP::Get.new(uri.path)
+      request = Net::HTTP::Post.new(uri.path)
       request["xi-api-key"] = api_key
+      request["Content-Type"] = "application/json"
+      request.body = { ttl: 600 }.to_json
 
       response = http.request(request)
       if response.code.to_i == 200
         result = JSON.parse(response.body)
         token = result["token"]
+        Rails.logger.info("[ElevenLabs Token] Created: #{token&.first(10)}...")
       else
-        Rails.logger.warn("[ElevenLabs Token] #{response.code}: #{response.body.truncate(200)}")
+        Rails.logger.warn("[ElevenLabs Token] /v1/tokens #{response.code}: #{response.body.truncate(200)}")
       end
     rescue => e
       Rails.logger.warn("[ElevenLabs Token] #{e.message}")
     end
 
     if token
-      ws_url = "wss://api.elevenlabs.io/v1/speech-to-text/realtime?model_id=scribe_v2_realtime&language_code=#{lang_code}&sample_rate=16000&encoding=pcm_s16le&token=#{token}"
+      ws_url = "wss://api.elevenlabs.io/v1/speech-to-text/realtime?#{ws_params}&token=#{token}"
     else
-      ws_url = "wss://api.elevenlabs.io/v1/speech-to-text/realtime?model_id=scribe_v2_realtime&language_code=#{lang_code}&sample_rate=16000&encoding=pcm_s16le&xi_api_key=#{api_key}"
+      ws_url = "wss://api.elevenlabs.io/v1/speech-to-text/realtime?#{ws_params}&xi_api_key=#{api_key}"
     end
 
     render json: { ws_url: ws_url }
