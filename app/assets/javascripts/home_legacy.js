@@ -1847,7 +1847,6 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("micIcon").innerHTML = '<rect x="7" y="7" width="10" height="10" rx="1" fill="currentColor" />';
 
         recordBtn.classList.add("recording");
-        document.getElementById("recordingWave").classList.remove("hidden");
         document.getElementById("status").innerText = window.APP_LANGUAGES.recording || "RECORDING...";
         document.getElementById("status").classList.replace("text-orange-600", "text-red-600");
         document.getElementById("status").classList.replace("bg-orange-50", "bg-red-50");
