@@ -753,7 +753,7 @@ class HomeController < ApplicationController
       #{raw_text}
     TEXT
 
-    gemini_model = ENV["GEMINI_PRIMARY_MODEL"].presence || "gemini-2.5-flash-lite"
+    gemini_model = ENV["GEMINI_PRIMARY_MODEL"].presence || "gemini-3.1-flash-lite-preview"
 
     body = gemini_generate_content(
       api_key: api_key,
@@ -903,7 +903,7 @@ class HomeController < ApplicationController
         audio = params[:audio]
         audio_data = Base64.strict_encode64(audio.read)
 
-        uri = URI("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent")
+        uri = URI("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent")
         http = Net::HTTP.new(uri.host, uri.port)
         http.use_ssl = true
         http.read_timeout = 15
@@ -1321,7 +1321,7 @@ PROMPT
         half_day_hours: half_day_hours
       )
 
-      gemini_model = ENV["GEMINI_PRIMARY_MODEL"].presence || "gemini-2.5-flash-lite"
+      gemini_model = ENV["GEMINI_PRIMARY_MODEL"].presence || "gemini-3.1-flash-lite-preview"
 
       user_input_parts = []
 
@@ -1408,6 +1408,9 @@ PROMPT
           thinking_budget: thinking_budget
         )
       end
+
+      ai_log[:usage] = gemini_usage_snapshot(body)
+      ai_log[:model_version] = body["modelVersion"] if body["modelVersion"].present?
 
       if body["error"].present?
         Rails.logger.error("AI MODEL ERROR (#{gemini_model}): #{body["error"].to_json}")
@@ -2458,7 +2461,7 @@ PROMPT
 
     begin
       # ── Model selection: GEMINI_REFINE_MODEL → GEMINI_PRIMARY_MODEL → flash-lite ──
-      gemini_model = ENV["GEMINI_REFINE_MODEL"].presence || ENV["GEMINI_PRIMARY_MODEL"].presence || "gemini-2.5-flash-lite"
+      gemini_model = ENV["GEMINI_REFINE_MODEL"].presence || ENV["GEMINI_PRIMARY_MODEL"].presence || "gemini-3.1-flash-lite-preview"
       fallback_model = ENV["GEMINI_FALLBACK_MODEL"].presence || "gemini-2.5-flash"
       thinking_budget = (ENV["GEMINI_REFINE_THINKING_BUDGET"].presence || ENV["GEMINI_THINKING_BUDGET"].presence || 2048).to_i
 
@@ -2488,6 +2491,9 @@ PROMPT
           system_instruction: refine_system_instruction,
           response_mime_type: "application/json"
         )
+
+        ai_log[:usage] = gemini_usage_snapshot(body)
+        ai_log[:model_version] = body["modelVersion"] if body["modelVersion"].present?
 
         if body["error"].present?
           Rails.logger.warn("REFINE ERROR (#{model}, attempt #{attempt + 1}): #{body["error"].to_json}")
@@ -4644,6 +4650,20 @@ PROMPT
     }
   rescue => e
     [{ error: e.message }]
+  end
+
+  def gemini_usage_snapshot(body)
+    usage = body["usageMetadata"]
+    return nil unless usage.is_a?(Hash)
+
+    {
+      prompt_tokens: usage["promptTokenCount"],
+      cached_content_tokens: usage["cachedContentTokenCount"],
+      candidates_tokens: usage["candidatesTokenCount"],
+      thoughts_tokens: usage["thoughtsTokenCount"],
+      total_tokens: usage["totalTokenCount"],
+      tool_use_prompt_tokens: usage["toolUsePromptTokenCount"]
+    }.compact
   end
 
   # Normalize a client name for matching: strip legal forms, special quotes, downcase

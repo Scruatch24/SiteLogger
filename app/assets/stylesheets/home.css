@@ -135,6 +135,27 @@ body {
     }
   }
 
+  @media (max-width: 767px) {
+    .site-logo {
+      gap: 0.5rem;
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+    .site-logo-text-wrap {
+      display: flex !important;
+      width: auto;
+      min-width: 0;
+      overflow: visible;
+    }
+    .site-logo-text {
+      transform: none;
+      padding-left: 0;
+      font-size: 1rem;
+      letter-spacing: -0.05em;
+      white-space: nowrap;
+    }
+  }
+
   /* Nav Links — desktop: horizontal row; mobile: hidden (all in hamburger) */
   .site-nav-links {
     display: none;

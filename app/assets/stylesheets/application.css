@@ -8,3 +8,12 @@
  *
  * Consider organizing styles into separate files for maintainability.
  */
+
+/* Visualizer for recording */
+@keyframes soundwave {
+  0%, 100% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.15); opacity: 0.3; }
+}
+#recordingWave {
+  animation: soundwave 1.5s ease-in-out infinite;
+}
