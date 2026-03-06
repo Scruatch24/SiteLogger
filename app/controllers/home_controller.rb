@@ -2156,7 +2156,7 @@ PROMPT
 
     token = nil
     begin
-      uri = URI("https://api.elevenlabs.io/v1/tokens")
+      uri = URI("https://api.elevenlabs.io/v1/single-use-token/realtime_scribe")
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = true
       http.read_timeout = 10
@@ -2164,26 +2164,22 @@ PROMPT
 
       request = Net::HTTP::Post.new(uri.path)
       request["xi-api-key"] = api_key
-      request["Content-Type"] = "application/json"
-      request.body = { ttl: 600 }.to_json
 
       response = http.request(request)
       if response.code.to_i == 200
         result = JSON.parse(response.body)
         token = result["token"]
-        Rails.logger.info("[ElevenLabs Token] Created: #{token&.first(10)}...")
+        Rails.logger.info("[ElevenLabs Token] Created single-use realtime token: #{token&.first(10)}...")
       else
-        Rails.logger.warn("[ElevenLabs Token] /v1/tokens #{response.code}: #{response.body.truncate(200)}")
+        Rails.logger.warn("[ElevenLabs Token] /v1/single-use-token/realtime_scribe #{response.code}: #{response.body.truncate(300)}")
       end
     rescue => e
       Rails.logger.warn("[ElevenLabs Token] #{e.message}")
     end
 
-    if token
-      ws_url = "wss://api.elevenlabs.io/v1/speech-to-text/realtime?#{ws_params}&token=#{token}"
-    else
-      ws_url = "wss://api.elevenlabs.io/v1/speech-to-text/realtime?#{ws_params}&xi_api_key=#{api_key}"
-    end
+    return render json: { error: "Unable to create ElevenLabs realtime token" }, status: 503 unless token
+
+    ws_url = "wss://api.elevenlabs.io/v1/speech-to-text/realtime?#{ws_params}&token=#{token}"
 
     render json: { ws_url: ws_url }
   end

@@ -80,6 +80,17 @@ function autoResize(el) {
 
 }
 
+function showError(msg) {
+  if (!msg) return;
+  if (window.showError && window.showError !== showError) {
+    return window.showError(msg);
+  }
+  if (window.showToast) {
+    return window.showToast(msg, 'error');
+  }
+  console.error(msg);
+}
+
 // Currency Data & Helpers
 const currenciesData = CURRENCIES;
 const activeCurrencyCode_legacy = activeCurrencyCode;
@@ -2118,6 +2129,9 @@ function _sendChunkedTranscription() {
       var data = result.data || {};
       if (!result.ok) {
         console.warn('Chunked transcription failed:', result.status, data.detail || data.error || data);
+        if (data.detail && data.detail.status === 'detected_unusual_activity') {
+          if (window._transcriptionTimer) { clearInterval(window._transcriptionTimer); window._transcriptionTimer = null; }
+        }
         return;
       }
       if (data.text && targetInput) {
