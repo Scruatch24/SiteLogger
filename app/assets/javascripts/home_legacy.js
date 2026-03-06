@@ -1697,6 +1697,7 @@ function startLiveTranscription(targetInput, stream) {
   window._liveTargetInput = targetInput;
   window._liveStream = stream || null;
   window._liveAudioChunks = [];
+  window._liveTranscriptionMode = null;
 
   if (_shouldUseWebSpeechAPI()) {
     _startWebSpeechTranscription(targetInput, stream);
@@ -1712,6 +1713,7 @@ function _startWebSpeechTranscription(targetInput, stream) {
     _startElevenLabsTranscription(targetInput, stream);
     return;
   }
+  window._liveTranscriptionMode = 'webspeech';
 
   if (window.liveRecognition) {
     try { window.liveRecognition.stop(); } catch (e) { }
@@ -1875,8 +1877,51 @@ var _audioProcessorCode = [
   "registerProcessor('audio-processor', AudioProcessor);"
 ].join('\n');
 
+function _arrayBufferToBase64(buffer) {
+  var bytes = new Uint8Array(buffer);
+  var chunkSize = 0x8000;
+  var binary = '';
+  for (var i = 0; i < bytes.length; i += chunkSize) {
+    var chunk = bytes.subarray(i, i + chunkSize);
+    binary += String.fromCharCode.apply(null, chunk);
+  }
+  return btoa(binary);
+}
+
+function _sendElevenLabsAudioChunk(buffer, commit) {
+  var ws = window._sttWs;
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  var payload = {
+    message_type: 'input_audio_chunk',
+    audio_base_64: buffer ? _arrayBufferToBase64(buffer) : '',
+    commit: !!commit,
+    sample_rate: 16000
+  };
+  if (window._sttCommittedText) {
+    payload.previous_text = window._sttCommittedText.trim();
+  }
+  ws.send(JSON.stringify(payload));
+}
+
+function _cleanupElevenLabsAudio() {
+  if (window._sttProcessor) { try { window._sttProcessor.disconnect(); } catch (e) { } window._sttProcessor = null; }
+  if (window._sttSource) { try { window._sttSource.disconnect(); } catch (e) { } window._sttSource = null; }
+  if (window._sttMuteGain) { try { window._sttMuteGain.disconnect(); } catch (e) { } window._sttMuteGain = null; }
+  if (window._sttAudioCtx) { try { window._sttAudioCtx.close(); } catch (e) { } window._sttAudioCtx = null; }
+}
+
+function _closeElevenLabsSocket() {
+  if (window._sttFinalizeTimer) {
+    clearTimeout(window._sttFinalizeTimer);
+    window._sttFinalizeTimer = null;
+  }
+  if (window._sttWs) { try { window._sttWs.close(); } catch (e) { } window._sttWs = null; }
+  window._acceptingFinalRealtimeTranscript = false;
+}
+
 function _startElevenLabsTranscription(targetInput, stream) {
   if (!window._liveRecordingActive) return;
+  window._liveTranscriptionMode = 'realtime';
   if (!stream) {
     console.warn('No audio stream — chunked fallback');
     _startChunkedTranscription(targetInput);
@@ -1905,6 +1950,7 @@ function _startElevenLabsTranscription(targetInput, stream) {
 
     var ws = new WebSocket(config.ws_url);
     window._sttWs = ws;
+    window._acceptingFinalRealtimeTranscript = false;
     window._sttCommittedText = '';
     window._sttPartialText = '';
     var wsConnected = false;
@@ -1918,19 +1964,26 @@ function _startElevenLabsTranscription(targetInput, stream) {
       try {
         var msg = JSON.parse(event.data);
         var mt = msg.message_type || msg.type || '';
+        var canApplyTranscript = window._liveRecordingActive || window._acceptingFinalRealtimeTranscript;
 
         if (mt === 'session_started') {
           console.log('ElevenLabs STT session:', msg.session_id);
+        } else if (mt === 'error' || msg.error) {
+          console.warn('ElevenLabs STT server error:', msg.error || msg);
+          if (window._liveRecordingActive) {
+            _cleanupElevenLabsRealtime();
+            _startChunkedTranscription(targetInput);
+          }
         } else if (mt === 'partial_transcript') {
           window._sttPartialText = msg.text || '';
-          if (targetInput && window._liveRecordingActive) {
+          if (targetInput && canApplyTranscript) {
             targetInput.value = (window._sttCommittedText + window._sttPartialText).trim();
             autoResize(targetInput);
           }
         } else if (mt === 'final_transcript' || mt === 'committed_transcript') {
           window._sttCommittedText += (msg.text || '') + ' ';
           window._sttPartialText = '';
-          if (targetInput && window._liveRecordingActive) {
+          if (targetInput && canApplyTranscript) {
             targetInput.value = window._sttCommittedText.trim();
             autoResize(targetInput);
             if (window.updateDynamicCountersCheck) {
@@ -1939,7 +1992,12 @@ function _startElevenLabsTranscription(targetInput, stream) {
               window.updateDynamicCounters();
             }
           }
-        } else if (msg.text !== undefined && targetInput && window._liveRecordingActive) {
+          if (!window._liveRecordingActive && window._acceptingFinalRealtimeTranscript) {
+            window._sttFinalizeTimer = setTimeout(function() {
+              _closeElevenLabsSocket();
+            }, 150);
+          }
+        } else if (msg.text !== undefined && targetInput && canApplyTranscript) {
           targetInput.value = (window._sttCommittedText + msg.text).trim();
           autoResize(targetInput);
         } else {
@@ -1955,6 +2013,7 @@ function _startElevenLabsTranscription(targetInput, stream) {
     ws.onclose = function(e) {
       console.log('ElevenLabs STT WebSocket closed:', e.code, e.reason);
       window._sttWs = null;
+      window._acceptingFinalRealtimeTranscript = false;
       if (window._liveRecordingActive && !wsConnected) {
         console.warn('WebSocket never connected — chunked fallback');
         _cleanupElevenLabsRealtime();
@@ -1984,9 +2043,7 @@ function _startElevenLabsTranscription(targetInput, stream) {
       muteGain.gain.value = 0;
 
       processor.port.onmessage = function(e) {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(new Uint8Array(e.data));
-        }
+        _sendElevenLabsAudioChunk(e.data, false);
       };
 
       source.connect(processor);
@@ -2012,16 +2069,14 @@ function _startElevenLabsTranscription(targetInput, stream) {
 }
 
 function _cleanupElevenLabsRealtime() {
-  if (window._sttProcessor) { try { window._sttProcessor.disconnect(); } catch (e) { } window._sttProcessor = null; }
-  if (window._sttSource) { try { window._sttSource.disconnect(); } catch (e) { } window._sttSource = null; }
-  if (window._sttMuteGain) { try { window._sttMuteGain.disconnect(); } catch (e) { } window._sttMuteGain = null; }
-  if (window._sttAudioCtx) { try { window._sttAudioCtx.close(); } catch (e) { } window._sttAudioCtx = null; }
-  if (window._sttWs) { try { window._sttWs.close(); } catch (e) { } window._sttWs = null; }
+  _cleanupElevenLabsAudio();
+  _closeElevenLabsSocket();
 }
 
 // ── Tier 3: Chunked REST fallback (ElevenLabs Scribe v1 via /live_transcribe) ──
 function _startChunkedTranscription(targetInput) {
   if (!window._liveRecordingActive) return;
+  window._liveTranscriptionMode = 'chunked';
   window._pendingTranscription = false;
 
   window._transcriptionTimer = setInterval(function() {
@@ -2042,7 +2097,9 @@ function _sendChunkedTranscription() {
   if (window._liveAudioChunks.length === 0) return;
 
   window._pendingTranscription = true;
-  var blob = new Blob(window._liveAudioChunks, { type: 'audio/webm' });
+  var pendingChunks = window._liveAudioChunks.slice();
+  window._liveAudioChunks = [];
+  var blob = new Blob(pendingChunks, { type: 'audio/webm' });
   var formData = new FormData();
   formData.append('audio', blob, 'audio.webm');
   formData.append('language', localStorage.getItem('transcriptLanguage') || 'en');
@@ -2052,8 +2109,17 @@ function _sendChunkedTranscription() {
   var targetInput = window._liveTargetInput;
 
   fetch('/live_transcribe', { method: 'POST', headers: headers, body: formData })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
+    .then(function(r) {
+      return r.json().catch(function() { return {}; }).then(function(data) {
+        return { ok: r.ok, status: r.status, data: data };
+      });
+    })
+    .then(function(result) {
+      var data = result.data || {};
+      if (!result.ok) {
+        console.warn('Chunked transcription failed:', result.status, data.detail || data.error || data);
+        return;
+      }
       if (data.text && targetInput) {
         targetInput.value = data.text;
         autoResize(targetInput);
@@ -2070,21 +2136,31 @@ function _sendChunkedTranscription() {
 
 function stopLiveTranscription() {
   window._liveRecordingActive = false;
+  window._acceptingFinalRealtimeTranscript = true;
 
   // Stop Web Speech API
   if (window._webSpeechFailsafe) { clearTimeout(window._webSpeechFailsafe); window._webSpeechFailsafe = null; }
   if (window.liveRecognition) { try { window.liveRecognition.stop(); } catch (e) { } window.liveRecognition = null; }
 
   // Stop ElevenLabs realtime
-  _cleanupElevenLabsRealtime();
+  _cleanupElevenLabsAudio();
+  if (window._sttWs && window._sttWs.readyState === WebSocket.OPEN) {
+    _sendElevenLabsAudioChunk(null, true);
+    window._sttFinalizeTimer = setTimeout(function() {
+      _closeElevenLabsSocket();
+    }, 600);
+  } else {
+    _closeElevenLabsSocket();
+  }
 
   // Stop chunked REST
   if (window._transcriptionTimer) { clearInterval(window._transcriptionTimer); window._transcriptionTimer = null; }
-  if (window._liveAudioChunks && window._liveAudioChunks.length > 0 && !window._pendingTranscription) {
+  if (window._liveTranscriptionMode === 'chunked' && window._liveAudioChunks && window._liveAudioChunks.length > 0 && !window._pendingTranscription) {
     _sendChunkedTranscription();
   }
 
   window._liveTargetInput = null;
+  window._liveTranscriptionMode = null;
   window._liveStream = null;
 }
 

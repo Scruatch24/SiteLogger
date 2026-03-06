@@ -2114,22 +2114,7 @@ PROMPT
 
     begin
       uri = URI("https://api.elevenlabs.io/v1/speech-to-text")
-      boundary = "----ElevenLabs#{SecureRandom.hex(12)}"
-
-      audio_data = audio.read
-
-      body = ""
-      body << "--#{boundary}\r\n"
-      body << "Content-Disposition: form-data; name=\"model_id\"\r\n\r\n"
-      body << "scribe_v1\r\n"
-      body << "--#{boundary}\r\n"
-      body << "Content-Disposition: form-data; name=\"language_code\"\r\n\r\n"
-      body << "#{lang_code}\r\n"
-      body << "--#{boundary}\r\n"
-      body << "Content-Disposition: form-data; name=\"file\"; filename=\"audio.webm\"\r\n"
-      body << "Content-Type: audio/webm\r\n\r\n"
-      body << audio_data
-      body << "\r\n--#{boundary}--\r\n"
+      audio.tempfile.rewind if audio.respond_to?(:tempfile) && audio.tempfile
 
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = true
@@ -2138,8 +2123,12 @@ PROMPT
 
       request = Net::HTTP::Post.new(uri.path)
       request["xi-api-key"] = api_key
-      request["Content-Type"] = "multipart/form-data; boundary=#{boundary}"
-      request.body = body.force_encoding("BINARY")
+      request.set_form([
+        ["model_id", "scribe_v2"],
+        ["language_code", lang_code],
+        ["file_format", "other"],
+        ["file", audio.tempfile || audio]
+      ], "multipart/form-data")
 
       response = http.request(request)
 
@@ -2148,7 +2137,7 @@ PROMPT
         render json: { text: result["text"].to_s }
       else
         Rails.logger.warn("[ElevenLabs STT] #{response.code}: #{response.body.truncate(500)}")
-        render json: { error: "Transcription failed" }, status: 422
+        render json: { error: "Transcription failed", detail: response.body.to_s.truncate(300) }, status: 422
       end
     rescue => e
       Rails.logger.error("[ElevenLabs STT] Exception: #{e.message}")
