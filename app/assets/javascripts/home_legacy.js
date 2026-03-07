@@ -91,6 +91,90 @@ function showError(msg) {
   console.error(msg);
 }
 
+function _commonPrefixLen(a, b) {
+  var max = Math.min(a.length, b.length);
+  var i = 0;
+  while (i < max && a[i] === b[i]) i += 1;
+  return i;
+}
+
+function _refreshTranscriptCounters(targetInput) {
+  if (window.updateDynamicCountersCheck) {
+    window.updateDynamicCountersCheck(targetInput);
+  } else if (window.updateDynamicCounters) {
+    window.updateDynamicCounters();
+  }
+}
+
+function _smoothlySetInputValue(targetInput, nextText, options) {
+  if (!targetInput) return;
+
+  targetInput._smoothTextTarget = nextText || '';
+  targetInput._smoothTextOptions = options || {};
+
+  if ((targetInput.value || '') === targetInput._smoothTextTarget) {
+    autoResize(targetInput);
+    _refreshTranscriptCounters(targetInput);
+    var doneImmediately = targetInput._smoothTextOptions.onComplete;
+    targetInput._smoothTextOptions = null;
+    if (typeof doneImmediately === 'function') doneImmediately();
+    return;
+  }
+
+  if (targetInput._smoothTextTimer) return;
+
+  targetInput._smoothTextTimer = setInterval(function() {
+    var target = targetInput._smoothTextTarget || '';
+    var opts = targetInput._smoothTextOptions || {};
+    var current = targetInput.value || '';
+    var nextValue = current;
+
+    if (current === target) {
+      clearInterval(targetInput._smoothTextTimer);
+      targetInput._smoothTextTimer = null;
+      autoResize(targetInput);
+      _refreshTranscriptCounters(targetInput);
+      var done = opts.onComplete;
+      targetInput._smoothTextOptions = null;
+      if (typeof done === 'function') done();
+      return;
+    }
+
+    var prefix = _commonPrefixLen(current, target);
+    if (current.length > target.length || prefix < current.length) {
+      var toDelete = Math.max(1, Math.ceil((current.length - prefix) / 3));
+      nextValue = current.slice(0, Math.max(prefix, current.length - toDelete));
+    } else {
+      var remaining = target.length - current.length;
+      var toAdd = Math.max(1, Math.ceil(remaining / (opts.fast ? 5 : 8)));
+      nextValue = target.slice(0, current.length + toAdd);
+    }
+
+    targetInput.value = nextValue;
+    autoResize(targetInput);
+    if (document.activeElement === targetInput && targetInput.setSelectionRange) {
+      targetInput.setSelectionRange(nextValue.length, nextValue.length);
+    }
+  }, 18);
+}
+
+function _setTranscriptLanguageSelectorLocked(locked) {
+  var btn = document.getElementById('languageSelectorBtn');
+  var menu = document.getElementById('languageMenu');
+  var chevron = document.getElementById('langChevron');
+  if (!btn) return;
+
+  btn.disabled = !!locked;
+  btn.setAttribute('aria-disabled', locked ? 'true' : 'false');
+  btn.style.opacity = locked ? '0.55' : '';
+  btn.style.cursor = locked ? 'not-allowed' : '';
+
+  if (locked) {
+    if (menu) menu.classList.add('hidden');
+    if (chevron) chevron.classList.remove('rotate-180');
+  }
+}
+
 // Currency Data & Helpers
 const currenciesData = CURRENCIES;
 const activeCurrencyCode_legacy = activeCurrencyCode;
@@ -299,6 +383,7 @@ document.addEventListener('click', (e) => {
 
 // --- Language Selector Logic ---
 window.setTranscriptLanguage = function (lang) {
+  if (window._liveRecordingActive) return;
   const normalizedLang = lang === 'ka' ? 'ge' : lang;
   localStorage.setItem('transcriptLanguage', normalizedLang);
   updateLanguageUI(normalizedLang);
@@ -314,9 +399,9 @@ window.setTranscriptLanguage = function (lang) {
       // onend handler will auto-restart with the new language
     }
     // ElevenLabs realtime: reconnect with new language
-    if (window._sttWs) {
+    if (window._liveTranscriptionMode === 'realtime') {
       _cleanupElevenLabsRealtime();
-      var targetInput = document.getElementById('mainTranscript');
+      var targetInput = window._liveTargetInput || document.getElementById('mainTranscript');
       if (targetInput) _startElevenLabsTranscription(targetInput, window._liveStream);
     }
     // Chunked REST: language is read from localStorage each time — no action needed
@@ -1666,518 +1751,6 @@ document.addEventListener("DOMContentLoaded", () => {
   if (laborIconContainer) randomizeIcon(laborIconContainer);
 });
 
-// --- Real-time Transcription Logic (Global Scope) ---
-window.liveRecognition = null;
-window.totalVoiceUsed = 0; // Tracks seconds spent in current session (since last main recording)
-window.recordingStartTime = 0;
-
-window._liveRecordingActive = false;
-window._liveTargetInput = null;
-window._liveStream = null;
-window._webSpeechFailed = false;
-window._webSpeechGotResult = false;
-window._webSpeechFailsafe = null;
-
-// ElevenLabs realtime state
-window._sttWs = null;
-window._sttAudioCtx = null;
-window._sttProcessor = null;
-window._sttSource = null;
-window._sttMuteGain = null;
-window._sttCommittedText = '';
-window._sttPartialText = '';
-
-// Chunked REST fallback state
-window._liveAudioChunks = [];
-window._pendingTranscription = false;
-window._transcriptionTimer = null;
-
-function _shouldUseWebSpeechAPI() {
-  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) return false;
-  if (window._webSpeechFailed) return false;
-  // Mobile: skip Web Speech entirely — use ElevenLabs realtime instead
-  // Web Speech loops/restarts unreliably on Android and is broken on iOS
-  if (/Android|iPhone|iPad|iPod|Mobile|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) return false;
-  return true;
-}
-
-function startLiveTranscription(targetInput, stream) {
-  if (!targetInput) return;
-  window._liveRecordingActive = true;
-  window._liveTargetInput = targetInput;
-  window._liveStream = stream || null;
-  window._liveAudioChunks = [];
-  window._liveTranscriptionMode = null;
-
-  if (_shouldUseWebSpeechAPI()) {
-    _startWebSpeechTranscription(targetInput, stream);
-  } else {
-    _startElevenLabsTranscription(targetInput, stream);
-  }
-}
-
-// ── Tier 1: Web Speech API (free, works on desktop Chrome/Edge/Android Chrome) ──
-function _startWebSpeechTranscription(targetInput, stream) {
-  var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) {
-    _startElevenLabsTranscription(targetInput, stream);
-    return;
-  }
-  window._liveTranscriptionMode = 'webspeech';
-
-  if (window.liveRecognition) {
-    try { window.liveRecognition.stop(); } catch (e) { }
-  }
-
-  window._webSpeechGotResult = false;
-  var restartAttempts = 0;
-  var maxRestarts = 50;
-
-  // Failsafe: if no results after 8s, switch to ElevenLabs
-  window._webSpeechFailsafe = setTimeout(function() {
-    if (!window._webSpeechGotResult && window._liveRecordingActive) {
-      console.warn('Web Speech API produced no results — switching to ElevenLabs');
-      window._webSpeechFailed = true;
-      if (window.liveRecognition) {
-        try { window.liveRecognition.stop(); } catch (e) { }
-        window.liveRecognition = null;
-      }
-      _startElevenLabsTranscription(targetInput, stream);
-    }
-  }, 8000);
-
-  function createRecognition() {
-    var recognition = new SpeechRecognition();
-    var isMobileDevice = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-    recognition.continuous = !isMobileDevice;
-    recognition.interimResults = true;
-
-    var savedLang = localStorage.getItem('transcriptLanguage') || 'en';
-    recognition.lang = (savedLang === 'ge' || savedLang === 'ka') ? 'ka-GE' : 'en-US';
-
-    var typeTimer = null;
-
-    recognition.onresult = function(event) {
-      window._webSpeechGotResult = true;
-      if (window._webSpeechFailsafe) {
-        clearTimeout(window._webSpeechFailsafe);
-        window._webSpeechFailsafe = null;
-      }
-      restartAttempts = 0;
-
-      var fullTranscript = '';
-      for (var i = 0; i < event.results.length; ++i) {
-        fullTranscript += event.results[i][0].transcript;
-      }
-      if (!fullTranscript) return;
-
-      if (typeTimer) { clearInterval(typeTimer); typeTimer = null; }
-
-      var target = fullTranscript;
-      var current = targetInput.value || '';
-
-      var commonPrefixLen = function(a, b) {
-        var max = Math.min(a.length, b.length);
-        var j = 0;
-        while (j < max && a[j] === b[j]) j += 1;
-        return j;
-      };
-
-      if (current === target) return;
-
-      typeTimer = setInterval(function() {
-        if (current === target) {
-          clearInterval(typeTimer);
-          typeTimer = null;
-          if (window.updateDynamicCountersCheck) {
-            window.updateDynamicCountersCheck(targetInput);
-          } else if (window.updateDynamicCounters) {
-            window.updateDynamicCounters();
-          }
-          return;
-        }
-
-        var prefix = commonPrefixLen(current, target);
-        if (current.length > target.length || prefix < current.length) {
-          var toDelete = Math.max(1, Math.ceil((current.length - prefix) / 3));
-          current = current.slice(0, Math.max(prefix, current.length - toDelete));
-        } else {
-          var remaining = target.length - current.length;
-          var toAdd = Math.max(1, Math.ceil(remaining / 8));
-          current = target.slice(0, current.length + toAdd);
-        }
-
-        targetInput.value = current;
-        autoResize(targetInput);
-      }, 18);
-    };
-
-    recognition.onerror = function(event) {
-      console.warn("Speech recognition error:", event.error);
-      if (event.error === 'no-speech' || event.error === 'aborted') return;
-      if (event.error === 'not-allowed' || event.error === 'service-not-available') {
-        window._webSpeechFailed = true;
-        if (window._webSpeechFailsafe) {
-          clearTimeout(window._webSpeechFailsafe);
-          window._webSpeechFailsafe = null;
-        }
-        window.liveRecognition = null;
-        _startElevenLabsTranscription(targetInput, stream);
-      }
-    };
-
-    recognition.onend = function() {
-      if (typeTimer) { clearInterval(typeTimer); typeTimer = null; }
-      window.liveRecognition = null;
-
-      if (window._liveRecordingActive && !window._webSpeechFailed && restartAttempts < maxRestarts) {
-        restartAttempts++;
-        var delay = Math.min(restartAttempts * 100, 1000);
-        setTimeout(function() {
-          if (!window._liveRecordingActive || window._webSpeechFailed) return;
-          try {
-            var newRec = createRecognition();
-            newRec.start();
-            window.liveRecognition = newRec;
-          } catch (e) {
-            console.warn("Speech recognition restart failed:", e);
-            window._webSpeechFailed = true;
-            _startElevenLabsTranscription(targetInput, stream);
-          }
-        }, delay);
-      }
-    };
-
-    return recognition;
-  }
-
-  var recognition = createRecognition();
-  try {
-    recognition.start();
-  } catch (e) {
-    console.warn("Speech recognition start failed:", e);
-    window._webSpeechFailed = true;
-    _startElevenLabsTranscription(targetInput, stream);
-    return;
-  }
-  window.liveRecognition = recognition;
-}
-
-// ── Tier 2: ElevenLabs Realtime WebSocket (AudioWorklet + scribe_v2_realtime) ──
-var _audioProcessorCode = [
-  'class AudioProcessor extends AudioWorkletProcessor {',
-  '  constructor() { super(); this._buf = []; this._ratio = 0; }',
-  '  process(inputs) {',
-  '    var inp = inputs[0]; if (!inp || !inp[0] || !inp[0].length) return true;',
-  '    if (!this._ratio) this._ratio = sampleRate / 16000;',
-  '    var d = inp[0], r = this._ratio;',
-  '    for (var i = 0; i < d.length; i += r) {',
-  '      var x = Math.round(i); if (x >= d.length) break;',
-  '      var s = d[x] < -1 ? -1 : (d[x] > 1 ? 1 : d[x]);',
-  '      this._buf.push(s < 0 ? s * 32768 : s * 32767);',
-  '    }',
-  '    while (this._buf.length >= 1600) {',
-  '      var c = this._buf.splice(0, 1600);',
-  '      var a = new Int16Array(c);',
-  '      this.port.postMessage(a.buffer, [a.buffer]);',
-  '    }',
-  '    return true;',
-  '  }',
-  '}',
-  "registerProcessor('audio-processor', AudioProcessor);"
-].join('\n');
-
-function _arrayBufferToBase64(buffer) {
-  var bytes = new Uint8Array(buffer);
-  var chunkSize = 0x8000;
-  var binary = '';
-  for (var i = 0; i < bytes.length; i += chunkSize) {
-    var chunk = bytes.subarray(i, i + chunkSize);
-    binary += String.fromCharCode.apply(null, chunk);
-  }
-  return btoa(binary);
-}
-
-function _sendElevenLabsAudioChunk(buffer, commit) {
-  var ws = window._sttWs;
-  if (!ws || ws.readyState !== WebSocket.OPEN) return;
-  var payload = {
-    message_type: 'input_audio_chunk',
-    audio_base_64: buffer ? _arrayBufferToBase64(buffer) : '',
-    commit: !!commit,
-    sample_rate: 16000
-  };
-  if (window._sttCommittedText) {
-    payload.previous_text = window._sttCommittedText.trim();
-  }
-  ws.send(JSON.stringify(payload));
-}
-
-function _cleanupElevenLabsAudio() {
-  if (window._sttProcessor) { try { window._sttProcessor.disconnect(); } catch (e) { } window._sttProcessor = null; }
-  if (window._sttSource) { try { window._sttSource.disconnect(); } catch (e) { } window._sttSource = null; }
-  if (window._sttMuteGain) { try { window._sttMuteGain.disconnect(); } catch (e) { } window._sttMuteGain = null; }
-  if (window._sttAudioCtx) { try { window._sttAudioCtx.close(); } catch (e) { } window._sttAudioCtx = null; }
-}
-
-function _closeElevenLabsSocket() {
-  if (window._sttFinalizeTimer) {
-    clearTimeout(window._sttFinalizeTimer);
-    window._sttFinalizeTimer = null;
-  }
-  if (window._sttWs) { try { window._sttWs.close(); } catch (e) { } window._sttWs = null; }
-  window._acceptingFinalRealtimeTranscript = false;
-}
-
-function _startElevenLabsTranscription(targetInput, stream) {
-  if (!window._liveRecordingActive) return;
-  window._liveTranscriptionMode = 'realtime';
-  if (!stream) {
-    console.warn('No audio stream — chunked fallback');
-    _startChunkedTranscription(targetInput);
-    return;
-  }
-  if (typeof AudioWorkletNode === 'undefined') {
-    console.warn('AudioWorklet not supported — chunked fallback');
-    _startChunkedTranscription(targetInput);
-    return;
-  }
-
-  var csrfMeta = document.querySelector('meta[name="csrf-token"]');
-  var lang = localStorage.getItem('transcriptLanguage') || 'en';
-
-  fetch('/stt_ws_auth?language=' + lang, {
-    method: 'POST',
-    headers: csrfMeta ? { 'X-CSRF-Token': csrfMeta.content } : {}
-  })
-  .then(function(r) {
-    if (!r.ok) throw new Error('Token request failed: ' + r.status);
-    return r.json();
-  })
-  .then(function(config) {
-    if (!config.ws_url) throw new Error('No WebSocket URL');
-    if (!window._liveRecordingActive) return;
-
-    var ws = new WebSocket(config.ws_url);
-    window._sttWs = ws;
-    window._acceptingFinalRealtimeTranscript = false;
-    window._sttCommittedText = '';
-    window._sttPartialText = '';
-    var wsConnected = false;
-
-    ws.onopen = function() {
-      wsConnected = true;
-      console.log('ElevenLabs STT WebSocket connected');
-    };
-
-    ws.onmessage = function(event) {
-      try {
-        var msg = JSON.parse(event.data);
-        var mt = msg.message_type || msg.type || '';
-        var canApplyTranscript = window._liveRecordingActive || window._acceptingFinalRealtimeTranscript;
-
-        if (mt === 'session_started') {
-          console.log('ElevenLabs STT session:', msg.session_id);
-        } else if (mt === 'error' || msg.error) {
-          console.warn('ElevenLabs STT server error:', msg.error || msg);
-          if (window._liveRecordingActive) {
-            _cleanupElevenLabsRealtime();
-            _startChunkedTranscription(targetInput);
-          }
-        } else if (mt === 'partial_transcript') {
-          window._sttPartialText = msg.text || '';
-          if (targetInput && canApplyTranscript) {
-            targetInput.value = (window._sttCommittedText + window._sttPartialText).trim();
-            autoResize(targetInput);
-          }
-        } else if (mt === 'final_transcript' || mt === 'committed_transcript') {
-          window._sttCommittedText += (msg.text || '') + ' ';
-          window._sttPartialText = '';
-          if (targetInput && canApplyTranscript) {
-            targetInput.value = window._sttCommittedText.trim();
-            autoResize(targetInput);
-            if (window.updateDynamicCountersCheck) {
-              window.updateDynamicCountersCheck(targetInput);
-            } else if (window.updateDynamicCounters) {
-              window.updateDynamicCounters();
-            }
-          }
-          if (!window._liveRecordingActive && window._acceptingFinalRealtimeTranscript) {
-            window._sttFinalizeTimer = setTimeout(function() {
-              _closeElevenLabsSocket();
-            }, 150);
-          }
-        } else if (msg.text !== undefined && targetInput && canApplyTranscript) {
-          targetInput.value = (window._sttCommittedText + msg.text).trim();
-          autoResize(targetInput);
-        } else {
-          console.log('ElevenLabs STT msg:', mt, JSON.stringify(msg).substring(0, 200));
-        }
-      } catch (e) { console.warn('STT parse error:', e); }
-    };
-
-    ws.onerror = function(e) {
-      console.warn('ElevenLabs STT WebSocket error:', e);
-    };
-
-    ws.onclose = function(e) {
-      console.log('ElevenLabs STT WebSocket closed:', e.code, e.reason);
-      window._sttWs = null;
-      window._acceptingFinalRealtimeTranscript = false;
-      if (window._liveRecordingActive && !wsConnected) {
-        console.warn('WebSocket never connected — chunked fallback');
-        _cleanupElevenLabsRealtime();
-        _startChunkedTranscription(targetInput);
-      }
-    };
-
-    // AudioWorklet via inline blob (works on iOS/Android, no file path issues)
-    var blob = new Blob([_audioProcessorCode], { type: 'application/javascript' });
-    var blobUrl = URL.createObjectURL(blob);
-
-    var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    window._sttAudioCtx = audioCtx;
-
-    // iOS requires AudioContext resume after user gesture
-    var resumePromise = (audioCtx.state === 'suspended') ? audioCtx.resume() : Promise.resolve();
-
-    resumePromise.then(function() {
-      return audioCtx.audioWorklet.addModule(blobUrl);
-    }).then(function() {
-      URL.revokeObjectURL(blobUrl);
-      if (!window._liveRecordingActive) return;
-
-      var source = audioCtx.createMediaStreamSource(stream);
-      var processor = new AudioWorkletNode(audioCtx, 'audio-processor');
-      var muteGain = audioCtx.createGain();
-      muteGain.gain.value = 0;
-
-      processor.port.onmessage = function(e) {
-        _sendElevenLabsAudioChunk(e.data, false);
-      };
-
-      source.connect(processor);
-      processor.connect(muteGain);
-      muteGain.connect(audioCtx.destination);
-
-      window._sttSource = source;
-      window._sttProcessor = processor;
-      window._sttMuteGain = muteGain;
-      console.log('ElevenLabs AudioWorklet pipeline ready (sample rate: ' + audioCtx.sampleRate + ')');
-    }).catch(function(e) {
-      console.warn('AudioWorklet setup failed:', e);
-      URL.revokeObjectURL(blobUrl);
-      _cleanupElevenLabsRealtime();
-      _startChunkedTranscription(targetInput);
-    });
-  })
-  .catch(function(e) {
-    console.warn('ElevenLabs realtime failed — chunked fallback:', e.message);
-    _cleanupElevenLabsRealtime();
-    _startChunkedTranscription(targetInput);
-  });
-}
-
-function _cleanupElevenLabsRealtime() {
-  _cleanupElevenLabsAudio();
-  _closeElevenLabsSocket();
-}
-
-// ── Tier 3: Chunked REST fallback (ElevenLabs Scribe v1 via /live_transcribe) ──
-function _startChunkedTranscription(targetInput) {
-  if (!window._liveRecordingActive) return;
-  window._liveTranscriptionMode = 'chunked';
-  window._pendingTranscription = false;
-
-  window._transcriptionTimer = setInterval(function() {
-    if (!window._liveRecordingActive) return;
-    if (window._liveAudioChunks.length === 0) return;
-    if (window._pendingTranscription) return;
-    _sendChunkedTranscription();
-  }, 4000);
-}
-
-function _onLiveAudioChunk(chunk) {
-  if (!window._liveRecordingActive) return;
-  window._liveAudioChunks.push(chunk);
-}
-
-function _sendChunkedTranscription() {
-  if (window._pendingTranscription) return;
-  if (window._liveAudioChunks.length === 0) return;
-
-  window._pendingTranscription = true;
-  var pendingChunks = window._liveAudioChunks.slice();
-  window._liveAudioChunks = [];
-  var blob = new Blob(pendingChunks, { type: 'audio/webm' });
-  var formData = new FormData();
-  formData.append('audio', blob, 'audio.webm');
-  formData.append('language', localStorage.getItem('transcriptLanguage') || 'en');
-
-  var csrfMeta = document.querySelector('meta[name="csrf-token"]');
-  var headers = csrfMeta ? { 'X-CSRF-Token': csrfMeta.content } : {};
-  var targetInput = window._liveTargetInput;
-
-  fetch('/live_transcribe', { method: 'POST', headers: headers, body: formData })
-    .then(function(r) {
-      return r.json().catch(function() { return {}; }).then(function(data) {
-        return { ok: r.ok, status: r.status, data: data };
-      });
-    })
-    .then(function(result) {
-      var data = result.data || {};
-      if (!result.ok) {
-        console.warn('Chunked transcription failed:', result.status, data.detail || data.error || data);
-        if (data.detail && data.detail.status === 'detected_unusual_activity') {
-          if (window._transcriptionTimer) { clearInterval(window._transcriptionTimer); window._transcriptionTimer = null; }
-        }
-        return;
-      }
-      if (data.text && targetInput) {
-        targetInput.value = data.text;
-        autoResize(targetInput);
-        if (window.updateDynamicCountersCheck) {
-          window.updateDynamicCountersCheck(targetInput);
-        } else if (window.updateDynamicCounters) {
-          window.updateDynamicCounters();
-        }
-      }
-    })
-    .catch(function(e) { console.warn('Chunked transcription error:', e); })
-    .finally(function() { window._pendingTranscription = false; });
-}
-
-function stopLiveTranscription() {
-  window._liveRecordingActive = false;
-  window._acceptingFinalRealtimeTranscript = true;
-
-  // Stop Web Speech API
-  if (window._webSpeechFailsafe) { clearTimeout(window._webSpeechFailsafe); window._webSpeechFailsafe = null; }
-  if (window.liveRecognition) { try { window.liveRecognition.stop(); } catch (e) { } window.liveRecognition = null; }
-
-  // Stop ElevenLabs realtime
-  _cleanupElevenLabsAudio();
-  if (window._sttWs && window._sttWs.readyState === WebSocket.OPEN) {
-    _sendElevenLabsAudioChunk(null, true);
-    window._sttFinalizeTimer = setTimeout(function() {
-      _closeElevenLabsSocket();
-    }, 600);
-  } else {
-    _closeElevenLabsSocket();
-  }
-
-  // Stop chunked REST
-  if (window._transcriptionTimer) { clearInterval(window._transcriptionTimer); window._transcriptionTimer = null; }
-  if (window._liveTranscriptionMode === 'chunked' && window._liveAudioChunks && window._liveAudioChunks.length > 0 && !window._pendingTranscription) {
-    _sendChunkedTranscription();
-  }
-
-  window._liveTargetInput = null;
-  window._liveTranscriptionMode = null;
-  window._liveStream = null;
-}
-
 document.addEventListener("DOMContentLoaded", () => {
   const recordBtn = document.getElementById("recordButton");
   const transcriptArea = document.getElementById("mainTranscript");
@@ -2279,19 +1852,21 @@ document.addEventListener("DOMContentLoaded", () => {
         audioChunks = [];
         mediaRecorder.ondataavailable = (e) => {
           audioChunks.push(e.data);
-          _onLiveAudioChunk(e.data);
         };
         mediaRecorder.onstop = processAudio;
 
         mediaRecorder.start(3000);
-        startLiveTranscription(transcriptArea, stream);
+        
         window.recordingStartTime = Date.now();
+        window._liveRecordingActive = true;
+        _setTranscriptLanguageSelectorLocked(true);
 
         isRecording = true;
         buttonText.innerText = window.APP_LANGUAGES.stop || "STOP";
         document.getElementById("micIcon").innerHTML = '<rect x="7" y="7" width="10" height="10" rx="1" fill="currentColor" />';
 
         recordBtn.classList.add("recording");
+        document.getElementById("recordingWave").classList.remove("hidden");
         document.getElementById("status").innerText = window.APP_LANGUAGES.recording || "RECORDING...";
         document.getElementById("status").classList.replace("text-orange-600", "text-red-600");
         document.getElementById("status").classList.replace("bg-orange-50", "bg-red-50");
@@ -2320,7 +1895,7 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         }, 1000);
       } catch (e) {
-        stopLiveTranscription();
+        
         showError(window.APP_LANGUAGES.microphone_access_denied || "Microphone access required.");
       }
     } else {
@@ -2345,7 +1920,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (mediaRecorder.stream) {
         mediaRecorder.stream.getTracks().forEach(t => t.stop());
       }
-      stopLiveTranscription();
+      
       isRecording = false;
       window.totalVoiceUsed = Math.floor(duration / 1000); // Set initial bank usage
       startAnalysisUI();
@@ -2364,9 +1939,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const timerDisplay = document.getElementById("currentAudioTime");
     if (timerDisplay) timerDisplay.classList.remove("text-red-600");
 
-    stopLiveTranscription();
+    
 
     isRecording = false;
+    window._liveRecordingActive = false;
+    _setTranscriptLanguageSelectorLocked(false);
     isAnalyzing = false;
     // Restore Mic Icon
     const micIcon = document.getElementById("micIcon");
@@ -9569,6 +9146,7 @@ async function startAssistantRecording() {
     const input = document.getElementById('assistantInput');
     const audioLimit = window.profileAudioLimit || 120;
     const timeLeft = audioLimit - (window.totalVoiceUsed || 0);
+    const existingText = input ? input.value.trim() : '';
 
     if (timeLeft <= 0) {
       if (window.showPremiumModal) window.showPremiumModal('voice');
@@ -9580,12 +9158,12 @@ async function startAssistantRecording() {
     assistantRecorder = new MediaRecorder(stream);
     assistantChunks = [];
     window.recordingStartTime = Date.now();
+    if (input) input.dataset.voiceSeed = existingText;
 
     assistantRecorder.ondataavailable = (e) => assistantChunks.push(e.data);
     assistantRecorder.onstop = processAssistantAudio;
 
     assistantRecorder.start();
-    if (input) startLiveTranscription(input, stream);
 
     btn.classList.remove('bg-black', 'hover:bg-gray-800');
     btn.classList.add('bg-red-500', 'animate-pulse');
@@ -9634,7 +9212,7 @@ async function processAssistantAudio() {
     btn.classList.add('bg-black', 'hover:bg-gray-800');
     btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>`;
   }
-  stopLiveTranscription();
+  
   const duration = window.recordingStartTime ? Math.floor((Date.now() - window.recordingStartTime) / 1000) : 0;
   window.totalVoiceUsed = (window.totalVoiceUsed || 0) + duration;
 
@@ -9648,7 +9226,8 @@ async function processAssistantAudio() {
   if (assistantChunks.length === 0) return;
 
   // If live transcription already captured text, skip server call
-  if (input && input.value.trim().length > 5) {
+  const existingText = input ? (input.dataset.voiceSeed || '').trim() : '';
+  if (input && input.value.trim().length > 5 && input.value.trim() !== existingText) {
     submitAssistantMessage();
     return;
   }
@@ -9656,10 +9235,11 @@ async function processAssistantAudio() {
   const audioBlob = new Blob(assistantChunks, { type: 'audio/webm' });
   const formData = new FormData();
   formData.append("audio", audioBlob, "audio.webm");
+  formData.append("transcribe_only", "true");
   formData.append("language", localStorage.getItem('transcriptLanguage') || window.profileSystemLanguage || 'en');
 
   try {
-    const res = await fetch("/live_transcribe", {
+    const res = await fetch("/process_audio", {
       method: "POST",
       headers: { "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]').content },
       body: formData
@@ -9667,10 +9247,15 @@ async function processAssistantAudio() {
     const data = await res.json();
     if (input) {
       input.placeholder = window.APP_LANGUAGES.assistant_placeholder || "Tell me what to change...";
-      const transcribed = (data.text || '').trim();
+      const transcribed = (data.raw_summary || '').trim();
       if (transcribed.length >= 2) {
-        input.value = transcribed;
-        setTimeout(() => submitAssistantMessage(), 300);
+        const nextValue = existingText ? `${existingText} ${transcribed}`.trim() : transcribed;
+        _smoothlySetInputValue(input, nextValue, {
+          fast: true,
+          onComplete: function() {
+            setTimeout(() => submitAssistantMessage(), 160);
+          }
+        });
       } else {
         showError(window.APP_LANGUAGES.audio_empty_error || 'Audio is empty — please try again');
       }
