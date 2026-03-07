@@ -77,6 +77,8 @@ en:
   guess_no: "No"
   not_specified: "not specified"
   assistant_placeholder: "Tell me what to change..."
+  assistant_send: "Send"
+  seconds_short: "s"
   invoice_ready: "Invoice looks complete!"
   questions_to_confirm: "A few things to confirm:"
   confirmed_value: "Confirmed"

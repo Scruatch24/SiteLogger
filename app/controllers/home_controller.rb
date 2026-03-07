@@ -2188,9 +2188,10 @@ PROMPT
       return render json: result
     end
 
-    doc_language = params[:language] || @profile.try(:transcription_language) || session[:transcription_language] || @profile.try(:document_language) || "en"
+    doc_language = (params[:language] || @profile.try(:transcription_language) || session[:transcription_language] || @profile.try(:document_language) || "en").to_s.downcase
+    assistant_locale = (params[:assistant_language].presence || @profile.try(:system_language).presence || I18n.locale.to_s).to_s.downcase
     target_is_georgian = (doc_language == "ge" || doc_language == "ka")
-    ui_is_georgian = (I18n.locale.to_s == "ka")
+    ui_is_georgian = (assistant_locale == "ge" || assistant_locale == "ka")
     today_for_prompt = Date.today.strftime("%b %d, %Y")
 
     lang_rule = if target_is_georgian
@@ -2199,8 +2200,12 @@ PROMPT
       "ALL text values (desc, name, reason, sub_categories) MUST be in English. Translate Georgian text to English if needed. JSON keys and section type values stay in English."
     end
 
-    # AI Assistant ALWAYS communicates in Georgian regardless of transcript language
-    question_lang = "Georgian (ქართული)"
+    question_lang = ui_is_georgian ? "Georgian (ქართული)" : "English"
+    assistant_reply_rule = if ui_is_georgian
+      'ASSISTANT LANGUAGE (NON-NEGOTIABLE): The "reply" field and EVERY clarification "question" MUST be written fully in Georgian (ქართული). Do not leak English words, labels, or mixed-language phrasing when the assistant language is Georgian.'
+    else
+      'ASSISTANT LANGUAGE (NON-NEGOTIABLE): The "reply" field and EVERY clarification "question" MUST be written fully in English. Do not switch into Georgian unless the system language is Georgian.'
+    end
     conversation_history = params[:conversation_history].to_s
 
     # Serialize current_json properly - it arrives as a hash from params
@@ -2241,6 +2246,7 @@ PROMPT
       You are TalkInvoice's AI Assistant. You receive invoice JSON + a user message.
       Modify the JSON as requested and return the complete modified JSON.
       ALWAYS include a "reply" field with a short, friendly message to the user about what you did (or why you couldn't).
+      #{assistant_reply_rule}
 
       ═══ SCHEMA ═══
       sections: [{type: "labor_items"|"materials_items"|"expenses_items"|"fees_items", title, items: [...]}]

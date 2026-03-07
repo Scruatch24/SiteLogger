@@ -77,6 +77,8 @@ ka:
   guess_no: "არა"
   not_specified: "არ არის მითითებული"
   assistant_placeholder: "რა შევცვალო?..."
+  assistant_send: "გაგზავნა"
+  seconds_short: "წმ"
   invoice_ready: "ინვოისი მზადაა!"
   questions_to_confirm: "რამდენიმე დასაზუსტებელი:"
   confirmed_value: "დადასტურებულია"

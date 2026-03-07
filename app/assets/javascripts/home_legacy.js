@@ -5993,7 +5993,8 @@ function batchSubmitQueueAnswers() {
   // Format batch as individual Q&A pairs for the AI
   // NOTE: Some values (from widget confirms) are pre-applied to the JSON, others (text answers) are not.
   // Tell the AI to apply ALL answers — _reapplyAllOverrides protects widget-confirmed values from being overwritten.
-  var batchMessage = 'Apply the following user answers to the invoice JSON. For prices/quantities/hours/rates, set the exact values given. For tax instructions, apply them exactly (0% means taxable:false, tax_rate:0). For descriptions, rename items accordingly. Return the updated JSON.\n\n';
+  var promptMeta = assistantPromptMeta();
+  var batchMessage = promptMeta.batchIntro;
   batchMessage += aiAnswers.map(function(qa) {
     return '[AI asked: "' + qa.question + '" → User answered: "' + qa.answer + '"]';
   }).join('\n');
@@ -6003,7 +6004,7 @@ function batchSubmitQueueAnswers() {
   if (input) input.disabled = true;
 
   // Use refinement type so the message isn't double-wrapped
-  triggerAssistantReparse(batchMessage, 'refinement', 'User answered batch clarifications');
+  triggerAssistantReparse(batchMessage, 'refinement', promptMeta.batchClarificationsAnswered);
 }
 
 
@@ -6759,11 +6760,12 @@ function handleChipAddDiscount() {
   if (window._pendingAnswer) return;
   window._collectingClientDetail = null;
   var L = window.APP_LANGUAGES || {};
+  var promptMeta = assistantPromptMeta();
 
   addUserBubble(L.action_add_discount || 'Add discount');
   showTypingIndicator();
   // Send directly to AI — it will ask about amount, type, scope via clarifications
-  triggerAssistantReparse(L.action_add_discount || 'Add discount', 'refinement', 'User requested change');
+  triggerAssistantReparse(L.action_add_discount || 'Add discount', 'refinement', promptMeta.userRequestedChange);
 }
 
 // ── CHIP HANDLER: CREATE INVOICE (manual PDF preview trigger) ──
@@ -7945,10 +7947,11 @@ function handleChipRemoveTax() {
   if (window._pendingAnswer) return;
   window._collectingClientDetail = null;
   var L = window.APP_LANGUAGES || {};
+  var promptMeta = assistantPromptMeta();
 
   addUserBubble(L.action_remove_tax || 'Remove tax');
   showTypingIndicator();
-  triggerAssistantReparse('Remove all tax from every item. Set taxable:false, labor_taxable:false, tax_rate:0, tax_scope:null on everything.', 'refinement', 'User requested change');
+  triggerAssistantReparse(promptMeta.removeAllTaxInstruction, 'refinement', promptMeta.userRequestedChange);
 }
 
 // ── CHIP HANDLER: MANAGE TAXES (per-item toggle widget) ──
@@ -8101,6 +8104,7 @@ function confirmTaxManagement() {
   var items = window._taxManagementItems;
   if (!items || items.length === 0) return;
   var L = window.APP_LANGUAGES || {};
+  var promptMeta = assistantPromptMeta();
 
   // #13: Lock tax rates into _userItemOverrides (non-queue path also needs protection)
   if (!window._userItemOverrides) window._userItemOverrides = {};
@@ -8137,19 +8141,19 @@ function confirmTaxManagement() {
   var instruction = '';
 
   if (allZero) {
-    instruction = 'Remove all tax from every item. Set taxable:false, labor_taxable:false, tax_rate:0, tax_scope:null on everything.';
+    instruction = promptMeta.removeAllTaxInstruction;
   } else if (allSame) {
-    instruction = 'Apply exactly ' + items[0].rate + '% tax to every item. Set taxable:true, tax_rate:' + items[0].rate + ' on all items.';
+    instruction = promptMeta.buildApplyAllTaxInstruction(items[0].rate);
   } else {
-    instruction = 'Set per-item tax rates EXACTLY as follows: ';
+    instruction = promptMeta.perItemTaxIntro;
     items.forEach(function(i) {
       if (i.rate > 0) {
-        instruction += '"' + i.name + '": taxable=true, tax_rate=' + i.rate + '. ';
+        instruction += promptMeta.perItemTaxApplied(i.name, i.rate);
       } else {
-        instruction += '"' + i.name + '": taxable=false, tax_rate=0. ';
+        instruction += promptMeta.perItemTaxRemoved(i.name);
       }
     });
-    instruction += 'Do NOT override these rates. Items with tax_rate=0 MUST have taxable:false.';
+    instruction += promptMeta.perItemTaxOutro;
   }
 
   var summary;
@@ -8164,7 +8168,7 @@ function confirmTaxManagement() {
 
   window._taxManagementItems = null;
   showTypingIndicator();
-  triggerAssistantReparse(instruction.trim(), 'refinement', 'User requested change');
+  triggerAssistantReparse(instruction.trim(), 'refinement', promptMeta.userRequestedChange);
 }
 
 // ── TAX MANAGEMENT WIDGET INSIDE QUEUE (uses same UI as chip handler but calls handleQueueAnswer) ──
@@ -8313,21 +8317,22 @@ function confirmTaxQueue() {
   var allZero = items.every(function(i) { return i.rate === 0; });
   var allSame = items.every(function(i) { return i.rate === items[0].rate; });
   var instruction = '';
+  var promptMeta = assistantPromptMeta();
 
   if (allZero) {
-    instruction = 'Remove all tax. Set taxable:false and tax_rate:0 on every item.';
+    instruction = promptMeta.removeAllTaxInstruction;
   } else if (allSame) {
-    instruction = 'Apply exactly ' + items[0].rate + '% tax to every item. Set taxable:true and tax_rate:' + items[0].rate + ' on all.';
+    instruction = promptMeta.buildApplyAllTaxInstruction(items[0].rate);
   } else {
-    instruction = 'Set per-item tax rates EXACTLY as follows: ';
+    instruction = promptMeta.perItemTaxIntro;
     items.forEach(function(item) {
       if (item.rate > 0) {
-        instruction += '"' + item.name + '": taxable=true, tax_rate=' + item.rate + '. ';
+        instruction += promptMeta.perItemTaxApplied(item.name, item.rate);
       } else {
-        instruction += '"' + item.name + '": taxable=false, tax_rate=0. ';
+        instruction += promptMeta.perItemTaxRemoved(item.name);
       }
     });
-    instruction += 'Do NOT override these rates. Items with tax_rate=0 MUST have taxable:false.';
+    instruction += promptMeta.perItemTaxOutro;
   }
 
   // Build user bubble summary — one item per double-spaced line
@@ -8946,7 +8951,7 @@ function handleClientDetailInput(value) {
     window._addItemName = null;
     window._dateFlowType = null;
     showTypingIndicator();
-    triggerAssistantReparse(contextValue, 'refinement', 'User requested change');
+    triggerAssistantReparse(contextValue, 'refinement', assistantPromptMeta().userRequestedChange);
     return;
   }
 
@@ -9095,7 +9100,76 @@ function addUserBubble(text) {
   scrollAssistantToBottom();
 }
 
-function renderConversationHistory() {
+function getAssistantSystemLanguage() {
+  return ((window.profileSystemLanguage || document.documentElement.lang || 'en') + '').toLowerCase();
+ }
+
+ function isAssistantSystemGeorgian() {
+  var lang = getAssistantSystemLanguage();
+  return lang === 'ka' || lang === 'ge';
+ }
+
+ function assistantPromptMeta() {
+  if (isAssistantSystemGeorgian()) {
+    return {
+      userRequestedChange: 'მომხმარებელმა ცვლილება მოითხოვა',
+      batchClarificationsAnswered: 'მომხმარებელმა დასაზუსტებელ შეკითხვებს უპასუხა',
+      contextHeader: '--- წინა კითხვა-პასუხის კონტექსტი ---',
+      contextLegacyHeader: '--- წინა კითხვა-პასუხის კონტექსტი (ეს მიმდინარე დიალოგის გაგრძელებად უნდა აღიქვა და ყველა წინა პასუხი უნდა გაითვალისწინო) ---',
+      contextSummary: 'ადრეული ეტაპების მოკლე შეჯამება',
+      contextFooter: '--- კონტექსტის დასასრული ---',
+      userChanged: 'მომხმარებელმა შეცვალა',
+      userCorrection: 'მომხმარებლის შესწორება/დამატება',
+      summaryQuestionPrefix: 'კ',
+      summaryAnswerPrefix: 'პ',
+      batchIntro: 'ინვოისის JSON-ში ზუსტად ასახე მომხმარებლის შემდეგი პასუხები. ფასები, რაოდენობები, საათები და ტარიფები ზუსტად დააყენე. საგადასახადო ინსტრუქციები ზუსტად გამოიყენე (0% ნიშნავს taxable:false და tax_rate:0). აღწერების შემთხვევაში გადაარქვი შესაბამის პოზიციებს. დააბრუნე განახლებული JSON.\n\n',
+      removeAllTaxInstruction: 'მოხსენი ყველა გადასახადი ყველა პოზიციიდან. ყველაფერზე დააყენე taxable:false, labor_taxable:false, tax_rate:0 და tax_scope:null.',
+      buildApplyAllTaxInstruction: function(rate) {
+        return 'დაადე ზუსტად ' + rate + '% გადასახადი ყველა პოზიციას. ყველა ელემენტზე დააყენე taxable:true და tax_rate:' + rate + '.';
+      },
+      perItemTaxIntro: 'დააყენე ზუსტი საგადასახადო განაკვეთები თითოეულ პოზიციაზე ასე: ',
+      perItemTaxApplied: function(name, rate) {
+        return '"' + name + '": taxable=true, tax_rate=' + rate + '. ';
+      },
+      perItemTaxRemoved: function(name) {
+        return '"' + name + '": taxable=false, tax_rate=0. ';
+      },
+      perItemTaxOutro: 'ეს განაკვეთები არ შეცვალო. პოზიციებს, რომლებსაც tax_rate=0 აქვთ, აუცილებლად უნდა ჰქონდეთ taxable:false.'
+    };
+  }
+
+  return {
+    userRequestedChange: 'User requested change',
+    batchClarificationsAnswered: 'User answered batch clarifications',
+    contextHeader: '--- PREVIOUS Q&A CONTEXT ---',
+    contextLegacyHeader: '--- PREVIOUS Q&A CONTEXT (you MUST treat this as an ongoing conversation and consider ALL previous answers) ---',
+    contextSummary: 'Summary of earlier rounds',
+    contextFooter: '--- END CONTEXT ---',
+    userChanged: 'User changed',
+    userCorrection: 'User correction/addition',
+    summaryQuestionPrefix: 'Q',
+    summaryAnswerPrefix: 'A',
+    batchIntro: 'Apply the following user answers to the invoice JSON. For prices/quantities/hours/rates, set the exact values given. For tax instructions, apply them exactly (0% means taxable:false, tax_rate:0). For descriptions, rename items accordingly. Return the updated JSON.\n\n',
+    removeAllTaxInstruction: 'Remove all tax from every item. Set taxable:false, labor_taxable:false, tax_rate:0, tax_scope:null on everything.',
+    buildApplyAllTaxInstruction: function(rate) {
+      return 'Apply exactly ' + rate + '% tax to every item. Set taxable:true, tax_rate:' + rate + ' on all items.';
+    },
+    perItemTaxIntro: 'Set per-item tax rates EXACTLY as follows: ',
+    perItemTaxApplied: function(name, rate) {
+      return '"' + name + '": taxable=true, tax_rate=' + rate + '. ';
+    },
+    perItemTaxRemoved: function(name) {
+      return '"' + name + '": taxable=false, tax_rate=0. ';
+    },
+    perItemTaxOutro: 'Do NOT override these rates. Items with tax_rate=0 MUST have taxable:false.'
+  };
+ }
+
+ function isAssistantUserRequestedChange(questionText) {
+  return questionText === assistantPromptMeta().userRequestedChange;
+ }
+
+ function renderConversationHistory() {
   const conversation = document.getElementById('assistantConversation');
   if (!conversation) return;
 
@@ -9111,9 +9185,9 @@ function renderConversationHistory() {
   for (let i = 0; i < maxLen; i++) {
     if (i < history.length) {
       const h = history[i];
-      if (h.questions && h.questions !== "User requested change") {
+      if (h.questions && !isAssistantUserRequestedChange(h.questions)) {
         addAIBubble(h.questions);
-      } else if (h.questions === "User requested change") {
+      } else if (isAssistantUserRequestedChange(h.questions)) {
         // Show a subtle label for user-initiated changes
       }
     }
@@ -9301,7 +9375,7 @@ async function submitAssistantMessage() {
   const type = hasPendingQuestions ? 'clarification' : 'refinement';
   const questionsText = hasPendingQuestions
     ? window.pendingClarifications.map(c => c.question).join(' ')
-    : "User requested change";
+    : assistantPromptMeta().userRequestedChange;
 
   addUserBubble(userMessage);
   if (input) { input.value = ''; if (typeof autoResize === 'function') autoResize(input); }
@@ -9401,9 +9475,10 @@ function syncLastAiResultFromDOM() {
 
 async function triggerAssistantReparse(userAnswer, type, questionsText) {
   const input = document.getElementById('assistantInput');
+  const promptMeta = assistantPromptMeta();
   const currentQuestions = questionsText || (type === 'clarification'
     ? (window.pendingClarifications || []).map(c => c.question).join(' ')
-    : "User requested change");
+    : promptMeta.userRequestedChange);
 
   const historyEntry = { questions: currentQuestions, answer: userAnswer };
 
@@ -9449,26 +9524,26 @@ async function triggerAssistantReparse(userAnswer, type, questionsText) {
     var recentCount = Math.min(4, past.length);
     var oldEntries = past.slice(0, past.length - recentCount);
     var recentEntries = past.slice(past.length - recentCount);
-    historyText = "--- PREVIOUS Q&A CONTEXT ---";
+    historyText = promptMeta.contextHeader;
     // #16: Summarize older entries as one-liners to save tokens
     if (oldEntries.length > 0) {
-      historyText += "\n[Summary of earlier rounds: ";
+      historyText += "\n[" + promptMeta.contextSummary + ": ";
       historyText += oldEntries.map(function(h, i) {
-        if (h.questions === "User requested change") return "User changed: " + (h.answer || "").substring(0, 80);
-        return "Q:" + (h.questions || "").substring(0, 40) + "→A:" + (h.answer || "").substring(0, 40);
+        if (isAssistantUserRequestedChange(h.questions)) return promptMeta.userChanged + ': ' + (h.answer || '').substring(0, 80);
+        return promptMeta.summaryQuestionPrefix + ':' + (h.questions || '').substring(0, 40) + '→' + promptMeta.summaryAnswerPrefix + ':' + (h.answer || '').substring(0, 40);
       }).join("; ");
       historyText += "]";
     }
     // Recent entries get full detail
     recentEntries.forEach(function(h, i) {
       var roundNum = oldEntries.length + i + 1;
-      if (h.questions === "User requested change") {
-        historyText += `\n[Round ${roundNum} - User correction/addition: "${h.answer}"]`;
+      if (isAssistantUserRequestedChange(h.questions)) {
+        historyText += `\n[Round ${roundNum} - ${promptMeta.userCorrection}: "${h.answer}"]`;
       } else {
         historyText += `\n[Round ${roundNum} - AI asked: "${h.questions}" → User answered: "${h.answer}"]`;
       }
     });
-    historyText += "\n--- END CONTEXT ---";
+    historyText += "\n" + promptMeta.contextFooter;
   }
 
   // Use /refine_invoice with existing JSON if available
@@ -9478,11 +9553,12 @@ async function triggerAssistantReparse(userAnswer, type, questionsText) {
     try {
       var reqBody = JSON.stringify({
         current_json: window.lastAiResult,
-        user_message: (type === 'clarification' && currentQuestions && currentQuestions !== "User requested change")
+        user_message: (type === 'clarification' && currentQuestions && !isAssistantUserRequestedChange(currentQuestions))
           ? `[AI asked: "${currentQuestions}"] User answered: "${userAnswer}"`
           : userAnswer,
         conversation_history: historyText,
         language: localStorage.getItem('transcriptLanguage') || window.profileSystemLanguage || 'en',
+        assistant_language: window.profileSystemLanguage || document.documentElement.lang || 'en',
         client_match_resolved: window.clientMatchResolved || false
       });
       var reqHeaders = {
@@ -9634,15 +9710,15 @@ async function triggerAssistantReparse(userAnswer, type, questionsText) {
   window.skipTranscriptUpdate = true;
   const transcriptArea = document.getElementById('mainTranscript');
   const originalValue = transcriptArea.value;
-  let fullHistory = "\n\n--- PREVIOUS Q&A CONTEXT (you MUST treat this as an ongoing conversation and consider ALL previous answers) ---";
+  let fullHistory = "\n\n" + promptMeta.contextLegacyHeader;
   allEntries.forEach((h, i) => {
-    if (h.questions === "User requested change") {
-      fullHistory += `\n[Round ${i + 1} - User correction/addition: "${h.answer}"]`;
+    if (isAssistantUserRequestedChange(h.questions)) {
+      fullHistory += `\n[Round ${i + 1} - ${promptMeta.userCorrection}: "${h.answer}"]`;
     } else {
       fullHistory += `\n[Round ${i + 1} - AI asked: "${h.questions}" → User answered: "${h.answer}"]`;
     }
   });
-  fullHistory += "\n--- END CONTEXT ---";
+  fullHistory += "\n" + promptMeta.contextFooter;
   transcriptArea.value = `${window.originalTranscript || originalValue}${fullHistory}`;
 
   const applyBtn = document.getElementById('reParseBtn');

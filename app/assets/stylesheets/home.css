@@ -752,8 +752,64 @@ body {
       }
 
       50% {
-          box-shadow: 0 12px 48px rgba(249, 115, 22, 0.6), 0 6px 16px rgba(0, 0, 0, 0.15), inset 0 2px 0 rgba(255, 255, 255, 0.2);
+          box-shadow: 0 10px 38px rgba(249, 115, 22, 0.5), 0 5px 14px rgba(0, 0, 0, 0.12), inset 0 2px 0 rgba(255, 255, 255, 0.2);
+          transform: scale(1.01);
+      }
+  }
+
+  @keyframes recordListeningGlow {
+
+      0%,
+      100% {
+          box-shadow: 0 10px 34px rgba(239, 68, 68, 0.34), 0 4px 12px rgba(0, 0, 0, 0.12), inset 0 2px 0 rgba(255, 255, 255, 0.18);
+          transform: scale(1);
+      }
+
+      50% {
+          box-shadow: 0 14px 46px rgba(239, 68, 68, 0.46), 0 8px 18px rgba(0, 0, 0, 0.16), inset 0 2px 0 rgba(255, 255, 255, 0.2);
+          transform: scale(1.018);
+      }
+  }
+
+  @keyframes recordingRingOuter {
+
+      0%,
+      100% {
+          opacity: 0.24;
+          transform: scale(0.94);
+      }
+
+      50% {
+          opacity: 0.55;
           transform: scale(1.02);
+      }
+  }
+
+  @keyframes recordingRingInner {
+
+      0%,
+      100% {
+          opacity: 0.4;
+          transform: scale(0.98);
+      }
+
+      50% {
+          opacity: 0.72;
+          transform: scale(1.04);
+      }
+  }
+
+  @keyframes recordingBarPulse {
+
+      0%,
+      100% {
+          transform: scaleY(0.42);
+          opacity: 0.55;
+      }
+
+      50% {
+          transform: scaleY(1);
+          opacity: 1;
       }
   }
 
@@ -779,16 +835,21 @@ body {
   }
 
   #micIcon {
-      animation: micBounce 2s ease-in-out infinite;
+      animation: none;
+      transition: transform 0.25s ease, opacity 0.25s ease;
   }
 
   #recordButton {
-      animation: pulseGlow 2.5s ease-in-out infinite;
+      position: relative;
+      z-index: 2;
+      animation: none;
+      transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
   }
 
   @media (hover: hover) {
       #recordButton:hover {
           animation: none;
+
           transform: scale(1.05);
           box-shadow: 0 16px 56px rgba(249, 115, 22, 0.5), 0 8px 20px rgba(0, 0, 0, 0.15), inset 0 2px 0 rgba(255, 255, 255, 0.2);
       }
@@ -803,11 +864,96 @@ body {
   #recordButton.recording {
       background: linear-gradient(145deg, #ef4444, #dc2626) !important;
       box-shadow: 0 8px 32px rgba(239, 68, 68, 0.5), 0 4px 12px rgba(0, 0, 0, 0.1), inset 0 2px 0 rgba(255, 255, 255, 0.2);
-      animation: pulseGlow 1s ease-in-out infinite;
+      animation: recordListeningGlow 1.8s ease-in-out infinite;
   }
 
   #recordButton.recording #micIcon {
-      animation: micBounce 2s ease-in-out infinite;
+      animation: none;
+      transform: scale(0.94);
+      opacity: 0.96;
+  }
+
+  .recording-indicator {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 208px;
+      height: 208px;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 1;
+  }
+
+  .recording-indicator-ring {
+      position: absolute;
+      border-radius: 9999px;
+      border: 2px solid rgba(248, 113, 113, 0.28);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12), 0 0 42px rgba(239, 68, 68, 0.1);
+  }
+
+  .recording-indicator-ring-outer {
+      inset: 0;
+      animation: recordingRingOuter 1.9s ease-in-out infinite;
+  }
+
+  .recording-indicator-ring-inner {
+      inset: 18px;
+      border-color: rgba(254, 202, 202, 0.38);
+      animation: recordingRingInner 1.4s ease-in-out infinite;
+  }
+
+  .recording-indicator-bars {
+      position: absolute;
+      left: 50%;
+      bottom: 16px;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 6px;
+      width: 78px;
+      height: 42px;
+      padding: 0 10px;
+      border-radius: 9999px;
+      background: rgba(255, 255, 255, 0.18);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(6px);
+  }
+
+  .recording-indicator-bars span {
+      display: block;
+      width: 5px;
+      height: 22px;
+      border-radius: 9999px;
+      transform-origin: center bottom;
+      background: linear-gradient(180deg, #fecaca 0%, #f87171 55%, #dc2626 100%);
+      box-shadow: 0 0 12px rgba(248, 113, 113, 0.35);
+      animation: recordingBarPulse 1s ease-in-out infinite;
+  }
+
+  .recording-indicator-bars span:nth-child(1) {
+      animation-delay: -0.35s;
+      height: 14px;
+  }
+
+  .recording-indicator-bars span:nth-child(2) {
+      animation-delay: -0.2s;
+      height: 22px;
+  }
+
+  .recording-indicator-bars span:nth-child(3) {
+      animation-delay: -0.05s;
+      height: 28px;
+  }
+
+  .recording-indicator-bars span:nth-child(4) {
+      animation-delay: -0.25s;
+      height: 20px;
+  }
+
+  .recording-indicator-bars span:nth-child(5) {
+      animation-delay: -0.4s;
+      height: 12px;
   }
 
   @keyframes recBlink {
@@ -820,10 +966,6 @@ body {
       50% {
           opacity: 0;
       }
-  }
-
-  .rec-dot {
-      animation: recBlink 1s ease-in-out infinite;
   }
 
   /* Custom Scrollbar for Textareas */
@@ -1900,6 +2042,23 @@ body {
     #recordButton {
       width: 136px;
       height: 136px;
+    }
+
+    .recording-indicator {
+      width: 176px;
+      height: 176px;
+    }
+
+    .recording-indicator-ring-inner {
+      inset: 16px;
+    }
+
+    .recording-indicator-bars {
+      bottom: 12px;
+      width: 70px;
+      height: 38px;
+      gap: 5px;
+      padding: 0 9px;
     }
 
     /* Contact card: reduce shadow */
