@@ -10,20 +10,10 @@ window.sanitizeFileName = function(name) {
   for (var i = 0; i < name.length; i++) {
     var c = name[i];
     if (map[c]) { result += map[c]; }
-    else if (/[a-zA-Z0-9 _if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }-.]/.test(c)) { result += c; }
+    else if (/[a-zA-Z0-9 _\-.]/.test(c)) { result += c; }
     else { result += ''; }
   }
-  return result.replace(/if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '') || 'Client';
+  return result.replace(/\s+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '') || 'Client';
 };
 
 /* ── Global Popup Backdrop ── */
@@ -101,90 +91,6 @@ function showError(msg) {
   console.error(msg);
 }
 
-function _commonPrefixLen(a, b) {
-  var max = Math.min(a.length, b.length);
-  var i = 0;
-  while (i < max && a[i] === b[i]) i += 1;
-  return i;
-}
-
-function _refreshTranscriptCounters(targetInput) {
-  if (window.updateDynamicCountersCheck) {
-    window.updateDynamicCountersCheck(targetInput);
-  } else if (window.updateDynamicCounters) {
-    window.updateDynamicCounters();
-  }
-}
-
-function _smoothlySetInputValue(targetInput, nextText, options) {
-  if (!targetInput) return;
-
-  targetInput._smoothTextTarget = nextText || '';
-  targetInput._smoothTextOptions = options || {};
-
-  if ((targetInput.value || '') === targetInput._smoothTextTarget) {
-    autoResize(targetInput);
-    _refreshTranscriptCounters(targetInput);
-    var doneImmediately = targetInput._smoothTextOptions.onComplete;
-    targetInput._smoothTextOptions = null;
-    if (typeof doneImmediately === 'function') doneImmediately();
-    return;
-  }
-
-  if (targetInput._smoothTextTimer) return;
-
-  targetInput._smoothTextTimer = setInterval(function() {
-    var target = targetInput._smoothTextTarget || '';
-    var opts = targetInput._smoothTextOptions || {};
-    var current = targetInput.value || '';
-    var nextValue = current;
-
-    if (current === target) {
-      clearInterval(targetInput._smoothTextTimer);
-      targetInput._smoothTextTimer = null;
-      autoResize(targetInput);
-      _refreshTranscriptCounters(targetInput);
-      var done = opts.onComplete;
-      targetInput._smoothTextOptions = null;
-      if (typeof done === 'function') done();
-      return;
-    }
-
-    var prefix = _commonPrefixLen(current, target);
-    if (current.length > target.length || prefix < current.length) {
-      var toDelete = Math.max(1, Math.ceil((current.length - prefix) / 3));
-      nextValue = current.slice(0, Math.max(prefix, current.length - toDelete));
-    } else {
-      var remaining = target.length - current.length;
-      var toAdd = Math.max(1, Math.ceil(remaining / (opts.fast ? 5 : 8)));
-      nextValue = target.slice(0, current.length + toAdd);
-    }
-
-    targetInput.value = nextValue;
-    autoResize(targetInput);
-    if (document.activeElement === targetInput && targetInput.setSelectionRange) {
-      targetInput.setSelectionRange(nextValue.length, nextValue.length);
-    }
-  }, 18);
-}
-
-function _setTranscriptLanguageSelectorLocked(locked) {
-  var btn = document.getElementById('languageSelectorBtn');
-  var menu = document.getElementById('languageMenu');
-  var chevron = document.getElementById('langChevron');
-  if (!btn) return;
-
-  btn.disabled = !!locked;
-  btn.setAttribute('aria-disabled', locked ? 'true' : 'false');
-  btn.style.opacity = locked ? '0.55' : '';
-  btn.style.cursor = locked ? 'not-allowed' : '';
-
-  if (locked) {
-    if (menu) menu.classList.add('hidden');
-    if (chevron) chevron.classList.remove('rotate-180');
-  }
-}
-
 // Currency Data & Helpers
 const currenciesData = CURRENCIES;
 const activeCurrencyCode_legacy = activeCurrencyCode;
@@ -247,17 +153,7 @@ function resizeQtyInput(el) {
   const newWidth = Math.max(15, textWidth + 2);
   el.style.width = newWidth + 'px';
 
-  const container = el.closest('.groupif (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }/qty');
+  const container = el.closest('.group\\/qty');
   if (container) {
     // 35px is the base width for 'x' and padding. We add the extra text width.
     // Base desktop width was 45px. 
@@ -271,12 +167,7 @@ function cleanNum(val) {
   if (val === null || val === undefined || val === "") return "";
   let f = parseFloat(val);
   if (isNaN(f)) return val;
-  return (f % 1 === 0) ? f.toString() : f.toFixed(2).replace(/if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }.?0+$/, "");
+  return (f % 1 === 0) ? f.toString() : f.toFixed(2).replace(/\.?0+$/, "");
 }
 
 function formatMoney(amount) {
@@ -408,7 +299,6 @@ document.addEventListener('click', (e) => {
 
 // --- Language Selector Logic ---
 window.setTranscriptLanguage = function (lang) {
-  if (window._liveRecordingActive) return;
   const normalizedLang = lang === 'ka' ? 'ge' : lang;
   localStorage.setItem('transcriptLanguage', normalizedLang);
   updateLanguageUI(normalizedLang);
@@ -424,9 +314,9 @@ window.setTranscriptLanguage = function (lang) {
       // onend handler will auto-restart with the new language
     }
     // ElevenLabs realtime: reconnect with new language
-    if (window._liveTranscriptionMode === 'realtime') {
+    if (window._sttWs) {
       _cleanupElevenLabsRealtime();
-      var targetInput = window._liveTargetInput || document.getElementById('mainTranscript');
+      var targetInput = document.getElementById('mainTranscript');
       if (targetInput) _startElevenLabsTranscription(targetInput, window._liveStream);
     }
     // Chunked REST: language is read from localStorage each time — no action needed
@@ -1776,6 +1666,518 @@ document.addEventListener("DOMContentLoaded", () => {
   if (laborIconContainer) randomizeIcon(laborIconContainer);
 });
 
+// --- Real-time Transcription Logic (Global Scope) ---
+window.liveRecognition = null;
+window.totalVoiceUsed = 0; // Tracks seconds spent in current session (since last main recording)
+window.recordingStartTime = 0;
+
+window._liveRecordingActive = false;
+window._liveTargetInput = null;
+window._liveStream = null;
+window._webSpeechFailed = false;
+window._webSpeechGotResult = false;
+window._webSpeechFailsafe = null;
+
+// ElevenLabs realtime state
+window._sttWs = null;
+window._sttAudioCtx = null;
+window._sttProcessor = null;
+window._sttSource = null;
+window._sttMuteGain = null;
+window._sttCommittedText = '';
+window._sttPartialText = '';
+
+// Chunked REST fallback state
+window._liveAudioChunks = [];
+window._pendingTranscription = false;
+window._transcriptionTimer = null;
+
+function _shouldUseWebSpeechAPI() {
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return false;
+  if (window._webSpeechFailed) return false;
+  // Mobile: skip Web Speech entirely — use ElevenLabs realtime instead
+  // Web Speech loops/restarts unreliably on Android and is broken on iOS
+  if (/Android|iPhone|iPad|iPod|Mobile|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) return false;
+  return true;
+}
+
+function startLiveTranscription(targetInput, stream) {
+  if (!targetInput) return;
+  window._liveRecordingActive = true;
+  window._liveTargetInput = targetInput;
+  window._liveStream = stream || null;
+  window._liveAudioChunks = [];
+  window._liveTranscriptionMode = null;
+
+  if (_shouldUseWebSpeechAPI()) {
+    _startWebSpeechTranscription(targetInput, stream);
+  } else {
+    _startElevenLabsTranscription(targetInput, stream);
+  }
+}
+
+// ── Tier 1: Web Speech API (free, works on desktop Chrome/Edge/Android Chrome) ──
+function _startWebSpeechTranscription(targetInput, stream) {
+  var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    _startElevenLabsTranscription(targetInput, stream);
+    return;
+  }
+  window._liveTranscriptionMode = 'webspeech';
+
+  if (window.liveRecognition) {
+    try { window.liveRecognition.stop(); } catch (e) { }
+  }
+
+  window._webSpeechGotResult = false;
+  var restartAttempts = 0;
+  var maxRestarts = 50;
+
+  // Failsafe: if no results after 8s, switch to ElevenLabs
+  window._webSpeechFailsafe = setTimeout(function() {
+    if (!window._webSpeechGotResult && window._liveRecordingActive) {
+      console.warn('Web Speech API produced no results — switching to ElevenLabs');
+      window._webSpeechFailed = true;
+      if (window.liveRecognition) {
+        try { window.liveRecognition.stop(); } catch (e) { }
+        window.liveRecognition = null;
+      }
+      _startElevenLabsTranscription(targetInput, stream);
+    }
+  }, 8000);
+
+  function createRecognition() {
+    var recognition = new SpeechRecognition();
+    var isMobileDevice = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    recognition.continuous = !isMobileDevice;
+    recognition.interimResults = true;
+
+    var savedLang = localStorage.getItem('transcriptLanguage') || 'en';
+    recognition.lang = (savedLang === 'ge' || savedLang === 'ka') ? 'ka-GE' : 'en-US';
+
+    var typeTimer = null;
+
+    recognition.onresult = function(event) {
+      window._webSpeechGotResult = true;
+      if (window._webSpeechFailsafe) {
+        clearTimeout(window._webSpeechFailsafe);
+        window._webSpeechFailsafe = null;
+      }
+      restartAttempts = 0;
+
+      var fullTranscript = '';
+      for (var i = 0; i < event.results.length; ++i) {
+        fullTranscript += event.results[i][0].transcript;
+      }
+      if (!fullTranscript) return;
+
+      if (typeTimer) { clearInterval(typeTimer); typeTimer = null; }
+
+      var target = fullTranscript;
+      var current = targetInput.value || '';
+
+      var commonPrefixLen = function(a, b) {
+        var max = Math.min(a.length, b.length);
+        var j = 0;
+        while (j < max && a[j] === b[j]) j += 1;
+        return j;
+      };
+
+      if (current === target) return;
+
+      typeTimer = setInterval(function() {
+        if (current === target) {
+          clearInterval(typeTimer);
+          typeTimer = null;
+          if (window.updateDynamicCountersCheck) {
+            window.updateDynamicCountersCheck(targetInput);
+          } else if (window.updateDynamicCounters) {
+            window.updateDynamicCounters();
+          }
+          return;
+        }
+
+        var prefix = commonPrefixLen(current, target);
+        if (current.length > target.length || prefix < current.length) {
+          var toDelete = Math.max(1, Math.ceil((current.length - prefix) / 3));
+          current = current.slice(0, Math.max(prefix, current.length - toDelete));
+        } else {
+          var remaining = target.length - current.length;
+          var toAdd = Math.max(1, Math.ceil(remaining / 8));
+          current = target.slice(0, current.length + toAdd);
+        }
+
+        targetInput.value = current;
+        autoResize(targetInput);
+      }, 18);
+    };
+
+    recognition.onerror = function(event) {
+      console.warn("Speech recognition error:", event.error);
+      if (event.error === 'no-speech' || event.error === 'aborted') return;
+      if (event.error === 'not-allowed' || event.error === 'service-not-available') {
+        window._webSpeechFailed = true;
+        if (window._webSpeechFailsafe) {
+          clearTimeout(window._webSpeechFailsafe);
+          window._webSpeechFailsafe = null;
+        }
+        window.liveRecognition = null;
+        _startElevenLabsTranscription(targetInput, stream);
+      }
+    };
+
+    recognition.onend = function() {
+      if (typeTimer) { clearInterval(typeTimer); typeTimer = null; }
+      window.liveRecognition = null;
+
+      if (window._liveRecordingActive && !window._webSpeechFailed && restartAttempts < maxRestarts) {
+        restartAttempts++;
+        var delay = Math.min(restartAttempts * 100, 1000);
+        setTimeout(function() {
+          if (!window._liveRecordingActive || window._webSpeechFailed) return;
+          try {
+            var newRec = createRecognition();
+            newRec.start();
+            window.liveRecognition = newRec;
+          } catch (e) {
+            console.warn("Speech recognition restart failed:", e);
+            window._webSpeechFailed = true;
+            _startElevenLabsTranscription(targetInput, stream);
+          }
+        }, delay);
+      }
+    };
+
+    return recognition;
+  }
+
+  var recognition = createRecognition();
+  try {
+    recognition.start();
+  } catch (e) {
+    console.warn("Speech recognition start failed:", e);
+    window._webSpeechFailed = true;
+    _startElevenLabsTranscription(targetInput, stream);
+    return;
+  }
+  window.liveRecognition = recognition;
+}
+
+// ── Tier 2: ElevenLabs Realtime WebSocket (AudioWorklet + scribe_v2_realtime) ──
+var _audioProcessorCode = [
+  'class AudioProcessor extends AudioWorkletProcessor {',
+  '  constructor() { super(); this._buf = []; this._ratio = 0; }',
+  '  process(inputs) {',
+  '    var inp = inputs[0]; if (!inp || !inp[0] || !inp[0].length) return true;',
+  '    if (!this._ratio) this._ratio = sampleRate / 16000;',
+  '    var d = inp[0], r = this._ratio;',
+  '    for (var i = 0; i < d.length; i += r) {',
+  '      var x = Math.round(i); if (x >= d.length) break;',
+  '      var s = d[x] < -1 ? -1 : (d[x] > 1 ? 1 : d[x]);',
+  '      this._buf.push(s < 0 ? s * 32768 : s * 32767);',
+  '    }',
+  '    while (this._buf.length >= 1600) {',
+  '      var c = this._buf.splice(0, 1600);',
+  '      var a = new Int16Array(c);',
+  '      this.port.postMessage(a.buffer, [a.buffer]);',
+  '    }',
+  '    return true;',
+  '  }',
+  '}',
+  "registerProcessor('audio-processor', AudioProcessor);"
+].join('\n');
+
+function _arrayBufferToBase64(buffer) {
+  var bytes = new Uint8Array(buffer);
+  var chunkSize = 0x8000;
+  var binary = '';
+  for (var i = 0; i < bytes.length; i += chunkSize) {
+    var chunk = bytes.subarray(i, i + chunkSize);
+    binary += String.fromCharCode.apply(null, chunk);
+  }
+  return btoa(binary);
+}
+
+function _sendElevenLabsAudioChunk(buffer, commit) {
+  var ws = window._sttWs;
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  var payload = {
+    message_type: 'input_audio_chunk',
+    audio_base_64: buffer ? _arrayBufferToBase64(buffer) : '',
+    commit: !!commit,
+    sample_rate: 16000
+  };
+  if (window._sttCommittedText) {
+    payload.previous_text = window._sttCommittedText.trim();
+  }
+  ws.send(JSON.stringify(payload));
+}
+
+function _cleanupElevenLabsAudio() {
+  if (window._sttProcessor) { try { window._sttProcessor.disconnect(); } catch (e) { } window._sttProcessor = null; }
+  if (window._sttSource) { try { window._sttSource.disconnect(); } catch (e) { } window._sttSource = null; }
+  if (window._sttMuteGain) { try { window._sttMuteGain.disconnect(); } catch (e) { } window._sttMuteGain = null; }
+  if (window._sttAudioCtx) { try { window._sttAudioCtx.close(); } catch (e) { } window._sttAudioCtx = null; }
+}
+
+function _closeElevenLabsSocket() {
+  if (window._sttFinalizeTimer) {
+    clearTimeout(window._sttFinalizeTimer);
+    window._sttFinalizeTimer = null;
+  }
+  if (window._sttWs) { try { window._sttWs.close(); } catch (e) { } window._sttWs = null; }
+  window._acceptingFinalRealtimeTranscript = false;
+}
+
+function _startElevenLabsTranscription(targetInput, stream) {
+  if (!window._liveRecordingActive) return;
+  window._liveTranscriptionMode = 'realtime';
+  if (!stream) {
+    console.warn('No audio stream — chunked fallback');
+    _startChunkedTranscription(targetInput);
+    return;
+  }
+  if (typeof AudioWorkletNode === 'undefined') {
+    console.warn('AudioWorklet not supported — chunked fallback');
+    _startChunkedTranscription(targetInput);
+    return;
+  }
+
+  var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+  var lang = localStorage.getItem('transcriptLanguage') || 'en';
+
+  fetch('/stt_ws_auth?language=' + lang, {
+    method: 'POST',
+    headers: csrfMeta ? { 'X-CSRF-Token': csrfMeta.content } : {}
+  })
+  .then(function(r) {
+    if (!r.ok) throw new Error('Token request failed: ' + r.status);
+    return r.json();
+  })
+  .then(function(config) {
+    if (!config.ws_url) throw new Error('No WebSocket URL');
+    if (!window._liveRecordingActive) return;
+
+    var ws = new WebSocket(config.ws_url);
+    window._sttWs = ws;
+    window._acceptingFinalRealtimeTranscript = false;
+    window._sttCommittedText = '';
+    window._sttPartialText = '';
+    var wsConnected = false;
+
+    ws.onopen = function() {
+      wsConnected = true;
+      console.log('ElevenLabs STT WebSocket connected');
+    };
+
+    ws.onmessage = function(event) {
+      try {
+        var msg = JSON.parse(event.data);
+        var mt = msg.message_type || msg.type || '';
+        var canApplyTranscript = window._liveRecordingActive || window._acceptingFinalRealtimeTranscript;
+
+        if (mt === 'session_started') {
+          console.log('ElevenLabs STT session:', msg.session_id);
+        } else if (mt === 'error' || msg.error) {
+          console.warn('ElevenLabs STT server error:', msg.error || msg);
+          if (window._liveRecordingActive) {
+            _cleanupElevenLabsRealtime();
+            _startChunkedTranscription(targetInput);
+          }
+        } else if (mt === 'partial_transcript') {
+          window._sttPartialText = msg.text || '';
+          if (targetInput && canApplyTranscript) {
+            targetInput.value = (window._sttCommittedText + window._sttPartialText).trim();
+            autoResize(targetInput);
+          }
+        } else if (mt === 'final_transcript' || mt === 'committed_transcript') {
+          window._sttCommittedText += (msg.text || '') + ' ';
+          window._sttPartialText = '';
+          if (targetInput && canApplyTranscript) {
+            targetInput.value = window._sttCommittedText.trim();
+            autoResize(targetInput);
+            if (window.updateDynamicCountersCheck) {
+              window.updateDynamicCountersCheck(targetInput);
+            } else if (window.updateDynamicCounters) {
+              window.updateDynamicCounters();
+            }
+          }
+          if (!window._liveRecordingActive && window._acceptingFinalRealtimeTranscript) {
+            window._sttFinalizeTimer = setTimeout(function() {
+              _closeElevenLabsSocket();
+            }, 150);
+          }
+        } else if (msg.text !== undefined && targetInput && canApplyTranscript) {
+          targetInput.value = (window._sttCommittedText + msg.text).trim();
+          autoResize(targetInput);
+        } else {
+          console.log('ElevenLabs STT msg:', mt, JSON.stringify(msg).substring(0, 200));
+        }
+      } catch (e) { console.warn('STT parse error:', e); }
+    };
+
+    ws.onerror = function(e) {
+      console.warn('ElevenLabs STT WebSocket error:', e);
+    };
+
+    ws.onclose = function(e) {
+      console.log('ElevenLabs STT WebSocket closed:', e.code, e.reason);
+      window._sttWs = null;
+      window._acceptingFinalRealtimeTranscript = false;
+      if (window._liveRecordingActive && !wsConnected) {
+        console.warn('WebSocket never connected — chunked fallback');
+        _cleanupElevenLabsRealtime();
+        _startChunkedTranscription(targetInput);
+      }
+    };
+
+    // AudioWorklet via inline blob (works on iOS/Android, no file path issues)
+    var blob = new Blob([_audioProcessorCode], { type: 'application/javascript' });
+    var blobUrl = URL.createObjectURL(blob);
+
+    var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    window._sttAudioCtx = audioCtx;
+
+    // iOS requires AudioContext resume after user gesture
+    var resumePromise = (audioCtx.state === 'suspended') ? audioCtx.resume() : Promise.resolve();
+
+    resumePromise.then(function() {
+      return audioCtx.audioWorklet.addModule(blobUrl);
+    }).then(function() {
+      URL.revokeObjectURL(blobUrl);
+      if (!window._liveRecordingActive) return;
+
+      var source = audioCtx.createMediaStreamSource(stream);
+      var processor = new AudioWorkletNode(audioCtx, 'audio-processor');
+      var muteGain = audioCtx.createGain();
+      muteGain.gain.value = 0;
+
+      processor.port.onmessage = function(e) {
+        _sendElevenLabsAudioChunk(e.data, false);
+      };
+
+      source.connect(processor);
+      processor.connect(muteGain);
+      muteGain.connect(audioCtx.destination);
+
+      window._sttSource = source;
+      window._sttProcessor = processor;
+      window._sttMuteGain = muteGain;
+      console.log('ElevenLabs AudioWorklet pipeline ready (sample rate: ' + audioCtx.sampleRate + ')');
+    }).catch(function(e) {
+      console.warn('AudioWorklet setup failed:', e);
+      URL.revokeObjectURL(blobUrl);
+      _cleanupElevenLabsRealtime();
+      _startChunkedTranscription(targetInput);
+    });
+  })
+  .catch(function(e) {
+    console.warn('ElevenLabs realtime failed — chunked fallback:', e.message);
+    _cleanupElevenLabsRealtime();
+    _startChunkedTranscription(targetInput);
+  });
+}
+
+function _cleanupElevenLabsRealtime() {
+  _cleanupElevenLabsAudio();
+  _closeElevenLabsSocket();
+}
+
+// ── Tier 3: Chunked REST fallback (ElevenLabs Scribe v1 via /live_transcribe) ──
+function _startChunkedTranscription(targetInput) {
+  if (!window._liveRecordingActive) return;
+  window._liveTranscriptionMode = 'chunked';
+  window._pendingTranscription = false;
+
+  window._transcriptionTimer = setInterval(function() {
+    if (!window._liveRecordingActive) return;
+    if (window._liveAudioChunks.length === 0) return;
+    if (window._pendingTranscription) return;
+    _sendChunkedTranscription();
+  }, 4000);
+}
+
+function _onLiveAudioChunk(chunk) {
+  if (!window._liveRecordingActive) return;
+  window._liveAudioChunks.push(chunk);
+}
+
+function _sendChunkedTranscription() {
+  if (window._pendingTranscription) return;
+  if (window._liveAudioChunks.length === 0) return;
+
+  window._pendingTranscription = true;
+  var pendingChunks = window._liveAudioChunks.slice();
+  window._liveAudioChunks = [];
+  var blob = new Blob(pendingChunks, { type: 'audio/webm' });
+  var formData = new FormData();
+  formData.append('audio', blob, 'audio.webm');
+  formData.append('language', localStorage.getItem('transcriptLanguage') || 'en');
+
+  var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+  var headers = csrfMeta ? { 'X-CSRF-Token': csrfMeta.content } : {};
+  var targetInput = window._liveTargetInput;
+
+  fetch('/live_transcribe', { method: 'POST', headers: headers, body: formData })
+    .then(function(r) {
+      return r.json().catch(function() { return {}; }).then(function(data) {
+        return { ok: r.ok, status: r.status, data: data };
+      });
+    })
+    .then(function(result) {
+      var data = result.data || {};
+      if (!result.ok) {
+        console.warn('Chunked transcription failed:', result.status, data.detail || data.error || data);
+        if (data.detail && data.detail.status === 'detected_unusual_activity') {
+          if (window._transcriptionTimer) { clearInterval(window._transcriptionTimer); window._transcriptionTimer = null; }
+        }
+        return;
+      }
+      if (data.text && targetInput) {
+        targetInput.value = data.text;
+        autoResize(targetInput);
+        if (window.updateDynamicCountersCheck) {
+          window.updateDynamicCountersCheck(targetInput);
+        } else if (window.updateDynamicCounters) {
+          window.updateDynamicCounters();
+        }
+      }
+    })
+    .catch(function(e) { console.warn('Chunked transcription error:', e); })
+    .finally(function() { window._pendingTranscription = false; });
+}
+
+function stopLiveTranscription() {
+  window._liveRecordingActive = false;
+  window._acceptingFinalRealtimeTranscript = true;
+
+  // Stop Web Speech API
+  if (window._webSpeechFailsafe) { clearTimeout(window._webSpeechFailsafe); window._webSpeechFailsafe = null; }
+  if (window.liveRecognition) { try { window.liveRecognition.stop(); } catch (e) { } window.liveRecognition = null; }
+
+  // Stop ElevenLabs realtime
+  _cleanupElevenLabsAudio();
+  if (window._sttWs && window._sttWs.readyState === WebSocket.OPEN) {
+    _sendElevenLabsAudioChunk(null, true);
+    window._sttFinalizeTimer = setTimeout(function() {
+      _closeElevenLabsSocket();
+    }, 600);
+  } else {
+    _closeElevenLabsSocket();
+  }
+
+  // Stop chunked REST
+  if (window._transcriptionTimer) { clearInterval(window._transcriptionTimer); window._transcriptionTimer = null; }
+  if (window._liveTranscriptionMode === 'chunked' && window._liveAudioChunks && window._liveAudioChunks.length > 0 && !window._pendingTranscription) {
+    _sendChunkedTranscription();
+  }
+
+  window._liveTargetInput = null;
+  window._liveTranscriptionMode = null;
+  window._liveStream = null;
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   const recordBtn = document.getElementById("recordButton");
   const transcriptArea = document.getElementById("mainTranscript");
@@ -1877,15 +2279,15 @@ document.addEventListener("DOMContentLoaded", () => {
         audioChunks = [];
         mediaRecorder.ondataavailable = (e) => {
           audioChunks.push(e.data);
+          _onLiveAudioChunk(e.data);
         };
         mediaRecorder.onstop = processAudio;
 
-        mediaRecorder.start(1000);
-        
+        mediaRecorder.start(3000);
+        startLiveTranscription(transcriptArea, stream);
         window.recordingStartTime = Date.now();
 
         isRecording = true;
-        document.getElementById('recordingWave').classList.remove('hidden');
         buttonText.innerText = window.APP_LANGUAGES.stop || "STOP";
         document.getElementById("micIcon").innerHTML = '<rect x="7" y="7" width="10" height="10" rx="1" fill="currentColor" />';
 
@@ -1918,7 +2320,7 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         }, 1000);
       } catch (e) {
-        
+        stopLiveTranscription();
         showError(window.APP_LANGUAGES.microphone_access_denied || "Microphone access required.");
       }
     } else {
@@ -1943,7 +2345,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (mediaRecorder.stream) {
         mediaRecorder.stream.getTracks().forEach(t => t.stop());
       }
-      
+      stopLiveTranscription();
       isRecording = false;
       window.totalVoiceUsed = Math.floor(duration / 1000); // Set initial bank usage
       startAnalysisUI();
@@ -1962,7 +2364,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const timerDisplay = document.getElementById("currentAudioTime");
     if (timerDisplay) timerDisplay.classList.remove("text-red-600");
 
-    
+    stopLiveTranscription();
 
     isRecording = false;
     isAnalyzing = false;
@@ -3670,17 +4072,7 @@ function validateCategoryName(input) {
   const val = input.value.toLowerCase().trim();
 
   if (reserved.some(r => val === r || val === r + 's' || val.includes('labor/service'))) {
-    alert((window.APP_LANGUAGES.reserved_category || "if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }"%{name}if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }" is a reserved category name. Please choose another.").replace('%{name}', input.value));
+    alert((window.APP_LANGUAGES.reserved_category || "\"%{name}\" is a reserved category name. Please choose another.").replace('%{name}', input.value));
     input.value = "Custom";
     input.focus();
   }
@@ -5036,90 +5428,10 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
   let finalValue = (value || "").trim();
   let finalQty = qty || 1;
   const qtyPatterns = [
-    { regex: /[if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }(if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s]x(if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }d+)[if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    })]?$/i, group: 1 },        // (x2), x2 at end
-    { regex: /[if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }(if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s]if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }((if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }d+)if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    })$/i, group: 1 },          // (2) at end
-    { regex: /^(if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }d+)if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s*xif (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s+/i, group: 1 },             // 2x at start
-    { regex: /[if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }(if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s](if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }d+)if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s*units?$/i, group: 1 }      // 2 units at end
+    { regex: /[\(\s]x(\d+)[\)]?$/i, group: 1 },        // (x2), x2 at end
+    { regex: /[\(\s]\((\d+)\)$/i, group: 1 },          // (2) at end
+    { regex: /^(\d+)\s*x\s+/i, group: 1 },             // 2x at start
+    { regex: /[\(\s](\d+)\s*units?$/i, group: 1 }      // 2 units at end
   ];
 
   for (const p of qtyPatterns) {
@@ -5130,22 +5442,7 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
         if (finalQty === 1) finalQty = extracted;
         finalValue = finalValue.replace(p.regex, '').trim();
         // Clean up any remaining empty parentheses
-        finalValue = finalValue.replace(/if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }(if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s*if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    })$/, '').trim();
+        finalValue = finalValue.replace(/\(\s*\)$/, '').trim();
         break;
       }
     }
@@ -6119,25 +6416,10 @@ function batchSubmitQueueAnswers() {
   // Format batch as individual Q&A pairs for the AI
   // NOTE: Some values (from widget confirms) are pre-applied to the JSON, others (text answers) are not.
   // Tell the AI to apply ALL answers — _reapplyAllOverrides protects widget-confirmed values from being overwritten.
-  var batchMessage = 'Apply the following user answers to the invoice JSON. For prices/quantities/hours/rates, set the exact values given. For tax instructions, apply them exactly (0% means taxable:false, tax_rate:0). For descriptions, rename items accordingly. Return the updated JSON.if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }nif (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }n';
+  var batchMessage = 'Apply the following user answers to the invoice JSON. For prices/quantities/hours/rates, set the exact values given. For tax instructions, apply them exactly (0% means taxable:false, tax_rate:0). For descriptions, rename items accordingly. Return the updated JSON.\n\n';
   batchMessage += aiAnswers.map(function(qa) {
     return '[AI asked: "' + qa.question + '" → User answered: "' + qa.answer + '"]';
-  }).join('if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }n');
+  }).join('\n');
 
   showTypingIndicator();
   var input = document.getElementById('assistantInput');
@@ -6334,51 +6616,11 @@ function renderAddClientToListCard(clarification) {
     + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
     + '<div class="text-xs font-bold text-gray-800 mb-2.5">' + escapeHtml(questionText) + '</div>'
     + '<div class="flex gap-2">'
-    + '<button type="button" onclick="window.clientMatchResolved=true; window._wasAddClientYes=true; autoSubmitAssistantMessage(if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }'' + escapeHtml(yesLabel).replace(/'/g, "if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }'") + 'if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }')" class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border-2 border-orange-300 bg-orange-50 hover:bg-orange-100 transition-all cursor-pointer active:scale-[0.97] text-[12px] font-bold text-orange-600">'
+    + '<button type="button" onclick="window.clientMatchResolved=true; window._wasAddClientYes=true; autoSubmitAssistantMessage(\'' + escapeHtml(yesLabel).replace(/'/g, "\\'") + '\')" class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border-2 border-orange-300 bg-orange-50 hover:bg-orange-100 transition-all cursor-pointer active:scale-[0.97] text-[12px] font-bold text-orange-600">'
     + '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m6-6H6"/></svg>'
     + escapeHtml(yesLabel)
     + '</button>'
-    + '<button type="button" onclick="autoSubmitAssistantMessage(if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }'' + escapeHtml(noLabel).replace(/'/g, "if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }'") + 'if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }')" class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border-2 border-gray-200 bg-white hover:bg-gray-50 transition-all cursor-pointer active:scale-[0.97] text-[12px] font-bold text-gray-500">'
+    + '<button type="button" onclick="autoSubmitAssistantMessage(\'' + escapeHtml(noLabel).replace(/'/g, "\\'") + '\')" class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border-2 border-gray-200 bg-white hover:bg-gray-50 transition-all cursor-pointer active:scale-[0.97] text-[12px] font-bold text-gray-500">'
     + '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
     + escapeHtml(noLabel)
     + '</button>'
@@ -6404,27 +6646,7 @@ function renderClientMatchCard(clarification) {
     const countLabel = c.invoices_count === 1
       ? (window.APP_LANGUAGES.invoices_count_one || '1 invoice')
       : (window.APP_LANGUAGES.invoices_count || '%{count} invoices').replace('__COUNT__', c.invoices_count || 0);
-    clientButtons += '<button type="button" onclick="window.clientMatchResolved=true; autoSubmitAssistantMessage(if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }'' + escapeHtml(c.name).replace(/'/g, "if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }'") + 'if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-gray-200 bg-white hover:bg-orange-50 hover:border-orange-300 transition-all cursor-pointer active:scale-[0.97] text-left">'
+    clientButtons += '<button type="button" onclick="window.clientMatchResolved=true; autoSubmitAssistantMessage(\'' + escapeHtml(c.name).replace(/'/g, "\\'") + '\')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-gray-200 bg-white hover:bg-orange-50 hover:border-orange-300 transition-all cursor-pointer active:scale-[0.97] text-left">'
       + '<div class="w-7 h-7 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center flex-shrink-0">'
       + '<svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>'
       + '</div>'
@@ -6438,27 +6660,7 @@ function renderClientMatchCard(clarification) {
   });
 
   var createLabel = window.APP_LANGUAGES.create_new_client || 'Create new';
-  var createNewBtn = '<button type="button" onclick="window.clientMatchResolved=true; window._wasAddClientYes=true; autoSubmitAssistantMessage(if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }'' + escapeHtml(createLabel).replace(/'/g, "if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }'") + 'if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-dashed border-orange-300 bg-white hover:bg-orange-50 hover:border-orange-400 transition-all cursor-pointer active:scale-[0.97] text-left">'
+  var createNewBtn = '<button type="button" onclick="window.clientMatchResolved=true; window._wasAddClientYes=true; autoSubmitAssistantMessage(\'' + escapeHtml(createLabel).replace(/'/g, "\\'") + '\')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-dashed border-orange-300 bg-white hover:bg-orange-50 hover:border-orange-400 transition-all cursor-pointer active:scale-[0.97] text-left">'
     + '<div class="w-7 h-7 rounded-full bg-orange-50 border border-orange-200 flex items-center justify-center flex-shrink-0">'
     + '<svg class="w-3.5 h-3.5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m6-6H6"/></svg>'
     + '</div>'
@@ -6508,27 +6710,7 @@ function renderSectionTypeCard(clarification) {
     var cm = colorMap[meta.color];
     var isGuess = key === guess;
     var ringClass = isGuess ? ' ring-2 ring-offset-1 ring-' + meta.color + '-400' : '';
-    btns += '<button type="button" onclick="autoSubmitAssistantMessage(if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }'' + escapeHtml(opt).replace(/'/g, "if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }'") + 'if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-gray-200 bg-white ' + cm.hover + ' transition-all cursor-pointer active:scale-[0.97] text-left' + ringClass + '">'
+    btns += '<button type="button" onclick="autoSubmitAssistantMessage(\'' + escapeHtml(opt).replace(/'/g, "\\'") + '\')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-gray-200 bg-white ' + cm.hover + ' transition-all cursor-pointer active:scale-[0.97] text-left' + ringClass + '">'
       + '<div class="w-7 h-7 rounded-full ' + cm.bg + ' border ' + cm.border + ' flex items-center justify-center flex-shrink-0">'
       + '<svg class="w-3.5 h-3.5 ' + cm.text + '" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + meta.icon + '</svg>'
       + '</div>'
@@ -6586,27 +6768,7 @@ function renderCurrencyCard(clarification) {
     var cm = colorMap[meta.color];
     var isGuess = key === guess;
     var ringClass = isGuess ? ' ring-2 ring-offset-1 ring-' + meta.color + '-400' : '';
-    btns += '<button type="button" onclick="autoSubmitAssistantMessage(if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }'' + escapeHtml(opt).replace(/'/g, "if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }'") + 'if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }')" class="flex-1 min-w-[80px] flex flex-col items-center gap-1 px-3 py-3 rounded-xl border border-gray-200 bg-white ' + cm.hover + ' transition-all cursor-pointer active:scale-[0.97]' + ringClass + '">'
+    btns += '<button type="button" onclick="autoSubmitAssistantMessage(\'' + escapeHtml(opt).replace(/'/g, "\\'") + '\')" class="flex-1 min-w-[80px] flex flex-col items-center gap-1 px-3 py-3 rounded-xl border border-gray-200 bg-white ' + cm.hover + ' transition-all cursor-pointer active:scale-[0.97]' + ringClass + '">'
       + '<div class="w-9 h-9 rounded-full ' + cm.bg + ' border ' + cm.border + ' flex items-center justify-center">'
       + '<span class="text-base font-black ' + cm.text + '">' + escapeHtml(meta.symbol) + '</span>'
       + '</div>'
@@ -6643,27 +6805,7 @@ function renderGenericChoiceCard(clarification) {
   options.forEach(function(opt) {
     var isGuess = opt.toString().toLowerCase() === guess;
     var ringClass = isGuess ? ' ring-2 ring-offset-1 ring-orange-400' : '';
-    btns += '<button type="button" onclick="autoSubmitAssistantMessage(if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }'' + escapeHtml(opt).replace(/'/g, "if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }'") + 'if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-gray-200 bg-white hover:bg-orange-50 hover:border-orange-300 transition-all cursor-pointer active:scale-[0.97] text-left' + ringClass + '">'
+    btns += '<button type="button" onclick="autoSubmitAssistantMessage(\'' + escapeHtml(opt).replace(/'/g, "\\'") + '\')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-gray-200 bg-white hover:bg-orange-50 hover:border-orange-300 transition-all cursor-pointer active:scale-[0.97] text-left' + ringClass + '">'
       + '<div class="w-5 h-5 rounded-full border-2 border-orange-400 flex items-center justify-center flex-shrink-0" style="position:relative">'
       + (isGuess ? '<div class="w-2.5 h-2.5 rounded-full bg-orange-500" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)"></div>' : '')
       + '</div>'
@@ -6696,17 +6838,7 @@ function renderMultiChoiceCard(clarification) {
   var L = window.APP_LANGUAGES || {};
   var options = clarification.options || [];
   var questionText = clarification.question || '';
-  var guessItems = (clarification.guess || '').toString().split(/if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s*,if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s*/).filter(function(p) { return p.trim(); }).map(function(p) { return p.trim().toLowerCase(); });
+  var guessItems = (clarification.guess || '').toString().split(/\s*,\s*/).filter(function(p) { return p.trim(); }).map(function(p) { return p.trim().toLowerCase(); });
 
   // Try to group options by invoice category using live DOM
   var domCats = typeof getInvoiceSectionsFromDOM === 'function' ? getInvoiceSectionsFromDOM() : [];
@@ -6873,51 +7005,11 @@ function renderYesNoCard(clarification) {
     + '<div class="text-xs font-bold text-gray-800">' + escapeHtml(questionText) + '</div>'
     + guessBlock
     + '<div class="flex gap-2 mt-2">'
-    + '<button type="button" onclick="autoSubmitAssistantMessage(if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }'' + escapeHtml(yesLabel).replace(/'/g, "if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }'") + 'if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }')" class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border-2 border-green-300 bg-green-50 hover:bg-green-100 transition-all cursor-pointer active:scale-[0.97] text-[12px] font-bold text-green-700">'
+    + '<button type="button" onclick="autoSubmitAssistantMessage(\'' + escapeHtml(yesLabel).replace(/'/g, "\\'") + '\')" class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border-2 border-green-300 bg-green-50 hover:bg-green-100 transition-all cursor-pointer active:scale-[0.97] text-[12px] font-bold text-green-700">'
     + '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>'
     + escapeHtml(yesLabel)
     + '</button>'
-    + '<button type="button" onclick="autoSubmitAssistantMessage(if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }'' + escapeHtml(noLabel).replace(/'/g, "if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }'") + 'if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }')" class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border-2 border-red-200 bg-red-50 hover:bg-red-100 transition-all cursor-pointer active:scale-[0.97] text-[12px] font-bold text-red-600">'
+    + '<button type="button" onclick="autoSubmitAssistantMessage(\'' + escapeHtml(noLabel).replace(/'/g, "\\'") + '\')" class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border-2 border-red-200 bg-red-50 hover:bg-red-100 transition-all cursor-pointer active:scale-[0.97] text-[12px] font-bold text-red-600">'
     + '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
     + escapeHtml(noLabel)
     + '</button>'
@@ -7269,27 +7361,7 @@ function renderRemoveItemCard() {
     items.forEach(function(item) {
       var desc = item.desc || '';
       var itemKey = sec.type + '::' + desc;
-      accordionHtml += '<button type="button" onclick="toggleRemoveItem(this, if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }'' + escapeHtml(itemKey).replace(/'/g, "if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }'") + 'if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }')" data-item-key="' + escapeHtml(itemKey) + '" data-selected="false" class="remove-toggle-item w-full flex items-center gap-2 px-3 py-1.5 border-t ' + cm.border + ' bg-white hover:bg-red-50 transition-all cursor-pointer active:scale-[0.98] text-left">'
+      accordionHtml += '<button type="button" onclick="toggleRemoveItem(this, \'' + escapeHtml(itemKey).replace(/'/g, "\\'") + '\')" data-item-key="' + escapeHtml(itemKey) + '" data-selected="false" class="remove-toggle-item w-full flex items-center gap-2 px-3 py-1.5 border-t ' + cm.border + ' bg-white hover:bg-red-50 transition-all cursor-pointer active:scale-[0.98] text-left">'
         + '<div class="remove-check w-4 h-4 rounded border-2 border-gray-300 flex items-center justify-center shrink-0 transition-all">'
         + '<svg class="w-2.5 h-2.5 text-white hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>'
         + '</div>'
@@ -7576,30 +7648,10 @@ function handleChipChangeDate() {
       + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
       + '<div class="text-xs font-bold text-gray-800 mb-2">' + escapeHtml(L.date_type_prompt || 'Which date?') + '</div>'
       + '<div class="flex gap-2">'
-      + '<button type="button" onclick="selectDateType(if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }'invoiceif (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }')" class="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border-2 border-gray-200 bg-white hover:bg-orange-50 hover:border-orange-300 transition-all cursor-pointer active:scale-[0.97]">'
+      + '<button type="button" onclick="selectDateType(\'invoice\')" class="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border-2 border-gray-200 bg-white hover:bg-orange-50 hover:border-orange-300 transition-all cursor-pointer active:scale-[0.97]">'
       + '<svg class="w-4 h-4 text-orange-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>'
       + '<span class="text-[11px] font-bold text-gray-700 whitespace-nowrap">' + escapeHtml(L.date_type_invoice || 'Issue date') + '</span></button>'
-      + '<button type="button" onclick="selectDateType(if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }'dueif (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }')" class="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border-2 border-red-200 bg-white hover:bg-red-50 hover:border-red-300 transition-all cursor-pointer active:scale-[0.97]">'
+      + '<button type="button" onclick="selectDateType(\'due\')" class="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border-2 border-red-200 bg-white hover:bg-red-50 hover:border-red-300 transition-all cursor-pointer active:scale-[0.97]">'
       + '<svg class="w-4 h-4 text-red-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg>'
       + '<span class="text-[11px] font-bold text-red-600 whitespace-nowrap">' + escapeHtml(L.date_type_due || 'Due date') + '</span></button>'
       + '</div></div></div>';
@@ -7766,31 +7818,11 @@ function renderDiscountTypeSingleCard(clarification) {
     + widgetCloseBtn()
     + '<div class="text-xs font-bold text-gray-800 mb-2.5 pr-6">' + escapeHtml(questionText) + '</div>'
     + '<div class="flex gap-2">'
-    + '<button type="button" onclick="answerDiscountTypeSingle(if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }'fixedif (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }')" class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border-2 border-orange-300 bg-orange-50 hover:bg-orange-100 transition-all cursor-pointer active:scale-[0.97]">'
+    + '<button type="button" onclick="answerDiscountTypeSingle(\'fixed\')" class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border-2 border-orange-300 bg-orange-50 hover:bg-orange-100 transition-all cursor-pointer active:scale-[0.97]">'
     + '<span class="text-sm font-bold text-orange-600">' + escapeHtml(currSym) + '</span>'
     + '<span class="text-[11px] font-bold text-orange-700">' + escapeHtml(fixedLabel) + '</span>'
     + '</button>'
-    + '<button type="button" onclick="answerDiscountTypeSingle(if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }'percentageif (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }')" class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border-2 border-blue-300 bg-blue-50 hover:bg-blue-100 transition-all cursor-pointer active:scale-[0.97]">'
+    + '<button type="button" onclick="answerDiscountTypeSingle(\'percentage\')" class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border-2 border-blue-300 bg-blue-50 hover:bg-blue-100 transition-all cursor-pointer active:scale-[0.97]">'
     + '<span class="text-sm font-bold text-blue-600">%</span>'
     + '<span class="text-[11px] font-bold text-blue-700">' + escapeHtml(pctLabel) + '</span>'
     + '</button>'
@@ -8186,17 +8218,7 @@ function validateDiscountInput(inp) {
 // The AI and backend now provide clean item_name fields; this is just a safety trim
 function cleanItemDisplayName(raw) {
   if (!raw) return 'Item';
-  var n = raw.replace(/[?？]+if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s*$/, '').replace(/if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s+/g, ' ').trim();
+  var n = raw.replace(/[?？]+\s*$/, '').replace(/\s+/g, ' ').trim();
   return n || 'Item';
 }
 
@@ -8229,17 +8251,7 @@ function confirmItemInputList() {
         parts.push(displayName + ': ' + (val || '0'));
       }
     } else if (isBillingToggle && item.activeMode === 'hourly') {
-      // Hourly labor: multi-line "შეკეთება:if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }nსაათი - 2if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }nტარიფი - 613"
+      // Hourly labor: multi-line "შეკეთება:\nსაათი - 2\nტარიფი - 613"
       var hoursInput = itemCard.querySelector('.iil-input[data-iil-key="hours"]');
       var rateInput = itemCard.querySelector('.iil-input[data-iil-key="rate"]');
       var hours = hoursInput ? hoursInput.value.trim() : '';
@@ -8248,12 +8260,7 @@ function confirmItemInputList() {
         var lines = [displayName + ':'];
         if (hours) lines.push((L.hours_label || 'საათი') + ' - ' + hours);
         if (rate) lines.push((L.rate_label || 'ტარიფი') + ' - ' + rate);
-        parts.push(lines.join('if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }n'));
+        parts.push(lines.join('\n'));
       }
     } else {
       // Check if this is a clarification card (single description input)
@@ -8265,17 +8272,7 @@ function confirmItemInputList() {
           parts.push(displayName + ' - ' + descVal);
         }
       } else {
-        // Price/qty format: multi-line "ტელეფონი:if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }nრაოდენობა - 1if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }nფასი - 500"
+        // Price/qty format: multi-line "ტელეფონი:\nრაოდენობა - 1\nფასი - 500"
         var inputs = itemCard.querySelectorAll('.iil-input');
         var fieldLines = [];
         inputs.forEach(function(inp) {
@@ -8287,33 +8284,13 @@ function confirmItemInputList() {
           else fieldLines.push(val);
         });
         if (fieldLines.length > 0) {
-          parts.push(displayName + ':if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }n' + fieldLines.join('if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }n'));
+          parts.push(displayName + ':\n' + fieldLines.join('\n'));
         }
       }
     }
   });
 
-  var answer = parts.length > 0 ? parts.join('if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }nif (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }n') : (L.none_selected || 'none');
+  var answer = parts.length > 0 ? parts.join('\n\n') : (L.none_selected || 'none');
 
   // ── DIRECT JSON APPLICATION: apply widget values immediately ──
   // Widgets provide structured data — no need to wait for AI to re-parse text
@@ -8604,12 +8581,7 @@ function confirmTaxManagement() {
   } else {
     summary = items.map(function(item) {
       return item.name + ': ' + item.rate + '%';
-    }).join('if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }n');
+    }).join('\n');
   }
   addUserBubble(summary);
 
@@ -8782,17 +8754,7 @@ function confirmTaxQueue() {
   }
 
   // Build user bubble summary — one item per double-spaced line
-  var summary = items.map(function(item) { return item.name + ': ' + item.rate + '%'; }).join('if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }nif (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }n');
+  var summary = items.map(function(item) { return item.name + ': ' + item.rate + '%'; }).join('\n\n');
 
   window._taxQueueItems = null;
 
@@ -8882,32 +8844,7 @@ function applyTaxTextDirectly(text) {
   }
 
   // Pattern 2: "all X%" / "ყველა X%"
-  var allSameRe = /^(?:all|ყველაif (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }w*)if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s+(if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }d+)if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s*%?if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s*$/i;
+  var allSameRe = /^(?:all|ყველა\w*)\s+(\d+)\s*%?\s*$/i;
   var allMatch = t.match(allSameRe);
   if (allMatch) {
     var rate = parseInt(allMatch[1]);
@@ -8921,165 +8858,10 @@ function applyTaxTextDirectly(text) {
   }
 
   // Pattern 2.5: "remove tax from X" / "მოაშორე დაბეგვრა X-ს" / "X-ს დღგ მოხსენი"
-  var removeTaxItemRe = /(?:removeif (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s+taxif (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s+(?:from|on)|მოაშორეif (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s+(?:დაბეგვრა|დღგ)if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s*|დაბეგვრაif (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s+მოაშორეif (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s*|დღგif (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s+მოხსენი?if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s*|დღგif (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s+მოაშორეif (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s*)([if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }u10A0-if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }u10FFif (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }u2D00-if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }u2D2Fif (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }w]+)/i;
-  var removeTaxItemRe2 = /([if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }u10A0-if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }u10FFif (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }u2D00-if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }u2D2Fif (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }w]+)if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s*-?ს?if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s+(?:დღგ|დაბეგვრა)if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s+(?:მოხსენ|მოაშორ|წაშალ)/i;
+  var removeTaxItemRe = /(?:remove\s+tax\s+(?:from|on)|მოაშორე\s+(?:დაბეგვრა|დღგ)\s*|დაბეგვრა\s+მოაშორე\s*|დღგ\s+მოხსენი?\s*|დღგ\s+მოაშორე\s*)([\u10A0-\u10FF\u2D00-\u2D2F\w]+)/i;
+  var removeTaxItemRe2 = /([\u10A0-\u10FF\u2D00-\u2D2F\w]+)\s*-?ს?\s+(?:დღგ|დაბეგვრა)\s+(?:მოხსენ|მოაშორ|წაშალ)/i;
   // Pattern: "ქეისსაც მოაშორე დაბეგვრა" — item(+suffix) + მოაშორე/მოხსენი + დაბეგვრა/დღგ
-  var removeTaxItemRe3 = /([if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }u10A0-if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }u10FFif (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }u2D00-if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }u2D2Fif (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }w]+)if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }w{0,4}if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s+(?:მოაშორე|მოხსენი?|წაშალე?)if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s+(?:დაბეგვრა|დღგ)/i;
+  var removeTaxItemRe3 = /([\u10A0-\u10FF\u2D00-\u2D2F\w]+)\w{0,4}\s+(?:მოაშორე|მოხსენი?|წაშალე?)\s+(?:დაბეგვრა|დღგ)/i;
   var rmMatch = t.match(removeTaxItemRe) || t.match(removeTaxItemRe2) || t.match(removeTaxItemRe3);
   if (rmMatch) {
     var targetWord = rmMatch[1].toLowerCase();
@@ -9109,22 +8891,7 @@ function applyTaxTextDirectly(text) {
 
   // Pattern 3: "itemName X(-ია/%), დანარჩენი/rest Y%" — per-item with rest
   // Parse named rates and "rest" rate
-  var restRe = /(?:დანარჩენი|rest|others?|სხვა)if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s+(if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }d+)if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s*%?/i;
+  var restRe = /(?:დანარჩენი|rest|others?|სხვა)\s+(\d+)\s*%?/i;
   var restMatch = t.match(restRe);
   var restRate = restMatch ? parseInt(restMatch[1]) : null;
 
@@ -9146,145 +8913,10 @@ function applyTaxTextDirectly(text) {
 
     stems.forEach(function(stem) {
       if (namedRates[name] !== undefined) return; // already found
-      var escaped = stem.replace(/[.*+?^${}()|[if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }]if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }]/g, 'if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }$&');
+      var escaped = stem.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       // Match: "stem(suffix) X%" or "X% stem(suffix)"
-      var re1 = new RegExp(escaped + 'if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }w*if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s*[:if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }-–]?if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s*(if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }d+)if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s*(%|-?ია)?', 'i');
-      var re2 = new RegExp('(if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }d+)if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s*%?if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s*[-–]?if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s*' + escaped + 'if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }w*', 'i');
+      var re1 = new RegExp(escaped + '\\w*\\s*[:\\-–]?\\s*(\\d+)\\s*(%|-?ია)?', 'i');
+      var re2 = new RegExp('(\\d+)\\s*%?\\s*[-–]?\\s*' + escaped + '\\w*', 'i');
       var m = t.match(re1) || t.match(re2);
       if (m) {
         namedRates[name] = parseInt(m[1]);
@@ -9314,22 +8946,7 @@ function applyTaxTextDirectly(text) {
   }
 
   // Pattern 4: Just a number → apply to all items
-  var justNumber = t.match(/^(if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }d+)if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s*%?if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s*$/);
+  var justNumber = t.match(/^(\d+)\s*%?\s*$/);
   if (justNumber) {
     var r = parseInt(justNumber[1]);
     allItems.forEach(function(item) {
@@ -9651,17 +9268,7 @@ function renderClientDetailOptions(excludeFields) {
     hasOptions = true;
     var d = defs[key];
     var cm = colorMap[d.color];
-    btns += '<button type="button" onclick="startDetailCollection(if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }'' + key + 'if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-gray-200 bg-white ' + cm.hover + ' transition-all cursor-pointer active:scale-[0.97] text-left">'
+    btns += '<button type="button" onclick="startDetailCollection(\'' + key + '\')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-gray-200 bg-white ' + cm.hover + ' transition-all cursor-pointer active:scale-[0.97] text-left">'
       + '<div class="w-7 h-7 rounded-full ' + cm.bg + ' border ' + cm.border + ' flex items-center justify-center flex-shrink-0">'
       + '<svg class="w-3.5 h-3.5 ' + cm.text + '" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + d.icon + '</svg>'
       + '</div>'
@@ -9736,12 +9343,7 @@ function handleClientDetailInput(value) {
   // #14: Normalize input — trim, clean phone, lowercase email
   value = (value || '').trim();
   if (!value) return;
-  if (field === 'phone') value = value.replace(/if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s{2,}/g, ' ');
+  if (field === 'phone') value = value.replace(/\s{2,}/g, ' ');
   if (field === 'email') value = value.toLowerCase().trim();
 
   var L = window.APP_LANGUAGES || {};
@@ -9772,74 +9374,9 @@ function handleClientDetailInput(value) {
   }
 
   // ── SMART INPUT DETECTION ──
-  var isEmailPattern = /[^@if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s]+@[^@if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s]+if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }.[^@if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s]+/.test(value);
-  var isPhonePattern = /^[if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }dif (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }sif (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }-if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }+if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }(if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    })]{7,}$/.test(value.trim());
-  var isAddressLike = value.trim().length > 20 || /if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }d+.*(if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }b(street|st|ave|road|rd|blvd|ქუჩა|გამზ|შესახ|პროსპ|მის)if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }b)/i.test(value);
+  var isEmailPattern = /[^@\s]+@[^@\s]+\.[^@\s]+/.test(value);
+  var isPhonePattern = /^[\d\s\-\+\(\)]{7,}$/.test(value.trim());
+  var isAddressLike = value.trim().length > 20 || /\d+.*(\b(street|st|ave|road|rd|blvd|ქუჩა|გამზ|შესახ|პროსპ|მის)\b)/i.test(value);
 
   // Detect what the input LOOKS LIKE vs what was asked
   var detectedAs = null;
@@ -9973,12 +9510,7 @@ function addUserBubble(text) {
   if (!conversation) return;
 
   // Convert newlines to <br> AFTER escaping HTML (avoids pre-line indentation bugs)
-  var safe = escapeHtml(text).replace(/if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }n/g, '<br>');
+  var safe = escapeHtml(text).replace(/\n/g, '<br>');
   const div = document.createElement('div');
   div.className = "flex justify-end animate-in fade-in slide-in-from-right-2 duration-300";
   div.innerHTML = '<div class="bg-orange-50 border-2 border-orange-200 rounded-2xl rounded-tr-none px-4 py-2 text-xs font-bold text-orange-800 shadow-sm max-w-[80%]">' + safe + '</div>';
@@ -10053,7 +9585,7 @@ async function startAssistantRecording() {
     assistantRecorder.onstop = processAssistantAudio;
 
     assistantRecorder.start();
-    if (input) 
+    if (input) startLiveTranscription(input, stream);
 
     btn.classList.remove('bg-black', 'hover:bg-gray-800');
     btn.classList.add('bg-red-500', 'animate-pulse');
@@ -10102,7 +9634,7 @@ async function processAssistantAudio() {
     btn.classList.add('bg-black', 'hover:bg-gray-800');
     btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>`;
   }
-  
+  stopLiveTranscription();
   const duration = window.recordingStartTime ? Math.floor((Date.now() - window.recordingStartTime) / 1000) : 0;
   window.totalVoiceUsed = (window.totalVoiceUsed || 0) + duration;
 
@@ -10137,12 +9669,8 @@ async function processAssistantAudio() {
       input.placeholder = window.APP_LANGUAGES.assistant_placeholder || "Tell me what to change...";
       const transcribed = (data.text || '').trim();
       if (transcribed.length >= 2) {
-        _smoothlySetInputValue(input, transcribed, {
-          fast: true,
-          onComplete: function() {
-            setTimeout(() => submitAssistantMessage(), 160);
-          }
-        });
+        input.value = transcribed;
+        setTimeout(() => submitAssistantMessage(), 300);
       } else {
         showError(window.APP_LANGUAGES.audio_empty_error || 'Audio is empty — please try again');
       }
@@ -10318,17 +9846,7 @@ async function triggerAssistantReparse(userAnswer, type, questionsText) {
   if (!isBatchMsg) {
     var lc = userAnswer.toLowerCase();
     var hasTaxKeyword = ['tax','დღგ','დაბეგვრ','დაბეგრ','მოაშორე','გადასახად','taxable','tax free','ია%','% tax'].some(function(k){ return lc.indexOf(k) !== -1; });
-    if (hasTaxKeyword || /if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }d+if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s*%/.test(lc)) {
+    if (hasTaxKeyword || /\d+\s*%/.test(lc)) {
       applyTaxTextDirectly(userAnswer);
     }
   }
@@ -10349,12 +9867,7 @@ async function triggerAssistantReparse(userAnswer, type, questionsText) {
     historyText = "--- PREVIOUS Q&A CONTEXT ---";
     // #16: Summarize older entries as one-liners to save tokens
     if (oldEntries.length > 0) {
-      historyText += "if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }n[Summary of earlier rounds: ";
+      historyText += "\n[Summary of earlier rounds: ";
       historyText += oldEntries.map(function(h, i) {
         if (h.questions === "User requested change") return "User changed: " + (h.answer || "").substring(0, 80);
         return "Q:" + (h.questions || "").substring(0, 40) + "→A:" + (h.answer || "").substring(0, 40);
@@ -10365,27 +9878,12 @@ async function triggerAssistantReparse(userAnswer, type, questionsText) {
     recentEntries.forEach(function(h, i) {
       var roundNum = oldEntries.length + i + 1;
       if (h.questions === "User requested change") {
-        historyText += `if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }n[Round ${roundNum} - User correction/addition: "${h.answer}"]`;
+        historyText += `\n[Round ${roundNum} - User correction/addition: "${h.answer}"]`;
       } else {
-        historyText += `if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }n[Round ${roundNum} - AI asked: "${h.questions}" → User answered: "${h.answer}"]`;
+        historyText += `\n[Round ${roundNum} - AI asked: "${h.questions}" → User answered: "${h.answer}"]`;
       }
     });
-    historyText += "if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }n--- END CONTEXT ---";
+    historyText += "\n--- END CONTEXT ---";
   }
 
   // Use /refine_invoice with existing JSON if available
@@ -10472,12 +9970,7 @@ async function triggerAssistantReparse(userAnswer, type, questionsText) {
       // so _reapplyAllOverrides doesn't force back old locked values from widgets
       if (window._userItemOverrides && userAnswer) {
         var ua = userAnswer.toLowerCase();
-        var isTaxMsg = /(?:მოაშორე|მოხსენ|წაშალ|remove|tax|დღგ|დაბეგვრ|0if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }s*%)/i.test(ua);
+        var isTaxMsg = /(?:მოაშორე|მოხსენ|წაშალ|remove|tax|დღგ|დაბეგვრ|0\s*%)/i.test(ua);
         var isDiscMsg = /(?:ფასდაკლება|discount|off)/i.test(ua);
         if (isTaxMsg || isDiscMsg) {
           var ov = window._userItemOverrides;
@@ -10556,40 +10049,15 @@ async function triggerAssistantReparse(userAnswer, type, questionsText) {
   window.skipTranscriptUpdate = true;
   const transcriptArea = document.getElementById('mainTranscript');
   const originalValue = transcriptArea.value;
-  let fullHistory = "if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }nif (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }n--- PREVIOUS Q&A CONTEXT (you MUST treat this as an ongoing conversation and consider ALL previous answers) ---";
+  let fullHistory = "\n\n--- PREVIOUS Q&A CONTEXT (you MUST treat this as an ongoing conversation and consider ALL previous answers) ---";
   allEntries.forEach((h, i) => {
     if (h.questions === "User requested change") {
-      fullHistory += `if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }n[Round ${i + 1} - User correction/addition: "${h.answer}"]`;
+      fullHistory += `\n[Round ${i + 1} - User correction/addition: "${h.answer}"]`;
     } else {
-      fullHistory += `if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }n[Round ${i + 1} - AI asked: "${h.questions}" → User answered: "${h.answer}"]`;
+      fullHistory += `\n[Round ${i + 1} - AI asked: "${h.questions}" → User answered: "${h.answer}"]`;
     }
   });
-  fullHistory += "if (data.raw_summary && !window.skipTranscriptUpdate) {
-      const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
-      if (window.updateCharCount) window.updateCharCount();
-    }n--- END CONTEXT ---";
+  fullHistory += "\n--- END CONTEXT ---";
   transcriptArea.value = `${window.originalTranscript || originalValue}${fullHistory}`;
 
   const applyBtn = document.getElementById('reParseBtn');
