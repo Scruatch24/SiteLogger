@@ -59,8 +59,11 @@ class LogsController < ApplicationController
             end
           end
         elsif ri.is_a?(Hash) && ri["client_id"].present?
-          @log.client_id = ri["client_id"].to_i
-          @log.client = ri["name"] if ri["name"].present?
+          owned_client = owned_client_for(ri["client_id"])
+          if owned_client
+            @log.client_id = owned_client.id
+            @log.client = owned_client.name
+          end
         end
       end
 
@@ -205,7 +208,7 @@ class LogsController < ApplicationController
         Log.kept.where(user_id: nil, ip_address: client_ip).find(params[:id])
       end
 
-      category_ids = params[:category_ids] || []
+      category_ids = owned_category_ids(params[:category_ids] || [])
       @log.category_ids = category_ids
       @log.pinned = params[:pinned] if params.has_key?(:pinned)
 
@@ -218,8 +221,8 @@ class LogsController < ApplicationController
 
     def bulk_update_categories
       log_ids = params[:log_ids] || []
-      added_ids = (params[:added_category_ids] || []).map(&:to_i)
-      removed_ids = (params[:removed_category_ids] || []).map(&:to_i)
+      added_ids = owned_category_ids(params[:added_category_ids] || [])
+      removed_ids = owned_category_ids(params[:removed_category_ids] || [])
       # pinned_action is no longer handled here, use bulk_pin instead
 
       logs = if user_signed_in?
@@ -229,7 +232,7 @@ class LogsController < ApplicationController
       end
 
       # Optional client assignment from the manage modal
-      new_client_id = params[:client_id].present? ? params[:client_id].to_i : nil
+      owned_client = owned_client_for(params[:client_id]) if params[:client_id].present?
 
       errors = []
       logs.each do |log|
@@ -240,13 +243,9 @@ class LogsController < ApplicationController
         log.category_ids = new_ids.uniq
 
         # Assign client if selected
-        if new_client_id
-          log.client_id = new_client_id
-          # Also update the client name text field to match
-          if user_signed_in?
-            client_obj = current_user.clients.find_by(id: new_client_id)
-            log.client = client_obj.name if client_obj
-          end
+        if owned_client
+          log.client_id = owned_client.id
+          log.client = owned_client.name
         end
 
         unless log.save
@@ -269,6 +268,11 @@ class LogsController < ApplicationController
       if category_id == "favorites" && user_signed_in?
         fav = current_user.categories.where("name ILIKE ?", "Favorites").first
         category_id = fav&.id
+      elsif category_id.present? && user_signed_in?
+        category_id = owned_category_ids([category_id]).first
+        unless category_id.present?
+          return render json: { success: false, errors: [ t("pro_feature_locked", default: "This feature requires a PRO account.") ] }, status: :forbidden
+        end
       end
 
       # Scope check
@@ -667,6 +671,21 @@ class LogsController < ApplicationController
       return requested_color.presence || profile.accent_color.presence || "#F97316" if profile.paid?
 
       "#F97316"
+    end
+
+    def owned_client_for(client_id)
+      return nil unless user_signed_in? && client_id.present?
+
+      current_user.clients.find_by(id: client_id.to_i)
+    end
+
+    def owned_category_ids(category_ids)
+      return [] unless user_signed_in?
+
+      ids = Array(category_ids).map(&:to_i).uniq
+      return [] if ids.empty?
+
+      current_user.categories.where(id: ids).pluck(:id)
     end
 
     def transliterate_filename(name)

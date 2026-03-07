@@ -22,7 +22,7 @@ class ClientsController < ApplicationController
   end
 
   def destroy
-    Log.where(client_id: @client.id).update_all(client_id: nil)
+    current_user.logs.where(client_id: @client.id).update_all(client_id: nil)
     @client.destroy
     render json: { success: true }
   end
