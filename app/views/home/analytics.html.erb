@@ -1462,6 +1462,7 @@
     </section>
 
     <!-- ═══════════════ EXPORT BUTTONS ═══════════════ -->
+    <% if @is_pro %>
     <div class="ana-export-buttons">
       <a href="<%= analytics_export_path %>" class="ana-export-btn csv">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -1472,6 +1473,7 @@
         <%= t('analytics_page.export_pdf') %>
       </a>
     </div>
+    <% end %>
 
     <div class="ana-footer">
       <p class="ana-footer-text"><%= t('analytics_page.footer') %></p>
