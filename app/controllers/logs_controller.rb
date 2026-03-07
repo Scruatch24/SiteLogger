@@ -19,27 +19,12 @@ class LogsController < ApplicationController
         return render json: {
           status: "error",
           success: false,
-          message: t("guests_cannot_save"),
+          message: t("guests_cannot_save_invoices"),
           errors: [ t("signup_to_save") ]
         }, status: :forbidden
-      else
-        # Signed-in user limit check
-        profile = current_user.profile || Profile.new
-        plan = profile.plan.presence || "free"
-        limit = Profile::EXPORT_LIMITS[plan]
-
-        # Only check if there's a limit (paid users have nil = unlimited)
-        if limit.present?
-          count = TrackingEvent.where(event_name: "invoice_exported", user_id: current_user.id)
-                              .where("created_at > ?", 24.hours.ago).count
-          Rails.logger.info "Checking User Limit: Plan=#{plan}, Count=#{count}, Limit=#{limit}"
-
-          if count >= limit
-            Rails.logger.info "User Limit HIT: Count=#{count} >= Limit=#{limit}"
-            return render json: { status: "error", success: false, message: t("rate_limit_reached"), errors: [ t("daily_limit_reached", limit: limit) ] }, status: :too_many_requests
-          end
-        end
       end
+
+      profile = current_user.profile || Profile.new if user_signed_in?
       @log.billing_mode = profile.billing_mode || "hourly" if @log.billing_mode.blank?
 
       # Default tax scope (if not provided by frontend)

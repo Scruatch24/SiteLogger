@@ -2918,10 +2918,6 @@ document.addEventListener("DOMContentLoaded", () => {
         savedLogDisplayNumber = resData.display_number;
         savedLogClient = resData.client;
 
-        // Record the export event (saves count toward the export limit)
-        window.trackEvent('invoice_exported', window.currentUserId, null, savedLogId);
-        shareTrackedThisSession = true; // Mark as tracked so Share button won't double-count
-
         if (options.redirect) {
           window.location.href = '/history';
         } else if (!options.silent) {
@@ -3041,17 +3037,17 @@ document.addEventListener("DOMContentLoaded", () => {
           }
           return;
         }
-      } else {
-        // Already saved, just track the share (once per session)
-        if (!shareTrackedThisSession) {
-          const canExport = await window.trackEvent('invoice_exported', window.currentUserId, null, savedLogId);
-          if (canExport === false) {
-            limitWasHit = true;
-            if (saveBtn) updateSaveButtonToLimitState(saveBtn);
-            return;
-          }
-          shareTrackedThisSession = true;
+      }
+
+      // Track the actual export/share action once per session
+      if (!shareTrackedThisSession) {
+        const canExport = await window.trackEvent('invoice_exported', window.currentUserId, null, savedLogId);
+        if (canExport === false) {
+          limitWasHit = true;
+          if (saveBtn) updateSaveButtonToLimitState(saveBtn);
+          return;
         }
+        shareTrackedThisSession = true;
       }
     } else {
       // GUEST: Skip save entirely, just track the export event (once per session)
