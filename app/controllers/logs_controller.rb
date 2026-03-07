@@ -31,7 +31,9 @@ class LogsController < ApplicationController
       @log.tax_scope = profile.tax_scope if @log.tax_scope.blank?
 
       # Persist appearance settings from profile to the log
-      if @log.accent_color.blank? || @log.accent_color == "#EA580C"
+      if !profile.paid?
+        @log.accent_color = allowed_accent_color_for(profile)
+      elsif @log.accent_color.blank? || @log.accent_color == "#EA580C"
         @log.accent_color = profile.accent_color
       end
 
@@ -375,9 +377,10 @@ class LogsController < ApplicationController
 
     def preview_pdf
       set_preview_profile
-      style = params[:style] || @profile.invoice_style || "classic"
+      style = allowed_preview_style(params[:style], @profile)
       @profile.invoice_style = style
       profile = @profile
+      accent_color = allowed_accent_color_for(profile, requested_color: params[:accent_color])
 
       # Rich Dummy Log Data showcasing ALL features
       log = Log.new(
@@ -393,7 +396,7 @@ class LogsController < ApplicationController
         hourly_rate: profile.hourly_rate,
         global_discount_percent: 5.0,
         global_discount_message: "Preferred Client Discount",
-        accent_color: params[:accent_color].presence || profile.accent_color,
+        accent_color: accent_color,
         credits: [
           { "reason" => "Initial Deposit Paid", "amount" => "500.00" },
           { "reason" => "Referral Credit", "amount" => "50.00" }
@@ -458,9 +461,10 @@ class LogsController < ApplicationController
     # Multi-page test endpoint for verifying pagination
     def preview_pdf_multipage
       set_preview_profile
-      style = params[:style] || @profile.invoice_style || "classic"
+      style = allowed_preview_style(params[:style], @profile)
       @profile.invoice_style = style
       profile = @profile
+      accent_color = allowed_accent_color_for(profile, requested_color: params[:accent_color])
 
       # Generate 40+ items for multi-page testing
       material_items = (1..35).map do |i|
@@ -495,7 +499,7 @@ class LogsController < ApplicationController
         global_discount_percent: 5,
         credit_flat: 50,
         credit_reason: "Loyalty discount",
-        accent_color: params[:accent_color].presence || profile.accent_color,
+        accent_color: accent_color,
         tasks: [
           { "title" => "Labor", "items" => [
             { "desc" => "Initial Site Consultation", "qty" => "2", "price" => "0", "taxable" => false },
@@ -525,6 +529,7 @@ class LogsController < ApplicationController
 
         set_preview_profile
         profile = @profile
+        p[:accent_color] = allowed_accent_color_for(profile, requested_color: p[:accent_color])
 
         # Preview Limit Check (20 unique previews per day for Guest/Free)
         limit = profile.preview_limit
@@ -601,7 +606,9 @@ class LogsController < ApplicationController
           end
         end
 
-        if log.accent_color.blank? || log.accent_color == "#EA580C"
+        if !profile.paid?
+          log.accent_color = allowed_accent_color_for(profile)
+        elsif log.accent_color.blank? || log.accent_color == "#EA580C"
           log.accent_color = profile.accent_color
         end
         log.billing_mode = profile.billing_mode || "hourly" if log.billing_mode.blank?
@@ -650,6 +657,18 @@ class LogsController < ApplicationController
       end
 
       scope.count >= limit
+    end
+
+    def allowed_preview_style(requested_style, profile)
+      return "classic" unless profile.paid?
+
+      requested_style.presence || profile.invoice_style || "classic"
+    end
+
+    def allowed_accent_color_for(profile, requested_color: nil)
+      return requested_color.presence || profile.accent_color.presence || "#F97316" if profile.paid?
+
+      "#F97316"
     end
 
     def transliterate_filename(name)
