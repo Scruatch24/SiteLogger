@@ -798,6 +798,7 @@
         <div id="clients-index" class="px-4">
           <div class="grid grid-cols-2 gap-4">
             <!-- Add Client Tile -->
+            <% unless @profile.guest? %>
             <button onclick="openAddClientModal()"
                     class="aspect-[4/3] border-4 border-black border-dashed rounded-3xl bg-gray-50 flex flex-col items-center justify-center gap-3 hover:bg-white hover:border-solid hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transition-all group active:scale-95">
               <div class="w-12 h-12 rounded-full bg-black text-white flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -807,6 +808,7 @@
               </div>
               <span class="text-xs font-black uppercase tracking-widest text-black"><%= t('new_client') %></span>
             </button>
+            <% end %>
 
             <% client_overdue_map = {}; @clients.each { |c| cnt = c.logs.kept.count { |l| l.current_status == 'overdue' }; client_overdue_map[c.id] = cnt if cnt > 0 } %>
             <% @clients.each do |client| %>
@@ -1489,6 +1491,8 @@
 
   // State Management
   let activeCategoryId = null;
+  const historyGuestLocked = <%= @profile.guest?.to_json %>;
+  const historyClientManagementEnabled = <%= (!@profile.guest?).to_json %>;
 
   // Search Functionality
   const searchInput = document.getElementById('historySearch');
@@ -1497,7 +1501,8 @@
     const urlParams = new URLSearchParams(window.location.search);
     const viewParam = urlParams.get('view');
     const savedView = localStorage.getItem('history_active_view');
-    const initialView = viewParam || savedView || 'all';
+    const requestedInitialView = viewParam || savedView || 'all';
+    const initialView = historyGuestLocked && requestedInitialView !== 'all' ? 'all' : requestedInitialView;
     
     if (initialView && ['all', 'categories', 'clients'].includes(initialView)) {
       switchView(initialView);
@@ -2039,13 +2044,12 @@
 
   // --- View Switcher Logic ---
   function switchView(viewName) {
-    <% if @profile.guest? %>
-    if (viewName === 'categories') {
+    if (historyGuestLocked && (viewName === 'categories' || viewName === 'clients')) {
+      if (viewName === 'categories') {
         if (window.showPremiumModal) window.showPremiumModal('category');
-        switchView('all');
-        return;
+      }
+      viewName = 'all';
     }
-    <% end %>
 
     // 1. Hide all view sections
     document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
@@ -3027,7 +3031,14 @@
     <% end %>
   };
 
+  function ensureClientManagementEnabled() {
+    if (historyClientManagementEnabled) return true;
+    switchView('all');
+    return false;
+  }
+
   function enterClient(clientId) {
+    if (!ensureClientManagementEnabled()) return;
     const sy = window.scrollY;
     document.getElementById('clients-index').classList.add('hidden');
     const detailsContainer = document.getElementById('clients-details');
@@ -3044,6 +3055,7 @@
   }
 
   function openAddClientModal() {
+    if (!ensureClientManagementEnabled()) return;
     closeAllModals();
     document.getElementById('clientModalId').value = '';
     document.getElementById('clientModalTitle').innerHTML = '<%= j t("new_client") %>';
@@ -3058,6 +3070,7 @@
   }
 
   function openEditClientModal(clientId) {
+    if (!ensureClientManagementEnabled()) return;
     closeAllModals();
     const data = clientDataCache[clientId];
     if (!data) return;
@@ -3079,6 +3092,7 @@
   }
 
   function saveClient() {
+    if (!ensureClientManagementEnabled()) return;
     const name = document.getElementById('clientNameInput').value.trim();
     if (!name) {
       document.getElementById('clientNameError').classList.remove('hidden');
@@ -3132,6 +3146,7 @@
   }
 
   function confirmDeleteClient(clientId, clientName) {
+    if (!ensureClientManagementEnabled()) return;
     closeAllModals();
     document.getElementById('deleteClientId').value = clientId;
     document.getElementById('deleteClientName').textContent = clientName;
@@ -3144,6 +3159,7 @@
   }
 
   function performDeleteClient() {
+    if (!ensureClientManagementEnabled()) return;
     const clientId = document.getElementById('deleteClientId').value;
     if (!clientId) return;
 

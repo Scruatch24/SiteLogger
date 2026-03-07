@@ -1,5 +1,6 @@
 class ClientsController < ApplicationController
   before_action :authenticate_user!
+  before_action :ensure_client_management_enabled!
   before_action :set_client, only: [:update, :destroy]
 
   def create
@@ -33,6 +34,12 @@ class ClientsController < ApplicationController
   end
 
   private
+
+  def ensure_client_management_enabled!
+    if @profile.guest?
+      render json: { success: false, errors: [ t('guests_cannot_save') ] }, status: :forbidden
+    end
+  end
 
   def set_client
     @client = current_user.clients.find(params[:id])

@@ -1326,7 +1326,7 @@ PROMPT
       user_input_parts = []
 
       # Inject client list context for client matching (paid users only)
-      if user_signed_in? && @profile.paid? && current_user.clients.any?
+      if user_signed_in? && current_user.clients.any?
         client_names = current_user.clients.order(:name).limit(50).pluck(:id, :name).map { |id, name| "#{id}:#{name}" }.join(", ")
         user_input_parts << { text: "EXISTING CLIENTS (MUST USE EXACT DB NAME if match found — ignore legal-form order differences like შპს before/after name, and ignore quote style differences): #{client_names}" }
       end
@@ -1919,7 +1919,7 @@ PROMPT
 
       # ── Client Matching Post-Processing (paid users only) ──
       recipient_info = nil
-      if user_signed_in? && @profile.paid? && json["client"].present?
+      if user_signed_in? && json["client"].present?
         client_name = json["client"].to_s.strip
         norm_spoken = normalize_client_name(client_name)
 
@@ -2216,7 +2216,7 @@ PROMPT
 
     # Build client list context for refine (paid users only)
     client_list_context = ""
-    if user_signed_in? && @profile.paid? && current_user.clients.any?
+    if user_signed_in? && current_user.clients.any?
       client_names = current_user.clients.order(:name).limit(50).pluck(:id, :name).map { |id, name| "#{id}:#{name}" }.join(", ")
       client_list_context = "\nEXISTING CLIENTS: #{client_names}"
     end
@@ -2233,7 +2233,7 @@ PROMPT
       plan_features = if user_plan == "guest"
         "Guest user (not signed in). Limits: #{@profile.char_limit} char transcript, #{@profile.audio_limit}s audio, #{@profile.export_limit} PDF exports/day, #{@profile.clarification_limit} AI questions per invoice. NO client list, NO custom invoice styles, NO logo upload, NO saved history. Must sign up (free) to save invoices."
       else
-        "Free plan user. Limits: #{@profile.char_limit} char transcript, #{@profile.audio_limit}s audio, #{@profile.export_limit} PDF exports/day, #{@profile.clarification_limit} AI questions per invoice. NO client list/matching, NO custom invoice styles (classic only), NO logo upload. Upgrade to Pro for unlimited exports, 5min audio, 10K chars, custom styles, logo, client management."
+        "Free plan user. Limits: #{@profile.char_limit} char transcript, #{@profile.audio_limit}s audio, #{@profile.export_limit} PDF exports/day, #{@profile.clarification_limit} AI questions per invoice. Client management is available. NO custom invoice styles (classic only), NO logo upload. Upgrade to Pro for unlimited exports, 5min audio, 10K chars, custom styles, and logo upload."
       end
       plan_context = "\nUSER PLAN: #{plan_features}\nIf user asks about a feature they don't have access to, politely explain the limitation and suggest upgrading."
     end
@@ -2534,7 +2534,7 @@ PROMPT
       generate_missing_clarifications(result, user_message, current_json)
 
       # ── Client list widget: detect when user asks about clients ──
-      if user_message =~ /კლიენტ|client|show.*client|მაჩვენე.*კლიენტ|კლიენტთა.*სია|სია.*კლიენტ/i && user_signed_in? && @profile.paid?
+      if user_message =~ /კლიენტ|client|show.*client|მაჩვენე.*კლიენტ|კლიენტთა.*სია|სია.*კლიენტ/i && user_signed_in?
         # Extract optional name filter from message
         name_filter = nil
         if user_message =~ /სახელად\s+(\S+)/i
@@ -2570,7 +2570,7 @@ PROMPT
       input_client_name = input_parsed["client"].to_s.strip.downcase
       output_client_name = result["client"].to_s.strip.downcase
       client_changed = output_client_name != input_client_name && output_client_name.present?
-      if user_signed_in? && @profile.paid? && result["client"].present? && !client_already_resolved && client_changed
+      if user_signed_in? && result["client"].present? && !client_already_resolved && client_changed
         client_name = result["client"].to_s.strip
         current_client_name = params.dig(:current_json, :client).to_s.strip
         norm_spoken = normalize_client_name(client_name)

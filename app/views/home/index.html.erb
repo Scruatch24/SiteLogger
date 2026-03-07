@@ -652,7 +652,7 @@
     if (window.invoiceRecipientInfo) {
       billedToMode = window.invoiceRecipientInfo.client_id ? 'existing' : 'add';
       showBilledToScreen2(window.invoiceRecipientInfo);
-    } else if (!window.isPaidUser) {
+    } else if (!window.userSignedIn) {
       // Free users: skip search, go straight to Add Client form
       billedToMode = 'add';
       showBilledToScreen2({ client_id: null, name: '', email: '', phone: '', address: '', notes: '' });
@@ -661,7 +661,7 @@
     }
 
     // Load initial client list (only for paid users)
-    if (window.isPaidUser) searchBilledToClients('');
+    if (window.userSignedIn) searchBilledToClients('');
 
     document.body.classList.add('overflow-hidden');
     modal.classList.remove('hidden');
