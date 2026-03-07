@@ -1492,6 +1492,7 @@
   // State Management
   let activeCategoryId = null;
   const historyGuestLocked = <%= @profile.guest?.to_json %>;
+  const historyCategoryManagementEnabled = <%= @profile.paid?.to_json %>;
   const historyClientManagementEnabled = <%= (!@profile.guest?).to_json %>;
 
   // Search Functionality
@@ -1767,6 +1768,10 @@
   let categoryToDelete = null;
 
   function openAddCategoryModal(logId = null) {
+    if (!historyCategoryManagementEnabled) {
+      if (window.showPremiumModal) window.showPremiumModal('category');
+      return;
+    }
     closeAllModals();
     if (logId) {
       document.getElementById('autoAssignLogId').value = logId;
