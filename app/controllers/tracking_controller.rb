@@ -8,6 +8,7 @@ class TrackingController < ApplicationController
     user_id = user_signed_in? ? current_user.id : nil
     session_id = params[:session_id].presence
     target_id = params[:target_id].presence
+    check_only = ActiveModel::Type::Boolean.new.cast(params[:check_only])
     ip_address = client_ip
     Rails.logger.info "[TRACKING] Event=#{event_name}, IP=#{ip_address}"
 
@@ -17,6 +18,10 @@ class TrackingController < ApplicationController
 
     if limit_reached?(event_name, user_id, ip_address, target_id)
       return render json: { status: "error", message: "Rate limit reached" }, status: :too_many_requests
+    end
+
+    if check_only
+      return render json: { status: "success" }, status: :ok
     end
 
     TrackingEvent.create!(

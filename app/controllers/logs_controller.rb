@@ -202,6 +202,10 @@ class LogsController < ApplicationController
     end
 
     def update_categories
+      if user_signed_in? && !category_management_enabled?
+        return render_category_management_forbidden
+      end
+
       @log = if user_signed_in?
         current_user.logs.kept.find(params[:id])
       else
@@ -221,6 +225,11 @@ class LogsController < ApplicationController
 
     def bulk_update_categories
       log_ids = params[:log_ids] || []
+
+      if user_signed_in? && !category_management_enabled? && category_management_requested?(params)
+        return render_category_management_forbidden
+      end
+
       added_ids = owned_category_ids(params[:added_category_ids] || [])
       removed_ids = owned_category_ids(params[:removed_category_ids] || [])
       # pinned_action is no longer handled here, use bulk_pin instead
@@ -264,6 +273,10 @@ class LogsController < ApplicationController
       log_ids = params[:log_ids] || []
       category_id = params[:category_id] # nil for global, ID for category
       should_pin = ActiveModel::Type::Boolean.new.cast(params[:pin])
+
+      if category_id.present? && user_signed_in? && !category_management_enabled?
+        return render_category_management_forbidden
+      end
 
       if category_id == "favorites" && user_signed_in?
         fav = current_user.categories.where("name ILIKE ?", "Favorites").first
@@ -659,6 +672,19 @@ class LogsController < ApplicationController
       end
 
       scope.count >= limit
+    end
+
+    def category_management_enabled?
+      current_user.profile&.paid?
+    end
+
+    def category_management_requested?(request_params)
+      Array(request_params[:added_category_ids]).reject(&:blank?).present? ||
+        Array(request_params[:removed_category_ids]).reject(&:blank?).present?
+    end
+
+    def render_category_management_forbidden
+      render json: { success: false, errors: [ t("pro_feature_locked", default: "This feature requires a PRO account.") ] }, status: :forbidden
     end
 
     def allowed_preview_style(requested_style, profile)

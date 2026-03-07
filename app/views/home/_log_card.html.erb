@@ -3,6 +3,8 @@
   currency = stats[:currency]
   suffix ||= ""
   pinned_state = local_assigns.fetch(:pinned, log.pinned)
+  show_pin_action = local_assigns.fetch(:show_pin_action, true)
+  category_management_enabled = @profile&.paid?
   _current_status = log.current_status
   _parsed_due = log.parsed_due_date
   _days_until_due = _parsed_due ? (_parsed_due - Date.today).to_i : nil
@@ -106,29 +108,32 @@
         </button>
         
         <% category_count = log.categories.size %>
+        <% category_action_label = category_management_enabled ? (category_count > 0 ? t('manage_categories') : t('add_to_category')) : t('manage') %>
+        <% category_action_icon = category_management_enabled ? (category_count > 0 ? 'icon-manage' : 'icon-add') : 'icon-manage' %>
         <button type="button" 
                 onclick="openManageCategoriesModal('<%= log.id %>', <%= log.category_ids.to_json %>)"
                 class="flex items-center gap-3 px-4 py-3 text-left hover:bg-orange-50 transition-colors border-b border-gray-100 group/item">
           <div class="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center text-orange-600 group-hover/item:bg-orange-600 group-hover/item:text-white transition-colors">
             <svg class="h-4 w-4">
-              <use xlink:href="#<%= category_count > 0 ? 'icon-manage' : 'icon-add' %>"></use>
+              <use xlink:href="#<%= category_action_icon %>"></use>
             </svg>
           </div>
           <span class="text-[10px] font-black uppercase tracking-widest text-black">
-            <%= category_count > 0 ? t('manage_categories') : t('add_to_category') %>
+            <%= category_action_label %>
           </span>
         </button>
-        
-        <button type="button" 
-                onclick="handleTogglePin(this, '<%= log.id %>', <%= pinned_state || false %>); event.stopPropagation();"
-                class="flex items-center gap-3 px-4 py-3 text-left hover:bg-yellow-50 transition-colors border-b border-gray-100 group/item">
-          <div class="w-8 h-8 rounded-lg bg-yellow-100 flex items-center justify-center text-yellow-600 group-hover/item:bg-yellow-500 group-hover/item:text-white transition-colors">
-            <svg class="h-4 w-4 icon-pin" fill="<%= pinned_state ? "currentColor" : "none" %>" stroke="currentColor" stroke-width="2.5">
-              <use xlink:href="<%= pinned_state ? '#icon-pin-filled' : '#icon-pin' %>"></use>
-            </svg>
-          </div>
-          <span class="text-[10px] font-black uppercase tracking-widest text-black"><%= pinned_state ? t('unpin_log') : t('pin_log') %></span>
-        </button>
+        <% if show_pin_action %>
+          <button type="button" 
+                  onclick="handleTogglePin(this, '<%= log.id %>', <%= pinned_state || false %>); event.stopPropagation();"
+                  class="flex items-center gap-3 px-4 py-3 text-left hover:bg-yellow-50 transition-colors border-b border-gray-100 group/item">
+            <div class="w-8 h-8 rounded-lg bg-yellow-100 flex items-center justify-center text-yellow-600 group-hover/item:bg-yellow-500 group-hover/item:text-white transition-colors">
+              <svg class="h-4 w-4 icon-pin" fill="<%= pinned_state ? "currentColor" : "none" %>" stroke="currentColor" stroke-width="2.5">
+                <use xlink:href="<%= pinned_state ? '#icon-pin-filled' : '#icon-pin' %>"></use>
+              </svg>
+            </div>
+            <span class="text-[10px] font-black uppercase tracking-widest text-black"><%= pinned_state ? t('unpin_log') : t('pin_log') %></span>
+          </button>
+        <% end %>
         
         <button type="button" 
                 onclick="openDeleteLogModal('<%= log_path(log) %>', 'INV-<%= log.display_number %>'); event.stopPropagation();"
@@ -503,7 +508,7 @@
 
     <!-- Action Buttons -->
     <div class="grid grid-cols-1 gap-3">
-      <%= link_to download_pdf_log_path(log), class: "flex items-center justify-center gap-2 bg-orange-600 text-white px-4 py-2 border-2 border-black rounded-lg font-black text-xs uppercase tracking-widest hover:bg-orange-700 transition-all shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] active:scale-95", target: "_blank" do %>
+      <%= link_to download_pdf_log_path(log), class: "flex items-center justify-center gap-2 bg-orange-600 text-white px-4 py-2 border-2 border-black rounded-lg font-black text-xs uppercase tracking-widest hover:bg-orange-700 transition-all shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] active:scale-95", target: "_blank", data: { history_download: true, log_id: log.id } do %>
         <svg class="h-4 w-4">
           <use xlink:href="#icon-pdf"></use>
         </svg>
