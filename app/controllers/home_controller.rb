@@ -160,6 +160,10 @@ class HomeController < ApplicationController
       return render json: { error: "unauthorized" }, status: :unauthorized
     end
 
+    unless current_user.profile&.paid?
+      return render json: { error: t("pro_feature_locked") }, status: :forbidden
+    end
+
     period = params[:period].presence || "30d"
     metric = params[:metric].presence || "invoices"
 
@@ -185,6 +189,10 @@ class HomeController < ApplicationController
   def analytics_export
     unless user_signed_in?
       redirect_to root_path and return
+    end
+
+    unless current_user.profile&.paid?
+      redirect_to analytics_path, alert: t("pro_feature_locked") and return
     end
 
     profile = @profile || current_user.profile || Profile.new
@@ -310,6 +318,10 @@ class HomeController < ApplicationController
   def analytics_export_pdf
     unless user_signed_in?
       redirect_to root_path and return
+    end
+
+    unless current_user.profile&.paid?
+      redirect_to analytics_path, alert: t("pro_feature_locked") and return
     end
 
     profile = @profile || current_user.profile || Profile.new
