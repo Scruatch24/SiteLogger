@@ -1764,8 +1764,92 @@ document.addEventListener("DOMContentLoaded", () => {
   let isAnalyzing = false;
   let analysisAbortController = null;
   let recordingInterval = null;
+  let recorderAudioContext = null;
+  let recorderAnalyser = null;
+  let recorderLevelData = null;
+  let recorderLevelFrame = null;
+  let recorderSmoothedLevel = 0;
+  const recordingWave = document.getElementById("recordingWave");
+  const recordingWaveBars = recordingWave ? Array.from(recordingWave.querySelectorAll('.recording-indicator-bars span')) : [];
 
   if (!recordBtn) return;
+
+  function setRecorderMeterLevel(level) {
+    const clamped = Math.max(0, Math.min(1, Number(level) || 0));
+    recordBtn.style.setProperty('--voice-level', clamped.toFixed(3));
+    if (recordingWave) recordingWave.style.setProperty('--voice-level', clamped.toFixed(3));
+    recordingWaveBars.forEach(function(bar, idx) {
+      const distanceFromCenter = Math.abs(idx - ((recordingWaveBars.length - 1) / 2));
+      const emphasis = Math.max(0.62, 1.08 - (distanceFromCenter * 0.18));
+      const scale = Math.max(0.14, Math.min(1, 0.14 + (clamped * emphasis)));
+      bar.style.transform = 'scaleY(' + scale.toFixed(3) + ')';
+      bar.style.opacity = (0.34 + (scale * 0.66)).toFixed(3);
+    });
+  }
+
+  function stopMainRecorderMeter() {
+    if (recorderLevelFrame) {
+      cancelAnimationFrame(recorderLevelFrame);
+      recorderLevelFrame = null;
+    }
+    recorderAnalyser = null;
+    recorderLevelData = null;
+    recorderSmoothedLevel = 0;
+    if (recorderAudioContext) {
+      try {
+        if (recorderAudioContext.state !== 'closed') recorderAudioContext.close();
+      } catch (e) {
+        console.error('Recorder meter cleanup error:', e);
+      }
+      recorderAudioContext = null;
+    }
+    setRecorderMeterLevel(0);
+  }
+
+  async function startMainRecorderMeter(stream) {
+    stopMainRecorderMeter();
+    if (!stream) return;
+    const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextCtor) {
+      setRecorderMeterLevel(0.22);
+      return;
+    }
+
+    try {
+      recorderAudioContext = new AudioContextCtor();
+      if (recorderAudioContext.state === 'suspended') {
+        await recorderAudioContext.resume();
+      }
+      const source = recorderAudioContext.createMediaStreamSource(stream);
+      recorderAnalyser = recorderAudioContext.createAnalyser();
+      recorderAnalyser.fftSize = 256;
+      recorderAnalyser.smoothingTimeConstant = 0.82;
+      recorderLevelData = new Uint8Array(recorderAnalyser.frequencyBinCount);
+      source.connect(recorderAnalyser);
+      setRecorderMeterLevel(0.16);
+
+      const updateMeter = function() {
+        if (!recorderAnalyser || !recorderLevelData) return;
+        recorderAnalyser.getByteTimeDomainData(recorderLevelData);
+        let sumSquares = 0;
+        for (let i = 0; i < recorderLevelData.length; i++) {
+          const normalized = (recorderLevelData[i] - 128) / 128;
+          sumSquares += normalized * normalized;
+        }
+        const rms = Math.sqrt(sumSquares / recorderLevelData.length);
+        const boosted = Math.min(1, rms * 5.4);
+        recorderSmoothedLevel = Math.max(boosted, recorderSmoothedLevel * 0.76);
+        setRecorderMeterLevel(recorderSmoothedLevel);
+        recorderLevelFrame = requestAnimationFrame(updateMeter);
+      };
+
+      recorderLevelFrame = requestAnimationFrame(updateMeter);
+    } catch (e) {
+      console.error('Recorder meter start error:', e);
+      stopMainRecorderMeter();
+      setRecorderMeterLevel(0.22);
+    }
+  }
 
   if (enhanceTranscriptBtn && transcriptArea) {
     enhanceTranscriptBtn.onclick = async () => {
@@ -1849,6 +1933,7 @@ document.addEventListener("DOMContentLoaded", () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         mediaRecorder = new MediaRecorder(stream);
+        await startMainRecorderMeter(stream);
         audioChunks = [];
         mediaRecorder.ondataavailable = (e) => {
           audioChunks.push(e.data);
@@ -1910,12 +1995,14 @@ document.addEventListener("DOMContentLoaded", () => {
       const duration = Date.now() - window.recordingStartTime;
       if (duration < 1000) {
         mediaRecorder.onstop = null;
+        stopMainRecorderMeter();
         mediaRecorder.stop();
         mediaRecorder.stream.getTracks().forEach(t => t.stop());
         resetRecorderUI();
         showError(window.APP_LANGUAGES.hold_longer || "Hold longer to record");
         return;
       }
+      stopMainRecorderMeter();
       mediaRecorder.stop();
       if (mediaRecorder.stream) {
         mediaRecorder.stream.getTracks().forEach(t => t.stop());
@@ -1932,6 +2019,7 @@ document.addEventListener("DOMContentLoaded", () => {
       clearInterval(recordingInterval);
       recordingInterval = null;
     }
+    stopMainRecorderMeter();
     if (mediaRecorder && mediaRecorder.stream) {
       mediaRecorder.stream.getTracks().forEach(t => t.stop());
     }
@@ -2040,6 +2128,7 @@ document.addEventListener("DOMContentLoaded", () => {
     statusEl.innerText = window.APP_LANGUAGES.processing || "PROCESSING...";
     statusEl.classList.remove("text-red-600", "bg-red-50", "text-orange-600", "bg-orange-50", "border-orange-100", "border-red-100");
     statusEl.classList.add("text-yellow-600", "bg-yellow-50", "border-yellow-100");
+    stopMainRecorderMeter();
     recordBtn.classList.remove("recording");
     document.getElementById("recordingWave").classList.add("hidden");
 
