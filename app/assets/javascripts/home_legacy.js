@@ -2922,11 +2922,11 @@ document.addEventListener("DOMContentLoaded", () => {
           window.location.href = '/history';
         } else if (!options.silent) {
           // Update preview only if NOT silent (to avoid flicker during share)
-          const finalSrc = `/logs/${resData.id}/download_pdf?preview=1#toolbar=0`;
           const iframe = document.getElementById('pdfFrame');
+          const finalSrc = window._sl?._u || iframe?.src;
 
           if (iframe && !iframe.classList.contains('hidden')) {
-            if (!iframe.src.includes(`/logs/${resData.id}/download_pdf`)) {
+            if (finalSrc && iframe.src !== finalSrc) {
               iframe.src = finalSrc;
             }
           }

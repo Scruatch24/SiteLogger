@@ -354,19 +354,17 @@ class LogsController < ApplicationController
         Profile.where(user_id: nil).first || Profile.new(business_name: "My Business", hourly_rate: 100)
       end
 
-      unless params[:preview].to_s == "1"
-        if export_limit_reached_for?(profile)
-          redirect_to history_path, alert: t("daily_limit_reached", limit: profile.export_limit) and return
-        end
-
-        TrackingEvent.create!(
-          event_name: "invoice_exported",
-          user_id: current_user&.id,
-          session_id: params[:session_id].presence,
-          ip_address: client_ip,
-          target_id: log.id
-        )
+      if export_limit_reached_for?(profile)
+        redirect_to history_path, alert: t("daily_limit_reached", limit: profile.export_limit) and return
       end
+
+      TrackingEvent.create!(
+        event_name: "invoice_exported",
+        user_id: current_user&.id,
+        session_id: params[:session_id].presence,
+        ip_address: client_ip,
+        target_id: log.id
+      )
 
       generator = InvoiceGenerator.new(log, profile)
       pdf_data = generator.render
