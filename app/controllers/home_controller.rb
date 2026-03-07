@@ -847,7 +847,13 @@ class HomeController < ApplicationController
     end
 
     # We use the @profile set by before_action
-    @profile.assign_attributes(profile_params)
+    filtered = profile_params
+
+    unless @profile.paid?
+      filtered = filtered.except(:analytics_alert_threshold)
+    end
+
+    @profile.assign_attributes(filtered)
 
     # Force classic style and orange accent for free users
     unless @profile.paid?
