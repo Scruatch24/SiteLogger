@@ -2922,7 +2922,7 @@ document.addEventListener("DOMContentLoaded", () => {
           window.location.href = '/history';
         } else if (!options.silent) {
           // Update preview only if NOT silent (to avoid flicker during share)
-          const finalSrc = `/logs/${resData.id}/download_pdf#toolbar=0`;
+          const finalSrc = `/logs/${resData.id}/download_pdf?preview=1#toolbar=0`;
           const iframe = document.getElementById('pdfFrame');
 
           if (iframe && !iframe.classList.contains('hidden')) {

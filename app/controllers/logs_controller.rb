@@ -352,6 +352,20 @@ class LogsController < ApplicationController
         Profile.where(user_id: nil).first || Profile.new(business_name: "My Business", hourly_rate: 100)
       end
 
+      unless params[:preview].to_s == "1"
+        if export_limit_reached_for?(profile)
+          redirect_to history_path, alert: t("daily_limit_reached", limit: profile.export_limit) and return
+        end
+
+        TrackingEvent.create!(
+          event_name: "invoice_exported",
+          user_id: current_user&.id,
+          session_id: params[:session_id].presence,
+          ip_address: client_ip,
+          target_id: log.id
+        )
+      end
+
       generator = InvoiceGenerator.new(log, profile)
       pdf_data = generator.render
       response.headers["X-PDF-Pages"] = generator.page_count.to_s
@@ -620,6 +634,22 @@ class LogsController < ApplicationController
         @profile.note = I18n.t("guest_profile.note") if @profile.note.blank?
         @profile.payment_instructions = "Please remit payment within 14 days.\nZelle: payments@titan-auto.com\nWire: First National Bank (Routing: 00001234)"
       end
+    end
+
+    def export_limit_reached_for?(profile)
+      limit = profile.export_limit
+      return false if limit.nil?
+
+      scope = TrackingEvent.where(event_name: "invoice_exported")
+                           .where("created_at > ?", 24.hours.ago)
+
+      scope = if user_signed_in?
+        scope.where(user_id: current_user.id)
+      else
+        scope.where(ip_address: client_ip)
+      end
+
+      scope.count >= limit
     end
 
     def transliterate_filename(name)
