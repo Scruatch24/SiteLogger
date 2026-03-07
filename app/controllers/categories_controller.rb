@@ -1,11 +1,8 @@
 class CategoriesController < ApplicationController
   before_action :authenticate_user!
+  before_action :ensure_category_management_enabled!, only: [:create, :destroy]
 
   def create
-    unless current_user.profile&.paid?
-      redirect_to history_path, alert: t("pro_feature_locked", default: "This feature requires a PRO account.") and return
-    end
-
     @category = current_user.categories.build(category_params)
 
     if params[:category][:icon_type] == "custom" && params[:category][:custom_icon].present?
@@ -34,6 +31,12 @@ class CategoriesController < ApplicationController
   end
 
   private
+
+  def ensure_category_management_enabled!
+    unless current_user.profile&.paid?
+      redirect_to history_path, alert: t("pro_feature_locked", default: "This feature requires a PRO account.") and return
+    end
+  end
 
   def category_params
     params.require(:category).permit(:name, :icon, :icon_type, :color)
