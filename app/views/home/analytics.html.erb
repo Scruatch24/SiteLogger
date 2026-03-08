@@ -95,7 +95,7 @@
     margin: 0 auto;
     padding: 2rem 1.2rem 4rem;
     color: #f8fafc;
-    font-family: "Inter", "Noto Sans Georgian", sans-serif;
+    font-family: "Sora", "Segoe UI", sans-serif;
   }
 
   .ana-back {
@@ -1428,7 +1428,7 @@
           <div class="ana-client-share-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
           </div>
-          <div class="ana-client-share-text"><%= t('analytics_page.top_client_warning', name: @top_client_name, pct: @top_client_share).html_safe %></div>
+          <div class="ana-client-share-text"><%= sanitize(t('analytics_page.top_client_warning', name: @top_client_name, pct: @top_client_share), tags: %w[strong], attributes: []) %></div>
         </div>
       <% end %>
 

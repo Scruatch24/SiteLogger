@@ -20,6 +20,21 @@ class Rack::Attack
     end
   end
 
+  # refine_invoice also calls Gemini and can be hit repeatedly from chat interactions.
+  # Keep it usable while preventing silent token burn from abusive traffic.
+  throttle("refine_invoice/ip", limit: 12, period: 1.minute) do |req|
+    if req.path == "/refine_invoice" && req.post?
+      req.ip
+    end
+  end
+
+  # Transcript enhancement performs one or more Gemini calls per request.
+  throttle("enhance_transcript_text/ip", limit: 6, period: 1.minute) do |req|
+    if req.path == "/enhance_transcript_text" && req.post?
+      req.ip
+    end
+  end
+
   ### Login/Registration Brute-Force Protection ###
   # Limit login attempts to 10 per minute per IP.
   throttle("logins/ip", limit: 10, period: 1.minute) do |req|

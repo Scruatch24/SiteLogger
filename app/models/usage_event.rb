@@ -34,7 +34,8 @@ class UsageEvent < ApplicationRecord
 
   def self.with_advisory_lock(key)
     lock_key = Zlib.crc32(key.to_s)
-    connection.select_value("SELECT pg_advisory_xact_lock(#{lock_key})")
+    sql = sanitize_sql_array(["SELECT pg_advisory_xact_lock(?)", lock_key])
+    connection.execute(sql)
     yield
   end
   private_class_method :with_advisory_lock

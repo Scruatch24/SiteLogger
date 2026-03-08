@@ -633,7 +633,7 @@ class LogsController < ApplicationController
         Rails.logger.error "Generate Preview Error: #{e.message}"
         Rails.logger.error e.backtrace.join("\n")
         # Fallback error response for the client
-        render json: { error: e.message }, status: :internal_server_error
+        render json: { error: t("processing_error") }, status: :internal_server_error
       end
     end
 

@@ -461,6 +461,11 @@ class HomeController < ApplicationController
     refresh_latest_subscription_id(profile: profile, api_key: api_key, customer_id: resolved_customer_id)
 
     final_url = portal_deep_link(overview_url: portal_result, action: params[:portal_action].to_s, profile: profile)
+    unless trusted_paddle_portal_url?(final_url)
+      Rails.logger.warn("PADDLE BILLING PORTAL URL REJECTED: #{final_url.to_s[0, 200]}")
+      redirect_to subscription_path, alert: t("subscription_page.billing_portal_unavailable") and return
+    end
+
     redirect_to final_url, allow_other_host: true
   rescue => e
     Rails.logger.warn("PADDLE BILLING PORTAL ERROR: #{e.message}")
@@ -716,6 +721,15 @@ class HomeController < ApplicationController
     limit = @profile.char_limit
     enhancement_limit = @profile.enhancement_limit
     raw_text = params[:manual_text].to_s.strip
+    ai_log = {
+      ts: Time.current.iso8601,
+      action: "enhance_transcript_text",
+      user_id: current_user&.id,
+      input: {
+        text_length: raw_text.length,
+        language: params[:language].presence || @profile.try(:transcription_language) || session[:transcription_language] || @profile.try(:document_language) || "en"
+      }
+    }
 
     if raw_text.blank?
       return render json: { error: t("input_empty", default: "Input empty") }, status: :unprocessable_entity
@@ -785,7 +799,8 @@ class HomeController < ApplicationController
       #{raw_text}
     TEXT
 
-    gemini_model = ENV["GEMINI_PRIMARY_MODEL"].presence || "gemini-3.1-flash-lite-preview"
+    gemini_model = gemini_primary_model_for(profile: @profile)
+    ai_log[:model] = gemini_model
 
     body = gemini_generate_content(
       api_key: api_key,
@@ -793,9 +808,13 @@ class HomeController < ApplicationController
       prompt_parts: [ { text: instruction } ],
       cached_instruction_name: nil
     )
+    ai_log[:usage] = gemini_usage_snapshot(body)
 
     if body["error"].present?
       Rails.logger.warn("ENHANCE MODEL ERROR (#{gemini_model}): #{body["error"].to_json}")
+      ai_log[:error] = body["error"]
+      ai_log[:status] = "model_error"
+      log_ai_assistant(ai_log)
       return render json: { error: t("ai_failed_response") }, status: 500
     end
 
@@ -836,6 +855,7 @@ class HomeController < ApplicationController
         prompt_parts: [ { text: validator_prompt } ],
         cached_instruction_name: nil
       )
+      ai_log[:validation_usage] = gemini_usage_snapshot(validation_body)
 
       validation_parts = validation_body.dig("candidates", 0, "content", "parts")
       validation_raw = validation_parts&.reject { |p| p["thought"] }&.map { |p| p["text"] }&.join(" ")&.to_s&.strip
@@ -854,6 +874,7 @@ class HomeController < ApplicationController
       end
     rescue => e
       Rails.logger.warn("ENHANCE VALIDATION SKIPPED: #{e.message}")
+      ai_log[:validation_error] = e.message
     end
 
     begin
@@ -867,9 +888,16 @@ class HomeController < ApplicationController
       Rails.logger.warn("ENHANCE USAGE LOGGING FAILED: #{e.message}")
     end
 
+    ai_log[:output] = { enhanced_length: enhanced_text.length }
+    ai_log[:status] = "ok"
+    log_ai_assistant(ai_log)
+
     render json: { enhanced_text: enhanced_text }
   rescue => e
     Rails.logger.error("ENHANCE TRANSCRIPT ERROR: #{e.message}\n#{e.backtrace.join("\n")}")
+    ai_log[:error] = "#{e.class}: #{e.message}" if defined?(ai_log) && ai_log
+    ai_log[:status] = "exception" if defined?(ai_log) && ai_log
+    log_ai_assistant(ai_log) if defined?(ai_log) && ai_log
     render json: { error: t("processing_error") }, status: 500
   end
 
@@ -907,7 +935,11 @@ class HomeController < ApplicationController
 
   def process_audio
     @_analytics_start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-    ai_log = { ts: Time.current.iso8601, action: "process_audio", user_id: current_user&.id }
+    ai_log = {
+      ts: Time.current.iso8601,
+      action: (params[:transcribe_only].present? ? "process_audio_transcribe_only" : "process_audio"),
+      user_id: current_user&.id
+    }
     api_key = ENV["GEMINI_API_KEY"]
     has_audio = params[:audio].present?
     is_manual_text = !has_audio && params[:manual_text].present?
@@ -940,8 +972,16 @@ class HomeController < ApplicationController
       begin
         audio = params[:audio]
         audio_data = Base64.strict_encode64(audio.read)
+        gemini_model = gemini_transcribe_model_for(profile: @profile)
+        ai_log[:model] = gemini_model
+        ai_log[:input] = {
+          type: "audio",
+          transcribe_only: true,
+          language: params[:language].presence || @profile.try(:transcription_language) || session[:transcription_language] || @profile.try(:document_language) || "en",
+          audio_duration: params[:audio_duration].to_f
+        }.compact
 
-        uri = URI("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent")
+        uri = URI("https://generativelanguage.googleapis.com/v1beta/models/#{gemini_model}:generateContent")
         http = Net::HTTP.new(uri.host, uri.port)
         http.use_ssl = true
         http.read_timeout = 15
@@ -959,17 +999,28 @@ class HomeController < ApplicationController
 
         res = http.request(req)
         body = JSON.parse(res.body) rescue {}
+        ai_log[:usage] = gemini_usage_snapshot(body)
+        ai_log[:model_version] = body["modelVersion"] if body["modelVersion"].present?
 
         parts = body.dig("candidates", 0, "content", "parts")
         raw = parts&.reject { |p| p["thought"] }&.map { |p| p["text"] }&.join(" ")&.strip
 
         if raw.blank? || raw.strip.upcase == "EMPTY" || raw.strip.length < 2
+          ai_log[:output] = { raw_length: raw.to_s.length, empty: true }
+          ai_log[:status] = "ok"
+          log_ai_assistant(ai_log)
           return render json: { raw_summary: "" }
         end
 
+        ai_log[:output] = { raw_length: raw.length, empty: false }
+        ai_log[:status] = "ok"
+        log_ai_assistant(ai_log)
         return render json: { raw_summary: raw }
       rescue => e
         Rails.logger.error "TRANCRIPTION ERROR: #{e.message}\n#{e.backtrace.join("\n")}"
+        ai_log[:error] = "#{e.class}: #{e.message}"
+        ai_log[:status] = "exception"
+        log_ai_assistant(ai_log) rescue nil
         return render json: { error: t("transcription_failed") }, status: 500
       end
     end
@@ -1359,7 +1410,7 @@ PROMPT
         half_day_hours: half_day_hours
       )
 
-      gemini_model = ENV["GEMINI_PRIMARY_MODEL"].presence || "gemini-3.1-flash-lite-preview"
+      gemini_model = gemini_primary_model_for(profile: @profile)
 
       user_input_parts = []
 
@@ -1411,7 +1462,10 @@ PROMPT
       prompt_parts << { text: runtime_cache_context } if use_cached_instruction
       prompt_parts.concat(user_input_parts)
 
-      thinking_budget = (ENV["GEMINI_THINKING_BUDGET"].presence || 2048).to_i
+      thinking_budget = gemini_thinking_budget_for(
+        model: gemini_model,
+        env_value: ENV["GEMINI_THINKING_BUDGET"]
+      )
 
       ai_log[:ai_call] = {
         model: gemini_model,
@@ -2423,12 +2477,15 @@ PROMPT
 
     begin
       # ── Model selection: GEMINI_REFINE_MODEL → GEMINI_PRIMARY_MODEL → flash-lite ──
-      gemini_model = ENV["GEMINI_REFINE_MODEL"].presence || ENV["GEMINI_PRIMARY_MODEL"].presence || "gemini-3.1-flash-lite-preview"
-      fallback_model = ENV["GEMINI_FALLBACK_MODEL"].presence || "gemini-2.5-flash"
-      thinking_budget = (ENV["GEMINI_REFINE_THINKING_BUDGET"].presence || ENV["GEMINI_THINKING_BUDGET"].presence || 2048).to_i
+      gemini_model = gemini_refine_model_for(profile: @profile)
+      fallback_model = gemini_fallback_model_for(profile: @profile)
+      thinking_budget = gemini_thinking_budget_for(
+        model: gemini_model,
+        env_value: ENV["GEMINI_REFINE_THINKING_BUDGET"].presence || ENV["GEMINI_THINKING_BUDGET"]
+      )
 
       # ── Comprehensive AI logging ──
-      ai_log = { ts: Time.current.iso8601, model: gemini_model, user_message: user_message.truncate(2000) }
+      ai_log = { ts: Time.current.iso8601, action: "refine_invoice", model: gemini_model, user_message: user_message.truncate(2000), user_id: current_user&.id }
       input_parsed = current_json.is_a?(String) ? (JSON.parse(current_json) rescue {}) : (current_json.respond_to?(:to_unsafe_h) ? current_json.to_unsafe_h : current_json.to_h).deep_stringify_keys
       ai_log[:input_client] = input_parsed["client"]
       ai_log[:input_dates] = { date: input_parsed["date"], due: input_parsed["due_date"] }.compact
@@ -2797,14 +2854,92 @@ PROMPT
   end
 
 
+  def gemini_prompt_cache_enabled?
+    explicit = ENV["GEMINI_PROMPT_CACHE_ENABLED"].to_s.strip.downcase
+    return true if explicit == "true"
+    return false if explicit == "false"
+    return false unless Rails.env.production?
+    return false if Rails.cache.is_a?(ActiveSupport::Cache::MemoryStore)
+
+    true
+  end
+
+  def gemini_prompt_cache_ttl_seconds
+    raw_value = ENV["GEMINI_PROMPT_CACHE_TTL"].presence || "3600s"
+    seconds = raw_value.to_s[/\d+/].to_i
+    seconds = 3600 unless seconds.positive?
+    seconds
+  end
+
+  def gemini_primary_model_for(profile: @profile)
+    if profile&.paid?
+      ENV["GEMINI_PRO_PRIMARY_MODEL"].presence ||
+        ENV["GEMINI_PRIMARY_MODEL"].presence ||
+        ENV["GEMINI_PRO_MODEL"].presence ||
+        "gemini-3.1-flash-lite-preview"
+    else
+      ENV["GEMINI_FREE_PRIMARY_MODEL"].presence ||
+        ENV["GEMINI_FREE_MODEL"].presence ||
+        "gemini-2.5-flash-lite"
+    end
+  end
+
+  def gemini_refine_model_for(profile: @profile)
+    if profile&.paid?
+      ENV["GEMINI_PRO_REFINE_MODEL"].presence ||
+        ENV["GEMINI_REFINE_MODEL"].presence ||
+        gemini_primary_model_for(profile: profile)
+    else
+      ENV["GEMINI_FREE_REFINE_MODEL"].presence ||
+        gemini_primary_model_for(profile: profile)
+    end
+  end
+
+  def gemini_transcribe_model_for(profile: @profile)
+    if profile&.paid?
+      ENV["GEMINI_PRO_TRANSCRIBE_MODEL"].presence ||
+        ENV["GEMINI_TRANSCRIBE_MODEL"].presence ||
+        gemini_primary_model_for(profile: profile)
+    else
+      ENV["GEMINI_FREE_TRANSCRIBE_MODEL"].presence ||
+        gemini_primary_model_for(profile: profile)
+    end
+  end
+
+  def gemini_fallback_model_for(profile: @profile)
+    if profile&.paid?
+      ENV["GEMINI_PRO_FALLBACK_MODEL"].presence ||
+        ENV["GEMINI_FALLBACK_MODEL"].presence ||
+        "gemini-2.5-flash"
+    else
+      ENV["GEMINI_FREE_FALLBACK_MODEL"].presence ||
+        ENV["GEMINI_FALLBACK_MODEL"].presence ||
+        "gemini-3.1-flash-lite-preview"
+    end
+  end
+
+  def gemini_thinking_budget_for(model:, env_value: nil)
+    explicit = env_value.to_s.strip
+    return explicit.to_i if explicit.present?
+
+    model_name = model.to_s.downcase
+    return 0 if model_name.include?("flash-lite")
+
+    256
+  end
+
+
   def gemini_instruction_cached_content(api_key:, model:, instruction:)
     return [ nil, nil ] if api_key.blank?
-    return [ nil, nil ] if ENV["GEMINI_PROMPT_CACHE_ENABLED"].to_s.downcase == "false"
+    return [ nil, nil ] unless gemini_prompt_cache_enabled?
 
     fingerprint = Digest::SHA256.hexdigest("#{model}\n#{instruction}")
     cache_key = "gemini_instruction_cache:v2:#{fingerprint}"
     cached_name = Rails.cache.read(cache_key).to_s.strip
-    return [ cache_key, cached_name ] if cached_name.present?
+    if cached_name.present?
+      Rails.logger.info("GEMINI CACHE HIT: model=#{model} key=#{cache_key}")
+      return [ cache_key, cached_name ]
+    end
 
     uri = URI("https://generativelanguage.googleapis.com/v1beta/cachedContents")
     http = Net::HTTP.new(uri.host, uri.port)
@@ -2813,7 +2948,7 @@ PROMPT
     http.open_timeout = 5
 
     req = Net::HTTP::Post.new(uri, "Content-Type" => "application/json", "x-goog-api-key" => api_key)
-    requested_ttl = ENV["GEMINI_PROMPT_CACHE_TTL"].presence || "604800s"
+    requested_ttl = "#{gemini_prompt_cache_ttl_seconds}s"
     effective_ttl = requested_ttl
 
     req.body = {
@@ -2845,8 +2980,11 @@ PROMPT
     created_name = body["name"].to_s.strip
 
     if created_name.present?
-      local_expiry = (effective_ttl == "86400s") ? 20.hours : 6.days
+      ttl_seconds = effective_ttl.to_s[/\d+/].to_i
+      ttl_seconds = gemini_prompt_cache_ttl_seconds unless ttl_seconds.positive?
+      local_expiry = [ttl_seconds - 300, 300].max.seconds
       Rails.cache.write(cache_key, created_name, expires_in: local_expiry)
+      Rails.logger.info("GEMINI CACHE CREATED: model=#{model} ttl=#{effective_ttl} key=#{cache_key}")
       return [ cache_key, created_name ]
     end
 
@@ -2988,6 +3126,16 @@ PROMPT
   rescue => e
     Rails.logger.warn("PORTAL DEEP LINK ERROR: #{e.message}")
     overview_url
+  end
+
+  def trusted_paddle_portal_url?(url)
+    parsed = URI.parse(url.to_s) rescue nil
+    return false unless parsed&.scheme == "https"
+
+    host = parsed.host.to_s.downcase
+    return false if host.blank?
+
+    host.match?(/\A(?:[a-z0-9-]+\.)*paddle\.com\z/)
   end
 
   def refresh_latest_subscription_id(profile:, api_key:, customer_id:)
