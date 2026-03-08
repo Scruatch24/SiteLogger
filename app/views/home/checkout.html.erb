@@ -404,7 +404,12 @@
       return;
     }
 
-    var priceId = '<%= ENV["PADDLE_PRICE_ID"] || "pri_01kh7aq09r0kyg8dvgwp6bk0dz" %>';
+    var priceId = '<%= ENV["PADDLE_PRICE_ID"].to_s %>';
+    if (!priceId) {
+      console.error('Paddle price missing: set PADDLE_PRICE_ID');
+      return;
+    }
+
     var successUrl = '<%= (ENV["PADDLE_SUCCESS_URL"].presence || root_url).to_s %>';
 
     var settings = {

@@ -105,7 +105,7 @@ class LogsController < ApplicationController
       @log = if user_signed_in?
         current_user.logs.kept.find(params[:id])
       else
-        Log.kept.where(user_id: nil, ip_address: client_ip).find(params[:id])
+        guest_log_scope.find(params[:id])
       end
       @log.discard
       redirect_to history_path
@@ -115,7 +115,7 @@ class LogsController < ApplicationController
       @log = if user_signed_in?
         current_user.logs.kept.find(params[:id])
       else
-        Log.kept.where(user_id: nil, ip_address: client_ip).find(params[:id])
+        guest_log_scope.find(params[:id])
       end
 
       # Rule: Paid invoices should be locked: no RENAME available
@@ -181,7 +181,7 @@ class LogsController < ApplicationController
       @log = if user_signed_in?
         current_user.logs.kept.find(params[:id])
       else
-        Log.kept.where(user_id: nil, ip_address: client_ip).find(params[:id])
+        guest_log_scope.find(params[:id])
       end
 
       status = params[:status]
@@ -209,7 +209,7 @@ class LogsController < ApplicationController
       @log = if user_signed_in?
         current_user.logs.kept.find(params[:id])
       else
-        Log.kept.where(user_id: nil, ip_address: client_ip).find(params[:id])
+        guest_log_scope.find(params[:id])
       end
 
       category_ids = owned_category_ids(params[:category_ids] || [])
@@ -237,7 +237,7 @@ class LogsController < ApplicationController
       logs = if user_signed_in?
         current_user.logs.kept.where(id: log_ids)
       else
-        Log.kept.where(user_id: nil, ip_address: client_ip, id: log_ids)
+        guest_log_scope.where(id: log_ids)
       end
 
       # Optional client assignment from the manage modal
@@ -292,7 +292,7 @@ class LogsController < ApplicationController
       base_scope = if user_signed_in?
         current_user.logs.kept
       else
-        Log.kept.where(user_id: nil, ip_address: client_ip)
+        guest_log_scope
       end
 
       # Final filtered and ordered logs based on input selection
@@ -351,7 +351,7 @@ class LogsController < ApplicationController
       if user_signed_in?
         current_user.logs.kept.update_all(deleted_at: Time.current)
       else
-        Log.kept.where(user_id: nil, ip_address: client_ip).update_all(deleted_at: Time.current)
+        guest_log_scope.update_all(deleted_at: Time.current)
       end
       redirect_to history_path
     end
@@ -362,7 +362,7 @@ class LogsController < ApplicationController
       log = if user_signed_in?
         current_user.logs.kept.find(params[:id])
       else
-        Log.kept.where(user_id: nil, ip_address: client_ip).find(params[:id])
+        guest_log_scope.find(params[:id])
       end
 
       profile = if log.user
@@ -378,7 +378,7 @@ class LogsController < ApplicationController
       TrackingEvent.create!(
         event_name: "invoice_exported",
         user_id: current_user&.id,
-        session_id: params[:session_id].presence,
+        session_id: guest_session_id,
         ip_address: client_ip,
         target_id: log.id
       )
@@ -564,8 +564,7 @@ class LogsController < ApplicationController
           if user_signed_in?
             user_previews = today_previews.where(user_id: current_user.id)
           else
-            user_previews = today_previews.where(user_id: nil)
-                                          .where("ip_address = ? OR session_id = ?", ip, session_id)
+            user_previews = guest_usage_scope(today_previews.where(user_id: nil))
           end
 
           # If this is a new unique invoice content, check the limit
@@ -597,11 +596,7 @@ class LogsController < ApplicationController
           log = if user_signed_in?
             current_user.logs.kept.find_by(id: log_id)
           else
-            # Guest Security Fix: Ensure we ONLY load logs that match IP or Session
-            # AND explicitly filter out deleted ones using kept
-            Log.kept.where(user_id: nil)
-               .where("ip_address = ? OR session_id = ?", client_ip, params[:session_id])
-               .find_by(id: log_id)
+            guest_log_scope.find_by(id: log_id)
           end
 
           if log
@@ -668,7 +663,7 @@ class LogsController < ApplicationController
       scope = if user_signed_in?
         scope.where(user_id: current_user.id)
       else
-        scope.where(ip_address: client_ip)
+        guest_tracking_scope(scope)
       end
 
       scope.count >= limit
@@ -697,6 +692,30 @@ class LogsController < ApplicationController
       return requested_color.presence || profile.accent_color.presence || "#F97316" if profile.paid?
 
       "#F97316"
+    end
+
+    def guest_session_id
+      params[:session_id].presence || params.dig(:log, :session_id).presence
+    end
+
+    def guest_log_scope
+      return Log.kept.none if guest_session_id.blank?
+
+      Log.kept.where(user_id: nil, ip_address: client_ip, session_id: guest_session_id)
+    end
+
+    def guest_usage_scope(scope)
+      return scope.none if guest_session_id.blank?
+
+      scope.where(ip_address: client_ip, session_id: guest_session_id)
+    end
+
+    def guest_tracking_scope(scope)
+      if guest_session_id.present?
+        scope.where(ip_address: client_ip, session_id: guest_session_id)
+      else
+        scope.where(ip_address: client_ip)
+      end
     end
 
     def owned_client_for(client_id)

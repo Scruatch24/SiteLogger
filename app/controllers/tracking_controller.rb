@@ -16,7 +16,7 @@ class TrackingController < ApplicationController
       return render json: { status: "error", message: "Invalid event name" }, status: :bad_request
     end
 
-    if limit_reached?(event_name, user_id, ip_address, target_id)
+    if limit_reached?(event_name, user_id, ip_address, session_id, target_id)
       return render json: { status: "error", message: "Rate limit reached" }, status: :too_many_requests
     end
 
@@ -39,26 +39,31 @@ class TrackingController < ApplicationController
 
   private
 
-  def limit_reached?(event_name, user_id, ip_address, target_id = nil)
+  def limit_reached?(event_name, user_id, ip_address, session_id = nil, target_id = nil)
     case event_name
     when "invoice_exported"
-      check_export_limit(user_id, ip_address, target_id)
+      check_export_limit(user_id, ip_address, session_id, target_id)
     when "recording_started"
-      check_recording_limit(user_id, ip_address)
+      check_recording_limit(user_id, ip_address, session_id)
     else
       false
     end
   end
 
-  def check_export_limit(user_id, ip_address, target_id = nil)
+  def check_export_limit(user_id, ip_address, session_id = nil, target_id = nil)
     if user_id.blank?
       # Guest user limit
       limit = Profile::EXPORT_LIMITS["guest"] || 2
 
       # Count how many invoice_exported events they have in the last 24h
-      count = TrackingEvent.where(event_name: "invoice_exported", ip_address: ip_address)
-                          .where("created_at > ?", 24.hours.ago)
-                          .count
+      scope = TrackingEvent.where(event_name: "invoice_exported")
+                           .where("created_at > ?", 24.hours.ago)
+      scope = if session_id.present?
+        scope.where(ip_address: ip_address, session_id: session_id)
+      else
+        scope.where(ip_address: ip_address)
+      end
+      count = scope.count
 
       Rails.logger.info "[GUEST LIMIT CHECK] IP=#{ip_address}, Count=#{count}, Limit=#{limit}, Exceeded=#{count >= limit}"
       count >= limit
@@ -82,12 +87,17 @@ class TrackingController < ApplicationController
     end
   end
 
-  def check_recording_limit(user_id, ip_address)
+  def check_recording_limit(user_id, ip_address, session_id = nil)
     if user_id.blank?
       # Guest user: 2 per IP per minute
-      count = TrackingEvent.where(event_name: "recording_started", ip_address: ip_address)
-                          .where("created_at > ?", 1.minute.ago)
-                          .count
+      scope = TrackingEvent.where(event_name: "recording_started")
+                           .where("created_at > ?", 1.minute.ago)
+      scope = if session_id.present?
+        scope.where(ip_address: ip_address, session_id: session_id)
+      else
+        scope.where(ip_address: ip_address)
+      end
+      count = scope.count
       count >= 3
     else
       # Free user: 10 per user per minute

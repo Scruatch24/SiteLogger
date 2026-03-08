@@ -6,12 +6,13 @@ require "base64"
 module Paddle
   class WebhookVerifier
     VERSION_PREFIX = "v1="
+    DEFAULT_TOLERANCE_SECONDS = 300
 
     def initialize(secret:)
       @secret = secret
     end
 
-    def valid?(raw_body:, signature:)
+    def valid?(raw_body:, signature:, tolerance_seconds: nil, now: Time.current)
       return false if @secret.blank? || signature.blank?
 
       signature = signature.to_s.strip
@@ -19,6 +20,7 @@ module Paddle
       if signature.include?("ts=") && signature.include?("h1=")
         ts, h1 = parse_ts_h1(signature)
         return false if ts.nil? || h1.nil?
+        return false unless timestamp_within_tolerance?(ts, tolerance_seconds: tolerance_seconds, now: now)
 
         expected = compute_hmac_hex(ts: ts, payload: raw_body)
         return secure_compare(h1, expected)
@@ -37,6 +39,16 @@ module Paddle
     def parse_ts_h1(signature)
       parts = signature.split(/[;,]/).map { |p| p.strip.split("=", 2) }.to_h
       [ parts["ts"], parts["h1"] ]
+    end
+
+    def timestamp_within_tolerance?(ts, tolerance_seconds:, now:)
+      tolerance = tolerance_seconds.nil? ? DEFAULT_TOLERANCE_SECONDS : tolerance_seconds.to_i
+      return true if tolerance <= 0
+
+      ts_value = Integer(ts)
+      (now.to_i - ts_value).abs <= tolerance
+    rescue ArgumentError, TypeError
+      false
     end
 
     def compute_hmac_hex(ts:, payload:)

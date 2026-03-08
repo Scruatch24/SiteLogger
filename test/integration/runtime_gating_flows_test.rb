@@ -135,6 +135,64 @@ class RuntimeGatingFlowsTest < ActionDispatch::IntegrationTest
     assert_response :too_many_requests
   end
 
+  test "guests are redirected away from checkout" do
+    get checkout_path
+
+    assert_redirected_to new_user_registration_path
+  end
+
+  test "guest log actions require matching session id" do
+    log = create_guest_log(session_id: "guest-session-a", ip_address: "127.0.0.1")
+
+    patch update_status_log_path(log), params: {
+      status: "sent",
+      session_id: "guest-session-b"
+    }, as: :json
+
+    assert_response :not_found
+
+    patch update_status_log_path(log), params: {
+      status: "sent",
+      session_id: "guest-session-a"
+    }, as: :json
+
+    assert_response :success
+    assert_equal "sent", log.reload.status
+  end
+
+  test "guest export preflight is isolated by session id" do
+    limit = Profile::EXPORT_LIMITS["guest"] || 2
+
+    limit.times do |idx|
+      TrackingEvent.create!(
+        event_name: "invoice_exported",
+        ip_address: "127.0.0.1",
+        session_id: "guest-session-a",
+        target_id: idx.to_s
+      )
+    end
+
+    assert_no_difference("TrackingEvent.count") do
+      post "/track", params: {
+        event_name: "invoice_exported",
+        check_only: true,
+        session_id: "guest-session-b",
+        target_id: "123"
+      }, as: :json
+    end
+    assert_response :success
+
+    assert_no_difference("TrackingEvent.count") do
+      post "/track", params: {
+        event_name: "invoice_exported",
+        check_only: true,
+        session_id: "guest-session-a",
+        target_id: "456"
+      }, as: :json
+    end
+    assert_response :too_many_requests
+  end
+
   private
 
   def create_user(plan:, email:)
@@ -179,6 +237,26 @@ class RuntimeGatingFlowsTest < ActionDispatch::IntegrationTest
       hourly_rate: 100,
       invoice_number: invoice_number,
       status: "draft"
+    )
+  end
+
+  def create_guest_log(session_id:, ip_address:)
+    Log.create!(
+      user: nil,
+      client: "Guest Client",
+      date: "Mar 08, 2026",
+      due_date: "Mar 15, 2026",
+      time: "1",
+      tasks: [],
+      credits: [],
+      billing_mode: "hourly",
+      tax_scope: "labor,materials_only",
+      currency: "USD",
+      hourly_rate: 100,
+      invoice_number: 1001,
+      status: "draft",
+      ip_address: ip_address,
+      session_id: session_id
     )
   end
 

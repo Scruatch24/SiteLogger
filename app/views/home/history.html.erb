@@ -1269,6 +1269,7 @@
       <form id="deleteLogForm" method="post" action="">
         <input type="hidden" name="_method" value="delete">
         <input type="hidden" name="authenticity_token" value="<%= form_authenticity_token %>">
+        <input type="hidden" name="session_id" id="deleteLogSessionId" value="">
         <button type="submit" class="w-full py-4 bg-red-600 text-white rounded-xl font-black uppercase tracking-widest hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-red-700 transition-all active:scale-95">
           <%= t('delete_permanently') %>
         </button>
@@ -1499,6 +1500,29 @@
   const historyGuestLocked = <%= @profile.guest?.to_json %>;
   const historyCategoryManagementEnabled = <%= @profile.paid?.to_json %>;
   const historyClientManagementEnabled = <%= (!@profile.guest?).to_json %>;
+
+  function getHistorySessionId() {
+    if (typeof sessionStorage === 'undefined') return null;
+
+    let sessionId = sessionStorage.getItem('tracking_session_id');
+    if (!sessionId) {
+      sessionId = 'sess_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+      sessionStorage.setItem('tracking_session_id', sessionId);
+    }
+
+    return sessionId;
+  }
+
+  function withHistorySessionParam(url) {
+    if (!historyGuestLocked) return url;
+
+    const sessionId = getHistorySessionId();
+    if (!sessionId) return url;
+
+    const nextUrl = new URL(url, window.location.origin);
+    nextUrl.searchParams.set('session_id', sessionId);
+    return nextUrl.toString();
+  }
 
   // Search Functionality
   const searchInput = document.getElementById('historySearch');
@@ -1797,7 +1821,8 @@
     document.getElementById('deleteLogTargetName').textContent = name;
     
     // Set form action
-    document.getElementById('deleteLogForm').action = url;
+    document.getElementById('deleteLogForm').action = withHistorySessionParam(url);
+    document.getElementById('deleteLogSessionId').value = getHistorySessionId() || '';
     
     // Close log menus
     closeAllLogMenus();
@@ -2222,6 +2247,7 @@
       item_index: el.dataset.itemIndex,
       subcategory_index: el.dataset.subcategoryIndex,
       credit_index: el.dataset.creditIndex,
+      session_id: getHistorySessionId(),
       authenticity_token: document.querySelector('meta[name="csrf-token"]').content
     };
     
@@ -2466,7 +2492,8 @@
         log_ids: logIds, 
         added_category_ids: addedIds, 
         removed_category_ids: removedIds,
-        client_id: selectedManageClientId
+        client_id: selectedManageClientId,
+        session_id: getHistorySessionId()
       })
     })
     .then(response => response.json())
@@ -2542,6 +2569,7 @@
   function performStatusUpdate(logId, newStatus, newDueDate) {
     const payload = { status: newStatus };
     if (newDueDate) payload.due_date = newDueDate;
+    payload.session_id = getHistorySessionId();
     fetch(`/logs/${logId}/update_status`, {
       method: 'PATCH',
       headers: {
@@ -2833,7 +2861,7 @@
     btn.innerHTML = '<span class="animate-pulse"><%= t('deleting') %></span>';
 
     idsToDelete.forEach(id => {
-      fetch(`/logs/${id}`, {
+      fetch(withHistorySessionParam(`/logs/${id}`), {
         method: 'DELETE',
         headers: {
           'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content
@@ -2914,7 +2942,8 @@
       body: JSON.stringify({
         log_ids: logIds,
         category_id: categoryId,
-        pin: shouldPin
+        pin: shouldPin,
+        session_id: getHistorySessionId()
       })
     })
     .then(response => response.json())
@@ -2965,7 +2994,8 @@
       body: JSON.stringify({
         log_ids: [logId],
         category_id: categoryId,
-        pin: shouldPin
+        pin: shouldPin,
+        session_id: getHistorySessionId()
       })
     })
     .then(response => response.json())
@@ -3025,6 +3055,7 @@
     if (!link) return;
 
     e.preventDefault();
+    const downloadUrl = withHistorySessionParam(link.href);
 
     try {
       const response = await fetch('/track', {
@@ -3035,7 +3066,7 @@
         },
         body: JSON.stringify({
           event_name: 'invoice_exported',
-          session_id: sessionStorage.getItem('tracking_session_id') || ('sess_' + Math.random().toString(36).substr(2, 9)),
+          session_id: getHistorySessionId(),
           target_id: link.dataset.logId,
           check_only: true
         })
@@ -3053,14 +3084,14 @@
           return;
         }
 
-        window.open(link.href, '_blank', 'noopener');
+        window.open(downloadUrl, '_blank', 'noopener');
         return;
       }
 
-      window.open(link.href, '_blank', 'noopener');
+      window.open(downloadUrl, '_blank', 'noopener');
     } catch (err) {
       console.error(err);
-      window.open(link.href, '_blank', 'noopener');
+      window.open(downloadUrl, '_blank', 'noopener');
     }
   });
 

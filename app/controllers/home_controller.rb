@@ -495,8 +495,17 @@ class HomeController < ApplicationController
   end
 
   def checkout
-    if user_signed_in? && current_user.profile&.paid?
+    unless user_signed_in?
+      redirect_to new_user_registration_path, alert: t("signup_to_save") and return
+    end
+
+    if current_user.profile&.paid?
       redirect_to subscription_path, notice: t("checkout_page.already_pro") and return
+    end
+
+    if ENV["PADDLE_PRICE_ID"].to_s.blank? || ENV["PADDLE_CLIENT_TOKEN"].to_s.blank? || ENV["PADDLE_API_KEY"].to_s.blank?
+      Rails.logger.error("PADDLE CHECKOUT: missing required Paddle configuration for user_id=#{current_user.id}")
+      redirect_to pricing_path, alert: "Checkout is temporarily unavailable. Please try again later." and return
     end
   end
 

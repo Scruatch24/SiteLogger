@@ -1,12 +1,34 @@
 # frozen_string_literal: true
 
+require "digest"
+
 class Webhooks::PaddleController < ActionController::Base
   skip_before_action :verify_authenticity_token
   before_action :verify_signature!
 
   def receive
-    event = JSON.parse(request.raw_post)
+    raw_body = request.raw_post
+    event = JSON.parse(raw_body)
 
+    status = UsageEvent.process_paddle_webhook_once!(
+      external_id: webhook_dedupe_key(event, raw_body),
+      payload_hash: Digest::SHA256.hexdigest(raw_body),
+      ip_address: request.remote_ip
+    ) do
+      dispatch_event(event)
+    end
+
+    Rails.logger.info("Paddle webhook duplicate ignored: #{webhook_dedupe_key(event, raw_body)}") if status == :duplicate
+
+    head :ok
+  rescue JSON::ParserError => e
+    Rails.logger.warn("Paddle webhook JSON parse error: #{e.message}")
+    head :bad_request
+  end
+
+  private
+
+  def dispatch_event(event)
     case event["event_type"]
     when "customer.created"
       handle_customer_created(event)
@@ -25,14 +47,7 @@ class Webhooks::PaddleController < ActionController::Base
     else
       Rails.logger.info("Unhandled Paddle event: #{event['event_type']}")
     end
-
-    head :ok
-  rescue JSON::ParserError => e
-    Rails.logger.warn("Paddle webhook JSON parse error: #{e.message}")
-    head :bad_request
   end
-
-  private
 
   def handle_transaction_completed(event)
     data = event["data"] || {}
@@ -257,6 +272,18 @@ class Webhooks::PaddleController < ActionController::Base
     use_sandbox ? "https://sandbox-api.paddle.com" : "https://api.paddle.com"
   end
 
+  def webhook_dedupe_key(event, raw_body)
+    top_level_id = event["event_id"].presence || event["notification_id"].presence || event["id"].presence
+    return top_level_id if top_level_id.present?
+
+    [
+      event["event_type"],
+      event.dig("data", "id"),
+      event["occurred_at"],
+      Digest::SHA256.hexdigest(raw_body)
+    ].compact.join(":")
+  end
+
   def verify_signature!
     raw = request.raw_post
     signature = request.headers["Paddle-Signature"]
@@ -268,7 +295,8 @@ class Webhooks::PaddleController < ActionController::Base
     end
 
     verifier = Paddle::WebhookVerifier.new(secret: secret)
-    unless verifier.valid?(raw_body: raw, signature: signature)
+    tolerance = ENV.fetch("PADDLE_WEBHOOK_TOLERANCE_SECONDS", 300).to_i
+    unless verifier.valid?(raw_body: raw, signature: signature, tolerance_seconds: tolerance)
       Rails.logger.warn("Paddle webhook signature invalid; provided=#{signature.inspect}")
       return head :unauthorized
     end
