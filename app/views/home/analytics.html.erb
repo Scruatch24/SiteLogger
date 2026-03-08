@@ -43,16 +43,17 @@
 
 <style>
   .analytics-page {
-    position: relative;
-    min-height: 100vh;
-    z-index: 1;
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
     background: #0a0a0a;
+    overflow-y: auto;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
   }
 
   .pricing-bg {
-    position: absolute;
+    position: fixed;
     inset: 0;
     background: radial-gradient(ellipse at 30% 20%, rgba(249,115,22,0.08) 0%, transparent 60%),
                 radial-gradient(ellipse at 70% 80%, rgba(99,102,241,0.06) 0%, transparent 60%);
@@ -61,7 +62,7 @@
   }
 
   .pricing-grid {
-    position: absolute;
+    position: fixed;
     inset: 0;
     background-image:
       linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
@@ -72,7 +73,7 @@
   }
 
   .pricing-particle {
-    position: absolute;
+    position: fixed;
     background: rgba(249,115,22,0.4);
     border-radius: 50%;
     pointer-events: none;
@@ -1039,8 +1040,23 @@
     -webkit-user-select: none;
   }
   @supports (-moz-appearance: none) {
+    .analytics-page {
+      position: relative;
+      inset: auto;
+      min-height: 100vh;
+      z-index: 1;
+      overflow-y: visible;
+    }
+
+    .pricing-bg,
+    .pricing-grid,
+    .pricing-particle {
+      position: absolute;
+    }
+
     .ana-section {
       backdrop-filter: none;
+      -webkit-backdrop-filter: none;
     }
 
     .ana-demo-banner {

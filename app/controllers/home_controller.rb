@@ -599,6 +599,10 @@ class HomeController < ApplicationController
   end
 
   def history
+    unless user_signed_in?
+      redirect_to root_path and return
+    end
+
     @logs = if user_signed_in?
       current_user.logs.kept.eager_load(:categories).order(Arel.sql("CASE WHEN logs.pinned = true THEN 0 ELSE 1 END, logs.pinned_at ASC NULLS LAST, logs.invoice_number DESC NULLS LAST"))
     else

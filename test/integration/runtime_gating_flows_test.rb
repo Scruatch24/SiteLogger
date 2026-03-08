@@ -141,6 +141,12 @@ class RuntimeGatingFlowsTest < ActionDispatch::IntegrationTest
     assert_redirected_to new_user_registration_path
   end
 
+  test "guests are redirected away from history" do
+    get history_path
+
+    assert_redirected_to root_path
+  end
+
   test "guest log actions require matching session id" do
     log = create_guest_log(session_id: "guest-session-a", ip_address: "127.0.0.1")
 
