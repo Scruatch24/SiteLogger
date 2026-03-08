@@ -35,7 +35,7 @@ class Profile < ApplicationRecord
     }.freeze
 
     EXPORT_LIMITS = {
-      "guest" => 2,   # per day, per IP
+      "guest" => 3,   # per day, per IP
       "free" => 5,    # per day, per account
       "paid" => nil   # unlimited
     }.freeze

@@ -399,6 +399,18 @@
 
 <script>
   document.addEventListener('DOMContentLoaded', function() {
+    var checkoutAllowed = <%= (user_signed_in? && !current_user.profile&.paid? && ENV["PADDLE_PRICE_ID"].to_s.present? && ENV["PADDLE_CLIENT_TOKEN"].to_s.present? && ENV["PADDLE_API_KEY"].to_s.present?) ? 'true' : 'false' %>;
+    if (!checkoutAllowed) {
+      window.location.replace('<%= if !user_signed_in?
+        new_user_registration_path
+      elsif current_user.profile&.paid?
+        subscription_path
+      else
+        pricing_path
+      end %>');
+      return;
+    }
+
     if (typeof Paddle === 'undefined') {
       console.error('Paddle.js not loaded');
       return;

@@ -247,6 +247,11 @@
       });
 
       window.openPaddleCheckout = function() {
+        if (!<%= user_signed_in? ? 'true' : 'false' %>) {
+          window.location.href = '<%= new_user_registration_path %>';
+          return;
+        }
+
         window.location.href = '<%= checkout_path %>';
       };
     </script>
@@ -749,6 +754,11 @@
 
       window.trackEvent = async (eventName, userId = null, sessionId = null, targetId = null) => {
           try {
+              const effectiveSessionId = sessionId || sessionStorage.getItem('tracking_session_id') || ('sess_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now());
+              if (!sessionStorage.getItem('tracking_session_id')) {
+                  sessionStorage.setItem('tracking_session_id', effectiveSessionId);
+              }
+
               const response = await fetch('/track', {
                   method: 'POST',
                   headers: { 
@@ -758,13 +768,12 @@
                   body: JSON.stringify({
                       event_name: eventName,
                       user_id: userId,
-                      session_id: sessionId || sessionStorage.getItem('tracking_session_id') || ('sess_' + Math.random().toString(36).substr(2, 9)),
+                      session_id: effectiveSessionId,
                       target_id: targetId
                   })
               });
 
               if (response.status === 429) {
-                  // Ignore limit modal on history page for downloads/exports as per user request
                   if (!(eventName === 'invoice_exported' && window.location.pathname.includes('/history'))) {
                       if (eventName === 'recording_started') {
                           if (window.showError) {
@@ -794,6 +803,7 @@
                   }
                   return false;
               }
+
               return response.ok;
           } catch (e) {
               console.error('Tracking failed:', e);
