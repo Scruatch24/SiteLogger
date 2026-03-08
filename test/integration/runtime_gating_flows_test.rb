@@ -141,10 +141,11 @@ class RuntimeGatingFlowsTest < ActionDispatch::IntegrationTest
     assert_redirected_to new_user_registration_path
   end
 
-  test "guests are redirected away from history" do
+  test "guests can access history but stay in guest-locked mode" do
     get history_path
 
-    assert_redirected_to root_path
+    assert_response :success
+    assert_includes response.body, 'historyGuestLocked = true'
   end
 
   test "guest log actions require matching session id" do

@@ -793,7 +793,7 @@
               }
 
               const data = await response.json();
-              if (data.status === 'error' && data.message === 'Rate limit reached') {
+              if (data.status === 'error' && data.code === 'rate_limit_reached') {
                   if (!(eventName === 'invoice_exported' && window.location.pathname.includes('/history'))) {
                       if (eventName === 'recording_started') {
                           if (window.showError) {
@@ -1607,7 +1607,7 @@
             <span style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.7);"><%= t('pwa.feat1') %></span>
           </div>
           <div style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:999px;padding:6px 14px;">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ea580c" stroke-width="2.5" stroke-linecap="round"><path d="M18.364 5.636a9 9 0 1 1-12.728 0M12 2v7"/></svg>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ea580c" stroke-width="2.5" stroke-linecap="round"><path d="M18 364l4 4m0 0l-4 4m4-4H3" stroke-width="2.5"/></svg>
             <span style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.7);"><%= t('pwa.feat2') %></span>
           </div>
           <div style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:999px;padding:6px 14px;">
@@ -1795,17 +1795,25 @@
       var toastCount = 0;
       var activeToasts = [];
 
+      function normalizeToastMessage(msg) {
+        if (msg == null) return '';
+        var raw = String(msg).replace(/<br\s*\/?>/gi, '\n');
+        var tmp = document.createElement('div');
+        tmp.innerHTML = raw;
+        return (tmp.textContent || tmp.innerText || '').replace(/\n{3,}/g, '\n\n').trim();
+      }
+
       function repositionToasts() {
         var top = 16;
-        for (var i = 0; i < activeToasts.length; i++) {
-          if (activeToasts[i] && activeToasts[i].parentNode) {
-            activeToasts[i].style.top = top + 'px';
-            top += activeToasts[i].offsetHeight + 8;
-          }
-        }
+        activeToasts.forEach(function(el) {
+          el.style.top = top + 'px';
+          top += el.offsetHeight + 8;
+        });
       }
 
       window.showToast = function(msg, type, opts) {
+        if (!msg) return;
+        msg = normalizeToastMessage(msg);
         if (!msg) return;
         type = type || 'info';
         opts = opts || {};
@@ -1897,9 +1905,6 @@
       }
 
       window.showError = function(msg) {
-        if (msg && (msg.toLowerCase().includes("limit reached") || msg.toLowerCase().includes("rate limit"))) {
-          if (window.showPremiumModal) { window.showPremiumModal(); return; }
-        }
         window.showToast(msg, 'error');
       };
 

@@ -744,7 +744,7 @@ ka:
   category_failed: "კატეგორიის შექმნა ვერ მოხერხდა"
   category_deleted: "კატეგორია წაიშალა!"
   guests_cannot_save_invoices: "სტუმრებს არ შეუძლიათ ინვოისების შენახვა"
-  signup_to_save: "დარეგისტრირდით უფასოდ ინვოისების ისტორიაში შესანახად!"
+  signup_to_save: "შექმენი უფასო ანგარიში, რომ ეს ინვოისი ისტორიაში შეინახო."
   rate_limit_reached: "ლიმიტი ამოიწურა"
   rate_limit_slow_down: "შეანელეთ! ზედმეტად ხშირად იწერთ."
   daily_limit_reached: "დღიური ლიმიტი ამოიწურა (დღეში %{limit}). შეუზღუდავი წვდომისთვის გახდით Pro!"
@@ -1037,6 +1037,8 @@ ka:
     payment_details: "გადახდის დეტალები"
     secure_checkout: "უსაფრთხო გადახდა Paddle-ით (ინგლისურენოვანი)"
     loading: "იტვირთება..."
+    signup_required: "გადახდის გასახსნელად შექმენი უფასო ანგარიში ან შედი სისტემაში."
+    temporarily_unavailable: "გადახდა დროებით მიუწვდომელია. სცადე ცოტა მოგვიანებით."
 
   # Onboarding
   onboarding:
@@ -1146,7 +1148,7 @@ ka:
     upgrade_to_pro: "გახდი Pro"
     back_home: "უკან"
     demo_preview_label: "სადემონსტრაციო რეჟიმი"
-    demo_preview_desc: "დემო მონაცემები — გახდი Pro და ნახე შენი რეალური სტატისტიკა"
+    demo_preview_desc: "გახდი Pro და ნახე შენი რეალური სტატისტიკა"
     title_prefix: "თქვენი"
     title_accent: "ანალიტიკა"
     overview: "მიმოხილვა"

@@ -46,6 +46,38 @@ class PaddleWebhooksTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "transaction webhook stores nested item price id shape" do
+    user = create_user(email: "paddle-nested-price@example.com")
+    payload = {
+      event_id: "evt_nested_price_123",
+      event_type: "transaction.completed",
+      occurred_at: Time.current.iso8601,
+      data: {
+        id: "txn_nested_123",
+        status: "completed",
+        customer_id: "ctm_nested_123",
+        customer: { email: user.email },
+        customer_email: user.email,
+        subscription_id: "sub_nested_123",
+        items: [ { price: { id: "pri_nested_123" } } ],
+        custom_data: { user_id: user.id }
+      }
+    }
+
+    with_paddle_webhook_env do
+      body = JSON.generate(payload)
+      headers = signed_paddle_headers(body)
+
+      post webhooks_paddle_path, params: body, headers: headers
+
+      assert_response :success
+      profile = user.profile.reload
+      assert_equal "pri_nested_123", profile.paddle_price_id
+      assert_equal "sub_nested_123", profile.paddle_subscription_id
+      assert_equal "paid", profile.plan
+    end
+  end
+
   test "stale signed webhook is rejected" do
     payload = {
       event_id: "evt_old_123",

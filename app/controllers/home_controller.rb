@@ -400,9 +400,16 @@ class HomeController < ApplicationController
       redirect_to pricing_path and return
     end
 
-    # Clear stale cache so payment method updates are reflected immediately
-    Rails.cache.delete(subscription_billing_cache_key(current_user.profile))
-    load_subscription_billing_data(current_user.profile)
+    profile = current_user.profile
+
+    # Force a fresh billing pull only when arriving from a completed checkout
+    # or an explicit refresh request. Otherwise preserve the last good snapshot.
+    if params[:upgraded].present? || params[:refresh_billing].present?
+      Rails.cache.delete(subscription_billing_cache_key(profile))
+    end
+
+    load_subscription_billing_data(profile)
+    @subscription_profile = profile.reload
   end
 
   def create_billing_portal
@@ -496,7 +503,7 @@ class HomeController < ApplicationController
 
   def checkout
     unless user_signed_in?
-      redirect_to new_user_registration_path, alert: t("signup_to_save") and return
+      redirect_to new_user_registration_path, alert: t("checkout_page.signup_required") and return
     end
 
     if current_user.profile&.paid?
@@ -505,7 +512,7 @@ class HomeController < ApplicationController
 
     if ENV["PADDLE_PRICE_ID"].to_s.blank? || ENV["PADDLE_CLIENT_TOKEN"].to_s.blank? || ENV["PADDLE_API_KEY"].to_s.blank?
       Rails.logger.error("PADDLE CHECKOUT: missing required Paddle configuration for user_id=#{current_user.id}")
-      redirect_to pricing_path, alert: "Checkout is temporarily unavailable. Please try again later." and return
+      redirect_to pricing_path, alert: t("checkout_page.temporarily_unavailable") and return
     end
 
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
@@ -599,10 +606,6 @@ class HomeController < ApplicationController
   end
 
   def history
-    unless user_signed_in?
-      redirect_to root_path and return
-    end
-
     @logs = if user_signed_in?
       current_user.logs.kept.eager_load(:categories).order(Arel.sql("CASE WHEN logs.pinned = true THEN 0 ELSE 1 END, logs.pinned_at ASC NULLS LAST, logs.invoice_number DESC NULLS LAST"))
     else

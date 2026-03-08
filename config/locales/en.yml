@@ -697,7 +697,7 @@ en:
   category_failed: "Failed to create category"
   category_deleted: "Category deleted!"
   guests_cannot_save_invoices: "Guests cannot save invoices"
-  signup_to_save: "Sign up for a FREE account to save invoices to your history!"
+  signup_to_save: "Create a free account to save this invoice to your history."
   rate_limit_reached: "Rate limit reached"
   rate_limit_slow_down: "Slow down! You are recording too fast."
   daily_limit_reached: "Daily limit reached (%{limit} per day). Upgrade to Pro for unlimited!"
@@ -992,6 +992,8 @@ en:
     secure_checkout: "Secure checkout powered by Paddle"
     loading: "Loading checkout..."
     already_pro: "You already have an active Pro plan. Manage it here."
+    signup_required: "Create a free account or sign in to open checkout."
+    temporarily_unavailable: "Checkout is temporarily unavailable. Please try again later."
 
   # Onboarding
   onboarding:

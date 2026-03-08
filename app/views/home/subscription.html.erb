@@ -1,4 +1,4 @@
-<% profile = current_user.profile %>
+<% profile = @subscription_profile || @profile || current_user.profile %>
 <% paid_plan = profile&.paid? %>
 <% has_subscription_history = profile&.ever_paid? %>
 <% raw_status = profile&.paddle_subscription_status.to_s.downcase %>
@@ -104,7 +104,7 @@ end %>
     margin: 0 auto;
     padding: 2rem 1.2rem 4rem;
     color: #f8fafc;
-    font-family: "Sora", "Segoe UI", sans-serif;
+    font-family: "Inter", "Noto Sans Georgian", sans-serif;
   }
 
   .sub-back {

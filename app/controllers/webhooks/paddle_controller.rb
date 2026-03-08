@@ -54,7 +54,8 @@ class Webhooks::PaddleController < ActionController::Base
     customer = data["customer"] || {}
     customer_id = data["customer_id"].presence || customer["id"].presence
     email = customer["email"].presence || data["customer_email"].presence
-    price_id = (data["items"]&.first || {})["price_id"]
+    first_item = (data["items"] || []).first || {}
+    price_id = first_item["price_id"].presence || first_item.dig("price", "id")
     subscription_id = data["subscription_id"]
 
     profile = find_profile_for_event(
@@ -89,7 +90,8 @@ class Webhooks::PaddleController < ActionController::Base
     customer_id = data["customer_id"].presence || data.dig("customer", "id")
     subscription_id = data["id"]
     status = data["status"]
-    price_id = (data["items"]&.first || {})["price_id"]
+    first_item = (data["items"] || []).first || {}
+    price_id = first_item["price_id"].presence || first_item.dig("price", "id")
     next_billing_time = data["next_billed_at"]
 
     Rails.logger.info "Paddle subscription event: customer_id=#{customer_id.inspect}, subscription_id=#{subscription_id.inspect}"

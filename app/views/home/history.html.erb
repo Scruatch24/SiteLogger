@@ -3079,7 +3079,7 @@
 
       const data = await response.json().catch(() => ({}));
       if (!response.ok || data.status === 'error') {
-        if (data.message === 'Rate limit reached') {
+        if (response.status === 429 || data.code === 'rate_limit_reached') {
           if (window.showPremiumModal) window.showPremiumModal('export');
           return;
         }

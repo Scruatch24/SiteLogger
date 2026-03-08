@@ -13,11 +13,11 @@ class TrackingController < ApplicationController
     Rails.logger.info "[TRACKING] Event=#{event_name}, IP=#{ip_address}"
 
     unless ALLOWED_EVENTS.include?(event_name)
-      return render json: { status: "error", message: "Invalid event name" }, status: :bad_request
+      return render json: { status: "error", code: "invalid_event_name", message: t("invalid_status") }, status: :bad_request
     end
 
     if limit_reached?(event_name, user_id, ip_address, session_id, target_id)
-      return render json: { status: "error", message: "Rate limit reached" }, status: :too_many_requests
+      return render json: { status: "error", code: "rate_limit_reached", message: t("rate_limit_reached") }, status: :too_many_requests
     end
 
     if check_only

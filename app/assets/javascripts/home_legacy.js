@@ -2937,16 +2937,16 @@ document.addEventListener("DOMContentLoaded", () => {
           client: savedLogClient
         };
       } else {
-        if (response.status === 429 || resData.message === 'Rate limit reached') {
+        if (response.status === 429 || resData.code === 'rate_limit_reached') {
           window.showPremiumModal?.('export');
-          const err = new Error('Limit reached');
+          const err = new Error('rate_limit_reached');
           err.isLimit = true;
           throw err;
         }
         throw new Error(resData.errors?.join(', ') || 'Save failed');
       }
     } catch (err) {
-      if (err.isLimit || err.message === 'Limit reached' || err.message.toLowerCase().includes("limit reached")) {
+      if (err.isLimit || err.message === 'rate_limit_reached') {
         updateSaveButtonToLimitState(saveBtn);
         // Also disable share button and update its appearance
         if (shareBtn) {
@@ -2967,7 +2967,7 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         }
         window.showPremiumModal?.('export');
-        return { error: 'Limit reached' };
+        return { error: 'rate_limit_reached' };
       }
 
       // Revert states for normal errors
@@ -3023,7 +3023,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!logAlreadySaved) {
         const saveResult = await finalSaveLog({ redirect: false, silent: true });
 
-        if (saveResult?.error === 'Limit reached') {
+        if (saveResult?.error === 'rate_limit_reached') {
           limitWasHit = true;
           return;
         }
@@ -3115,7 +3115,7 @@ document.addEventListener("DOMContentLoaded", () => {
         setTimeout(() => URL.revokeObjectURL(url), 5000);
       }
     } catch (err) {
-      if (err.isLimit || err.message === 'Limit reached' || err.message.toLowerCase().includes("limit reached")) {
+      if (err.isLimit || err.message === 'rate_limit_reached') {
         limitWasHit = true;
         if (saveBtn) updateSaveButtonToLimitState(saveBtn);
         window.showPremiumModal?.('export');
