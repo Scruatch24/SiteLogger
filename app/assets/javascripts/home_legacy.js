@@ -3851,6 +3851,13 @@ function addSectionWithScrollLock(addFn) {
   var beforeY = btn ? btn.getBoundingClientRect().top : null;
   addFn();
   updateAddMenuButtons();
+  // Auto-close the add menu after adding a section
+  var dropup = document.getElementById('addMenuDropup');
+  if (dropup && !dropup.classList.contains('hidden')) {
+    dropup.classList.add('hidden');
+  }
+  if (btn) btn.classList.remove('pop-active');
+  if (window.hidePopupBackdrop) window.hidePopupBackdrop();
   if (btn && beforeY !== null) {
     var afterY = btn.getBoundingClientRect().top;
     var shift = afterY - beforeY;
