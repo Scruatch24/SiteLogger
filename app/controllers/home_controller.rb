@@ -2911,7 +2911,7 @@ PROMPT
     if profile&.paid?
       ENV["GEMINI_PRO_FALLBACK_MODEL"].presence ||
         ENV["GEMINI_FALLBACK_MODEL"].presence ||
-        "gemini-2.5-flash"
+        "gemini-3.1-flash-lite-preview"
     else
       ENV["GEMINI_FREE_FALLBACK_MODEL"].presence ||
         ENV["GEMINI_FALLBACK_MODEL"].presence ||
