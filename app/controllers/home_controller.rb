@@ -2477,9 +2477,8 @@ PROMPT
     PROMPT
 
     begin
-      # ── Model selection: GEMINI_REFINE_MODEL → GEMINI_PRIMARY_MODEL → flash-lite ──
+      # ── Model selection: GEMINI_REFINE_MODEL → GEMINI_PRIMARY_MODEL (no fallback) ──
       gemini_model = gemini_refine_model_for(profile: @profile)
-      fallback_model = gemini_fallback_model_for(profile: @profile)
       thinking_budget = gemini_thinking_budget_for(
         model: gemini_model,
         env_value: ENV["GEMINI_REFINE_THINKING_BUDGET"].presence || ENV["GEMINI_THINKING_BUDGET"]
@@ -2498,7 +2497,7 @@ PROMPT
       # ── Call AI with JSON mode (responseMimeType forces valid JSON output) ──
       result = nil
       used_model = gemini_model
-      [gemini_model, fallback_model].uniq.each_with_index do |model, attempt|
+      [gemini_model].compact.uniq.each_with_index do |model, attempt|
         used_model = model
         ai_log[:model] = model
         ai_log[:attempt] = attempt + 1 if attempt > 0
@@ -2908,15 +2907,7 @@ PROMPT
   end
 
   def gemini_fallback_model_for(profile: @profile)
-    if profile&.paid?
-      ENV["GEMINI_PRO_FALLBACK_MODEL"].presence ||
-        ENV["GEMINI_FALLBACK_MODEL"].presence ||
-        "gemini-3.1-flash-lite-preview"
-    else
-      ENV["GEMINI_FREE_FALLBACK_MODEL"].presence ||
-        ENV["GEMINI_FALLBACK_MODEL"].presence ||
-        "gemini-3.1-flash-lite-preview"
-    end
+    nil
   end
 
   def gemini_thinking_budget_for(model:, env_value: nil)
