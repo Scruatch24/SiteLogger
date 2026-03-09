@@ -246,7 +246,7 @@ ka:
   no_btn: "არა"
   done_btn: "მზადაა"
   rate: "საფასური"
-  labor_hours_caps: "შრომის საათები"
+  labor_hours_caps: "შრომის საათი"
   labor_price_caps: "შრომის ღირებულება"
   ai_guess: "AI-ს ვარაუდი"
   section_labor: "სერვისი / შრომა"
