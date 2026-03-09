@@ -129,6 +129,8 @@ class LogsController < ApplicationController
       case field
       when "client"
         @log.client = value
+      when "date", "issue_date"
+        @log.date = value
       when "item"
         s_idx = params[:section_index].to_i
         i_idx = params[:item_index].to_i

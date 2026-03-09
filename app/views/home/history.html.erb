@@ -334,7 +334,7 @@
     <!-- Tabs / Selectors -->
     <div class="mb-4 px-4 <%= 'opacity-30 grayscale pointer-events-none select-none' if @profile.guest? %>">
        <!-- Brutalist Premium View Selector -->
-       <div class="relative flex p-1 bg-white rounded-2xl border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all overflow-hidden h-14">
+       <div class="relative flex p-1 bg-white rounded-2xl border-4 border-black transition-all overflow-hidden h-14">
         <!-- Sliding Highlight Pill (Slim/Inset version) -->
          <div id="tab-highlight" 
               class="absolute top-0 bottom-0 left-0 w-1/3 p-2 transition-all duration-500 ease-[cubic-bezier(0.19,1,0.22,1)]">
@@ -368,7 +368,7 @@
                id="historySearch" 
                placeholder="<%= t('search_placeholder') %>" 
                autocomplete="off"
-               class="w-full pl-12 pr-4 py-3 bg-white border-2 border-black rounded-xl text-black placeholder-gray-400 font-bold focus:outline-none focus:ring-0 focus:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-shadow">
+               class="w-full pl-12 pr-4 py-3 bg-white border-2 border-black rounded-xl text-black placeholder-gray-400 font-bold focus:outline-none focus:ring-0 transition-shadow">
       </div>
     </div>
 
@@ -620,7 +620,7 @@
             <!-- Add Category Tile -->
             <% is_category_locked = user_signed_in? && !current_user.profile&.paid? %>
             <button onclick="<%= is_category_locked ? 'if(window.showPremiumModal) window.showPremiumModal(\"category\")' : 'openAddCategoryModal()' %>" 
-                    class="aspect-[4/3] border-4 border-black border-dashed rounded-3xl bg-gray-50 flex flex-col items-center justify-center gap-3 hover:bg-white hover:border-solid hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transition-all group active:scale-95 relative">
+                    class="aspect-[4/3] border-4 border-black border-dashed rounded-3xl bg-gray-50 flex flex-col items-center justify-center gap-3 hover:bg-white hover:border-solid transition-all group active:scale-95 relative">
               <% if is_category_locked %>
                 <span class="absolute top-3 right-3 bg-black text-white text-[7px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded leading-none">PRO</span>
               <% end %>
@@ -639,7 +639,7 @@
             %>
             <% fav_overdue = favorites.count { |l| l.current_status == 'overdue' } %>
             <div onclick="enterCategory('favorites')" 
-                 class="aspect-[4/3] border-4 border-black rounded-3xl bg-white shadow-[5px_5px_0px_0px_rgba(0,0,0,1)] flex flex-col items-center justify-center gap-3 cursor-pointer hover:-translate-y-1 hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transition-all active:scale-95 group relative">
+                 class="aspect-[4/3] border-4 border-black rounded-3xl bg-white flex flex-col items-center justify-center gap-3 cursor-pointer hover:-translate-y-1 transition-all active:scale-95 group relative">
               <% if fav_overdue > 0 %>
                 <div class="absolute top-2 right-2 z-10 min-w-[20px] h-5 px-1 bg-red-500 border-2 border-black rounded-full flex items-center justify-center">
                   <span class="text-white text-[9px] font-black leading-none"><%= fav_overdue %></span>
@@ -661,7 +661,7 @@
               <% next if category.name == 'Favorites' %>
               <% cat_overdue = category.logs.count { |l| l.current_status == 'overdue' } %>
               <div onclick="enterCategory('cat-<%= category.id %>')" 
-                   class="aspect-[4/3] border-4 border-black rounded-3xl bg-white shadow-[5px_5px_0px_0px_rgba(0,0,0,1)] flex flex-col items-center justify-center gap-3 cursor-pointer hover:-translate-y-1 hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transition-all active:scale-95 group relative">
+                   class="aspect-[4/3] border-4 border-black rounded-3xl bg-white flex flex-col items-center justify-center gap-3 cursor-pointer hover:-translate-y-1 transition-all active:scale-95 group relative">
                 <% if cat_overdue > 0 %>
                   <div class="absolute top-2 right-2 z-10 min-w-[20px] h-5 px-1 bg-red-500 border-2 border-black rounded-full flex items-center justify-center">
                     <span class="text-white text-[9px] font-black leading-none"><%= cat_overdue %></span>
@@ -802,7 +802,7 @@
             <!-- Add Client Tile -->
             <% unless @profile.guest? %>
             <button onclick="openAddClientModal()"
-                    class="aspect-[4/3] border-4 border-black border-dashed rounded-3xl bg-gray-50 flex flex-col items-center justify-center gap-3 hover:bg-white hover:border-solid hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transition-all group active:scale-95">
+                    class="aspect-[4/3] border-4 border-black border-dashed rounded-3xl bg-gray-50 flex flex-col items-center justify-center gap-3 hover:bg-white hover:border-solid transition-all group active:scale-95">
               <div class="w-12 h-12 rounded-full bg-black text-white flex items-center justify-center group-hover:scale-110 transition-transform">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
@@ -816,7 +816,7 @@
             <% @clients.each do |client| %>
               <% cl_overdue = client_overdue_map[client.id] || 0 %>
               <div onclick="enterClient(<%= client.id %>)"
-                   class="aspect-[4/3] border-4 border-black rounded-3xl bg-white shadow-[5px_5px_0px_0px_rgba(0,0,0,1)] flex flex-col items-center justify-center gap-3 cursor-pointer hover:-translate-y-1 hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transition-all active:scale-95 group relative">
+                   class="aspect-[4/3] border-4 border-black rounded-3xl bg-white flex flex-col items-center justify-center gap-3 cursor-pointer hover:-translate-y-1 transition-all active:scale-95 group relative">
                 <% if cl_overdue > 0 %>
                   <div class="absolute top-2 right-2 z-10 min-w-[20px] h-5 px-1 bg-red-500 border-2 border-black rounded-full flex items-center justify-center">
                     <span class="text-white text-[9px] font-black leading-none"><%= cl_overdue %></span>
@@ -1496,10 +1496,48 @@
     due_today: "<%= j t('due_today') %>",
     due_in_days: "<%= j t('due_in_days', count: '%{count}') %>",
     days_suffix: "<%= j t('days_suffix', count: '%{count}') %>",
-    due: "<%= j t('due') %>"
+    due: "<%= j t('due') %>",
+    cancel: "<%= j t('cancel') %>",
+    loading: "<%= j t('loading', default: 'Loading') %>"
   };
 
   const pageLocale = "<%= I18n.locale %>";
+
+  // Loading indicator state per log card
+  const logLoadingCounts = {};
+  function setLogLoading(logId, loading) {
+    if (!logId) return;
+    if (!logLoadingCounts[logId]) logLoadingCounts[logId] = 0;
+    logLoadingCounts[logId] = loading ? logLoadingCounts[logId] + 1 : Math.max(0, logLoadingCounts[logId] - 1);
+    const isActive = logLoadingCounts[logId] > 0;
+
+    document.querySelectorAll(`.log-card[data-log-id="${logId}"]`).forEach(card => {
+      card.classList.add('relative');
+      card.classList.toggle('opacity-60', isActive);
+      card.classList.toggle('pointer-events-none', isActive);
+      card.classList.toggle('transition-opacity', true);
+      card.classList.toggle('duration-200', true);
+
+      let indicator = card.querySelector('.log-loading-indicator');
+      let scrim = card.querySelector('.log-loading-scrim');
+      if (isActive) {
+        if (!scrim) {
+          scrim = document.createElement('div');
+          scrim.className = 'log-loading-scrim absolute inset-0 bg-black/35 rounded-lg';
+          card.appendChild(scrim);
+        }
+        if (!indicator) {
+          indicator = document.createElement('div');
+          indicator.className = 'log-loading-indicator absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-gray-700 bg-white/90 border-2 border-black rounded-lg px-2.5 py-1.5 shadow-[2px_2px_0_0_rgba(0,0,0,1)]';
+          indicator.innerHTML = `<svg class="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" opacity="0.25"></circle><path d="M21 12a9 9 0 0 1-9 9" opacity="0.9"></path></svg><span>${window.APP_LANGUAGES?.loading || 'Loading'}</span>`;
+          card.appendChild(indicator);
+        }
+      } else {
+        if (indicator) indicator.remove();
+        if (scrim) scrim.remove();
+      }
+    });
+  }
 
   // State Management
   let activeCategoryId = null;
@@ -2080,6 +2118,14 @@
       
       // Close all menus, including the one we are in.
       closeAllLogMenus();
+
+      // Auto-expand the card while renaming
+      const content = card.querySelector('.collapsible-content');
+      const chevron = card.querySelector('.chevron-icon');
+      if (content && content.classList.contains('grid-rows-[0fr]')) {
+        content.classList.replace('grid-rows-[0fr]', 'grid-rows-[1fr]');
+        if (chevron) chevron.classList.add('rotate-180');
+      }
     }
   }
 
@@ -2342,7 +2388,8 @@
       if (newStatus === 'paid') {
         dueLabel = null;
       } else if (newStatus === 'overdue') {
-        dueLabel = (daysUntilDue !== null && daysUntilDue < 0) ? 'overdue_for' : 'due_today';
+        // Always treat overdue status as "overdue_for" unless exactly today
+        dueLabel = (daysUntilDue === 0) ? 'due_today' : 'overdue_for';
       } else if (daysUntilDue === 0) {
         dueLabel = 'due_today';
       } else if (daysUntilDue !== null && daysUntilDue >= 1 && daysUntilDue <= 7) {
@@ -2403,6 +2450,269 @@
       return `${dueLabel}: ${formatted}`;
     } catch(e) { return dateStr; }
   }
+
+  function formatIssueDateLabel(dateStr) {
+    if (!dateStr) return '';
+    try {
+      const d = new Date(`${dateStr}T00:00:00`);
+      const opts = { year: 'numeric', month: 'short', day: 'numeric' };
+      const localeGuess = (pageLocale || document.documentElement.lang || 'en');
+      const isKa = localeGuess.toLowerCase().startsWith('ka');
+      const localeForDate = isKa ? 'ka-GE' : localeGuess;
+      let formatted = new Intl.DateTimeFormat(localeForDate, opts).format(d);
+      if (isKa && /[A-Za-z]/.test(formatted)) {
+        const monthsKa = ['იან', 'თებ', 'მარ', 'აპრ', 'მაი', 'ივნ', 'ივლ', 'აგვ', 'სექ', 'ოქტ', 'ნოე', 'დეკ'];
+        formatted = `${monthsKa[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+      }
+      return formatted;
+    } catch(e) { return dateStr; }
+  }
+
+  function updateIssueDateText(logId, newDate) {
+    const cards = document.querySelectorAll(`.log-card[data-log-id="${logId}"] .issue-date-chip span`);
+    cards.forEach(span => {
+      span.textContent = formatIssueDateLabel(newDate);
+    });
+  }
+
+  function saveIssueDate(logId, newDate) {
+    setLogLoading(logId, true);
+    return fetch(`/logs/${logId}/update_entry`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content
+      },
+      body: JSON.stringify({ field: 'date', value: newDate })
+    }).then(r => r.json()).then(res => {
+      if (res.success) {
+        updateIssueDateText(logId, newDate);
+        document.querySelectorAll(`.issue-date-chip[data-log-id="${logId}"]`).forEach(chip => {
+          chip.dataset.issueDate = newDate;
+        });
+      }
+      return res;
+    }).finally(() => setLogLoading(logId, false));
+  }
+
+  // Inline calendar popover for issue/due dates
+  let activeDatePopover = null;
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+
+  function closeDatePopover() {
+    if (activeDatePopover) {
+      activeDatePopover.remove();
+      activeDatePopover = null;
+    }
+  }
+
+  function normalizeDateValue(dateStr) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '';
+    return d.toISOString().slice(0, 10);
+  }
+
+  const monthNames = {
+    en: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+    ka: ['იან','თებ','მარ','აპრ','მაი','ივნ','ივლ','აგვ','სექ','ოქტ','ნოე','დეკ']
+  };
+
+  const dayNames = {
+    en: ['Su','Mo','Tu','We','Th','Fr','Sa'],
+    ka: ['კვ','ორ','სა','ოთ','ხუ','პა','შა']
+  };
+
+  function toYMD(dateObj) {
+    const y = dateObj.getFullYear();
+    const m = `${dateObj.getMonth() + 1}`.padStart(2, '0');
+    const d = `${dateObj.getDate()}`.padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  function openDatePopover(type, logId, currentDate, anchorEl) {
+    closeDatePopover();
+    const locale = (pageLocale || document.documentElement.lang || 'en').toLowerCase().startsWith('ka') ? 'ka' : 'en';
+    const baseDate = currentDate ? new Date(`${currentDate}T12:00:00Z`) : new Date();
+    let workingDate = new Date(Date.UTC(baseDate.getUTCFullYear(), baseDate.getUTCMonth(), baseDate.getUTCDate(), 12, 0, 0));
+
+    const pop = document.createElement('div');
+    pop.className = 'absolute z-[9999] bg-white border-2 border-black rounded-2xl p-3 shadow-none';
+    pop.addEventListener('click', (e) => e.stopPropagation());
+    const rect = anchorEl.getBoundingClientRect();
+    pop.style.top = `${rect.bottom + window.scrollY + 6}px`;
+    // initial left; will adjust after render for issue-date to extend left
+    pop.style.left = `${rect.left + window.scrollX}px`;
+
+    const header = document.createElement('div');
+    header.className = 'flex items-center justify-between mb-2 gap-2';
+    const prevBtn = document.createElement('button');
+    prevBtn.className = 'px-2 py-1 border-2 border-black rounded-lg text-xs font-black bg-gray-100';
+    prevBtn.textContent = '<';
+    prevBtn.addEventListener('click', (e) => { e.stopPropagation(); workingDate.setMonth(workingDate.getMonth() - 1); renderCalendar(); });
+    const nextBtn = document.createElement('button');
+    nextBtn.className = 'px-2 py-1 border-2 border-black rounded-lg text-xs font-black bg-gray-100';
+    nextBtn.textContent = '>';
+    nextBtn.addEventListener('click', (e) => { e.stopPropagation(); workingDate.setMonth(workingDate.getMonth() + 1); renderCalendar(); });
+    const title = document.createElement('div');
+    title.className = 'text-xs font-black uppercase tracking-widest';
+    header.append(prevBtn, title, nextBtn);
+
+    const grid = document.createElement('div');
+    grid.className = 'grid grid-cols-7 gap-1 text-center text-[11px] font-black';
+
+    const actions = document.createElement('div');
+    actions.className = 'flex justify-end gap-2 mt-3';
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.className = 'px-3 py-1 bg-gray-100 text-black border-2 border-black rounded-lg text-xs font-black uppercase tracking-widest';
+    cancelBtn.textContent = window.APP_LANGUAGES.cancel || 'Cancel';
+    cancelBtn.addEventListener('click', (e) => { e.stopPropagation(); closeDatePopover(); });
+    const saveBtn = document.createElement('button');
+    saveBtn.type = 'button';
+    saveBtn.className = 'px-3 py-1 bg-orange-600 text-white border-2 border-black rounded-lg text-xs font-black uppercase tracking-widest';
+    saveBtn.textContent = window.APP_LANGUAGES.save_changes || 'Save';
+    saveBtn.addEventListener('click', (e) => { e.stopPropagation(); submitDate(); });
+    actions.append(cancelBtn, saveBtn);
+
+    pop.append(header, grid, actions);
+    document.body.appendChild(pop);
+    activeDatePopover = pop;
+
+    let selectedDate = new Date(workingDate);
+
+    function renderCalendar() {
+      const year = workingDate.getFullYear();
+      const month = workingDate.getMonth();
+      title.textContent = `${monthNames[locale][month]} ${year}`;
+      grid.innerHTML = '';
+      dayNames[locale].forEach(d => {
+        const cell = document.createElement('div');
+        cell.className = 'text-gray-500';
+        cell.textContent = d;
+        grid.appendChild(cell);
+      });
+      const firstDay = new Date(year, month, 1).getDay();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      for (let i = 0; i < firstDay; i++) {
+        const empty = document.createElement('div');
+        grid.appendChild(empty);
+      }
+      for (let d = 1; d <= daysInMonth; d++) {
+        const cell = document.createElement('button');
+        cell.type = 'button';
+        cell.textContent = d;
+        cell.className = 'w-8 h-8 border-2 border-black rounded-lg text-[11px] font-black hover:bg-orange-50 transition-colors';
+        const cellDate = new Date(Date.UTC(year, month, d, 12, 0, 0));
+        if (selectedDate && cellDate.getTime() === selectedDate.getTime()) {
+          cell.classList.add('bg-orange-600','text-white','hover:bg-orange-600','hover:text-white');
+        }
+        cell.addEventListener('click', (e) => {
+          e.stopPropagation();
+          selectedDate = cellDate;
+          renderCalendar();
+        });
+        grid.appendChild(cell);
+      }
+    }
+
+    const submitDate = () => {
+      if (!selectedDate) { closeDatePopover(); return; }
+      const newDate = toYMD(new Date(selectedDate));
+      setLogLoading(logId, true);
+      closeDatePopover();
+      if (type === 'due') {
+        const badge = document.querySelector(`#status-badge-${logId}`);
+        const currentStatus = badge?.dataset.currentStatus || 'draft';
+        fetch(`/logs/${logId}/update_status`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': csrfToken
+          },
+          body: JSON.stringify({ status: currentStatus, due_date: newDate, session_id: getHistorySessionId() })
+        }).then(r => r.json()).then(res => {
+          if (res.success) {
+            updateDueDateText(logId, newDate);
+            document.querySelectorAll(`.due-date-chip[data-log-id="${logId}"]`).forEach(chip => {
+              chip.dataset.dueDate = newDate;
+            });
+            updateDueBadge(logId, currentStatus, newDate);
+          } else {
+            alert((res.errors || []).join(', '));
+          }
+        }).catch(err => {
+          console.error(err);
+          alert(window.APP_LANGUAGES.error_while_saving || 'Error updating');
+        }).finally(() => {
+          setLogLoading(logId, false);
+        });
+      } else {
+        fetch(`/logs/${logId}/update_entry`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': csrfToken
+          },
+          body: JSON.stringify({ field: 'date', value: newDate })
+        }).then(r => r.json()).then(res => {
+          if (res.success) {
+            updateIssueDateText(logId, newDate);
+            document.querySelectorAll(`.issue-date-chip[data-log-id="${logId}"]`).forEach(chip => {
+              chip.dataset.issueDate = newDate;
+            });
+          } else {
+            alert((res.errors || []).join(', '));
+          }
+        }).catch(err => {
+          console.error(err);
+          alert(window.APP_LANGUAGES.error_while_saving || 'Error updating');
+        }).finally(() => {
+          setLogLoading(logId, false);
+        });
+      }
+    };
+
+    saveBtn.addEventListener('click', submitDate);
+    cancelBtn.addEventListener('click', closeDatePopover);
+    renderCalendar();
+
+    // Reposition after layout for issue date: extend left; due date: extend right (default)
+    requestAnimationFrame(() => {
+      const width = pop.offsetWidth;
+      if (type === 'issue') {
+        const desiredLeft = rect.right + window.scrollX - width;
+        pop.style.left = `${Math.max(desiredLeft, 8)}px`;
+      } else {
+        pop.style.left = `${rect.left + window.scrollX}px`;
+      }
+    });
+  }
+
+  function initDateChipListeners() {
+    document.querySelectorAll('.issue-date-chip').forEach(chip => {
+      if (chip.dataset.datePickerInit) return;
+      chip.dataset.datePickerInit = 'true';
+      chip.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openDatePopover('issue', chip.dataset.logId, chip.dataset.issueDate, chip);
+      });
+    });
+    document.querySelectorAll('.due-date-chip').forEach(chip => {
+      if (chip.dataset.datePickerInit) return;
+      chip.dataset.datePickerInit = 'true';
+      chip.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openDatePopover('due', chip.dataset.logId, chip.dataset.dueDate, chip);
+      });
+    });
+  }
+
+  document.addEventListener('click', (e) => {
+    if (activeDatePopover && !activeDatePopover.contains(e.target)) {
+      closeDatePopover();
+    }
+  });
 
   function updateDueDateText(logId, newDueDate) {
     const cards = document.querySelectorAll(`.log-card[data-log-id="${logId}"] .due-date-text`);
@@ -2625,6 +2935,7 @@
   }
 
   function updateStatusLive(logId, newStatus) {
+    closeAllLogMenus();
     if (newStatus === 'paid') {
       const modal = document.getElementById('confirmPaidModal');
       const btn = document.getElementById('finalConfirmPaidBtn');
@@ -2659,7 +2970,32 @@
             const mm = String(newDue.getMonth() + 1).padStart(2, '0');
             const dd = String(newDue.getDate()).padStart(2, '0');
             const newDueDateStr = `${yyyy}-${mm}-${dd}`;
-            performStatusUpdate(logId, 'overdue', newDueDateStr);
+
+            // Preserve original issue/due gap for new issue date
+            let newIssueDateStr = null;
+            if (dueDateStr) {
+              const oldDue = new Date(dueDateStr + 'T00:00:00');
+              const issueChip = card?.querySelector('.issue-date-chip');
+              const issueStr = issueChip?.dataset.issueDate;
+              if (issueStr) {
+                const oldIssue = new Date(issueStr + 'T00:00:00');
+                const gapDays = Math.round((oldDue - oldIssue) / 86400000);
+                if (!isNaN(gapDays)) {
+                  const newIssue = new Date(newDue);
+                  newIssue.setDate(newIssue.getDate() - gapDays);
+                  const iy = newIssue.getFullYear();
+                  const im = String(newIssue.getMonth() + 1).padStart(2, '0');
+                  const id = String(newIssue.getDate()).padStart(2, '0');
+                  newIssueDateStr = `${iy}-${im}-${id}`;
+                }
+              }
+            }
+
+            performStatusUpdate(logId, 'overdue', newDueDateStr).then(() => {
+              if (newIssueDateStr) {
+                saveIssueDate(logId, newIssueDateStr);
+              }
+            });
             closeManualOverdueModal();
           };
           modal.classList.add('active');
@@ -2675,7 +3011,8 @@
     const payload = { status: newStatus };
     if (newDueDate) payload.due_date = newDueDate;
     payload.session_id = getHistorySessionId();
-    fetch(`/logs/${logId}/update_status`, {
+    setLogLoading(logId, true);
+    return fetch(`/logs/${logId}/update_status`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -2766,7 +3103,8 @@
     .catch(err => {
       console.error(err);
       alert(window.APP_LANGUAGES.error_updating_status);
-    });
+    })
+    .finally(() => setLogLoading(logId, false));
   }
 
   function closeConfirmPaidModal(e) {
@@ -3199,9 +3537,15 @@
   // ─────────────────────────────────────────────────────────────────────────
 
   // Initialize on load and after search/filters
-  document.addEventListener('DOMContentLoaded', initSelectionListeners);
+  document.addEventListener('DOMContentLoaded', () => {
+    initSelectionListeners();
+    initDateChipListeners();
+  });
   // Re-init after any live updates that might replace content
-  const observer = new MutationObserver(initSelectionListeners);
+  const observer = new MutationObserver(() => {
+    initSelectionListeners();
+    initDateChipListeners();
+  });
   observer.observe(document.body, { childList: true, subtree: true });
 
   // ═══════════════ CLIENT MANAGEMENT ═══════════════

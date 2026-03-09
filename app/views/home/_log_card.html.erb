@@ -9,6 +9,7 @@
   _parsed_due = log.parsed_due_date
   _days_until_due = _parsed_due ? (_parsed_due - Date.today).to_i : nil
   _days_overdue = (_days_until_due && _days_until_due < 0) ? -_days_until_due : nil
+  _days_overdue = _days_until_due if _current_status == "overdue" && _days_until_due && _days_until_due > 0
   _days_overdue = nil if _days_overdue == 0
   _due_label = if _current_status == "paid"
                  nil # skip badge for paid — no longer due
@@ -288,10 +289,10 @@
        
        <div class="min-w-0 flex-1">
          <div class="flex flex-wrap items-center gap-1 sm:gap-2 mb-3">
-           <span class="h-5 sm:h-6 flex items-center text-[9px] sm:text-sm font-black text-orange-600 bg-orange-100 px-2 rounded uppercase tracking-wider whitespace-nowrap leading-none">
+           <span class="h-5 sm:h-6 flex items-center text-[9px] sm:text-sm font-black text-orange-600 bg-orange-50 border border-orange-200 px-2 rounded uppercase tracking-wider whitespace-nowrap leading-none">
              INV-<%= log.display_number %>
            </span>
-            <div class="h-5 sm:h-6 flex items-center gap-1 px-2 bg-gray-100 border border-gray-200 rounded text-[9px] sm:text-xs font-black uppercase tracking-tighter text-gray-600 whitespace-nowrap">
+            <div class="h-5 sm:h-6 flex items-center gap-1 px-2 bg-gray-100 border border-gray-300 rounded text-[9px] sm:text-xs font-black uppercase tracking-tighter text-gray-600 whitespace-nowrap cursor-pointer issue-date-chip" data-log-id="<%= log.id %>" data-issue-date="<%= log.date || log.created_at&.to_date %>">
               <svg class="h-2.5 w-2.5 sm:h-3 sm:w-3 shrink-0">
                 <use xlink:href="#icon-calendar"></use>
               </svg>
@@ -299,7 +300,7 @@
             </div>
 
            <% if log.due_date.present? %>
-              <div class="h-5 sm:h-6 flex items-center gap-1 px-2 bg-red-50 border border-red-100 rounded text-[9px] sm:text-xs font-black uppercase tracking-tighter text-red-600 whitespace-nowrap">
+              <div class="h-5 sm:h-6 flex items-center gap-1 px-2 bg-red-50 border border-red-200 rounded text-[9px] sm:text-xs font-black uppercase tracking-tighter text-red-600 whitespace-nowrap cursor-pointer due-date-chip" data-log-id="<%= log.id %>" data-due-date="<%= log.due_date %>">
                 <svg class="h-2.5 w-2.5 sm:h-3 sm:w-3 shrink-0">
                   <use xlink:href="#icon-clock"></use>
                 </svg>
