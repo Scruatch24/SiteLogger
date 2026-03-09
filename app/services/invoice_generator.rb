@@ -195,7 +195,7 @@ class InvoiceGenerator
         amount: "AMOUNT",
         discount: "DISCOUNT",
         tax: "Tax",
-        subtotal: "SUBTOTAL",
+        subtotal: "Subtotal",
         tax_total: "Tax",
         total_due: "TOTAL DUE",
         labor: "Service",
