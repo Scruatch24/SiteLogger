@@ -4356,6 +4356,8 @@ PROMPT
     # clean_name: FALLBACK regex extraction (only used when AI doesn't provide item_name)
     clean_name = lambda do |raw|
       name = raw.to_s.strip
+      # If user said "add X" (დამატე/დამატება X), treat it as product name X
+      name = name.gsub(/^დამატ(ე|ება)\s+/i, "")
       return "Item" if name.blank? || name.match?(/\A[\d.,\s]+\z/)
       # Strip full question patterns: "რა ფასად გსურთ X-ის დამატება?", "რა ღირს X?", etc.
       name = name.gsub(/[?？]+\s*$/, "")                             # trailing ?
@@ -4510,12 +4512,22 @@ PROMPT
       # Clean names + ensure inputs/toggles in AI-generated item_input_list
       (existing_iil["items"] || []).each do |item|
         item["name"] = resolve_name.call(item, item["name"])
+        # Localize labels on AI-provided inputs
+        (item["inputs"] || []).each do |inp|
+          if inp["key"] == "price"
+            inp["label"] = price_lbl
+          elsif inp["key"] == "qty"
+            inp["label"] = qty_lbl
+          end
+        end
         cat = item["category"].to_s
         # Match category from section items if missing, fallback to keyword detection
         if cat.blank?
           si = section_items.find { |s| s[:desc].downcase == item["name"].downcase }
           cat = si[:category] if si
           cat = "labor" if cat.blank? && item["name"].to_s.match?(labor_re)
+          # If name came from an "add X" intent, default to materials
+          cat = "materials" if cat.blank? && item["name"].to_s.match?(/^(დამატე|დამატება)\s+/i)
           item["category"] = cat
         end
         # Ensure materials have qty input
@@ -4566,6 +4578,45 @@ PROMPT
         absorbed << qc.object_id if merged_names.include?(qn.downcase)
       end
       new_clars << { "type" => "item_input_list", "field" => "item_prices", "question" => price_q, "items" => items }
+    end
+
+    # Merge any leftover price clarifications into the price card (avoid stray text questions)
+    price_card = new_clars.find { |c| c["field"] == "item_prices" } || clars.find { |c| c["field"] == "item_prices" }
+    if price_card
+      existing_names = (price_card["items"] || []).map { |i| i["name"].to_s.downcase }
+      leftover_prices = clars.select do |c|
+        next false unless c.is_a?(Hash)
+        f = c["field"].to_s
+        q = c["question"].to_s
+        t = c["type"].to_s
+        (t == "text" || t.blank?) && (f.match?(/\.price|\.unit_price|item_price|price/i) || q.match?(price_re))
+      end
+
+      leftover_prices.each do |pc|
+        item_name = resolve_name.call(pc, pc["guess"].to_s.presence || pc["question"])
+        next if existing_names.include?(item_name.downcase)
+        field_cat = pc["field"].to_s.split(".").first
+        category = cat_prefixes.include?(field_cat) ? field_cat : nil
+        # Treat explicit "add X" as product/material
+        if category.blank? && item_name.match?(/^(დამატე|დამატება)\s+/i)
+          item_name = item_name.gsub(/^(დამატე|დამატება)\s+/i, "").strip
+          category = "materials"
+        end
+        category ||= section_items.find { |s| s[:desc].downcase == item_name.downcase }&.dig(:category)
+        category ||= "labor" if item_name.match?(labor_re)
+
+        inputs = []
+        inputs << { "key" => "qty", "label" => qty_lbl, "type" => "number", "value" => 1 } if category == "materials"
+        inputs << { "key" => "price", "label" => price_lbl, "type" => "number" }
+        toggle = category == "labor" ? { "key" => "billing_mode", "options" => ["fixed", "hourly"], "default" => default_billing } : nil
+
+        (price_card["items"] ||= []) << { "name" => item_name, "category" => category, "inputs" => inputs, "toggle" => toggle }
+        existing_names << item_name.downcase
+        absorbed << pc.object_id
+      end
+
+      # Remove merged leftovers from original clarifications
+      clars.reject! { |c| absorbed.include?(c.object_id) }
     end
 
     # ══════════════════════════════════════════════════════════════════
