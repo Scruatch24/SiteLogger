@@ -4331,7 +4331,7 @@ PROMPT
     clars = data["clarifications"]
     return unless clars.is_a?(Array) && clars.any?
 
-    ui_ka = language.to_s.start_with?("ka")
+    ui_ka = language.to_s.start_with?("ka") || I18n.locale.to_s == "ka"
     default_billing = begin; @profile&.billing_mode || "hourly"; rescue; "hourly"; end
     cat_prefixes = %w[labor materials expenses fees]
 
@@ -4393,6 +4393,7 @@ PROMPT
     # resolve_name: use AI-provided item_name if present, otherwise fallback to regex
     resolve_name = lambda do |clar_hash, fallback_raw|
       ai_name = clar_hash.is_a?(Hash) ? clar_hash["item_name"].to_s.strip : ""
+      ai_name = clean_name.call(ai_name) if ai_name.present?
       return ai_name if ai_name.present?
       clean_name.call(fallback_raw)
     end
@@ -4528,6 +4529,7 @@ PROMPT
           cat = "labor" if cat.blank? && item["name"].to_s.match?(labor_re)
           # If name came from an "add X" intent, default to materials
           cat = "materials" if cat.blank? && item["name"].to_s.match?(/^(დამატე|დამატება)\s+/i)
+          cat = "materials" if cat.blank? && item["name"].to_s.match?(/დამატება$/i)
           item["category"] = cat
         end
         # Ensure materials have qty input
@@ -4600,6 +4602,10 @@ PROMPT
         # Treat explicit "add X" as product/material
         if category.blank? && item_name.match?(/^(დამატე|დამატება)\s+/i)
           item_name = item_name.gsub(/^(დამატე|დამატება)\s+/i, "").strip
+          category = "materials"
+        end
+        if category.blank? && item_name.match?(/დამატება$/i)
+          item_name = item_name.gsub(/დამატება$/i, "").strip
           category = "materials"
         end
         category ||= section_items.find { |s| s[:desc].downcase == item_name.downcase }&.dig(:category)
