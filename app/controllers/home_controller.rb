@@ -1310,6 +1310,7 @@ ITEM NAME RULE (CRITICAL):
 - The "question" field is for the QUESTION TEXT only (e.g., "რა სახის შეკეთებაა?"). NEVER embed item names inside question text as if they were the item name.
 - WRONG: { "field": "labor.price", "question": "რა ფასად გსურთ შეკეთების?" } ← no item_name, name buried in question
 - CORRECT: { "field": "labor.price", "item_name": "შეკეთება", "question": "რა ფასია?" }
+- PRODUCT vs SERVICE NAMES: If the user says "add X" / "დამატე X", treat this as a PRODUCT/MATERIAL name of just "X" (drop the helper verb). If the user describes work like "clean the phone" / "ტელეფონის გაწმენდა" / "სკამის შეკეთება", keep the action+object as the service name. NEVER prepend/helper-verb-wrap nouns with "დამატება", "add", "install" unless the verb itself is the work being sold (e.g., installation service).
 
 RESPONSE TYPE TAXONOMY (every clarification MUST include a "type" field):
 - "choice": user picks ONE option from a list. MUST include "options": ["opt1", "opt2", ...]. Example: section_type, currency.
@@ -1323,9 +1324,11 @@ SAFETY RULES:
 - NEVER re-ask a question. If user gave unexpected input, work with what they gave.
 - Keep questions SHORT and conversational. End with ":" not "." when expecting input.
 - Ask as many clarifications as the situation genuinely requires. Prefer fewer when possible, but do NOT artificially cap yourself. The frontend queues and displays them one at a time. If you have low-confidence guesses, add a "type": "info" clarification explaining your assumptions.
+- When multiple items need prices/qty/hours, RETURN A SINGLE `item_input_list` that lists ALL those items together, even if some values are missing. Leave missing values blank/0 as guesses inside that same card. Do NOT split into separate text clarifications when the item is already identified.
 
 CLARIFICATION LANGUAGE (NON-NEGOTIABLE):
 #{ui_is_georgian ? '- You MUST write ALL clarification question text in Georgian (ქართული). Every single "question" value MUST be in Georgian.' : '- You MUST write ALL clarification question text in English.'}
+- If locale is Georgian, ALL options/labels/guesses you emit must stay in Georgian—avoid English fallbacks.
 
 ADDITIONAL RULES:
 - Prioritize the most impactful clarifications. You may add "type": "info" clarifications to tell the user about your assumptions.
