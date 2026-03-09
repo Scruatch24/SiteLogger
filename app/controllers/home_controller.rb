@@ -4371,6 +4371,8 @@ PROMPT
                   .gsub(/\s+გსურთ$/i, "")                           # ... გსურთ (trailing)
                   .gsub(/\(.*?\)/, "")                               # (...) parenthetical
                   .gsub(/\s+/, " ").strip
+      # Remove any remaining standalone helper verb inside the name
+      name = name.gsub(/\bდამატ(ე|ება)\b/i, "").gsub(/\s+/, " ").strip
       # Strip Georgian genitive suffix -ის if it makes a match
       if name.end_with?("ის") && name.length > 3
         stem = name[0..-3]
