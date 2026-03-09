@@ -9,10 +9,13 @@
   _parsed_due = log.parsed_due_date
   _days_until_due = _parsed_due ? (_parsed_due - Date.today).to_i : nil
   _days_overdue = (_days_until_due && _days_until_due < 0) ? -_days_until_due : nil
+  _days_overdue = nil if _days_overdue == 0
   _due_label = if _current_status == "paid"
                  nil # skip badge for paid — no longer due
-               elsif _current_status == "overdue" || (_days_until_due && _days_until_due < 0)
-                 "overdue_for" # show overdue duration badge
+               elsif _current_status == "overdue"
+                 (_days_until_due == 0 ? "due_today" : "overdue_for")
+               elsif _days_until_due && _days_until_due < 0
+                 "overdue_for"
                elsif _days_until_due == 0
                  "due_today"
                elsif _days_until_due && _days_until_due >= 1 && _days_until_due <= 7
@@ -239,16 +242,22 @@
                             else { bg: "bg-gray-50", border: "border-gray-300", text: "text-gray-500", dot: "bg-gray-400" }
                             end
       %>
-      <div class="flex items-center gap-1 px-2.5 py-1.5 <%= _due_badge_config[:bg] %> border-2 <%= _due_badge_config[:border] %> rounded-t-lg rounded-b-none text-[9px] font-black uppercase tracking-widest <%= _due_badge_config[:text] %> pointer-events-none">
-        <div class="w-1.5 h-1.5 rounded-full <%= _due_badge_config[:dot] %>"></div>
-        <% if _due_label == "overdue_for" && _days_overdue %>
-          <%= t('overdue_for_badge', count: _days_overdue) %>
-        <% else %>
-          <%= t(_due_label) %>
-          <% if _days_until_due && _days_until_due > 0 %>
-            <span class="opacity-60">(<%= t('days_suffix', count: _days_until_due) %>)</span>
+      <div class="flex items-center gap-1 px-2.5 py-1.5 <%= _due_badge_config[:bg] %> border-2 <%= _due_badge_config[:border] %> rounded-t-lg rounded-b-none text-[9px] font-black uppercase tracking-widest <%= _due_badge_config[:text] %> pointer-events-none due-badge">
+        <div class="w-1.5 h-1.5 rounded-full <%= _due_badge_config[:dot] %> due-dot"></div>
+        <span class="due-text flex items-center gap-1">
+          <% if _due_label == "overdue_for" && _days_overdue && _days_overdue > 0 %>
+            <%= t('overdue_for_badge', count: _days_overdue) %>
+          <% else %>
+            <% if (_due_label == "due_this_week" || _due_label == "due_this_month") && _days_until_due && _days_until_due > 0 %>
+              <%= t('due_in_days', count: _days_until_due) %>
+            <% else %>
+              <%= t('due_today') %>
+              <% if _days_until_due && _days_until_due > 0 %>
+                <span class="opacity-60">(<%= t('days_suffix', count: _days_until_due) %>)</span>
+              <% end %>
+            <% end %>
           <% end %>
-        <% end %>
+        </span>
       </div>
     <% end %>
   </div>
@@ -294,7 +303,7 @@
                 <svg class="h-2.5 w-2.5 sm:h-3 sm:w-3 shrink-0">
                   <use xlink:href="#icon-clock"></use>
                 </svg>
-                <span class="leading-none text-xs sm:text-sm">
+                <span class="leading-none text-xs sm:text-sm due-date-text">
                   <% if I18n.locale == :ka %>
                     <%= l(Date.parse(log.due_date.to_s), format: :long) %>
                   <% else %>

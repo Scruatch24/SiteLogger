@@ -1492,8 +1492,14 @@
     unpin_log: "<%= j t('unpin_log') %>",
     pin_log: "<%= j t('pin_log') %>",
     save_changes: "<%= j t('save_changes') %>",
-    overdue_for_badge: "<%= j t('overdue_for_badge', count: '%{count}') %>"
+    overdue_for_badge: "<%= j t('overdue_for_badge', count: '%{count}') %>",
+    due_today: "<%= j t('due_today') %>",
+    due_in_days: "<%= j t('due_in_days', count: '%{count}') %>",
+    days_suffix: "<%= j t('days_suffix', count: '%{count}') %>",
+    due: "<%= j t('due') %>"
   };
+
+  const pageLocale = "<%= I18n.locale %>";
 
   // State Management
   let activeCategoryId = null;
@@ -2306,6 +2312,105 @@
       el.style.color = '#dc2626';
     });
   }
+
+  function updateDueBadge(logId, newStatus, newDueDate) {
+    const cards = document.querySelectorAll(`.log-card[data-log-id="${logId}"]`);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const dueConfigs = {
+      overdue_for: { bg: 'bg-red-50', border: 'border-red-400', text: 'text-red-600', dot: 'bg-red-500 animate-pulse' },
+      due_today: { bg: 'bg-amber-50', border: 'border-amber-400', text: 'text-amber-700', dot: 'bg-amber-500 animate-pulse' },
+      due_this_week: { bg: 'bg-blue-50', border: 'border-blue-300', text: 'text-blue-600', dot: 'bg-blue-400' },
+      due_this_month: { bg: 'bg-gray-50', border: 'border-gray-300', text: 'text-gray-500', dot: 'bg-gray-400' }
+    };
+
+    cards.forEach(card => {
+      if (newDueDate) card.dataset.dueDate = newDueDate;
+      const badge = card.querySelector('.due-badge');
+      if (!badge) return;
+      const dot = badge.querySelector('.due-dot');
+      const textEl = badge.querySelector('.due-text');
+      const dueDateStr = card.dataset.dueDate;
+      let daysUntilDue = null;
+      if (dueDateStr) {
+        const due = new Date(`${dueDateStr}T00:00:00`);
+        daysUntilDue = Math.floor((due - today) / 86400000);
+      }
+
+      let dueLabel = null;
+      if (newStatus === 'paid') {
+        dueLabel = null;
+      } else if (newStatus === 'overdue') {
+        dueLabel = (daysUntilDue !== null && daysUntilDue < 0) ? 'overdue_for' : 'due_today';
+      } else if (daysUntilDue === 0) {
+        dueLabel = 'due_today';
+      } else if (daysUntilDue !== null && daysUntilDue >= 1 && daysUntilDue <= 7) {
+        dueLabel = 'due_this_week';
+      } else if (daysUntilDue !== null && daysUntilDue >= 8 && daysUntilDue <= 30) {
+        dueLabel = 'due_this_month';
+      }
+
+      if (!dueLabel) {
+        badge.classList.add('hidden');
+        return;
+      }
+
+      const cfg = dueConfigs[dueLabel] || dueConfigs.due_this_month;
+      badge.className = `flex items-center gap-1 px-2.5 py-1.5 ${cfg.bg} border-2 ${cfg.border} rounded-t-lg rounded-b-none text-[9px] font-black uppercase tracking-widest ${cfg.text} pointer-events-none due-badge`;
+      if (dot) dot.className = `w-1.5 h-1.5 rounded-full ${cfg.dot} due-dot`;
+
+      let text = '';
+      if (dueLabel === 'overdue_for') {
+        const daysOver = daysUntilDue !== null ? Math.abs(daysUntilDue) : null;
+        if (daysOver && daysOver > 0) {
+          text = (window.APP_LANGUAGES?.overdue_for_badge || 'Overdue for %{count} days').replace('%{count}', daysOver);
+        } else {
+          text = window.APP_LANGUAGES?.due_today || 'Due Today';
+        }
+      } else if ((dueLabel === 'due_this_week' || dueLabel === 'due_this_month') && daysUntilDue && daysUntilDue > 0) {
+        text = (window.APP_LANGUAGES?.due_in_days || 'Due in %{count} Days').replace('%{count}', daysUntilDue);
+      } else {
+        text = window.APP_LANGUAGES?.[dueLabel] || (dueLabel === 'due_today' ? 'Due Today' : dueLabel);
+      }
+
+      if (textEl) {
+        textEl.textContent = text;
+      }
+      badge.classList.remove('hidden');
+    });
+  }
+
+  function formatDueDateLabel(dateStr) {
+    if (!dateStr) return '';
+    try {
+      const d = new Date(`${dateStr}T00:00:00`);
+      const opts = { year: 'numeric', month: 'short', day: 'numeric' };
+      const localeGuess = (pageLocale || document.documentElement.lang || 'en');
+      const isKa = localeGuess.toLowerCase().startsWith('ka');
+      const localeForDate = isKa ? 'ka-GE' : localeGuess;
+      const formatter = new Intl.DateTimeFormat(localeForDate, opts);
+      let formatted = formatter.format(d);
+      if (isKa) {
+        // Fallback if browser lacks Georgian month names and returns English
+        if (/[A-Za-z]/.test(formatted)) {
+          const monthsKa = ['იან', 'თებ', 'მარ', 'აპრ', 'მაი', 'ივნ', 'ივლ', 'აგვ', 'სექ', 'ოქტ', 'ნოე', 'დეკ'];
+          formatted = `${monthsKa[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+        }
+        return formatted;
+      }
+      const dueLabel = window.APP_LANGUAGES.due || 'Due';
+      return `${dueLabel}: ${formatted}`;
+    } catch(e) { return dateStr; }
+  }
+
+  function updateDueDateText(logId, newDueDate) {
+    const cards = document.querySelectorAll(`.log-card[data-log-id="${logId}"] .due-date-text`);
+    cards.forEach(span => {
+      span.textContent = formatDueDateLabel(newDueDate);
+    });
+  }
+
   function openManageCategoriesModal(logIds, initialStates) {
     // logIds can be a single ID or an array of IDs
     const ids = Array.isArray(logIds) ? logIds : [logIds];
@@ -2627,6 +2732,9 @@
           if (newStatus === 'paid') card.dataset.dueRange = 'none';
         }
 
+        // Update due badge text/color for this log (handles manual overdue 0 days and draft resets)
+        updateDueBadge(logId, newStatus, newDueDate);
+
         // Rule: If Paid, hide Rename button; otherwise show it
         const renameBtn = document.getElementById(`rename-btn-${logId}`);
         if (renameBtn) {
@@ -2644,26 +2752,11 @@
           });
         }
 
-        // Handle due badge visibility and content
-        const statusBadgeContainer = badge.closest('.flex.items-end');
-        if (statusBadgeContainer) {
-          const dueBadge = statusBadgeContainer.querySelector('.pointer-events-none');
-          if (dueBadge) {
-            if (newStatus === 'overdue' && newDueDate) {
-              // Show overdue days badge for manual overdue
-              const dueD = new Date(res.due_date + 'T00:00:00');
-              const nowD = new Date(); nowD.setHours(0,0,0,0);
-              const overdueDays = Math.max(0, Math.round((nowD - dueD) / 86400000));
-              dueBadge.className = 'flex items-center gap-1 px-2.5 py-1.5 bg-red-50 border-2 border-red-400 rounded-t-lg rounded-b-none text-[9px] font-black uppercase tracking-widest text-red-600 pointer-events-none';
-              dueBadge.innerHTML = '<div class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></div>' +
-                (window.APP_LANGUAGES.overdue_for_badge || '').replace('%{count}', overdueDays);
-              dueBadge.classList.remove('hidden');
-            } else if (newStatus === 'paid' || newStatus === 'overdue') {
-              dueBadge.classList.add('hidden');
-            } else {
-              dueBadge.classList.remove('hidden');
-            }
-          }
+        // Refresh due badge (handles manual overdue 0 days and draft transitions)
+        updateDueBadge(logId, newStatus, res.due_date || newDueDate);
+        // Refresh due date text if changed
+        if (res.due_date || newDueDate) {
+          updateDueDateText(logId, res.due_date || newDueDate);
         }
 
       } else {

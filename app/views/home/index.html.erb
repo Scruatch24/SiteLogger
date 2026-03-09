@@ -520,14 +520,20 @@
   window.clarificationLimit = <%= @profile.clarification_limit %>;
 
   // ── FROM / BILLED TO State ──
+  const decodeEntities = (str) => {
+    const el = document.createElement('textarea');
+    el.innerHTML = str;
+    return el.value;
+  };
+
   window.profileDefaults = {
-    business_name: "<%= j @profile.business_name.to_s %>",
-    payment_instructions: "<%= j @profile.payment_instructions.to_s %>",
-    note: "<%= j @profile.note.to_s %>",
-    email: "<%= j @profile.email.to_s %>",
-    phone: "<%= j @profile.phone.to_s %>",
-    address: "<%= j @profile.address.to_s %>",
-    tax_id: "<%= j @profile.tax_id.to_s %>"
+    business_name: decodeEntities("<%= j @profile.business_name.to_s %>"),
+    payment_instructions: decodeEntities("<%= j @profile.payment_instructions.to_s %>"),
+    note: decodeEntities("<%= j @profile.note.to_s %>"),
+    email: decodeEntities("<%= j @profile.email.to_s %>"),
+    phone: decodeEntities("<%= j @profile.phone.to_s %>"),
+    address: decodeEntities("<%= j @profile.address.to_s %>"),
+    tax_id: decodeEntities("<%= j @profile.tax_id.to_s %>")
   };
   window.invoiceSenderInfo = null; // null = use profile defaults
   window.invoiceRecipientInfo = null; // null = no client selected
