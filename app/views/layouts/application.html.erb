@@ -1727,11 +1727,9 @@
           return !/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
         }
 
-        var hasAttemptedShow = false;
-
         function showModal() {
           if (isStandalone() || wasDismissed()) return;
-          hasAttemptedShow = true;
+          if (modal.style.display === 'block') return; // Already showing
           
           // Reset visibility
           installBtn.style.display = 'none';
@@ -1747,14 +1745,9 @@
             installBtn.style.display = 'block';
             installBtn.textContent = isDesktop() ? "<%= j t('pwa.install_desktop') %>" : "<%= j t('pwa.install_btn') %>";
           } else {
-            // We are on Android/Desktop but haven't received the install prompt yet.
-            // This means we are either in a browser that doesn't support it (Firefox),
-            // or the user already installed the app, or the event is delayed.
-            // We abort here so we don't show a useless modal.
+            // Should not happen with new decoupled triggers, but just in case
             return;
           }
-
-          if (modal.style.display === 'block') return; // Already showing
 
           modal.style.opacity = '0';
           modal.style.display = 'block';
@@ -1782,21 +1775,23 @@
           return !/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
         }
 
-        // Native install prompt listener
+        // --- TRIGGERS ---
+
+        // 1. Android / Desktop: Native install prompt listener
+        // This ensures the modal ONLY shows if the browser actually allows installation
         window.addEventListener('beforeinstallprompt', function(e) {
           e.preventDefault();
           deferredPrompt = e;
-          // If the 2.5s timer already tried to show the modal and failed because
-          // this prompt was delayed, we show it now.
-          if (hasAttemptedShow) {
-             showModal();
-          }
+          // Wait a brief moment after prompt is ready before showing modal
+          setTimeout(showModal, 1500);
         });
 
-        // Universal Trigger: Show after 2.5s 
-        setTimeout(showModal, 2500);
+        // 2. iOS: No native prompt event exists, so we just use a timer
+        if (isIOS()) {
+          setTimeout(showModal, 2500);
+        }
 
-        // Install button (Android)
+        // Install button (Android/Desktop)
         installBtn.addEventListener('click', function() {
           if (!deferredPrompt) return;
           deferredPrompt.prompt();
