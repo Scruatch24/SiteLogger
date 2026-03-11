@@ -1719,8 +1719,9 @@
           }
         }
 
-        function showModal() {
-          if (isStandalone() || wasDismissed()) return;
+        function showModal(force) {
+          if (!force && (isStandalone() || wasDismissed())) return;
+          if (!modal) return;
           modal.style.opacity = '0';
           modal.style.display = 'block';
           modal.style.transition = 'opacity 0.4s ease';
@@ -1735,6 +1736,14 @@
           });
         }
 
+        // Expose trigger to global scope for testing
+        window.showPWAModal = function() { showModal(true); };
+
+        // Check for manual trigger in URL
+        if (window.location.search.includes('pwa_test=1')) {
+          setTimeout(function() { showModal(true); }, 800);
+        }
+
         function isIOS() {
           return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
         }
@@ -1747,7 +1756,7 @@
         window.addEventListener('beforeinstallprompt', function(e) {
           e.preventDefault();
           deferredPrompt = e;
-          setTimeout(showModal, 2500);
+          setTimeout(function() { showModal(false); }, 2500);
         });
 
         // Install button (Android)
