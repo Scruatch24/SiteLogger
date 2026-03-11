@@ -1198,6 +1198,7 @@ en:
     feat2: "Works offline"
     feat3: "Home screen icon"
     install_btn: "Add to Home Screen"
+    install_desktop: "Add to Desktop"
     ios_btn: "How to Install"
     ios_chrome_step1: "Tap the Share button in the top right"
     ios_chrome_step2: "Tap \"More\""

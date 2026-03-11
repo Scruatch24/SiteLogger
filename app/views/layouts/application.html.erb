@@ -1719,6 +1719,26 @@
           }
         }
 
+        function isIOSChrome() {
+          return isIOS() && /CriOS/.test(navigator.userAgent);
+        }
+
+        function isDesktop() {
+          return !/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        }
+
+        // Native install prompt listener
+        window.addEventListener('beforeinstallprompt', function(e) {
+          e.preventDefault();
+          deferredPrompt = e;
+          // If modal is already showing but currently "empty" or fallback on desktop, 
+          // we should update it to show the button now that we have a prompt.
+          if (modal.style.display === 'block' && isDesktop()) {
+             installBtn.style.display = 'block';
+             installBtn.textContent = "<%= j t('pwa.install_desktop') %>";
+          }
+        });
+
         function showModal() {
           if (isStandalone() || wasDismissed()) return;
           
@@ -1730,14 +1750,21 @@
           if (deferredPrompt) {
             // Android / Chrome Desktop with native prompt
             installBtn.style.display = 'block';
+            installBtn.textContent = isDesktop() ? "<%= j t('pwa.install_desktop') %>" : "<%= j t('pwa.install_btn') %>";
           } else if (isIOSChrome()) {
             iosChromeSteps.style.display = 'block';
           } else if (isIOS()) {
             iosSafariSteps.style.display = 'block';
           } else {
-            // Fallback for other devices - show Safari-style if generic mobile, 
-            // or just the install button if eventually supported
+            // Fallback for other devices
+            if (isDesktop()) {
+               // On desktop without prompt, we DON'T show the modal because the button won't work.
+               // Browsers like Firefox or Safari on Desktop don't support beforeinstallprompt.
+               return;
+            }
+            // Generic mobile - show the button as a best effort (might not work, but user said "all devices")
             installBtn.style.display = 'block';
+            installBtn.textContent = "<%= j t('pwa.install_btn') %>";
           }
 
           modal.style.opacity = '0';
@@ -1757,17 +1784,6 @@
         function isIOS() {
           return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
         }
-
-        function isIOSChrome() {
-          return isIOS() && /CriOS/.test(navigator.userAgent);
-        }
-
-        // Native install prompt listener
-        window.addEventListener('beforeinstallprompt', function(e) {
-          e.preventDefault();
-          deferredPrompt = e;
-          // showModal will be called by the general trigger below
-        });
 
         // Universal Trigger: Show after 2.5s for everyone not in standalone
         setTimeout(showModal, 2500);
