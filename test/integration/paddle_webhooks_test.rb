@@ -124,7 +124,7 @@ class PaddleWebhooksTest < ActionDispatch::IntegrationTest
       tax_rate: 18,
       currency: "USD",
       billing_mode: "hourly",
-      tax_scope: "labor,materials_only"
+      tax_scope: "labor,products_only"
     )
 
     user.reload

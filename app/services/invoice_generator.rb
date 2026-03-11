@@ -156,9 +156,9 @@ class InvoiceGenerator
         tax_total: "დღგ",
         total_due: "გადასახდელი ბალანსი",
         labor: "პროფესიონალური მომსახურება",
-        material: "მასალა",
+        product: "მასალა",
         fee: "მოსაკრებელი",
-        expense: "ხარჯი",
+        reimbursement: "ხარჯი",
         other: "სხვა",
         credit: "კრედიტი",
         client: "კლიენტი",
@@ -199,9 +199,9 @@ class InvoiceGenerator
         tax_total: "Tax",
         total_due: "TOTAL DUE",
         labor: "Service",
-        material: "Material",
+        product: "Product",
         fee: "Fee",
-        expense: "Expense",
+        reimbursement: "Reimbursement",
         other: "Other",
         credit: "CREDIT",
         client: "CLIENT",
@@ -318,14 +318,9 @@ class InvoiceGenerator
       # Client Content (BILLED TO)
       @pdf.fill_color @dark_charcoal
       @pdf.font(@base_font_name, style: :bold, size: 10) do
-        client_name = (@recipient.name.presence || labels[:valued_client]).upcase
-        if @document_language == "ka"
-          @pdf.stroke_color @dark_charcoal
-          @pdf.line_width(0.35)
-          @pdf.text client_name, leading: 2, mode: :fill_stroke
-        else
-          @pdf.text client_name, leading: 2
-        end
+        client_name = (@recipient.name.presence || labels[:valued_client])
+        client_name = client_name.upcase unless @document_language == "ka"
+        @pdf.text client_name, leading: 2
       end
 
       # Recipient address
@@ -479,8 +474,8 @@ class InvoiceGenerator
 
     categories = [
         { key: :labor, title: labels[:labor] },
-        { key: :material, title: labels[:material] },
-        { key: :expense, title: labels[:expense] },
+        { key: :product, title: labels[:product] },
+        { key: :reimbursement, title: labels[:reimbursement] },
         { key: :fee, title: labels[:fee] }
     ]
 
@@ -1145,7 +1140,7 @@ class InvoiceGenerator
   end
 
   def prepare_data
-    @categorized_items = { labor: [], material: [], expense: [], fee: [] }
+    @categorized_items = { labor: [], product: [], reimbursement: [], fee: [] }
     @item_discount_total = 0.0
     @tax_amount = 0.0
 
@@ -1162,10 +1157,10 @@ class InvoiceGenerator
       title = section["title"].to_s.downcase
       category_key = case title
       when /labor|service|სამუშაო|მომსახურება/i then :labor
-      when /material|მასალ/i then :material
-      when /expense|ხარჯ/i then :expense
+      when /product|მასალ/i then :product
+      when /reimbursement|ხარჯ/i then :reimbursement
       when /fee|მოსაკრებ|საკომისიო|შესაკრებ/i then :fee
-      else :material
+      else :product
       end
 
       if section["items"]
@@ -1176,13 +1171,13 @@ class InvoiceGenerator
             if I18n.locale.to_s == "ka"
               desc = case category_key
               when :labor then "პროფესიონალური მომსახურება"
-              when :material then "მასალა"
-              when :expense then "ხარჯი"
+              when :product then "მასალა"
+              when :reimbursement then "ხარჯი"
               when :fee then "მოსაკრებელი"
               else "მასალა"
               end
             else
-              desc = labels[category_key] || labels[:material]
+              desc = labels[category_key] || labels[:product]
             end
           end
           qty = 1.0; price = 0.0; gross_price = 0.0
@@ -1351,14 +1346,9 @@ class InvoiceGenerator
       @pdf.move_down 8
       @pdf.fill_color "000000"
       @pdf.font(@base_font_name, style: :bold, size: 11) do
-        bold_client = (@log.client.presence || "VALUED CLIENT").upcase
-        if @document_language == "ka"
-          @pdf.stroke_color "000000"
-          @pdf.line_width(0.35)
-          @pdf.text bold_client, leading: 2, mode: :fill_stroke
-        else
-          @pdf.text bold_client, leading: 2
-        end
+        bold_client = (@log.client.presence || "VALUED CLIENT")
+        bold_client = bold_client.upcase unless @document_language == "ka"
+        @pdf.text bold_client, leading: 2
       end
       @pdf.move_down 5
       @pdf.fill_color @mid_gray
@@ -1443,14 +1433,9 @@ class InvoiceGenerator
       end
       @pdf.move_down 10
       @pdf.font(@base_font_name, style: :bold, size: 12) do
-        modern_client = (@log.client.presence || "CLIENT").upcase
-        if @document_language == "ka"
-          @pdf.stroke_color "000000"
-          @pdf.line_width(0.35)
-          @pdf.text modern_client, mode: :fill_stroke
-        else
-          @pdf.text modern_client
-        end
+        modern_client = (@log.client.presence || "CLIENT")
+        modern_client = modern_client.upcase unless @document_language == "ka"
+        @pdf.text modern_client
       end
       @pdf.move_down 4
       @pdf.font(@base_font_name, size: 9) do
@@ -1521,14 +1506,9 @@ class InvoiceGenerator
       end
       @pdf.move_down 5
       @pdf.font(@base_font_name, style: :bold, size: 16) do
-        bold_style_client = (@log.client.presence || "CLIENT").upcase
-        if @document_language == "ka"
-          @pdf.stroke_color "000000"
-          @pdf.line_width(0.4)
-          @pdf.text bold_style_client, leading: 2, mode: :fill_stroke
-        else
-          @pdf.text bold_style_client, leading: 2
-        end
+        bold_style_client = (@log.client.presence || "CLIENT")
+        bold_style_client = bold_style_client.upcase unless @document_language == "ka"
+        @pdf.text bold_style_client, leading: 2
       end
     end
 
@@ -1576,14 +1556,9 @@ class InvoiceGenerator
       @pdf.move_down 5
       @pdf.font(@base_font_name, style: :bold, size: 10) do
         @pdf.fill_color "000000"
-        min_client = (@log.client.presence || "CLIENT").upcase
-        if @document_language == "ka"
-          @pdf.stroke_color "000000"
-          @pdf.line_width(0.35)
-          @pdf.text min_client, leading: 2, mode: :fill_stroke
-        else
-          @pdf.text min_client, leading: 2
-        end
+        min_client = (@log.client.presence || "CLIENT")
+        min_client = min_client.upcase unless @document_language == "ka"
+        @pdf.text min_client, leading: 2
       end
       @pdf.font(@base_font_name, size: 8) do
         @pdf.fill_color @mid_gray

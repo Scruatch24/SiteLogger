@@ -1,10 +1,10 @@
 /* ── Sanitize filename for cross-platform sharing (Georgian → Latin transliteration) ── */
-window.sanitizeFileName = function(name) {
+window.sanitizeFileName = function (name) {
   var map = {
-    'ა':'a','ბ':'b','გ':'g','დ':'d','ე':'e','ვ':'v','ზ':'z','თ':'t','ი':'i',
-    'კ':'k','ლ':'l','მ':'m','ნ':'n','ო':'o','პ':'p','ჟ':'zh','რ':'r','ს':'s',
-    'ტ':'t','უ':'u','ფ':'p','ქ':'k','ღ':'gh','ყ':'q','შ':'sh','ჩ':'ch',
-    'ც':'ts','ძ':'dz','წ':'ts','ჭ':'ch','ხ':'kh','ჯ':'j','ჰ':'h'
+    'ა': 'a', 'ბ': 'b', 'გ': 'g', 'დ': 'd', 'ე': 'e', 'ვ': 'v', 'ზ': 'z', 'თ': 't', 'ი': 'i',
+    'კ': 'k', 'ლ': 'l', 'მ': 'm', 'ნ': 'n', 'ო': 'o', 'პ': 'p', 'ჟ': 'zh', 'რ': 'r', 'ს': 's',
+    'ტ': 't', 'უ': 'u', 'ფ': 'p', 'ქ': 'k', 'ღ': 'gh', 'ყ': 'q', 'შ': 'sh', 'ჩ': 'ch',
+    'ც': 'ts', 'ძ': 'dz', 'წ': 'ts', 'ჭ': 'ch', 'ხ': 'kh', 'ჯ': 'j', 'ჰ': 'h'
   };
   var result = '';
   for (var i = 0; i < name.length; i++) {
@@ -19,7 +19,7 @@ window.sanitizeFileName = function(name) {
 /* ── Global Popup Backdrop ── */
 window._activePopupClose = null;
 
-window.showPopupBackdrop = function(triggerEl, closeFn) {
+window.showPopupBackdrop = function (triggerEl, closeFn) {
   var bd = document.getElementById('popupBackdrop');
   if (!bd) return;
   /* Close any currently active popup first */
@@ -29,7 +29,7 @@ window.showPopupBackdrop = function(triggerEl, closeFn) {
     prev();
   }
   /* Reset previously elevated elements */
-  document.querySelectorAll('[style*="z-index"]').forEach(function(el) {
+  document.querySelectorAll('[style*="z-index"]').forEach(function (el) {
     if (el._backdropElevated) { el.style.zIndex = ''; el._backdropElevated = false; }
   });
   bd.classList.remove('hidden');
@@ -47,17 +47,17 @@ window.showPopupBackdrop = function(triggerEl, closeFn) {
 };
 
 /* Visual cleanup only – never calls the close callback */
-window.hidePopupBackdrop = function() {
+window.hidePopupBackdrop = function () {
   var bd = document.getElementById('popupBackdrop');
   if (bd) bd.classList.add('hidden');
-  document.querySelectorAll('[style*="z-index"]').forEach(function(el) {
+  document.querySelectorAll('[style*="z-index"]').forEach(function (el) {
     if (el._backdropElevated) { el.style.zIndex = ''; el._backdropElevated = false; }
   });
   window._activePopupClose = null;
 };
 
 /* Called when user clicks the backdrop overlay directly */
-window._dismissPopup = function() {
+window._dismissPopup = function () {
   var fn = window._activePopupClose;
   window._activePopupClose = null;          /* clear FIRST to prevent re-entry */
   if (fn) fn();                              /* popup-specific close logic */
@@ -123,7 +123,7 @@ function _smoothlySetInputValue(targetInput, nextText, options) {
 
   if (targetInput._smoothTextTimer) return;
 
-  targetInput._smoothTextTimer = setInterval(function() {
+  targetInput._smoothTextTimer = setInterval(function () {
     var target = targetInput._smoothTextTarget || '';
     var opts = targetInput._smoothTextOptions || {};
     var current = targetInput.value || '';
@@ -278,7 +278,7 @@ window.toggleGlobalDiscountPanel = function (btn) {
   if (isHidden) {
     panel.classList.remove('hidden');
     btn.classList.add('pop-active');
-    window.showPopupBackdrop(btn, function() { window.toggleGlobalDiscountPanel(btn); });
+    window.showPopupBackdrop(btn, function () { window.toggleGlobalDiscountPanel(btn); });
   } else {
     panel.classList.add('hidden');
     btn.classList.remove('pop-active');
@@ -916,7 +916,7 @@ function setItemPriceButtonState(btn, active) {
   }
 }
 
-function isProductsExpensesFeesTaxScope(scopeValue, sectionType = "") {
+function isProductsReimbursementsFeesTaxScope(scopeValue, sectionType = "") {
   const scopeTokens = (scopeValue || "")
     .toLowerCase()
     .split(',')
@@ -925,16 +925,16 @@ function isProductsExpensesFeesTaxScope(scopeValue, sectionType = "") {
 
   if (scopeTokens.length === 0) return false;
 
-  const hasProducts = scopeTokens.some(t => t.includes('material') || t.includes('part') || t.includes('product'));
-  const hasExpenses = scopeTokens.some(t => t.includes('expense') || t.includes('reimburse'));
+  const hasProducts = scopeTokens.some(t => t.includes('product') || t.includes('part') || t.includes('product'));
+  const hasReimbursements = scopeTokens.some(t => t.includes('reimbursement') || t.includes('reimburse'));
   const hasFees = scopeTokens.some(t => t.includes('fee') || t.includes('surcharge'));
   const isAllScope = scopeTokens.some(t => t === 'total' || t === 'all') || scopeTokens.length >= 4;
 
   if (isAllScope) return true;
 
   const normalizedSection = (sectionType || "").toLowerCase();
-  if (normalizedSection === 'materials') return hasProducts;
-  if (normalizedSection === 'expenses') return hasExpenses;
+  if (normalizedSection === 'products') return hasProducts;
+  if (normalizedSection === 'reimbursements') return hasReimbursements;
   if (normalizedSection === 'fees') return hasFees;
 
   return false;
@@ -944,12 +944,14 @@ function applyItemAddPriceDefaults(row) {
   if (!row || row.dataset.priceToggleEligible !== 'true') return;
 
   const sectionType = row.closest('.dynamic-section')?.dataset?.protected || '';
-  if (!isProductsExpensesFeesTaxScope(currentLogTaxScope, sectionType)) return;
+  if (!isProductsReimbursementsFeesTaxScope(currentLogTaxScope, sectionType)) return;
 
   const priceInput = row.querySelector('.price-menu-input');
   if (priceInput) {
-    const currentPrice = parseFloat(priceInput.value);
-    if (priceInput.value === '' || isNaN(currentPrice) || currentPrice === 0) {
+    const currentPriceRaw = String(priceInput.value || '').trim();
+    const currentPrice = parseFloat(currentPriceRaw);
+    // Only apply default if truly empty/blank
+    if (currentPriceRaw === '' || isNaN(currentPrice)) {
       priceInput.value = '50';
     }
   }
@@ -962,7 +964,8 @@ function applyItemAddPriceDefaults(row) {
 
   const currentTaxRaw = String(taxInput.value || '').trim();
   const currentTax = parseFloat(currentTaxRaw);
-  if (currentTaxRaw === '' || isNaN(currentTax) || currentTax === 0) {
+  // Only apply default tax if truly empty/blank. Respect explicit 0.
+  if (currentTaxRaw === '' || isNaN(currentTax)) {
     taxInput.value = cleanNum(defaultTaxRate);
   }
 }
@@ -1778,7 +1781,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const clamped = Math.max(0, Math.min(1, Number(level) || 0));
     recordBtn.style.setProperty('--voice-level', clamped.toFixed(3));
     if (recordingWave) recordingWave.style.setProperty('--voice-level', clamped.toFixed(3));
-    recordingWaveBars.forEach(function(bar, idx) {
+    recordingWaveBars.forEach(function (bar, idx) {
       const distanceFromCenter = Math.abs(idx - ((recordingWaveBars.length - 1) / 2));
       const emphasis = Math.max(0.62, 1.08 - (distanceFromCenter * 0.18));
       const scale = Math.max(0.14, Math.min(1, 0.14 + (clamped * emphasis)));
@@ -1828,7 +1831,7 @@ document.addEventListener("DOMContentLoaded", () => {
       source.connect(recorderAnalyser);
       setRecorderMeterLevel(0.16);
 
-      const updateMeter = function() {
+      const updateMeter = function () {
         if (!recorderAnalyser || !recorderLevelData) return;
         recorderAnalyser.getByteTimeDomainData(recorderLevelData);
         let sumSquares = 0;
@@ -1941,7 +1944,7 @@ document.addEventListener("DOMContentLoaded", () => {
         mediaRecorder.onstop = processAudio;
 
         mediaRecorder.start(3000);
-        
+
         window.recordingStartTime = Date.now();
         window._liveRecordingActive = true;
         _setTranscriptLanguageSelectorLocked(true);
@@ -1980,7 +1983,7 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         }, 1000);
       } catch (e) {
-        
+
         showError(window.APP_LANGUAGES.microphone_access_denied || "Microphone access required.");
       }
     } else {
@@ -2007,7 +2010,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (mediaRecorder.stream) {
         mediaRecorder.stream.getTracks().forEach(t => t.stop());
       }
-      
+
       isRecording = false;
       window.totalVoiceUsed = Math.floor(duration / 1000); // Set initial bank usage
       startAnalysisUI();
@@ -2027,7 +2030,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const timerDisplay = document.getElementById("currentAudioTime");
     if (timerDisplay) timerDisplay.classList.remove("text-red-600");
 
-    
+
 
     isRecording = false;
     window._liveRecordingActive = false;
@@ -2445,13 +2448,13 @@ document.addEventListener("DOMContentLoaded", () => {
     if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
     // On mobile, nudge scroll down 1px to collapse browser toolbar if visible
     if (window.innerWidth < 768 && document.documentElement.scrollHeight > window.innerHeight) {
-        window.scrollBy(0, 1);
+      window.scrollBy(0, 1);
     }
     document.body.classList.add('overflow-hidden');
     document.documentElement.classList.add('overflow-hidden');
     // Block touchmove on background (most reliable mobile scroll lock)
     window._pdfPreventScroll = (e) => {
-        if (!e.target.closest('#pdfModalContent')) e.preventDefault();
+      if (!e.target.closest('#pdfModalContent')) e.preventDefault();
     };
     document.addEventListener('touchmove', window._pdfPreventScroll, { passive: false });
 
@@ -2613,7 +2616,7 @@ document.addEventListener("DOMContentLoaded", () => {
             void jsContainer.offsetWidth;
             jsContainer.classList.add('pdf-reveal');
             jsContainer.addEventListener('animationend', function onEnd(e) {
-              if (e.animationName === 'pdfMaterialize') {
+              if (e.animationName === 'pdfProductize') {
                 jsContainer.classList.remove('pdf-reveal');
                 jsContainer.removeEventListener('animationend', onEnd);
               }
@@ -2631,7 +2634,7 @@ document.addEventListener("DOMContentLoaded", () => {
             void pdfCanvas.offsetWidth;
             pdfCanvas.classList.add('pdf-reveal');
             pdfCanvas.addEventListener('animationend', function onEnd(e) {
-              if (e.animationName === 'pdfMaterialize') {
+              if (e.animationName === 'pdfProductize') {
                 pdfCanvas.classList.remove('pdf-reveal');
                 pdfCanvas.removeEventListener('animationend', onEnd);
               }
@@ -2780,8 +2783,8 @@ document.addEventListener("DOMContentLoaded", () => {
     document.body.classList.remove('overflow-hidden');
     document.documentElement.classList.remove('overflow-hidden');
     if (window._pdfPreventScroll) {
-        document.removeEventListener('touchmove', window._pdfPreventScroll);
-        window._pdfPreventScroll = null;
+      document.removeEventListener('touchmove', window._pdfPreventScroll);
+      window._pdfPreventScroll = null;
     }
 
     // Explicitly reset save state on close so changes can be re-saved
@@ -3163,7 +3166,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (reviewCont) {
     reviewCont.addEventListener('input', () => {
       if (logAlreadySaved) {
-          logAlreadySaved = false;
+        logAlreadySaved = false;
         savedLogId = null;
         savedLogDisplayNumber = null;
         savedLogClient = null;
@@ -3283,7 +3286,7 @@ function toggleCalendar(btn) {
     renderCalendar();
     popup.classList.remove('hidden');
     if (btn) btn.classList.add('pop-active');
-    window.showPopupBackdrop(btn, function() { toggleCalendar(btn); });
+    window.showPopupBackdrop(btn, function () { toggleCalendar(btn); });
   } else {
     popup.classList.add('hidden');
     // If we don't have btn, find it
@@ -3448,7 +3451,7 @@ function toggleMainCalendar(btn) {
     renderMainCalendar();
     popup.classList.remove('hidden');
     if (btn) btn.classList.add('pop-active');
-    window.showPopupBackdrop(btn, function() { toggleMainCalendar(btn); });
+    window.showPopupBackdrop(btn, function () { toggleMainCalendar(btn); });
   } else {
     popup.classList.add('hidden');
     const targetBtn = btn || document.querySelector('button[onclick*="toggleMainCalendar"]');
@@ -3603,18 +3606,18 @@ function addFullSection(title, items, isProtected = false, explicitType = null) 
   // Determine identifier for protection
   if (isProtected) sectionDiv.dataset.protected = explicitType || lowerTitle;
 
-  const isMaterials = ['materials', 'material', 'products', 'product', 'parts', 'part'].includes(normalizedType) || /material|product|part/.test(lowerTitle);
-  const isExpenses = ['expenses', 'expense', 'reimbursements', 'reimbursement', 'reimburse'].includes(normalizedType) || /expense|reimburse/.test(lowerTitle);
+  const isProducts = ['products', 'product', 'products', 'product', 'parts', 'part'].includes(normalizedType) || /product|product|part/.test(lowerTitle);
+  const isReimbursements = ['reimbursements', 'reimbursement', 'reimbursements', 'reimbursement', 'reimburse'].includes(normalizedType) || /reimbursement|reimburse/.test(lowerTitle);
   const isFees = ['fees', 'fee', 'surcharges', 'surcharge'].includes(normalizedType) || /fee|surcharge/.test(lowerTitle);
 
-  if (isMaterials) sectionDiv.dataset.protected = "materials";
-  else if (isExpenses) sectionDiv.dataset.protected = "expenses";
+  if (isProducts) sectionDiv.dataset.protected = "products";
+  else if (isReimbursements) sectionDiv.dataset.protected = "reimbursements";
   else if (isFees) sectionDiv.dataset.protected = "fees";
 
-  const resolvedTitle = isMaterials
-    ? (window.APP_LANGUAGES.materials || "Products")
-    : isExpenses
-      ? (window.APP_LANGUAGES.expenses || "Expenses")
+  const resolvedTitle = isProducts
+    ? (window.APP_LANGUAGES.products || "Products")
+    : isReimbursements
+      ? (window.APP_LANGUAGES.reimbursements || "Reimbursements")
       : isFees
         ? (window.APP_LANGUAGES.fees || "Fees")
         : title;
@@ -3623,11 +3626,11 @@ function addFullSection(title, items, isProtected = false, explicitType = null) 
   let sectionIcon = "";
   let accentColorClass = "text-orange-600";
 
-  if (isMaterials) {
-    sectionIcon = `<svg class="h-4 w-4 text-orange-600 mr-2"><use xlink:href="#icon-material"></use></svg>`;
+  if (isProducts) {
+    sectionIcon = `<svg class="h-4 w-4 text-orange-600 mr-2"><use xlink:href="#icon-product"></use></svg>`;
     accentColorClass = "text-orange-600";
-  } else if (isExpenses) {
-    sectionIcon = `<svg class="h-4 w-4 mr-2" style="color: #E7000B;"><use xlink:href="#icon-expense"></use></svg>`;
+  } else if (isReimbursements) {
+    sectionIcon = `<svg class="h-4 w-4 mr-2" style="color: #E7000B;"><use xlink:href="#icon-reimbursement"></use></svg>`;
     accentColorClass = "";
   } else if (isFees) {
     sectionIcon = `<svg class="h-4 w-4 mr-2" style="color: #2B7FFF;"><use xlink:href="#icon-fee"></use></svg>`;
@@ -3640,9 +3643,9 @@ function addFullSection(title, items, isProtected = false, explicitType = null) 
   }
 
   // Auto-protect standard titles
-  const forceProtect = isProtected || isMaterials || isExpenses || isFees;
+  const forceProtect = isProtected || isProducts || isReimbursements || isFees;
 
-  const sectionInlineColor = isFees ? ' style="color: #2B7FFF;"' : isExpenses ? ' style="color: #E7000B;"' : '';
+  const sectionInlineColor = isFees ? ' style="color: #2B7FFF;"' : isReimbursements ? ' style="color: #E7000B;"' : '';
   const titleElement = forceProtect
     ? `<div class="flex items-center">${sectionIcon}<span class="text-base font-black ${accentColorClass} uppercase tracking-widest section-title"${sectionInlineColor}>${resolvedTitle}</span></div>`
     : `<div class="flex items-center w-2/3">${sectionIcon}<input type="text" value="${resolvedTitle}" class="bg-transparent border-none p-0 text-sm font-black ${accentColorClass} uppercase tracking-widest focus:ring-0 w-full section-title"${sectionInlineColor} onblur="validateCategoryName(this)"></div>`;
@@ -3657,7 +3660,7 @@ function addFullSection(title, items, isProtected = false, explicitType = null) 
 
   let addBtnBg = "bg-orange-600 hover:bg-orange-700";
   let addBtnStyle = "";
-  if (isExpenses) {
+  if (isReimbursements) {
     addBtnBg = "";
     addBtnStyle = "background-color: #E7000B;";
   } else if (isFees) {
@@ -3730,7 +3733,7 @@ function addFullSection(title, items, isProtected = false, explicitType = null) 
 
 // Validate category names - prevent reserved words
 function validateCategoryName(input) {
-  const reserved = ['fee', 'fees', 'expense', 'expenses', 'material', 'materials', 'labor', 'labour', 'service', 'services'];
+  const reserved = ['fee', 'fees', 'reimbursement', 'reimbursements', 'product', 'products', 'labor', 'labour', 'service', 'services'];
   const val = input.value.toLowerCase().trim();
 
   if (reserved.some(r => val === r || val === r + 's' || val.includes('labor/service'))) {
@@ -3742,15 +3745,15 @@ function validateCategoryName(input) {
 
 
 function updateAddMenuButtons() {
-  // Check if Materials/Expenses/Fees/Credit sections already exist
-  const hasMaterials = document.querySelector('.dynamic-section[data-protected="materials"]');
-  const hasExpenses = document.querySelector('.dynamic-section[data-protected="expenses"]');
+  // Check if Products/Reimbursements/Fees/Credit sections already exist
+  const hasProducts = document.querySelector('.dynamic-section[data-protected="products"]');
+  const hasReimbursements = document.querySelector('.dynamic-section[data-protected="reimbursements"]');
   const hasFees = document.querySelector('.dynamic-section[data-protected="fees"]');
   const hasCredit = document.getElementById('creditGroup') && !document.getElementById('creditGroup').classList.contains('hidden');
   const hasLabor = document.getElementById('laborGroup') && !document.getElementById('laborGroup').classList.contains('hidden');
 
-  const materialBtn = document.getElementById('addMaterialBtn');
-  const expenseBtn = document.getElementById('addExpenseBtn');
+  const productBtn = document.getElementById('addProductBtn');
+  const reimbursementBtn = document.getElementById('addReimbursementBtn');
   const feeBtn = document.getElementById('addFeeBtn');
   const creditBtn = document.getElementById('addCreditBtn');
   const laborBtn = document.getElementById('addLaborBtn');
@@ -3768,13 +3771,13 @@ function updateAddMenuButtons() {
   };
 
   updateState(laborBtn, hasLabor);
-  updateState(materialBtn, hasMaterials);
-  updateState(expenseBtn, hasExpenses);
+  updateState(productBtn, hasProducts);
+  updateState(reimbursementBtn, hasReimbursements);
   updateState(feeBtn, hasFees);
   updateState(creditBtn, hasCredit);
 
   // Auto-close menu if all items are added
-  if (hasLabor && hasMaterials && hasExpenses && hasFees && hasCredit) {
+  if (hasLabor && hasProducts && hasReimbursements && hasFees && hasCredit) {
     const dropup = document.getElementById('addMenuDropup');
     const btn = document.getElementById('addMenuBtn');
     if (dropup && !dropup.classList.contains('hidden')) {
@@ -3793,7 +3796,7 @@ function toggleAddMenu(btn) {
     if (btn) btn.classList.add('pop-active');
     updateAddMenuButtons();
     dropup.classList.remove('hidden');
-    window.showPopupBackdrop(btn, function() { toggleAddMenu(btn); });
+    window.showPopupBackdrop(btn, function () { toggleAddMenu(btn); });
   } else {
     const targetBtn = btn || document.getElementById('addMenuBtn');
     if (targetBtn) targetBtn.classList.remove('pop-active');
@@ -3818,7 +3821,7 @@ document.addEventListener('click', (e) => {
 // Helper to enforce section order
 function insertSectionInOrder(sectionDiv, type) {
   const container = document.getElementById("dynamicSections");
-  const order = { 'materials': 1, 'expenses': 2, 'fees': 3, 'credit': 4 };
+  const order = { 'products': 1, 'reimbursements': 2, 'fees': 3, 'credit': 4 };
   const currentPriority = order[type] ?? 99;
 
   const children = Array.from(container.children);
@@ -3834,12 +3837,12 @@ function insertSectionInOrder(sectionDiv, type) {
   container.appendChild(sectionDiv);
 }
 
-function addMaterialSection() {
-  addFullSection(window.APP_LANGUAGES.materials || "Products", [], true, 'materials');
+function addPRODUCTSection() {
+  addFullSection(window.APP_LANGUAGES.products || "Products", [], true, 'products');
 }
 
-function addExpenseSection() {
-  addFullSection(window.APP_LANGUAGES.expenses || "Expenses", [], true, 'expenses');
+function addREIMBURSEMENTSection() {
+  addFullSection(window.APP_LANGUAGES.reimbursements || "Reimbursements", [], true, 'reimbursements');
 }
 
 function addFeeSection() {
@@ -4093,7 +4096,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
   if (taxable === null || taxable === undefined) {
     // Check if item has any monetary value — use EFFECTIVE defaults, not raw params
     const hasPrice = (effectivePrice && effectivePrice !== "" && parseFloat(effectivePrice) > 0) ||
-                     (effectiveRate && effectiveRate !== "" && parseFloat(effectiveRate) > 0);
+      (effectiveRate && effectiveRate !== "" && parseFloat(effectiveRate) > 0);
 
     if (!hasPrice) {
       // No price and no rate, no taxable - regardless of scope
@@ -4114,7 +4117,7 @@ function addLaborItem(value = '', price = '', mode = '', taxable = null, discFla
   // CRITICAL: taxable===false must ALWAYS have taxRate=0, never profileTaxRate
   if (taxable === false) {
     taxRate = 0;
-  } else if (taxable === true && (!taxRate || taxRate === '' || parseFloat(taxRate) <= 0)) {
+  } else if (taxable === true && (!taxRate || taxRate === '' || parseFloat(taxRate) < 0)) {
     // Only pre-fill with profileTaxRate when taxable is explicitly true
     taxRate = profileTaxRate;
   }
@@ -4510,7 +4513,7 @@ function toggleMenu(btn) {
       container.style.borderBottomLeftRadius = '0';
     }
 
-    window.showPopupBackdrop(btn, function() { toggleMenu(btn); });
+    window.showPopupBackdrop(btn, function () { toggleMenu(btn); });
 
   } else {
     // Already open, so close it
@@ -5093,29 +5096,8 @@ function toggleDiscount(menuItem) {
 }
 
 function addItem(containerId, value = "", price = "", taxable = null, sectionTitle = "", taxRate = null, qty = 1, discFlat = "", discPercent = "", sub_categories = [], isManualAdd = true) {
-  // --- SMART QTY EXTRACTION AND DESC CLEANING ---
   let finalValue = (value || "").trim();
   let finalQty = qty || 1;
-  const qtyPatterns = [
-    { regex: /[\(\s]x(\d+)[\)]?$/i, group: 1 },        // (x2), x2 at end
-    { regex: /[\(\s]\((\d+)\)$/i, group: 1 },          // (2) at end
-    { regex: /^(\d+)\s*x\s+/i, group: 1 },             // 2x at start
-    { regex: /[\(\s](\d+)\s*units?$/i, group: 1 }      // 2 units at end
-  ];
-
-  for (const p of qtyPatterns) {
-    const match = finalValue.match(p.regex);
-    if (match) {
-      const extracted = parseFloat(match[p.group]);
-      if (!isNaN(extracted) && extracted > 0) {
-        if (finalQty === 1) finalQty = extracted;
-        finalValue = finalValue.replace(p.regex, '').trim();
-        // Clean up any remaining empty parentheses
-        finalValue = finalValue.replace(/\(\s*\)$/, '').trim();
-        break;
-      }
-    }
-  }
 
   const currencySymbol = typeof activeCurrencySymbol !== 'undefined' ? activeCurrencySymbol : "$";
   const subtotalLabelText = window.APP_LANGUAGES.after_tax || "AFTER TAX";
@@ -5129,20 +5111,20 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
   const protectedType = parentSection ? (parentSection.dataset.protected || "") : "";
 
   // Localized checks
-  const matKey = (window.APP_LANGUAGES.materials || "").toLowerCase();
+  const matKey = (window.APP_LANGUAGES.products || "").toLowerCase();
   const feeKey = (window.APP_LANGUAGES.fees || "").toLowerCase();
-  const expKey = (window.APP_LANGUAGES.expenses || "").toLowerCase();
+  const expKey = (window.APP_LANGUAGES.reimbursements || "").toLowerCase();
 
   const isLaborSection = protectedType === 'labor' || /labor|service|install|diag|repair|maintenance|tech|professional/i.test(lowerTitle) || (window.APP_LANGUAGES.professional_services && lowerTitle.includes(window.APP_LANGUAGES.professional_services.toLowerCase()));
-  const isMaterialSection = protectedType === 'materials' || /material|part|item/i.test(lowerTitle) || (matKey && lowerTitle.includes(matKey));
+  const isPRODUCTSection = protectedType === 'products' || /product|part|item/i.test(lowerTitle) || (matKey && lowerTitle.includes(matKey));
   const isFeeSection = protectedType === 'fees' || /fee|surcharge/i.test(lowerTitle) || (feeKey && lowerTitle.includes(feeKey));
-  const isExpenseSection = protectedType === 'expenses' || /expense|reimburse/i.test(lowerTitle) || (expKey && lowerTitle.includes(expKey));
+  const isREIMBURSEMENTSection = protectedType === 'reimbursements' || /reimbursement|reimburse/i.test(lowerTitle) || (expKey && lowerTitle.includes(expKey));
 
   // DEFAULT ITEM NAME based on section
   if (!finalValue || finalValue.trim() === "") {
-    if (isMaterialSection) finalValue = window.APP_LANGUAGES.item_material || "Product";
+    if (isPRODUCTSection) finalValue = window.APP_LANGUAGES.item_product || "Product";
     else if (isFeeSection) finalValue = window.APP_LANGUAGES.item_fee || "Fee";
-    else if (isExpenseSection) finalValue = window.APP_LANGUAGES.item_expense || "Expense";
+    else if (isREIMBURSEMENTSection) finalValue = window.APP_LANGUAGES.item_reimbursement || "Reimbursement";
     else finalValue = window.APP_LANGUAGES.item || "Item";
   }
 
@@ -5164,17 +5146,17 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
       const taxAll = scope.includes("all") || scope.includes("total") || (scope.length >= 4);
 
       const hasLaborScope = scope.some(s => s.includes("labor"));
-      const hasMaterialScope = scope.some(s => s.includes("material") || s.includes("part"));
+      const hasPRODUCTScope = scope.some(s => s.includes("product") || s.includes("part"));
       const hasFeeScope = scope.some(s => s.includes("fee") || s.includes("surcharge"));
-      const hasExpenseScope = scope.some(s => s.includes("expense") || s.includes("reimburse"));
+      const hasREIMBURSEMENTScope = scope.some(s => s.includes("reimbursement") || s.includes("reimburse"));
 
       if (taxAll) {
         taxable = true;
       } else {
-        if (isMaterialSection && hasMaterialScope) taxable = true;
+        if (isPRODUCTSection && hasPRODUCTScope) taxable = true;
         else if (isLaborSection && hasLaborScope) taxable = true;
         else if (isFeeSection && hasFeeScope) taxable = true;
-        else if (isExpenseSection && hasExpenseScope) taxable = true;
+        else if (isREIMBURSEMENTSection && hasREIMBURSEMENTScope) taxable = true;
         else taxable = false;
       }
 
@@ -5186,14 +5168,14 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
   // CRITICAL: taxable===false must ALWAYS have taxRate=0, never profileTaxRate
   if (taxable === false) {
     taxRate = 0;
-  } else if (taxable === true && (taxRate === null || taxRate === undefined || taxRate === '' || parseFloat(taxRate) <= 0)) {
+  } else if (taxable === true && (taxRate === null || taxRate === undefined || taxRate === '' || parseFloat(taxRate) < 0)) {
     taxRate = profileTaxRate;
   }
 
   // Determine divider color based on section type
   let dividerClasses = "border-t-2 border-dashed pt-6 mt-6 first:border-0 first:pt-0 first:mt-0";
   let dividerInlineStyle = "";
-  if (isExpenseSection) {
+  if (isREIMBURSEMENTSection) {
     dividerInlineStyle = "border-color: #E7000B;";
   } else if (isFeeSection) {
     dividerInlineStyle = "border-color: #2B7FFF;";
@@ -5222,7 +5204,7 @@ function addItem(containerId, value = "", price = "", taxable = null, sectionTit
     hasDiscFlat = false;
   }
   const hasTaxPreset = taxRate !== null && taxRate !== undefined && taxRate !== '' && parseFloat(taxRate) > 0;
-  const usesPriceToggle = isMaterialSection || isExpenseSection || isFeeSection;
+  const usesPriceToggle = isPRODUCTSection || isREIMBURSEMENTSection || isFeeSection;
   const isPriceActiveDefault = usesPriceToggle ? (hasPrice || hasTaxPreset || hasDiscPercent || hasDiscFlat) : true;
 
   const div = document.createElement('div');
@@ -5690,7 +5672,7 @@ window._collectingClientDetail = null;
 window._newClientDetails = {};
 window._recentQuestions = [];
 
-window.resetAssistantState = function() {
+window.resetAssistantState = function () {
   window.skipTranscriptUpdate = false;
   window.pendingClarifications = [];
   window.originalTranscript = "";
@@ -5718,29 +5700,29 @@ window.resetAssistantState = function() {
 };
 
 
-window.disablePreviousInteractiveElements = function() {
+window.disablePreviousInteractiveElements = function () {
   var conversation = document.getElementById('assistantConversation');
   if (!conversation) return;
   // Remove quick action chip containers entirely (not grey out)
-  conversation.querySelectorAll('.quick-action-chips').forEach(function(el) { el.remove(); });
+  conversation.querySelectorAll('.quick-action-chips').forEach(function (el) { el.remove(); });
   // Disable ALL buttons EXCEPT undo buttons (they must stay active for previous changes)
-  conversation.querySelectorAll('button:not([disabled]):not(.undo-btn)').forEach(function(btn) {
+  conversation.querySelectorAll('button:not([disabled]):not(.undo-btn)').forEach(function (btn) {
     btn.disabled = true;
     btn.classList.add('opacity-50', 'pointer-events-none');
   });
   // Disable ALL inputs (text, number, range/sliders)
-  conversation.querySelectorAll('input:not([disabled])').forEach(function(inp) {
+  conversation.querySelectorAll('input:not([disabled])').forEach(function (inp) {
     inp.disabled = true;
     inp.classList.add('opacity-50', 'pointer-events-none');
   });
 };
 
-window.calculateHistoricalChars = function() {
+window.calculateHistoricalChars = function () {
   if (!window.clarificationHistory || window.clarificationHistory.length === 0) return 0;
-  return window.clarificationHistory.reduce(function(sum, h) { return sum + (h.answer || '').length; }, 0);
+  return window.clarificationHistory.reduce(function (sum, h) { return sum + (h.answer || '').length; }, 0);
 };
 
-window.finalizePendingAnswer = function() {
+window.finalizePendingAnswer = function () {
   if (!window._pendingAnswer) return;
   var pending = window._pendingAnswer;
 
@@ -5763,7 +5745,7 @@ window.finalizePendingAnswer = function() {
   window._pendingAnswer = null;
 };
 
-window.rollbackPendingAnswer = function() {
+window.rollbackPendingAnswer = function () {
   if (!window._pendingAnswer) return;
   var assistIn = document.getElementById('assistantInput');
   if (assistIn) assistIn.disabled = false;
@@ -5775,7 +5757,7 @@ function handleClarifications(clarifications) {
   removeTypingIndicator();
 
   // Filter out already-answered clarifications
-  var unansweredClarifications = (clarifications || []).filter(function(c) {
+  var unansweredClarifications = (clarifications || []).filter(function (c) {
     return c.question && c.question.trim();
   });
 
@@ -5797,7 +5779,7 @@ function handleClarifications(clarifications) {
     window.pendingClarifications = [];
 
     showTypingIndicator();
-    setTimeout(function() {
+    setTimeout(function () {
       removeTypingIndicator();
       if (wasCreateNew) {
         renderClientDetailOptions();
@@ -5814,7 +5796,7 @@ function handleClarifications(clarifications) {
         if (aiReply) {
           addAIBubble(aiReply);
         }
-        addAIBubble(window.APP_LANGUAGES.anything_else || "Anything else to change?", null, null, {'anything-else': 'true'});
+        addAIBubble(window.APP_LANGUAGES.anything_else || "Anything else to change?", null, null, { 'anything-else': 'true' });
         renderQuickActionChips();
         // Auto-trigger invoice preview ONCE per session, then manual-only
         if (!window._invoicePreviewShownOnce && !window._userClosedInvoice) {
@@ -5841,7 +5823,7 @@ function handleClarifications(clarifications) {
   // Bug 6: Loop protection — filter out questions AI already asked recently
   var recentQs = window._recentQuestions || [];
   var filtered = [];
-  unansweredClarifications.forEach(function(c) {
+  unansweredClarifications.forEach(function (c) {
     var qNorm = (c.question || '').trim().toLowerCase();
     if (recentQs.indexOf(qNorm) !== -1) {
       // Already asked — auto-answer with guess silently
@@ -5858,9 +5840,9 @@ function handleClarifications(clarifications) {
     // All questions were duplicates — treat as no clarifications
     window.pendingClarifications = [];
     showTypingIndicator();
-    setTimeout(function() {
+    setTimeout(function () {
       removeTypingIndicator();
-      addAIBubble(window.APP_LANGUAGES.anything_else || "Anything else to change?", null, null, {'anything-else': 'true'});
+      addAIBubble(window.APP_LANGUAGES.anything_else || "Anything else to change?", null, null, { 'anything-else': 'true' });
       renderQuickActionChips();
       if (!window._invoicePreviewShownOnce && !window._userClosedInvoice) {
         window._invoicePreviewShownOnce = true;
@@ -5896,13 +5878,13 @@ function handleClarifications(clarifications) {
     // 3: General (default)
     return 3;
   }
-  window._clarificationQueue.sort(function(a, b) { return _queuePriority(a) - _queuePriority(b); });
+  window._clarificationQueue.sort(function (a, b) { return _queuePriority(a) - _queuePriority(b); });
 
   window._queueAnswers = [];
   window._queueTotal = filtered.length;
 
   showTypingIndicator();
-  setTimeout(function() {
+  setTimeout(function () {
     removeTypingIndicator();
     // Show AI reply before clarification widgets (e.g. "ვიდეოთვალი დავამატე. ფასდაკლების ტიპი დავაზუსტოთ.")
     if (window._lastAiReply) {
@@ -5969,7 +5951,7 @@ function showNextQueueItem() {
   } else if (c.type === 'info') {
     addAIBubble(c.question, null, c._progressTag);
     // Auto-advance info type after 1500ms
-    setTimeout(function() {
+    setTimeout(function () {
       if (window._clarificationQueue && window._clarificationQueue.length > 0 && window._clarificationQueue[0] === c) {
         handleQueueAnswer('[acknowledged]');
       }
@@ -6007,7 +5989,7 @@ function handleQueueAnswer(answer) {
     // Also disable the tax widget card if it was showing
     var taxCard = document.getElementById('taxQueueCard');
     if (taxCard) {
-      taxCard.querySelectorAll('button, input').forEach(function(el) { el.disabled = true; el.style.opacity = '0.5'; });
+      taxCard.querySelectorAll('button, input').forEach(function (el) { el.disabled = true; el.style.opacity = '0.5'; });
     }
     window._taxQueueItems = null;
   }
@@ -6016,7 +5998,7 @@ function handleQueueAnswer(answer) {
   if (currentItem.type === 'item_input_list') {
     var iilCard = window._currentIilCardId ? document.getElementById(window._currentIilCardId) : null;
     if (iilCard) {
-      iilCard.querySelectorAll('button, input').forEach(function(el) { el.disabled = true; el.style.opacity = '0.5'; });
+      iilCard.querySelectorAll('button, input').forEach(function (el) { el.disabled = true; el.style.opacity = '0.5'; });
     }
     window._itemInputListData = null;
   }
@@ -6030,7 +6012,7 @@ function handleQueueAnswer(answer) {
 
   if (window._clarificationQueue.length > 0) {
     showTypingIndicator();
-    setTimeout(function() {
+    setTimeout(function () {
       removeTypingIndicator();
       showNextQueueItem();
     }, 400);
@@ -6050,7 +6032,7 @@ function batchSubmitQueueAnswers() {
   window.pendingClarifications = [];
 
   // Filter out client answers and cancelled items — tax MUST go to AI too (AI is the brain)
-  var aiAnswers = answers.filter(function(qa) {
+  var aiAnswers = answers.filter(function (qa) {
     return qa.field !== 'client_match' && qa.field !== 'add_client_to_list' && qa.field !== 'client_confirm_existing' && qa.answer !== '__CANCELLED__';
   });
 
@@ -6059,7 +6041,7 @@ function batchSubmitQueueAnswers() {
     if (window._wasAddClientYes) {
       window._wasAddClientYes = false;
       showTypingIndicator();
-      setTimeout(function() {
+      setTimeout(function () {
         removeTypingIndicator();
         renderClientDetailOptions();
         var assistInput = document.getElementById('assistantInput');
@@ -6067,9 +6049,9 @@ function batchSubmitQueueAnswers() {
       }, 400);
     } else {
       showTypingIndicator();
-      setTimeout(function() {
+      setTimeout(function () {
         removeTypingIndicator();
-        addAIBubble(window.APP_LANGUAGES.anything_else || "Anything else to change?", null, null, {'anything-else': 'true'});
+        addAIBubble(window.APP_LANGUAGES.anything_else || "Anything else to change?", null, null, { 'anything-else': 'true' });
         renderQuickActionChips();
         if (!window._invoicePreviewShownOnce && !window._userClosedInvoice) {
           window._invoicePreviewShownOnce = true;
@@ -6087,7 +6069,7 @@ function batchSubmitQueueAnswers() {
   // Tell the AI to apply ALL answers — _reapplyAllOverrides protects widget-confirmed values from being overwritten.
   var promptMeta = assistantPromptMeta();
   var batchMessage = promptMeta.batchIntro;
-  batchMessage += aiAnswers.map(function(qa) {
+  batchMessage += aiAnswers.map(function (qa) {
     return '[AI asked: "' + qa.question + '" → User answered: "' + qa.answer + '"]';
   }).join('\n');
 
@@ -6121,12 +6103,12 @@ function scrollAssistantToBottom() {
   if (!conversation) return;
   conversation.scrollTop = conversation.scrollHeight;
   // Double-RAF + timeout ensures scroll happens after layout & animations
-  requestAnimationFrame(function() {
-    requestAnimationFrame(function() {
+  requestAnimationFrame(function () {
+    requestAnimationFrame(function () {
       conversation.scrollTop = conversation.scrollHeight;
     });
   });
-  setTimeout(function() {
+  setTimeout(function () {
     if (conversation) conversation.scrollTop = conversation.scrollHeight;
   }, 80);
 }
@@ -6168,7 +6150,7 @@ function addAIBubble(text, guessHtml, progressTag, dataAttrs) {
 
   const div = document.createElement('div');
   div.className = "flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300";
-  if (dataAttrs) { Object.keys(dataAttrs).forEach(function(k) { div.setAttribute('data-' + k, dataAttrs[k]); }); }
+  if (dataAttrs) { Object.keys(dataAttrs).forEach(function (k) { div.setAttribute('data-' + k, dataAttrs[k]); }); }
   const guessBlock = guessHtml ? `<div class="mt-1.5 px-3 py-1 bg-orange-50 border border-dashed border-orange-300 rounded-lg text-[11px] text-orange-700 font-bold">${guessHtml}</div>` : '';
   const tagHtml = progressTag || '';
   div.innerHTML = `
@@ -6206,9 +6188,9 @@ function cancelWidget() {
   window._taxManagementItems = null;
   window._collectingClientDetail = null;
   showTypingIndicator();
-  setTimeout(function() {
+  setTimeout(function () {
     removeTypingIndicator();
-    addAIBubble(L.anything_else || 'Anything else to change?', null, null, {'anything-else': 'true'});
+    addAIBubble(L.anything_else || 'Anything else to change?', null, null, { 'anything-else': 'true' });
     renderQuickActionChips();
     if (!window._invoicePreviewShownOnce && !window._userClosedInvoice) {
       window._invoicePreviewShownOnce = true;
@@ -6312,7 +6294,7 @@ function renderClientMatchCard(clarification) {
   div.className = "flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300";
 
   let clientButtons = '';
-  clients.forEach(function(c) {
+  clients.forEach(function (c) {
     const countLabel = c.invoices_count === 1
       ? (window.APP_LANGUAGES.invoices_count_one || '1 invoice')
       : (window.APP_LANGUAGES.invoices_count || '%{count} invoices').replace('__COUNT__', c.invoices_count || 0);
@@ -6360,8 +6342,8 @@ function renderSectionTypeCard(clarification) {
 
   var sectionMeta = {
     labor: { label: L.section_labor || 'Labor / Service', icon: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>', color: 'orange' },
-    materials: { label: L.section_materials || 'Materials', icon: '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>', color: 'orange' },
-    expenses: { label: L.section_expenses || 'Expenses', icon: '<path d="M19 5c-1.5 0-2.8 1.4-3 2-3.5-1.5-11-.3-11 5 0 1.8 0 3 2 4.5V20h4v-2h3v2h4v-4c1-.5 1.7-1 2-2h2v-4h-2c0-1-.5-1.5-1-2"/><path d="M2 9v1c0 1.1.9 2 2 2h1"/><circle cx="16" cy="11" r="1"/>', color: 'red' },
+    products: { label: L.section_products || 'Products', icon: '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>', color: 'orange' },
+    reimbursements: { label: L.section_reimbursements || 'Reimbursements', icon: '<path d="M19 5c-1.5 0-2.8 1.4-3 2-3.5-1.5-11-.3-11 5 0 1.8 0 3 2 4.5V20h4v-2h3v2h4v-4c1-.5 1.7-1 2-2h2v-4h-2c0-1-.5-1.5-1-2"/><path d="M2 9v1c0 1.1.9 2 2 2h1"/><circle cx="16" cy="11" r="1"/>', color: 'red' },
     fees: { label: L.section_fees || 'Fees', icon: '<rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>', color: 'blue' }
   };
 
@@ -6374,7 +6356,7 @@ function renderSectionTypeCard(clarification) {
   };
 
   var btns = '';
-  options.forEach(function(opt) {
+  options.forEach(function (opt) {
     var key = opt.toLowerCase();
     var meta = sectionMeta[key] || { label: opt, icon: '<circle cx="12" cy="12" r="10"/>', color: 'orange' };
     var cm = colorMap[meta.color];
@@ -6432,7 +6414,7 @@ function renderCurrencyCard(clarification) {
   };
 
   var btns = '';
-  options.forEach(function(opt) {
+  options.forEach(function (opt) {
     var key = opt.toUpperCase();
     var meta = currencyMeta[key] || { symbol: key, label: key, color: 'orange' };
     var cm = colorMap[meta.color];
@@ -6472,7 +6454,7 @@ function renderGenericChoiceCard(clarification) {
   var guess = (clarification.guess || '').toString().toLowerCase();
 
   var btns = '';
-  options.forEach(function(opt) {
+  options.forEach(function (opt) {
     var isGuess = opt.toString().toLowerCase() === guess;
     var ringClass = isGuess ? ' ring-2 ring-offset-1 ring-orange-400' : '';
     btns += '<button type="button" onclick="autoSubmitAssistantMessage(\'' + escapeHtml(opt).replace(/'/g, "\\'") + '\')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-gray-200 bg-white hover:bg-orange-50 hover:border-orange-300 transition-all cursor-pointer active:scale-[0.97] text-left' + ringClass + '">'
@@ -6508,7 +6490,7 @@ function renderMultiChoiceCard(clarification) {
   var L = window.APP_LANGUAGES || {};
   var options = clarification.options || [];
   var questionText = clarification.question || '';
-  var guessItems = (clarification.guess || '').toString().split(/\s*,\s*/).filter(function(p) { return p.trim(); }).map(function(p) { return p.trim().toLowerCase(); });
+  var guessItems = (clarification.guess || '').toString().split(/\s*,\s*/).filter(function (p) { return p.trim(); }).map(function (p) { return p.trim().toLowerCase(); });
 
   // Try to group options by invoice category using live DOM
   var domCats = typeof getInvoiceSectionsFromDOM === 'function' ? getInvoiceSectionsFromDOM() : [];
@@ -6518,15 +6500,15 @@ function renderMultiChoiceCard(clarification) {
   if (domCats.length > 0) {
     // Build item→category map (lowercase name → category)
     var itemCatMap = {};
-    domCats.forEach(function(cat) {
-      cat.items.forEach(function(itemName) {
+    domCats.forEach(function (cat) {
+      cat.items.forEach(function (itemName) {
         itemCatMap[itemName.toLowerCase()] = cat;
       });
     });
 
     // Assign options to categories
     var catBuckets = {};
-    options.forEach(function(opt) {
+    options.forEach(function (opt) {
       var cat = itemCatMap[opt.toLowerCase()];
       if (cat) {
         if (!catBuckets[cat.key]) catBuckets[cat.key] = { key: cat.key, label: cat.label, color: cat.color, icon: cat.icon, items: [] };
@@ -6535,7 +6517,7 @@ function renderMultiChoiceCard(clarification) {
         ungrouped.push(opt);
       }
     });
-    Object.keys(catBuckets).forEach(function(k) { grouped.push(catBuckets[k]); });
+    Object.keys(catBuckets).forEach(function (k) { grouped.push(catBuckets[k]); });
   }
 
   // If grouping found categories, render as accordion
@@ -6568,7 +6550,7 @@ function renderMultiChoiceCard(clarification) {
 
   // Fallback: flat checkbox list (no grouping possible)
   var btns = '';
-  options.forEach(function(opt) {
+  options.forEach(function (opt) {
     var isPreSelected = guessItems.indexOf(opt.toLowerCase()) !== -1;
     var checkBg = isPreSelected ? 'bg-orange-500 border-orange-400' : 'bg-white border-orange-400';
     var checkIcon = isPreSelected ? '<svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>' : '';
@@ -6612,7 +6594,7 @@ function confirmMultiChoiceAccordion() {
   }
 
   var selected = [];
-  card.querySelectorAll('.accordion-item-btn[data-selected="true"]').forEach(function(btn) {
+  card.querySelectorAll('.accordion-item-btn[data-selected="true"]').forEach(function (btn) {
     var label = btn.querySelector('span');
     if (label) selected.push(label.textContent.trim());
   });
@@ -6726,7 +6708,7 @@ function renderQuickActionChips() {
   // Contextual: Manage Taxes chip — show when items exist
   var hasItems = false;
   if (window.lastAiResult && window.lastAiResult.sections) {
-    window.lastAiResult.sections.forEach(function(s) {
+    window.lastAiResult.sections.forEach(function (s) {
       if ((s.items || []).length > 0) hasItems = true;
     });
   }
@@ -6742,7 +6724,7 @@ function renderQuickActionChips() {
     'orange': 'border-orange-200 bg-white hover:bg-orange-50 hover:border-orange-300 text-orange-600 hover:text-orange-700',
     'red': 'border-red-200 bg-white hover:bg-red-50 hover:border-red-300 text-red-500 hover:text-red-600'
   };
-  chips.forEach(function(c) {
+  chips.forEach(function (c) {
     var isUndo = c.handler === 'handleChipUndo';
     var colorCls = isUndo ? CHIP_COLORS.red : (CHIP_COLORS[c.color] || CHIP_COLORS['default']);
     var cls = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-all cursor-pointer active:scale-[0.95] text-[11px] font-bold shadow-sm ' + colorCls;
@@ -6770,7 +6752,7 @@ function handleChipChangeClient() {
   window.clientMatchResolved = false; // Reset so backend re-runs matching
 
   showTypingIndicator();
-  setTimeout(function() {
+  setTimeout(function () {
     removeTypingIndicator();
     addAIBubble(L.change_client_prompt || 'Who is the new client?');
     window._collectingClientDetail = 'change_client';
@@ -6801,7 +6783,7 @@ async function directClientChange(newClientName) {
         userItemOverrides: window._userItemOverrides ? JSON.parse(JSON.stringify(window._userItemOverrides)) : null
       });
       if (window._undoStack.length > 10) window._undoStack.shift();
-    } catch(e) { /* ignore */ }
+    } catch (e) { /* ignore */ }
   }
 
   var assistInput = document.getElementById('assistantInput');
@@ -6839,7 +6821,7 @@ async function directClientChange(newClientName) {
 
     if (assistInput) assistInput.disabled = false;
 
-  } catch(e) {
+  } catch (e) {
     removeTypingIndicator();
     showError(L.network_error || 'Network error.');
     console.error('Client change error:', e);
@@ -6880,7 +6862,7 @@ function renderClientListCard(clarification) {
   div.className = "flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300";
 
   var clientCards = '';
-  clients.forEach(function(c) {
+  clients.forEach(function (c) {
     var countLabel = c.invoices_count === 1
       ? (L.invoices_count_one || '1 invoice')
       : (L.invoices_count || '%{count} invoices').replace('__COUNT__', c.invoices_count || 0);
@@ -6917,11 +6899,11 @@ function renderClientListCard(clarification) {
   conversation.scrollTop = conversation.scrollHeight;
 }
 
-window.toggleClientListSelection = function(btn) {
+window.toggleClientListSelection = function (btn) {
   // Single-select: deselect all others in the same widget
   var widget = btn.closest('.bg-gray-50');
   if (!widget) return;
-  widget.querySelectorAll('.client-list-btn').forEach(function(b) {
+  widget.querySelectorAll('.client-list-btn').forEach(function (b) {
     b.classList.remove('border-orange-400', 'bg-orange-50', 'ring-2', 'ring-orange-300');
     b.classList.add('border-gray-200', 'bg-white');
     var check = b.querySelector('.client-check');
@@ -6940,7 +6922,7 @@ window.toggleClientListSelection = function(btn) {
   }
 };
 
-window.confirmClientListSelection = function(confirmBtn) {
+window.confirmClientListSelection = function (confirmBtn) {
   var widget = confirmBtn.closest('.bg-gray-50');
   if (!widget) return;
   var selected = widget.querySelector('.client-list-btn.border-orange-400');
@@ -6949,7 +6931,7 @@ window.confirmClientListSelection = function(confirmBtn) {
   if (!clientName) return;
 
   // Disable the widget
-  widget.querySelectorAll('button').forEach(function(b) { b.disabled = true; b.style.pointerEvents = 'none'; });
+  widget.querySelectorAll('button').forEach(function (b) { b.disabled = true; b.style.pointerEvents = 'none'; });
   confirmBtn.textContent = clientName;
   confirmBtn.classList.add('bg-green-500');
   confirmBtn.classList.remove('bg-orange-500');
@@ -6959,11 +6941,11 @@ window.confirmClientListSelection = function(confirmBtn) {
   directClientChange(clientName);
 };
 
-window.cancelClientListSelection = function(cancelBtn) {
+window.cancelClientListSelection = function (cancelBtn) {
   var widget = cancelBtn.closest('.bg-gray-50');
   if (!widget) return;
   // Disable the widget visually
-  widget.querySelectorAll('button').forEach(function(b) { b.disabled = true; b.style.pointerEvents = 'none'; });
+  widget.querySelectorAll('button').forEach(function (b) { b.disabled = true; b.style.pointerEvents = 'none'; });
   widget.style.opacity = '0.5';
   // Advance the clarification queue
   if (window._clarificationQueue && window._clarificationQueue.length > 0) {
@@ -6983,7 +6965,7 @@ function handleChipRemoveItem() {
   addUserBubble(L.cancel_what_prompt || 'Remove item');
 
   showTypingIndicator();
-  setTimeout(function() {
+  setTimeout(function () {
     removeTypingIndicator();
     renderRemoveItemCard();
   }, 400);
@@ -7002,11 +6984,11 @@ function renderRemoveItemCard() {
 
   // Build accordion HTML grouped by section with toggle checkboxes
   var accordionHtml = '';
-  sections.forEach(function(sec, secIdx) {
+  sections.forEach(function (sec, secIdx) {
     var items = sec.items || [];
     if (items.length === 0) return;
 
-    var domCat = domCats.find(function(dc) { return dc.key === sec.type; }) || {};
+    var domCat = domCats.find(function (dc) { return dc.key === sec.type; }) || {};
     var catColor = domCat.color || 'gray';
     var catIcon = domCat.icon || '<rect x="2" y="5" width="20" height="14" rx="2"/>';
     var catLabel = sec.title || sec.type;
@@ -7029,7 +7011,7 @@ function renderRemoveItemCard() {
       + '</button>'
       + '<div class="remove-accordion-content">';
 
-    items.forEach(function(item) {
+    items.forEach(function (item) {
       var desc = item.desc || '';
       var itemKey = sec.type + '::' + desc;
       accordionHtml += '<button type="button" onclick="toggleRemoveItem(this, \'' + escapeHtml(itemKey).replace(/'/g, "\\'") + '\')" data-item-key="' + escapeHtml(itemKey) + '" data-selected="false" class="remove-toggle-item w-full flex items-center gap-2 px-3 py-1.5 border-t ' + cm.border + ' bg-white hover:bg-red-50 transition-all cursor-pointer active:scale-[0.98] text-left">'
@@ -7147,25 +7129,25 @@ function confirmRemoveItems() {
         userItemOverrides: window._userItemOverrides ? JSON.parse(JSON.stringify(window._userItemOverrides)) : null
       });
       if (window._undoStack.length > 10) window._undoStack.shift();
-    } catch(e) { /* ignore */ }
+    } catch (e) { /* ignore */ }
   }
 
   // Remove selected items from JSON directly (no AI needed)
   var removedNames = [];
-  keys.forEach(function(key) {
+  keys.forEach(function (key) {
     var parts = key.split('::');
     var secType = parts[0];
     var itemDesc = parts.slice(1).join('::');
     removedNames.push(itemDesc);
 
     if (window.lastAiResult && window.lastAiResult.sections) {
-      window.lastAiResult.sections.forEach(function(sec) {
+      window.lastAiResult.sections.forEach(function (sec) {
         if (sec.type === secType) {
-          sec.items = (sec.items || []).filter(function(item) { return item.desc !== itemDesc; });
+          sec.items = (sec.items || []).filter(function (item) { return item.desc !== itemDesc; });
         }
       });
       // Remove empty sections
-      window.lastAiResult.sections = window.lastAiResult.sections.filter(function(sec) { return (sec.items || []).length > 0; });
+      window.lastAiResult.sections = window.lastAiResult.sections.filter(function (sec) { return (sec.items || []).length > 0; });
     }
   });
 
@@ -7179,9 +7161,9 @@ function confirmRemoveItems() {
 
   // Show follow-up prompt
   showTypingIndicator();
-  setTimeout(function() {
+  setTimeout(function () {
     removeTypingIndicator();
-    addAIBubble(L.anything_else || 'Anything else to change?', null, null, {'anything-else': 'true'});
+    addAIBubble(L.anything_else || 'Anything else to change?', null, null, { 'anything-else': 'true' });
     renderQuickActionChips();
   }, 400);
 }
@@ -7211,7 +7193,7 @@ function removeEntireInvoice() {
 
   addUserBubble(L.entire_invoice || 'Entire Invoice');
   showTypingIndicator();
-  setTimeout(function() {
+  setTimeout(function () {
     removeTypingIndicator();
     addAIBubble(L.invoice_cleared || 'Invoice cleared. Start over by recording or typing.');
     var assistInput = document.getElementById('assistantInput');
@@ -7248,7 +7230,7 @@ function performUndoTo(targetIdx) {
   if (conversation && snapshot.chatHtml !== undefined) {
     conversation.innerHTML = snapshot.chatHtml;
     // Remove old "anything else" bubbles from restored snapshot
-    conversation.querySelectorAll('[data-anything-else]').forEach(function(el) { el.remove(); });
+    conversation.querySelectorAll('[data-anything-else]').forEach(function (el) { el.remove(); });
   }
 
   // Restore clarification history length
@@ -7267,7 +7249,7 @@ function performUndoTo(targetIdx) {
   window._queueTotal = 0;
 
   showTypingIndicator();
-  setTimeout(function() {
+  setTimeout(function () {
     removeTypingIndicator();
     // Show undo confirmation as red-styled message
     if (conversation) {
@@ -7280,7 +7262,7 @@ function performUndoTo(targetIdx) {
       conversation.appendChild(note);
       conversation.scrollTop = conversation.scrollHeight;
     }
-    addAIBubble(L.anything_else || 'Anything else to change?', null, null, {'anything-else': 'true'});
+    addAIBubble(L.anything_else || 'Anything else to change?', null, null, { 'anything-else': 'true' });
     window._skipNextUndoBtn = true;
     renderQuickActionChips();
     if (!window._invoicePreviewShownOnce && !window._userClosedInvoice) {
@@ -7305,7 +7287,7 @@ function handleChipChangeDate() {
   addUserBubble(L.action_change_date || 'Change date');
 
   showTypingIndicator();
-  setTimeout(function() {
+  setTimeout(function () {
     removeTypingIndicator();
     // Show date type choice: Invoice date vs Due date
     var conversation = document.getElementById('assistantConversation');
@@ -7337,7 +7319,7 @@ function selectDateType(type) {
   addUserBubble(label);
   window._dateFlowType = type;
   showTypingIndicator();
-  setTimeout(function() {
+  setTimeout(function () {
     removeTypingIndicator();
     renderDatePickerCard();
     window._collectingClientDetail = 'change_date';
@@ -7403,7 +7385,7 @@ function buildCalendarGrid(year, month, MONTHS, DAYS) {
 
   // Day headers
   html += '<div class="grid grid-cols-7 gap-0.5 mb-1">';
-  DAYS.forEach(function(d) {
+  DAYS.forEach(function (d) {
     html += '<div class="text-center text-[8px] font-bold text-gray-400 uppercase">' + d + '</div>';
   });
   html += '</div>';
@@ -7453,7 +7435,7 @@ function pickCalendarDate(year, month, day) {
     var KA_MONTHS = [L.jan || 'იან', L.feb || 'თებ', L.mar || 'მარ', L.apr || 'აპრ', L.may_short || 'მაი', L.jun || 'ივნ', L.jul || 'ივლ', L.aug || 'აგვ', L.sep || 'სექ', L.oct || 'ოქტ', L.nov || 'ნოე', L.dec || 'დეკ'];
     formatted = KA_MONTHS[month] + ' ' + (day < 10 ? '0' + day : day) + ', ' + year;
   } else {
-    var MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     formatted = MONTH_ABBR[month] + ' ' + (day < 10 ? '0' + day : day) + ', ' + year;
   }
 
@@ -7524,10 +7506,10 @@ function renderDiscountTypeMultiCard(clarification) {
     currSym = cMap[window.lastAiResult.currency] || window.lastAiResult.currency;
   }
 
-  window._discountTypeItems = items.map(function(name) { return { name: name, type: 'fixed', amount: amounts[name] || null }; });
+  window._discountTypeItems = items.map(function (name) { return { name: name, type: 'fixed', amount: amounts[name] || null }; });
 
   var itemsHtml = '';
-  items.forEach(function(name, idx) {
+  items.forEach(function (name, idx) {
     var amt = amounts[name];
     var displayName = amt ? name + ': ' + amt : name;
     itemsHtml += '<div class="flex items-center justify-between gap-2 px-2.5 py-2 rounded-lg bg-white">'
@@ -7563,7 +7545,7 @@ function toggleDiscountType(btn) {
 
   // Update all toggle buttons for this index
   var row = btn.parentElement;
-  row.querySelectorAll('.dt-toggle-btn').forEach(function(b) {
+  row.querySelectorAll('.dt-toggle-btn').forEach(function (b) {
     if (b.dataset.dtType === type) {
       b.className = 'dt-toggle-btn dt-' + (type === 'fixed' ? 'fixed' : 'pct') + ' px-2.5 py-1 text-[11px] font-bold transition-all cursor-pointer bg-green-500 text-white';
     } else {
@@ -7582,7 +7564,7 @@ function confirmDiscountTypes() {
   var L = window.APP_LANGUAGES || {};
 
   var parts = [];
-  items.forEach(function(item) {
+  items.forEach(function (item) {
     var amtStr = item.amount ? String(item.amount) : '';
     if (item.type === 'percentage') {
       parts.push(item.name + (amtStr ? ' ' + amtStr : '') + '%');
@@ -7621,22 +7603,22 @@ function renderItemInputListCard(clarification) {
   }
 
   // Store state for confirm
-  window._itemInputListData = items.map(function(item, idx) {
+  window._itemInputListData = items.map(function (item, idx) {
     var toggle = item.toggle || null;
     var activeMode = toggle ? (toggle.default || toggle.options[0]) : null;
     // For discount cards, calculate max price from invoice JSON
-    // Handles materials (qty*unit_price), hourly labor (hours*rate), fixed labor/fees (price)
+    // Handles products (qty*unit_price), hourly labor (hours*rate), fixed labor/fees (price)
     var maxPrice = null;
     if (toggle && toggle.key === 'discount_type' && window.lastAiResult && window.lastAiResult.sections) {
       var iName = (item.name || '').toLowerCase();
-      window.lastAiResult.sections.forEach(function(sec) {
-        (sec.items || []).forEach(function(sItem) {
+      window.lastAiResult.sections.forEach(function (sec) {
+        (sec.items || []).forEach(function (sItem) {
           var sName = (sItem.desc || sItem.name || '').toLowerCase();
           if (sName === iName) {
             var total;
             if (sItem.mode === 'hourly') {
               total = (parseFloat(sItem.hours) || 0) * (parseFloat(sItem.rate) || 0);
-            } else if (sec.type === 'materials') {
+            } else if (sec.type === 'products') {
               total = (parseFloat(sItem.qty) || 1) * (parseFloat(sItem.unit_price || sItem.price) || 0);
             } else {
               total = parseFloat(sItem.price) || 0;
@@ -7650,7 +7632,7 @@ function renderItemInputListCard(clarification) {
   });
 
   var itemsHtml = '';
-  items.forEach(function(item, idx) {
+  items.forEach(function (item, idx) {
     var toggle = item.toggle || null;
     var activeMode = toggle ? (toggle.default || toggle.options[0]) : null;
     var isDiscountToggle = toggle && toggle.key === 'discount_type';
@@ -7673,7 +7655,7 @@ function renderItemInputListCard(clarification) {
       itemsHtml += buildIilInput(idx, 'hours', L.hours_label || 'საათი', 'number', null)
         + buildIilInput(idx, 'rate', L.rate_label || 'ტარიფი', 'number', null);
     } else {
-      (item.inputs || []).forEach(function(inp) {
+      (item.inputs || []).forEach(function (inp) {
         var prefill = inp.value !== undefined && inp.value !== null ? inp.value : null;
         var extra = isDiscountToggle ? ' oninput="validateDiscountInput(this)"' : '';
         itemsHtml += buildIilInput(idx, inp.key, inp.label, inp.type || 'text', prefill, extra);
@@ -7766,7 +7748,7 @@ function toggleItemInputMode(btn) {
   var itemCard = card.querySelector('div[data-iil-idx="' + idx + '"]');
   if (!itemCard) return;
 
-  itemCard.querySelectorAll('.iil-toggle-btn').forEach(function(b) {
+  itemCard.querySelectorAll('.iil-toggle-btn').forEach(function (b) {
     if (b.dataset.iilMode === newMode) {
       b.className = 'iil-toggle-btn px-2 py-1.5 text-[10px] font-bold transition-all cursor-pointer ' + activeColor;
     } else {
@@ -7790,14 +7772,14 @@ function toggleItemInputMode(btn) {
         + toggleHtml;
     } else {
       var inputsHtml = '';
-      (item.inputs || []).forEach(function(inp) {
+      (item.inputs || []).forEach(function (inp) {
         var prefill = inp.value !== undefined && inp.value !== null ? inp.value : null;
         inputsHtml += buildIilInput(idx, inp.key, inp.label, inp.type || 'text', prefill);
       });
       container.innerHTML = inputsHtml + toggleHtml;
     }
     // Re-bind toggle button visuals after rebuild
-    container.querySelectorAll('.iil-toggle-btn').forEach(function(b) {
+    container.querySelectorAll('.iil-toggle-btn').forEach(function (b) {
       if (b.dataset.iilMode === newMode) {
         b.className = 'iil-toggle-btn px-2 py-1.5 text-[10px] font-bold transition-all cursor-pointer ' + activeColor;
       } else {
@@ -7833,17 +7815,17 @@ function validateDiscountInput(inp) {
   if (!itemCard) return;
 
   // #5: Recalculate maxPrice from LIVE lastAiResult (prices may have been set after card creation)
-  // Handles materials (qty*unit_price), hourly labor (hours*rate), and fixed labor (price)
+  // Handles products (qty*unit_price), hourly labor (hours*rate), and fixed labor (price)
   if (window.lastAiResult && window.lastAiResult.sections) {
     var iName = (item.name || '').toLowerCase();
-    window.lastAiResult.sections.forEach(function(sec) {
-      (sec.items || []).forEach(function(sItem) {
+    window.lastAiResult.sections.forEach(function (sec) {
+      (sec.items || []).forEach(function (sItem) {
         var sName = (sItem.desc || sItem.name || '').toLowerCase();
         if (sName === iName) {
           var total;
           if (sItem.mode === 'hourly') {
             total = (parseFloat(sItem.hours) || 0) * (parseFloat(sItem.rate) || 0);
-          } else if (sec.type === 'materials') {
+          } else if (sec.type === 'products') {
             total = (parseFloat(sItem.qty) || 1) * (parseFloat(sItem.unit_price || sItem.price) || 0);
           } else {
             total = parseFloat(sItem.price) || 0;
@@ -7904,7 +7886,7 @@ function confirmItemInputList() {
   // Inter-step renaming REMOVED — AI handles name interpretation via batch answers.
 
   var parts = [];
-  data.forEach(function(item) {
+  data.forEach(function (item) {
     var itemCard = card.querySelector('div[data-iil-idx="' + item.idx + '"]');
     if (!itemCard) return;
 
@@ -7946,7 +7928,7 @@ function confirmItemInputList() {
         // Price/qty format: multi-line "ტელეფონი:\nრაოდენობა - 1\nფასი - 500"
         var inputs = itemCard.querySelectorAll('.iil-input');
         var fieldLines = [];
-        inputs.forEach(function(inp) {
+        inputs.forEach(function (inp) {
           var val = inp.value.trim();
           if (!val) return;
           var labelEl = inp.parentElement ? inp.parentElement.querySelector('span') : null;
@@ -7966,7 +7948,7 @@ function confirmItemInputList() {
   // ── DIRECT JSON APPLICATION: apply widget values immediately ──
   // Widgets provide structured data — no need to wait for AI to re-parse text
   if (window.lastAiResult && window.lastAiResult.sections) {
-    data.forEach(function(item) {
+    data.forEach(function (item) {
       var itemCard = card.querySelector('div[data-iil-idx="' + item.idx + '"]');
       if (!itemCard) return;
       var itemName = (item.name || '').toLowerCase();
@@ -7975,8 +7957,8 @@ function confirmItemInputList() {
 
       // Find matching section item by name
       var matchedSItem = null;
-      window.lastAiResult.sections.forEach(function(sec) {
-        (sec.items || []).forEach(function(sItem) {
+      window.lastAiResult.sections.forEach(function (sec) {
+        (sec.items || []).forEach(function (sItem) {
           if ((sItem.desc || '').toLowerCase() === itemName) matchedSItem = sItem;
         });
       });
@@ -8015,9 +7997,9 @@ function confirmItemInputList() {
           _lockItemFields(itemName, { price: pVal, hours: null, rate: null, mode: 'fixed' });
         }
       } else {
-        // Materials/expenses/fees: apply each input by key
+        // Products/reimbursements/fees: apply each input by key
         var lockedFields = {};
-        itemCard.querySelectorAll('.iil-input').forEach(function(inp) {
+        itemCard.querySelectorAll('.iil-input').forEach(function (inp) {
           var key = inp.getAttribute('data-iil-key');
           var val = parseFloat(inp.value) || null;
           if (key === 'qty') { matchedSItem.qty = val; lockedFields.qty = val; }
@@ -8055,7 +8037,7 @@ function handleChipManageTax() {
   addUserBubble(L.action_manage_tax || 'Manage Taxes');
 
   showTypingIndicator();
-  setTimeout(function() {
+  setTimeout(function () {
     removeTypingIndicator();
     renderTaxManagementCard();
   }, 400);
@@ -8071,8 +8053,8 @@ function renderTaxManagementCard() {
 
   // Gather all items from invoice sections
   if (window.lastAiResult && window.lastAiResult.sections) {
-    window.lastAiResult.sections.forEach(function(sec) {
-      (sec.items || []).forEach(function(item) {
+    window.lastAiResult.sections.forEach(function (sec) {
+      (sec.items || []).forEach(function (item) {
         var name = item.desc || item.name || '?';
         var rate = 0;
         if (item.tax_rate && item.tax_rate > 0) {
@@ -8088,7 +8070,7 @@ function renderTaxManagementCard() {
   if (items.length === 0) return;
 
   var itemsHtml = '';
-  items.forEach(function(item, idx) {
+  items.forEach(function (item, idx) {
     var pct = item.rate;
     var barColor = pct > 0 ? '' : 'bg-gray-300';
     var labelColor = pct > 0 ? '' : 'text-gray-400';
@@ -8096,7 +8078,7 @@ function renderTaxManagementCard() {
       + '<div class="flex items-center justify-between gap-2 mb-1">'
       + '<span class="text-[11px] font-semibold text-gray-700 truncate flex-1">' + escapeHtml(item.name) + '</span>'
       + '<div class="flex items-center gap-1 shrink-0">'
-      + '<input type="number" min="0" max="100" step="1" value="' + pct + '" data-tax-idx="' + idx + '" onchange="onTaxInputChange(this)" oninput="onTaxInputChange(this)" class="tax-rate-input w-10 text-center text-[11px] font-bold border border-gray-200 rounded-md px-0.5 py-0.5 focus:outline-none focus:border-orange-400 transition-all" style="color:' + (pct > 0 ? '#364153' : '#9ca3af') + '" />' 
+      + '<input type="number" min="0" max="100" step="1" value="' + pct + '" data-tax-idx="' + idx + '" onchange="onTaxInputChange(this)" oninput="onTaxInputChange(this)" class="tax-rate-input w-10 text-center text-[11px] font-bold border border-gray-200 rounded-md px-0.5 py-0.5 focus:outline-none focus:border-orange-400 transition-all" style="color:' + (pct > 0 ? '#364153' : '#9ca3af') + '" />'
       + '<span class="text-[10px] font-bold text-gray-400">%</span>'
       + '</div></div>'
       + '<input type="range" min="0" max="100" step="1" value="' + pct + '" data-tax-idx="' + idx + '" oninput="onTaxSliderChange(this)" onchange="onTaxSliderChange(this)" ontouchmove="onTaxSliderChange(this)" class="tax-rate-slider w-full h-1.5 rounded-full appearance-none cursor-pointer ' + barColor + '" style="accent-color:#364153;background:linear-gradient(to right,#364153 ' + pct + '%,#e5e7eb ' + pct + '%)" />'
@@ -8178,17 +8160,17 @@ function taxBulkAction(rate) {
   var card = document.getElementById('taxManagementCard');
   if (!card) return;
 
-  card.querySelectorAll('.tax-rate-slider').forEach(function(slider) {
+  card.querySelectorAll('.tax-rate-slider').forEach(function (slider) {
     slider.value = rate;
     syncTaxSliderStyle(slider, rate);
   });
-  card.querySelectorAll('.tax-rate-input').forEach(function(inp) {
+  card.querySelectorAll('.tax-rate-input').forEach(function (inp) {
     inp.value = rate;
     inp.className = 'tax-rate-input w-10 text-center text-[11px] font-bold border border-gray-200 rounded-md px-0.5 py-0.5 focus:outline-none focus:border-orange-400 transition-all';
     inp.style.color = rate > 0 ? '#364153' : '#9ca3af';
   });
   if (window._taxManagementItems) {
-    window._taxManagementItems.forEach(function(item) { item.rate = rate; });
+    window._taxManagementItems.forEach(function (item) { item.rate = rate; });
   }
 }
 
@@ -8200,7 +8182,7 @@ function confirmTaxManagement() {
 
   // #13: Lock tax rates into _userItemOverrides (non-queue path also needs protection)
   if (!window._userItemOverrides) window._userItemOverrides = {};
-  items.forEach(function(item) {
+  items.forEach(function (item) {
     var key = item.name.toLowerCase();
     if (!window._userItemOverrides[key]) window._userItemOverrides[key] = {};
     window._userItemOverrides[key].taxable = item.rate > 0;
@@ -8209,10 +8191,10 @@ function confirmTaxManagement() {
 
   // DIRECTLY apply tax rates to invoice JSON as immediate safety net
   if (window.lastAiResult && window.lastAiResult.sections) {
-    window.lastAiResult.sections.forEach(function(sec) {
-      (sec.items || []).forEach(function(sItem) {
+    window.lastAiResult.sections.forEach(function (sec) {
+      (sec.items || []).forEach(function (sItem) {
         var name = (sItem.desc || sItem.name || '').toLowerCase();
-        var match = items.find(function(ti) { return ti.name.toLowerCase() === name; });
+        var match = items.find(function (ti) { return ti.name.toLowerCase() === name; });
         if (match) {
           if (match.rate > 0) {
             sItem.taxable = true;
@@ -8228,8 +8210,8 @@ function confirmTaxManagement() {
   }
 
   // ALSO build explicit AI instruction — AI is the primary brain
-  var allZero = items.every(function(i) { return i.rate === 0; });
-  var allSame = items.every(function(i) { return i.rate === items[0].rate; });
+  var allZero = items.every(function (i) { return i.rate === 0; });
+  var allSame = items.every(function (i) { return i.rate === items[0].rate; });
   var instruction = '';
 
   if (allZero) {
@@ -8238,7 +8220,7 @@ function confirmTaxManagement() {
     instruction = promptMeta.buildApplyAllTaxInstruction(items[0].rate);
   } else {
     instruction = promptMeta.perItemTaxIntro;
-    items.forEach(function(i) {
+    items.forEach(function (i) {
       if (i.rate > 0) {
         instruction += promptMeta.perItemTaxApplied(i.name, i.rate);
       } else {
@@ -8252,7 +8234,7 @@ function confirmTaxManagement() {
   if (allZero) {
     summary = L.tax_all_removed || 'All tax removed';
   } else {
-    summary = items.map(function(item) {
+    summary = items.map(function (item) {
       return item.name + ': ' + item.rate + '%';
     }).join('\n');
   }
@@ -8274,8 +8256,8 @@ function renderTaxManagementInQueue(clarification) {
 
   // Gather all items from invoice sections (same as renderTaxManagementCard)
   if (window.lastAiResult && window.lastAiResult.sections) {
-    window.lastAiResult.sections.forEach(function(sec) {
-      (sec.items || []).forEach(function(item) {
+    window.lastAiResult.sections.forEach(function (sec) {
+      (sec.items || []).forEach(function (item) {
         var name = item.desc || item.name || '?';
         var rate = 0;
         if (item.tax_rate && item.tax_rate > 0) {
@@ -8299,7 +8281,7 @@ function renderTaxManagementInQueue(clarification) {
   window._taxQueueItems = items;
 
   var itemsHtml = '';
-  items.forEach(function(item, idx) {
+  items.forEach(function (item, idx) {
     var pct = item.rate;
     itemsHtml += '<div class="px-2.5 py-2 rounded-lg bg-white">'
       + '<div class="flex items-center justify-between gap-2 mb-1">'
@@ -8361,15 +8343,15 @@ function onTaxQueueInputChange(inp) {
 function taxQueueBulkAction(rate) {
   var card = document.getElementById('taxQueueCard');
   if (!card) return;
-  card.querySelectorAll('.taxq-rate-slider').forEach(function(slider) {
+  card.querySelectorAll('.taxq-rate-slider').forEach(function (slider) {
     slider.value = rate;
     slider.style.background = 'linear-gradient(to right,#364153 ' + rate + '%,#e5e7eb ' + rate + '%)';
   });
-  card.querySelectorAll('.taxq-rate-input').forEach(function(inp) {
+  card.querySelectorAll('.taxq-rate-input').forEach(function (inp) {
     inp.value = rate;
     inp.style.color = rate > 0 ? '#364153' : '#9ca3af';
   });
-  if (window._taxQueueItems) window._taxQueueItems.forEach(function(item) { item.rate = rate; });
+  if (window._taxQueueItems) window._taxQueueItems.forEach(function (item) { item.rate = rate; });
 }
 
 function confirmTaxQueue() {
@@ -8378,7 +8360,7 @@ function confirmTaxQueue() {
 
   // LOCK: save user-explicit tax rates so AI response can't overwrite them
   if (!window._userItemOverrides) window._userItemOverrides = {};
-  items.forEach(function(item) {
+  items.forEach(function (item) {
     var key = item.name.toLowerCase();
     if (!window._userItemOverrides[key]) window._userItemOverrides[key] = {};
     window._userItemOverrides[key].taxable = item.rate > 0;
@@ -8387,10 +8369,10 @@ function confirmTaxQueue() {
 
   // DIRECTLY apply tax rates to invoice JSON as immediate safety net
   if (window.lastAiResult && window.lastAiResult.sections) {
-    window.lastAiResult.sections.forEach(function(sec) {
-      (sec.items || []).forEach(function(sItem) {
+    window.lastAiResult.sections.forEach(function (sec) {
+      (sec.items || []).forEach(function (sItem) {
         var name = (sItem.desc || sItem.name || '').toLowerCase();
-        var match = items.find(function(ti) { return ti.name.toLowerCase() === name; });
+        var match = items.find(function (ti) { return ti.name.toLowerCase() === name; });
         if (match) {
           if (match.rate > 0) {
             sItem.taxable = true;
@@ -8406,8 +8388,8 @@ function confirmTaxQueue() {
   }
 
   // ALSO build explicit AI instruction — AI is the primary brain, it must understand too
-  var allZero = items.every(function(i) { return i.rate === 0; });
-  var allSame = items.every(function(i) { return i.rate === items[0].rate; });
+  var allZero = items.every(function (i) { return i.rate === 0; });
+  var allSame = items.every(function (i) { return i.rate === items[0].rate; });
   var instruction = '';
   var promptMeta = assistantPromptMeta();
 
@@ -8417,7 +8399,7 @@ function confirmTaxQueue() {
     instruction = promptMeta.buildApplyAllTaxInstruction(items[0].rate);
   } else {
     instruction = promptMeta.perItemTaxIntro;
-    items.forEach(function(item) {
+    items.forEach(function (item) {
       if (item.rate > 0) {
         instruction += promptMeta.perItemTaxApplied(item.name, item.rate);
       } else {
@@ -8428,14 +8410,14 @@ function confirmTaxQueue() {
   }
 
   // Build user bubble summary — one item per double-spaced line
-  var summary = items.map(function(item) { return item.name + ': ' + item.rate + '%'; }).join('\n\n');
+  var summary = items.map(function (item) { return item.name + ': ' + item.rate + '%'; }).join('\n\n');
 
   window._taxQueueItems = null;
 
   // Disable card
   var card = document.getElementById('taxQueueCard');
   if (card) {
-    card.querySelectorAll('button, input').forEach(function(el) { el.disabled = true; el.style.opacity = '0.5'; });
+    card.querySelectorAll('button, input').forEach(function (el) { el.disabled = true; el.style.opacity = '0.5'; });
   }
 
   addUserBubble(summary);
@@ -8448,8 +8430,8 @@ function confirmTaxQueue() {
 function _lockCurrentTaxRates() {
   if (!window.lastAiResult || !window.lastAiResult.sections) return;
   if (!window._userItemOverrides) window._userItemOverrides = {};
-  window.lastAiResult.sections.forEach(function(sec) {
-    (sec.items || []).forEach(function(sItem) {
+  window.lastAiResult.sections.forEach(function (sec) {
+    (sec.items || []).forEach(function (sItem) {
       var name = (sItem.desc || sItem.name || '').toLowerCase();
       if (name) {
         if (!window._userItemOverrides[name]) window._userItemOverrides[name] = {};
@@ -8466,7 +8448,7 @@ function _lockItemFields(itemName, fields) {
   var key = (itemName || '').toLowerCase();
   if (!key) return;
   if (!window._userItemOverrides[key]) window._userItemOverrides[key] = {};
-  Object.keys(fields).forEach(function(f) {
+  Object.keys(fields).forEach(function (f) {
     window._userItemOverrides[key][f] = fields[f];
   });
 }
@@ -8474,165 +8456,15 @@ function _lockItemFields(itemName, fields) {
 // Re-apply ALL locked user overrides onto a data object (called after AI response)
 // Replaces per-field locks with a single mechanism (#1, #2, #6)
 function _reapplyAllOverrides(data) {
-  if (!window._userItemOverrides || !data || !data.sections) return;
-  var overrides = window._userItemOverrides;
-  data.sections.forEach(function(sec) {
-    (sec.items || []).forEach(function(sItem) {
-      var name = (sItem.desc || sItem.name || '').toLowerCase();
-      if (overrides[name]) {
-        var o = overrides[name];
-        Object.keys(o).forEach(function(field) {
-          sItem[field] = o[field];
-        });
-      }
-    });
-  });
+  // Purposefully left empty: Let the AI act as the 100% genuine source of truth
+  return;
 }
 
 // ── TAX TEXT DIRECT APPLY: parse natural language tax instructions and apply to JSON ──
 // Safety net for AI failures — especially with 0% tax rates
 function applyTaxTextDirectly(text) {
-  if (!window.lastAiResult || !window.lastAiResult.sections) return;
-  if (!text || typeof text !== 'string') return;
-
-  var t = text.trim().toLowerCase();
-  var allItems = [];
-  window.lastAiResult.sections.forEach(function(sec) {
-    (sec.items || []).forEach(function(item) {
-      allItems.push(item);
-    });
-  });
-  if (allItems.length === 0) return;
-
-  // Pattern 1: Remove all tax — keyword-based detection (no anchored regex)
-  var removeAllKeywords = ['remove all tax','no tax','tax free','without tax','0% tax','0 tax',
-    'გადასახად','ყველა 0','ნუ დაადებ დღგ','დღგ გარეშე','არ დაადო','დღგ მოხსენ',
-    'დღგ მოაშორ','დღგ წაშალ','დღგ ნუ','არ დაბეგრ','არაფერი დაბეგრ','ნუ დაბეგრავ',
-    'მოაშორე დაბეგვრ','დაბეგვრა მოაშორ'];
-  var isRemoveAll = removeAllKeywords.some(function(k){ return t.indexOf(k) !== -1; });
-  if (isRemoveAll) {
-    allItems.forEach(function(item) { item.taxable = false; item.tax_rate = 0; });
-    _lockCurrentTaxRates();
-    updateUIWithoutTranscript(window.lastAiResult, true);
-    return;
-  }
-
-  // Pattern 2: "all X%" / "ყველა X%"
-  var allSameRe = /^(?:all|ყველა\w*)\s+(\d+)\s*%?\s*$/i;
-  var allMatch = t.match(allSameRe);
-  if (allMatch) {
-    var rate = parseInt(allMatch[1]);
-    allItems.forEach(function(item) {
-      if (rate > 0) { item.taxable = true; item.tax_rate = rate; }
-      else { item.taxable = false; item.tax_rate = 0; }
-    });
-    _lockCurrentTaxRates();
-    updateUIWithoutTranscript(window.lastAiResult, true);
-    return;
-  }
-
-  // Pattern 2.5: "remove tax from X" / "მოაშორე დაბეგვრა X-ს" / "X-ს დღგ მოხსენი"
-  var removeTaxItemRe = /(?:remove\s+tax\s+(?:from|on)|მოაშორე\s+(?:დაბეგვრა|დღგ)\s*|დაბეგვრა\s+მოაშორე\s*|დღგ\s+მოხსენი?\s*|დღგ\s+მოაშორე\s*)([\u10A0-\u10FF\u2D00-\u2D2F\w]+)/i;
-  var removeTaxItemRe2 = /([\u10A0-\u10FF\u2D00-\u2D2F\w]+)\s*-?ს?\s+(?:დღგ|დაბეგვრა)\s+(?:მოხსენ|მოაშორ|წაშალ)/i;
-  // Pattern: "ქეისსაც მოაშორე დაბეგვრა" — item(+suffix) + მოაშორე/მოხსენი + დაბეგვრა/დღგ
-  var removeTaxItemRe3 = /([\u10A0-\u10FF\u2D00-\u2D2F\w]+)\w{0,4}\s+(?:მოაშორე|მოხსენი?|წაშალე?)\s+(?:დაბეგვრა|დღგ)/i;
-  var rmMatch = t.match(removeTaxItemRe) || t.match(removeTaxItemRe2) || t.match(removeTaxItemRe3);
-  if (rmMatch) {
-    var targetWord = rmMatch[1].toLowerCase();
-    // Strip Georgian case suffixes for matching
-    var targetStems = [targetWord];
-    if (targetWord.endsWith('საც')) targetStems.push(targetWord.slice(0, -3)); // ქეისსაც → ქეის
-    if (targetWord.endsWith('აც')) targetStems.push(targetWord.slice(0, -2));  // ქეისაც → ქეის
-    if (targetWord.endsWith('ს')) targetStems.push(targetWord.slice(0, -1));
-    if (targetWord.endsWith('ის')) targetStems.push(targetWord.slice(0, -2));
-    if (targetWord.endsWith('ზე')) targetStems.push(targetWord.slice(0, -2));
-
-    var matched = false;
-    allItems.forEach(function(item) {
-      var iName = (item.desc || item.name || '').toLowerCase();
-      var iStem = iName.replace(/ი$/, '');
-      if (targetStems.some(function(s) { return s === iName || s === iStem || iName.indexOf(s) !== -1 || s.indexOf(iStem) !== -1; })) {
-        item.taxable = false; item.tax_rate = 0;
-        matched = true;
-      }
-    });
-    if (matched) {
-      _lockCurrentTaxRates();
-      updateUIWithoutTranscript(window.lastAiResult, true);
-      return;
-    }
-  }
-
-  // Pattern 3: "itemName X(-ია/%), დანარჩენი/rest Y%" — per-item with rest
-  // Parse named rates and "rest" rate
-  var restRe = /(?:დანარჩენი|rest|others?|სხვა)\s+(\d+)\s*%?/i;
-  var restMatch = t.match(restRe);
-  var restRate = restMatch ? parseInt(restMatch[1]) : null;
-
-  // Extract "itemName X%" or "itemName X-ია" or "itemName X" or "X% itemName"
-  var namedRates = {};
-  var itemNames = allItems.map(function(item) { return (item.desc || item.name || '').toLowerCase(); });
-
-  // Helper: get stem variations for Georgian name matching
-  function getStems(name) {
-    var stems = [name];
-    if (name.endsWith('ი')) stems.push(name.slice(0, -1)); // ტელეფონი → ტელეფონ
-    return stems;
-  }
-
-  // Try matching each item name in the text (including with Georgian suffixes)
-  itemNames.forEach(function(name) {
-    if (!name || name.length < 2) return;
-    var stems = getStems(name);
-
-    stems.forEach(function(stem) {
-      if (namedRates[name] !== undefined) return; // already found
-      var escaped = stem.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      // Match: "stem(suffix) X%" or "X% stem(suffix)"
-      var re1 = new RegExp(escaped + '\\w*\\s*[:\\-–]?\\s*(\\d+)\\s*(%|-?ია)?', 'i');
-      var re2 = new RegExp('(\\d+)\\s*%?\\s*[-–]?\\s*' + escaped + '\\w*', 'i');
-      var m = t.match(re1) || t.match(re2);
-      if (m) {
-        namedRates[name] = parseInt(m[1]);
-      }
-    });
-  });
-
-  var hasNamedRates = Object.keys(namedRates).length > 0;
-
-  if (hasNamedRates || restRate !== null) {
-    allItems.forEach(function(item) {
-      var iName = (item.desc || item.name || '').toLowerCase();
-      var rate;
-      if (namedRates[iName] !== undefined) {
-        rate = namedRates[iName];
-      } else if (restRate !== null) {
-        rate = restRate;
-      } else {
-        return; // no info for this item, leave unchanged
-      }
-      if (rate > 0) { item.taxable = true; item.tax_rate = rate; }
-      else { item.taxable = false; item.tax_rate = 0; }
-    });
-    _lockCurrentTaxRates();
-    updateUIWithoutTranscript(window.lastAiResult, true);
-    return;
-  }
-
-  // Pattern 4: Just a number → apply to all items
-  var justNumber = t.match(/^(\d+)\s*%?\s*$/);
-  if (justNumber) {
-    var r = parseInt(justNumber[1]);
-    allItems.forEach(function(item) {
-      if (r > 0) { item.taxable = true; item.tax_rate = r; }
-      else { item.taxable = false; item.tax_rate = 0; }
-    });
-    _lockCurrentTaxRates();
-    updateUIWithoutTranscript(window.lastAiResult, true);
-    return;
-  }
-
-  // No pattern matched — leave for AI to handle
+  // Purposefully left empty: Let the AI handle 100% of tax instructions
+  return;
 }
 
 // ── CHIP HANDLER: ADD ITEM (conversation starter → AI) ──
@@ -8646,7 +8478,7 @@ function handleChipAddItem() {
   window._collectingClientDetail = 'add_item_name';
 
   showTypingIndicator();
-  setTimeout(function() {
+  setTimeout(function () {
     removeTypingIndicator();
     addAIBubble(L.add_item_what_prompt || 'What do you want to add?');
     var assistInput = document.getElementById('assistantInput');
@@ -8664,10 +8496,10 @@ function handleChipAddItem() {
 function getInvoiceSectionsFromDOM() {
   var L = window.APP_LANGUAGES || {};
   var SECTION_META = {
-    labor:     { label: L.discount_cat_services || 'Services',       color: 'orange', icon: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>' },
-    materials: { label: L.discount_cat_products || 'Products',       color: 'orange', icon: '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>' },
-    fees:      { label: L.discount_cat_fees || 'Fees',               color: 'blue',   icon: '<rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>' },
-    expenses:  { label: L.discount_cat_expenses || 'Reimbursements', color: 'red',    icon: '<path d="M19 5c-1.5 0-2.8 1.4-3 2-3.5-1.5-11-.3-11 5 0 1.8 0 3 2 4.5V20h4v-2h3v2h4v-4c1-.5 1.7-1 2-2h2v-4h-2c0-1-.5-1.5-1-2"/><path d="M2 9v1c0 1.1.9 2 2 2h1"/><circle cx="16" cy="11" r="1"/>' }
+    labor: { label: L.discount_cat_services || 'Services', color: 'orange', icon: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>' },
+    products: { label: L.discount_cat_products || 'Products', color: 'orange', icon: '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>' },
+    fees: { label: L.discount_cat_fees || 'Fees', color: 'blue', icon: '<rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>' },
+    reimbursements: { label: L.discount_cat_reimbursements || 'Reimbursements', color: 'red', icon: '<path d="M19 5c-1.5 0-2.8 1.4-3 2-3.5-1.5-11-.3-11 5 0 1.8 0 3 2 4.5V20h4v-2h3v2h4v-4c1-.5 1.7-1 2-2h2v-4h-2c0-1-.5-1.5-1-2"/><path d="M2 9v1c0 1.1.9 2 2 2h1"/><circle cx="16" cy="11" r="1"/>' }
   };
   var cats = [];
 
@@ -8676,7 +8508,7 @@ function getInvoiceSectionsFromDOM() {
   var laborGroup = document.getElementById('laborGroup');
   if (laborContainer && (!laborGroup || !laborGroup.classList.contains('hidden'))) {
     var laborItems = [];
-    laborContainer.querySelectorAll('.labor-item-row').forEach(function(row) {
+    laborContainer.querySelectorAll('.labor-item-row').forEach(function (row) {
       var desc = (row.querySelector('.labor-item-input') || {}).value || '';
       if (desc.trim()) laborItems.push(desc.trim());
     });
@@ -8686,11 +8518,11 @@ function getInvoiceSectionsFromDOM() {
     }
   }
 
-  // Dynamic sections (materials, expenses, fees)
-  document.querySelectorAll('.dynamic-section').forEach(function(sec) {
+  // Dynamic sections (products, reimbursements, fees)
+  document.querySelectorAll('.dynamic-section').forEach(function (sec) {
     var prot = (sec.dataset.protected || '').toLowerCase();
     var items = [];
-    sec.querySelectorAll('.item-row').forEach(function(row) {
+    sec.querySelectorAll('.item-row').forEach(function (row) {
       var desc = (row.querySelector('.item-input') || {}).value || '';
       if (desc.trim()) items.push(desc.trim());
     });
@@ -8708,14 +8540,14 @@ function getInvoiceSectionsFromDOM() {
 function buildAccordionHtml(cats, L, showInvoiceDiscount) {
   var ACCORDION_COLORS = {
     orange: { headerBg: 'bg-orange-50', headerBorder: 'border-orange-200', text: 'text-orange-600', allActiveBg: 'bg-orange-500', allActiveText: 'text-white' },
-    blue:   { headerBg: 'bg-blue-50',   headerBorder: 'border-blue-200',   text: 'text-blue-600',   allActiveBg: 'bg-blue-500',   allActiveText: 'text-white' },
-    red:    { headerBg: 'bg-red-50',    headerBorder: 'border-red-200',    text: 'text-red-600',    allActiveBg: 'bg-red-500',    allActiveText: 'text-white' }
+    blue: { headerBg: 'bg-blue-50', headerBorder: 'border-blue-200', text: 'text-blue-600', allActiveBg: 'bg-blue-500', allActiveText: 'text-white' },
+    red: { headerBg: 'bg-red-50', headerBorder: 'border-red-200', text: 'text-red-600', allActiveBg: 'bg-red-500', allActiveText: 'text-white' }
   };
 
   var accordionHtml = '';
   var autoExpand = cats.length === 1;
 
-  cats.forEach(function(cat, catIdx) {
+  cats.forEach(function (cat, catIdx) {
     var cm = ACCORDION_COLORS[cat.color] || ACCORDION_COLORS.orange;
     var isExpanded = true;
 
@@ -8732,7 +8564,7 @@ function buildAccordionHtml(cats, L, showInvoiceDiscount) {
 
     // Items container (collapsible)
     accordionHtml += '<div class="accordion-items pl-4 space-y-1 mt-1' + (isExpanded ? '' : ' hidden') + '" data-cat-idx="' + catIdx + '">';
-    cat.items.forEach(function(itemName, itemIdx) {
+    cat.items.forEach(function (itemName, itemIdx) {
       // Checked: orange bg + white check icon; Unchecked: white bg + orange border
       accordionHtml += '<button type="button" data-cat-idx="' + catIdx + '" data-item-idx="' + itemIdx + '" data-selected="true" onclick="toggleAccordionItem(this)" class="accordion-item-btn w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white hover:bg-gray-50 transition-all cursor-pointer active:scale-[0.97] text-left">'
         + '<div class="w-4 h-4 rounded border-2 border-orange-400 bg-orange-500 flex items-center justify-center shrink-0 accordion-item-check">'
@@ -8781,8 +8613,8 @@ function toggleAccordionCatAll(catIdx) {
   var items = document.querySelectorAll('.accordion-item-btn[data-cat-idx="' + catIdx + '"]');
   if (!items.length) return;
   var allSelected = true;
-  items.forEach(function(btn) { if (btn.dataset.selected !== 'true') allSelected = false; });
-  items.forEach(function(btn) {
+  items.forEach(function (btn) { if (btn.dataset.selected !== 'true') allSelected = false; });
+  items.forEach(function (btn) {
     btn.dataset.selected = allSelected ? 'false' : 'true';
     updateAccordionItemVisual(btn);
   });
@@ -8818,12 +8650,12 @@ function updateAccordionItemVisual(btn) {
 function syncAccordionToggleStates() {
   // Sync per-category "All" toggle states
   var catToggles = document.querySelectorAll('.accordion-cat-toggle');
-  catToggles.forEach(function(toggle) {
+  catToggles.forEach(function (toggle) {
     var catIdx = toggle.dataset.catIdx;
     var items = document.querySelectorAll('.accordion-item-btn[data-cat-idx="' + catIdx + '"]');
     if (!items.length) return;
     var allSelected = true;
-    items.forEach(function(btn) { if (btn.dataset.selected !== 'true') allSelected = false; });
+    items.forEach(function (btn) { if (btn.dataset.selected !== 'true') allSelected = false; });
     // Get category color from parent
     var catDiv = toggle.closest('.accordion-cat');
     var headerBtn = catDiv ? catDiv.querySelector('button') : null;
@@ -8842,7 +8674,7 @@ function syncAccordionToggleStates() {
     var card = document.getElementById('multiChoiceAccordionCard') || globalToggle.closest('.bg-gray-50') || document;
     var allItemBtns = card.querySelectorAll('.accordion-item-btn');
     var globalAllSelected = true;
-    allItemBtns.forEach(function(btn) { if (btn.dataset.selected !== 'true') globalAllSelected = false; });
+    allItemBtns.forEach(function (btn) { if (btn.dataset.selected !== 'true') globalAllSelected = false; });
     if (globalAllSelected && allItemBtns.length > 0) {
       globalToggle.className = 'accordion-global-toggle flex-1 px-3 py-1.5 rounded-xl transition-all cursor-pointer active:scale-[0.97] text-[11px] font-bold bg-orange-500 text-white border-2 border-orange-500';
     } else {
@@ -8864,7 +8696,7 @@ function toggleInvoiceDiscount() {
     btn.dataset.active = 'true';
     btn.className = 'w-full flex items-center justify-center gap-2 px-3 py-2.5 mt-2 rounded-xl border-2 border-green-500 bg-green-500 transition-all cursor-pointer active:scale-[0.97] text-[12px] font-bold text-white';
     var card = document.getElementById('multiChoiceAccordionCard') || document;
-    card.querySelectorAll('.accordion-item-btn').forEach(function(item) {
+    card.querySelectorAll('.accordion-item-btn').forEach(function (item) {
       item.dataset.selected = 'false';
       updateAccordionItemVisual(item);
     });
@@ -8887,8 +8719,8 @@ function toggleAccordionSelectAll() {
   var allBtns = card ? card.querySelectorAll('.accordion-item-btn') : document.querySelectorAll('.accordion-item-btn');
   if (!allBtns.length) return;
   var allSelected = true;
-  allBtns.forEach(function(btn) { if (btn.dataset.selected !== 'true') allSelected = false; });
-  allBtns.forEach(function(btn) {
+  allBtns.forEach(function (btn) { if (btn.dataset.selected !== 'true') allSelected = false; });
+  allBtns.forEach(function (btn) {
     btn.dataset.selected = allSelected ? 'false' : 'true';
     updateAccordionItemVisual(btn);
   });
@@ -8937,7 +8769,7 @@ function renderClientDetailOptions(excludeFields) {
   var btns = '';
   var fields = ['email', 'phone', 'address', 'notes'];
   var hasOptions = false;
-  fields.forEach(function(key) {
+  fields.forEach(function (key) {
     if (exclude.indexOf(key) !== -1) return;
     hasOptions = true;
     var d = defs[key];
@@ -8951,7 +8783,7 @@ function renderClientDetailOptions(excludeFields) {
   });
 
   // Show collected fields as confirmed items
-  exclude.forEach(function(key) {
+  exclude.forEach(function (key) {
     var d = defs[key];
     if (!d) return;
     var val = window._newClientDetails[key] || '';
@@ -8997,7 +8829,7 @@ function startDetailCollection(field) {
   addUserBubble(def.label);
 
   showTypingIndicator();
-  setTimeout(function() {
+  setTimeout(function () {
     removeTypingIndicator();
     addAIBubble(def.prompt);
 
@@ -9098,7 +8930,7 @@ function handleClientDetailInput(value) {
     window._collectingClientDetail = null;
 
     showTypingIndicator();
-    setTimeout(function() {
+    setTimeout(function () {
       removeTypingIndicator();
       // Show what we detected, then re-ask the original field
       var reaskDef = defs[reaskField];
@@ -9122,7 +8954,7 @@ function handleClientDetailInput(value) {
 
   // Show confirmation
   showTypingIndicator();
-  setTimeout(function() {
+  setTimeout(function () {
     removeTypingIndicator();
     addAIBubble((L.detail_saved || 'Saved ✓') + ' ' + value);
 
@@ -9168,9 +9000,9 @@ function finishClientDetailCollection() {
 
   addUserBubble(window.APP_LANGUAGES.detail_done || 'Done');
   showTypingIndicator();
-  setTimeout(function() {
+  setTimeout(function () {
     removeTypingIndicator();
-    addAIBubble(window.APP_LANGUAGES.anything_else || 'Anything else to change?', null, null, {'anything-else': 'true'});
+    addAIBubble(window.APP_LANGUAGES.anything_else || 'Anything else to change?', null, null, { 'anything-else': 'true' });
     renderQuickActionChips();
     if (!window._invoicePreviewShownOnce && !window._userClosedInvoice) {
       window._invoicePreviewShownOnce = true;
@@ -9194,14 +9026,14 @@ function addUserBubble(text) {
 
 function getAssistantSystemLanguage() {
   return ((window.profileSystemLanguage || document.documentElement.lang || 'en') + '').toLowerCase();
- }
+}
 
- function isAssistantSystemGeorgian() {
+function isAssistantSystemGeorgian() {
   var lang = getAssistantSystemLanguage();
   return lang === 'ka' || lang === 'ge';
- }
+}
 
- function assistantPromptMeta() {
+function assistantPromptMeta() {
   if (isAssistantSystemGeorgian()) {
     return {
       userRequestedChange: 'მომხმარებელმა ცვლილება მოითხოვა',
@@ -9216,14 +9048,14 @@ function getAssistantSystemLanguage() {
       summaryAnswerPrefix: 'პ',
       batchIntro: 'ინვოისის JSON-ში ზუსტად ასახე მომხმარებლის შემდეგი პასუხები. ფასები, რაოდენობები, საათები და ტარიფები ზუსტად დააყენე. საგადასახადო ინსტრუქციები ზუსტად გამოიყენე (0% ნიშნავს taxable:false და tax_rate:0). აღწერების შემთხვევაში გადაარქვი შესაბამის პოზიციებს. დააბრუნე განახლებული JSON.\n\n',
       removeAllTaxInstruction: 'მოხსენი ყველა გადასახადი ყველა პოზიციიდან. ყველაფერზე დააყენე taxable:false, labor_taxable:false, tax_rate:0 და tax_scope:null.',
-      buildApplyAllTaxInstruction: function(rate) {
+      buildApplyAllTaxInstruction: function (rate) {
         return 'დაადე ზუსტად ' + rate + '% გადასახადი ყველა პოზიციას. ყველა ელემენტზე დააყენე taxable:true და tax_rate:' + rate + '.';
       },
       perItemTaxIntro: 'დააყენე ზუსტი საგადასახადო განაკვეთები თითოეულ პოზიციაზე ასე: ',
-      perItemTaxApplied: function(name, rate) {
+      perItemTaxApplied: function (name, rate) {
         return '"' + name + '": taxable=true, tax_rate=' + rate + '. ';
       },
-      perItemTaxRemoved: function(name) {
+      perItemTaxRemoved: function (name) {
         return '"' + name + '": taxable=false, tax_rate=0. ';
       },
       perItemTaxOutro: 'ეს განაკვეთები არ შეცვალო. პოზიციებს, რომლებსაც tax_rate=0 აქვთ, აუცილებლად უნდა ჰქონდეთ taxable:false.'
@@ -9243,25 +9075,25 @@ function getAssistantSystemLanguage() {
     summaryAnswerPrefix: 'A',
     batchIntro: 'Apply the following user answers to the invoice JSON. For prices/quantities/hours/rates, set the exact values given. For tax instructions, apply them exactly (0% means taxable:false, tax_rate:0). For descriptions, rename items accordingly. Return the updated JSON.\n\n',
     removeAllTaxInstruction: 'Remove all tax from every item. Set taxable:false, labor_taxable:false, tax_rate:0, tax_scope:null on everything.',
-    buildApplyAllTaxInstruction: function(rate) {
+    buildApplyAllTaxInstruction: function (rate) {
       return 'Apply exactly ' + rate + '% tax to every item. Set taxable:true, tax_rate:' + rate + ' on all items.';
     },
     perItemTaxIntro: 'Set per-item tax rates EXACTLY as follows: ',
-    perItemTaxApplied: function(name, rate) {
+    perItemTaxApplied: function (name, rate) {
       return '"' + name + '": taxable=true, tax_rate=' + rate + '. ';
     },
-    perItemTaxRemoved: function(name) {
+    perItemTaxRemoved: function (name) {
       return '"' + name + '": taxable=false, tax_rate=0. ';
     },
     perItemTaxOutro: 'Do NOT override these rates. Items with tax_rate=0 MUST have taxable:false.'
   };
- }
+}
 
- function isAssistantUserRequestedChange(questionText) {
+function isAssistantUserRequestedChange(questionText) {
   return questionText === assistantPromptMeta().userRequestedChange;
- }
+}
 
- function renderConversationHistory() {
+function renderConversationHistory() {
   const conversation = document.getElementById('assistantConversation');
   if (!conversation) return;
 
@@ -9378,7 +9210,7 @@ async function processAssistantAudio() {
     btn.classList.add('bg-black', 'hover:bg-gray-800');
     btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>`;
   }
-  
+
   const duration = window.recordingStartTime ? Math.floor((Date.now() - window.recordingStartTime) / 1000) : 0;
   window.totalVoiceUsed = (window.totalVoiceUsed || 0) + duration;
 
@@ -9418,7 +9250,7 @@ async function processAssistantAudio() {
         const nextValue = existingText ? `${existingText} ${transcribed}`.trim() : transcribed;
         _smoothlySetInputValue(input, nextValue, {
           fast: true,
-          onComplete: function() {
+          onComplete: function () {
             setTimeout(() => submitAssistantMessage(), 160);
           }
         });
@@ -9436,7 +9268,7 @@ async function submitAssistantMessage() {
   const input = document.getElementById('assistantInput');
   if (window._pendingAnswer) {
     // Bug 4 fix: Show brief feedback instead of silent click swallow
-    if (input) { input.classList.add('animate-pulse'); setTimeout(function() { input.classList.remove('animate-pulse'); }, 600); }
+    if (input) { input.classList.add('animate-pulse'); setTimeout(function () { input.classList.remove('animate-pulse'); }, 600); }
     return;
   }
   const userMessage = input ? input.value.trim() : '';
@@ -9487,7 +9319,7 @@ function syncLastAiResultFromDOM() {
   var laborGroup = document.getElementById('laborGroup');
   if (laborContainer && (!laborGroup || !laborGroup.classList.contains('hidden'))) {
     var laborItems = [];
-    laborContainer.querySelectorAll('.labor-item-row').forEach(function(row) {
+    laborContainer.querySelectorAll('.labor-item-row').forEach(function (row) {
       var desc = (row.querySelector('.labor-item-input') || {}).value || '';
       var price = (row.querySelector('.labor-price-input') || {}).value || '';
       var taxRate = (row.querySelector('.tax-menu-input') || {}).value || '';
@@ -9508,13 +9340,13 @@ function syncLastAiResultFromDOM() {
     if (laborItems.length > 0) domSections.push({ type: 'labor', items: laborItems });
   }
 
-  // Dynamic sections (materials, expenses, fees, etc.)
-  document.querySelectorAll('.dynamic-section').forEach(function(sec) {
+  // Dynamic sections (products, reimbursements, fees, etc.)
+  document.querySelectorAll('.dynamic-section').forEach(function (sec) {
     var titleEl = sec.querySelector('.section-title');
     var title = titleEl ? (titleEl.value || titleEl.innerText || '').trim() : '';
     var secType = sec.dataset.protected || title.toLowerCase();
     var items = [];
-    sec.querySelectorAll('.item-row').forEach(function(row) {
+    sec.querySelectorAll('.item-row').forEach(function (row) {
       var desc = (row.querySelector('.item-input') || {}).value || '';
       var price = (row.querySelector('.price-menu-input') || {}).value || '';
       var taxRate = (row.querySelector('.tax-menu-input') || {}).value || '';
@@ -9535,13 +9367,13 @@ function syncLastAiResultFromDOM() {
   });
 
   // Match DOM sections back to lastAiResult sections by type
-  domSections.forEach(function(domSec) {
-    var match = window.lastAiResult.sections.find(function(s) {
+  domSections.forEach(function (domSec) {
+    var match = window.lastAiResult.sections.find(function (s) {
       return s.type && s.type.toLowerCase().indexOf(domSec.type) !== -1;
     });
     if (match && match.items) {
       // Update item-level fields from DOM (prices, quantities, tax, discounts)
-      domSec.items.forEach(function(domItem, i) {
+      domSec.items.forEach(function (domItem, i) {
         if (i < match.items.length) {
           var aiItem = match.items[i];
           aiItem.price = domItem.price;
@@ -9588,7 +9420,7 @@ async function triggerAssistantReparse(userAnswer, type, questionsText) {
         userItemOverrides: window._userItemOverrides ? JSON.parse(JSON.stringify(window._userItemOverrides)) : null
       });
       if (window._undoStack.length > 10) window._undoStack.shift();
-    } catch(e) { /* ignore serialization errors */ }
+    } catch (e) { /* ignore serialization errors */ }
   }
 
   // PRE-PROCESS: if this looks like a tax instruction, apply directly as safety net
@@ -9597,7 +9429,7 @@ async function triggerAssistantReparse(userAnswer, type, questionsText) {
   var isBatchMsg = userAnswer && userAnswer.indexOf('[AI asked:') !== -1;
   if (!isBatchMsg) {
     var lc = userAnswer.toLowerCase();
-    var hasTaxKeyword = ['tax','დღგ','დაბეგვრ','დაბეგრ','მოაშორე','გადასახად','taxable','tax free','ია%','% tax'].some(function(k){ return lc.indexOf(k) !== -1; });
+    var hasTaxKeyword = ['tax', 'დღგ', 'დაბეგვრ', 'დაბეგრ', 'მოაშორე', 'გადასახად', 'taxable', 'tax free', 'ია%', '% tax'].some(function (k) { return lc.indexOf(k) !== -1; });
     if (hasTaxKeyword || /\d+\s*%/.test(lc)) {
       applyTaxTextDirectly(userAnswer);
     }
@@ -9620,14 +9452,14 @@ async function triggerAssistantReparse(userAnswer, type, questionsText) {
     // #16: Summarize older entries as one-liners to save tokens
     if (oldEntries.length > 0) {
       historyText += "\n[" + promptMeta.contextSummary + ": ";
-      historyText += oldEntries.map(function(h, i) {
+      historyText += oldEntries.map(function (h, i) {
         if (isAssistantUserRequestedChange(h.questions)) return promptMeta.userChanged + ': ' + (h.answer || '').substring(0, 80);
         return promptMeta.summaryQuestionPrefix + ':' + (h.questions || '').substring(0, 40) + '→' + promptMeta.summaryAnswerPrefix + ':' + (h.answer || '').substring(0, 40);
       }).join("; ");
       historyText += "]";
     }
     // Recent entries get full detail
-    recentEntries.forEach(function(h, i) {
+    recentEntries.forEach(function (h, i) {
       var roundNum = oldEntries.length + i + 1;
       if (isAssistantUserRequestedChange(h.questions)) {
         historyText += `\n[Round ${roundNum} - ${promptMeta.userCorrection}: "${h.answer}"]`;
@@ -9660,12 +9492,12 @@ async function triggerAssistantReparse(userAnswer, type, questionsText) {
 
       // #15: Fetch with automatic retry (1 retry after 1.5s on network/server error)
       var res, data, retried = false;
-      var doFetch = async function() {
+      var doFetch = async function () {
         var r = await fetch("/refine_invoice", { method: "POST", headers: reqHeaders, body: reqBody });
         if (r.status >= 500 && !retried) {
           retried = true;
           console.warn('[refine_invoice] Server error ' + r.status + ', retrying in 1.5s...');
-          await new Promise(function(ok) { setTimeout(ok, 1500); });
+          await new Promise(function (ok) { setTimeout(ok, 1500); });
           return doFetch();
         }
         return r;
@@ -9676,7 +9508,7 @@ async function triggerAssistantReparse(userAnswer, type, questionsText) {
         if (!retried) {
           retried = true;
           console.warn('[refine_invoice] Network error, retrying in 1.5s...', netErr);
-          await new Promise(function(ok) { setTimeout(ok, 1500); });
+          await new Promise(function (ok) { setTimeout(ok, 1500); });
           res = await doFetch();
         } else {
           throw netErr;
@@ -9699,7 +9531,7 @@ async function triggerAssistantReparse(userAnswer, type, questionsText) {
       var isBatchClarification = type === 'refinement' && userAnswer && userAnswer.indexOf('[AI asked:') !== -1;
       if (clars.length === 0 && window.lastAiResult && type === 'refinement' && !isBatchClarification) {
         try {
-          var snap = function(d) {
+          var snap = function (d) {
             return JSON.stringify({
               sections: d.sections || [],
               client: d.client || '',
@@ -9715,36 +9547,21 @@ async function triggerAssistantReparse(userAnswer, type, questionsText) {
           if (snap(data) === snap(window.lastAiResult)) {
             aiReturnedNothing = true;
           }
-        } catch(e) { /* ignore comparison errors */ }
+        } catch (e) { /* ignore comparison errors */ }
       }
       window._aiReturnedNothing = aiReturnedNothing;
 
-      // When user sends tax/discount instructions via chat, clear stale overrides for those fields
-      // so _reapplyAllOverrides doesn't force back old locked values from widgets
-      if (window._userItemOverrides && userAnswer) {
-        var ua = userAnswer.toLowerCase();
-        var isTaxMsg = /(?:მოაშორე|მოხსენ|წაშალ|remove|tax|დღგ|დაბეგვრ|0\s*%)/i.test(ua);
-        var isDiscMsg = /(?:ფასდაკლება|discount|off)/i.test(ua);
-        if (isTaxMsg || isDiscMsg) {
-          var ov = window._userItemOverrides;
-          Object.keys(ov).forEach(function(itemKey) {
-            if (isTaxMsg) { delete ov[itemKey].taxable; delete ov[itemKey].tax_rate; }
-            if (isDiscMsg) { delete ov[itemKey].discount_flat; delete ov[itemKey].discount_percent; }
-            if (Object.keys(ov[itemKey]).length === 0) delete ov[itemKey];
-          });
-        }
-      }
-
+      // User overrides are no longer locked locally - the AI is the single source of truth
       // Re-apply ALL locked user overrides BEFORE rendering — AI may have overwritten values
       // #17: Track which fields AI got wrong (overrides had to correct)
       var overrideDiffs = [];
       if (window._userItemOverrides && data && data.sections) {
         var ov = window._userItemOverrides;
-        data.sections.forEach(function(sec) {
-          (sec.items || []).forEach(function(sItem) {
+        data.sections.forEach(function (sec) {
+          (sec.items || []).forEach(function (sItem) {
             var name = (sItem.desc || sItem.name || '').toLowerCase();
             if (ov[name]) {
-              Object.keys(ov[name]).forEach(function(field) {
+              Object.keys(ov[name]).forEach(function (field) {
                 if (sItem[field] !== ov[name][field]) {
                   overrideDiffs.push({ item: name, field: field, ai: sItem[field], user: ov[name][field] });
                 }
@@ -9762,9 +9579,9 @@ async function triggerAssistantReparse(userAnswer, type, questionsText) {
               method: 'POST',
               headers: { 'X-CSRF-Token': csrfEl.content, 'Content-Type': 'application/json' },
               body: JSON.stringify({ event_type: 'ai_override_correction', metadata: { diffs: overrideDiffs, model: 'refine_invoice' } })
-            }).catch(function() {});
+            }).catch(function () { });
           }
-        } catch(e) {}
+        } catch (e) { }
       }
       _reapplyAllOverrides(data);
 
@@ -9779,6 +9596,16 @@ async function triggerAssistantReparse(userAnswer, type, questionsText) {
           handleClarifications(data.clarifications || []);
         }
       } else {
+        // DEBUG: Log tax fields received from AI
+        if (data.sections) {
+          console.log('[TAX_DEBUG] AI response tax fields:', JSON.stringify(data.sections.map(function (s) {
+            return {
+              type: s.type, items: (s.items || []).map(function (i) {
+                return { desc: (i.desc || i.name || '').substring(0, 30), taxable: i.taxable, tax_rate: i.tax_rate };
+              })
+            };
+          })));
+        }
         updateUIWithoutTranscript(data);
       }
 
@@ -10160,8 +9987,8 @@ Object.assign(window, {
   updateAddMenuButtons,
   toggleAddMenu,
   insertSectionInOrder,
-  addMaterialSection,
-  addExpenseSection,
+  addPRODUCTSection,
+  addREIMBURSEMENTSection,
   addFeeSection,
   addLaborSection,
   removeLaborSection,

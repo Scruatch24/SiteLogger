@@ -2,7 +2,7 @@ import { Controller } from "@hotwired/stimulus"
 
 export default class extends Controller {
   // Added currencySymbol target for the Settings page fix we discussed
-  static targets = ["button", "output", "date", "client", "tasks", "materials", "time", "currencySymbol", "transcriptContainer"]
+  static targets = ["button", "output", "date", "client", "tasks", "products", "time", "currencySymbol", "transcriptContainer"]
 
   static values = {
     currencySymbols: Object
@@ -102,7 +102,7 @@ export default class extends Controller {
         this.clientTarget.innerText = data.client || "-"
         this.timeTarget.innerText = data.time || "-"
         this.tasksTarget.innerHTML = (data.tasks || []).map(t => `<li>• ${t}</li>`).join('')
-        this.materialsTarget.innerHTML = (data.materials || []).map(m => `<li>• ${m}</li>`).join('')
+        this.productsTarget.innerHTML = (data.products || []).map(m => `<li>• ${m}</li>`).join('')
 
         this.outputTarget.classList.remove("hidden")
         // Smooth scroll to results

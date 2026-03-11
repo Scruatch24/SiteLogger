@@ -7,7 +7,7 @@ class PageManager
   PAGE_MARGIN = 40              # Document margins
   SINGLE_LINE_ROW_HEIGHT = 28   # Single-line item row
   DOUBLE_LINE_ROW_HEIGHT = 40   # Double-line item row (wrapped text)
-  SECTION_HEADER_HEIGHT = 24    # Section header (FEES, EXPENSES, etc.)
+  SECTION_HEADER_HEIGHT = 24    # Section header (FEES, REIMBURSEMENTS, etc.)
   TABLE_HEADER_HEIGHT = 36      # Table column headers row
   TOTALS_BASE_HEIGHT = 120      # Base height for totals block
   TOTALS_LINE_HEIGHT = 30       # Each line in totals (SUBTOTAL, TAX, etc.)

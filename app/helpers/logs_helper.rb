@@ -7,9 +7,9 @@ module LogsHelper
     Rails.cache.fetch(cache_key) do
       categorized_items = {
         labor: [],
-        material: [],
+        product: [],
         fee: [],
-        expense: [],
+        reimbursement: [],
         other: []
       }
 
@@ -39,8 +39,8 @@ module LogsHelper
       inferred_type = infer_recreate_section_type(section["title"], section["type"])
       category_key = case inferred_type
       when "labor" then :labor
-      when "materials" then :material
-      when "expenses" then :expense
+      when "products" then :product
+      when "reimbursements" then :reimbursement
       when "fees" then :fee
       else :other
       end
@@ -86,7 +86,7 @@ module LogsHelper
                 desc = I18n.t("professional_services", default: "Professional Services")
               end
             else
-              # NON-LABOR LOGIC (Materials, Fees, Expenses)
+              # NON-LABOR LOGIC (Products, Fees, Reimbursements)
               qty = raw_qty > 0 ? raw_qty : 1.0
 
               # SMART QTY EXTRACTION
@@ -103,9 +103,9 @@ module LogsHelper
               # FALLBACK FOR NON-LABOR NAME
               if desc.blank? || desc == "Work performed"
                 desc = case category_key
-                when :material then I18n.t("item_material", default: "Material")
+                when :product then I18n.t("item_product", default: "Product")
                 when :fee      then I18n.t("item_fee", default: "Fee")
-                when :expense  then I18n.t("item_expense", default: "Expense")
+                when :reimbursement  then I18n.t("item_reimbursement", default: "Reimbursement")
                 else I18n.t("item", default: "Item")
                 end
               end
@@ -358,15 +358,15 @@ module LogsHelper
     normalized_existing = existing_type.to_s.downcase
 
     return "labor" if normalized_existing == "labor"
-    return "materials" if %w[materials material product products part parts].include?(normalized_existing)
-    return "expenses" if %w[expenses expense reimbursement reimbursements reimburse].include?(normalized_existing)
+    return "products" if %w[products product product products part parts].include?(normalized_existing)
+    return "reimbursements" if %w[reimbursements reimbursement reimbursement reimbursements reimburse].include?(normalized_existing)
     return "fees" if %w[fees fee surcharge surcharges].include?(normalized_existing)
 
     lower_title = title.to_s.downcase
 
     return "labor" if lower_title.match?(/labor|service|სამუშაო|მომსახურება/)
-    return "materials" if lower_title.match?(/material|product|part|მასალ|პროდუქტ/)
-    return "expenses" if lower_title.match?(/expense|reimburse|ხარჯ|ანაზღაურებ/)
+    return "products" if lower_title.match?(/product|product|part|მასალ|პროდუქტ/)
+    return "reimbursements" if lower_title.match?(/reimbursement|reimburse|ხარჯ|ანაზღაურებ/)
     return "fees" if lower_title.match?(/fee|surcharge|მოსაკრებ|საკომისიო|შესაკრებ/)
 
     nil

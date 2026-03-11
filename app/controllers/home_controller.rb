@@ -138,11 +138,11 @@ class HomeController < ApplicationController
 
     # ── Currency for charts ──
     @currency_symbol = case (profile.currency.presence || "USD")
-                       when "GEL" then "₾"
-                       when "EUR" then "€"
-                       when "GBP" then "£"
-                       else "$"
-                       end
+    when "GEL" then "₾"
+    when "EUR" then "€"
+    when "GBP" then "£"
+    else "$"
+    end
 
     # ── Alerts ──
     @alerts = build_alerts(analytics_data, profile)
@@ -223,17 +223,17 @@ class HomeController < ApplicationController
           days_diff = (today - parsed_due).to_i
           aging_cat = if effective_status == "paid"
                         t("analytics_export.aging_paid")
-                      elsif days_diff < 0
+          elsif days_diff < 0
                         t("analytics_export.aging_not_due")
-                      elsif days_diff == 0
+          elsif days_diff == 0
                         t("analytics_export.aging_due_today")
-                      elsif days_diff <= 7
+          elsif days_diff <= 7
                         t("analytics_export.aging_1_7")
-                      elsif days_diff <= 30
+          elsif days_diff <= 30
                         t("analytics_export.aging_7_30")
-                      else
+          else
                         t("analytics_export.aging_30_plus")
-                      end
+          end
         end
 
         invoice_rows << {
@@ -251,7 +251,7 @@ class HomeController < ApplicationController
 
       csv_data = CSV.generate(encoding: "UTF-8") do |csv|
         # ── Section 1: Invoice Summary ──
-        csv << [t("analytics_export.section_invoices")]
+        csv << [ t("analytics_export.section_invoices") ]
         csv << [
           t("analytics_export.col_invoice_id"),
           t("analytics_export.col_client"),
@@ -264,31 +264,31 @@ class HomeController < ApplicationController
           t("analytics_export.col_aging")
         ]
         invoice_rows.each do |row|
-          csv << [row[:id], row[:client], row[:status], row[:amount], row[:currency], row[:due_date], row[:paid_date], row[:days_to_pay], row[:aging]]
+          csv << [ row[:id], row[:client], row[:status], row[:amount], row[:currency], row[:due_date], row[:paid_date], row[:days_to_pay], row[:aging] ]
         end
         csv << []
 
         # ── Section 2: Financial Metrics ──
-        csv << [t("analytics_export.section_metrics")]
-        csv << [t("analytics_export.col_metric"), t("analytics_export.col_value"), t("analytics_export.col_notes")]
+        csv << [ t("analytics_export.section_metrics") ]
+        csv << [ t("analytics_export.col_metric"), t("analytics_export.col_value"), t("analytics_export.col_notes") ]
         metrics = [
-          [t("analytics_export.metric_total_invoices"), data[:status_counts].values.sum, ""],
-          [t("analytics_export.metric_total_paid"), "#{currency_sym}#{data[:total_paid_amount]}", ""],
-          [t("analytics_export.metric_total_outstanding"), "#{currency_sym}#{data[:total_outstanding]}", ""],
-          [t("analytics_export.metric_overdue_count"), data[:overdue_count], ""],
-          [t("analytics_export.metric_collection_rate"), "#{data[:collection_rate]}%", ""],
-          [t("analytics_export.metric_projected_revenue"), "#{currency_sym}#{data[:projected_revenue]}", t("analytics_export.note_this_month")],
-          [t("analytics_export.metric_avg_invoice"), "#{currency_sym}#{data[:avg_invoice]}", ""],
-          [t("analytics_export.metric_avg_days_to_pay"), data[:avg_days_to_pay] || "—", ""],
-          [t("analytics_export.metric_health_score"), "#{data[:health_score]}%", data[:health_level]],
-          [t("analytics_export.metric_collected_this_month"), "#{currency_sym}#{data[:collected_this_month]}", ""],
-          [t("analytics_export.metric_total_invoiced"), "#{currency_sym}#{data[:total_invoiced]}", ""]
+          [ t("analytics_export.metric_total_invoices"), data[:status_counts].values.sum, "" ],
+          [ t("analytics_export.metric_total_paid"), "#{currency_sym}#{data[:total_paid_amount]}", "" ],
+          [ t("analytics_export.metric_total_outstanding"), "#{currency_sym}#{data[:total_outstanding]}", "" ],
+          [ t("analytics_export.metric_overdue_count"), data[:overdue_count], "" ],
+          [ t("analytics_export.metric_collection_rate"), "#{data[:collection_rate]}%", "" ],
+          [ t("analytics_export.metric_projected_revenue"), "#{currency_sym}#{data[:projected_revenue]}", t("analytics_export.note_this_month") ],
+          [ t("analytics_export.metric_avg_invoice"), "#{currency_sym}#{data[:avg_invoice]}", "" ],
+          [ t("analytics_export.metric_avg_days_to_pay"), data[:avg_days_to_pay] || "—", "" ],
+          [ t("analytics_export.metric_health_score"), "#{data[:health_score]}%", data[:health_level] ],
+          [ t("analytics_export.metric_collected_this_month"), "#{currency_sym}#{data[:collected_this_month]}", "" ],
+          [ t("analytics_export.metric_total_invoiced"), "#{currency_sym}#{data[:total_invoiced]}", "" ]
         ]
         metrics.each { |m| csv << m }
         csv << []
 
         # ── Section 3: Client Insights ──
-        csv << [t("analytics_export.section_clients")]
+        csv << [ t("analytics_export.section_clients") ]
         csv << [
           t("analytics_export.col_client"),
           t("analytics_export.col_total_invoiced"),
@@ -353,17 +353,17 @@ class HomeController < ApplicationController
           days_diff = (today - parsed_due).to_i
           aging_cat = if effective_status == "paid"
                         t("analytics_export.aging_paid")
-                      elsif days_diff < 0
+          elsif days_diff < 0
                         t("analytics_export.aging_not_due")
-                      elsif days_diff == 0
+          elsif days_diff == 0
                         t("analytics_export.aging_due_today")
-                      elsif days_diff <= 7
+          elsif days_diff <= 7
                         t("analytics_export.aging_1_7")
-                      elsif days_diff <= 30
+          elsif days_diff <= 30
                         t("analytics_export.aging_7_30")
-                      else
+          else
                         t("analytics_export.aging_30_plus")
-                      end
+          end
         end
 
         invoice_rows << {
@@ -667,7 +667,7 @@ class HomeController < ApplicationController
 
   def save_profile
     if @profile.guest?
-      return render json: { success: false, errors: [ t('guests_cannot_save') ] }, status: :forbidden
+      return render json: { success: false, errors: [ t("guests_cannot_save") ] }, status: :forbidden
     end
 
     # Strip logo from params if free user tries to upload
@@ -839,7 +839,7 @@ class HomeController < ApplicationController
       validator_prompt = <<~TEXT
         You validate whether transcript text is usable for invoice JSON extraction.
         Return invoice_related=false ONLY when the text is clearly gibberish/incoherent
-        OR clearly unrelated to invoicing/billing/work log/services/products/expenses.
+        OR clearly unrelated to invoicing/billing/work log/services/products/reimbursements.
         If uncertain, return true.
 
         Return STRICT JSON only:
@@ -904,7 +904,7 @@ class HomeController < ApplicationController
 
   def save_settings
     if @profile.guest?
-      return render json: { success: false, errors: [ t('guests_cannot_save') ] }, status: :forbidden
+      return render json: { success: false, errors: [ t("guests_cannot_save") ] }, status: :forbidden
     end
 
     # We use the @profile set by before_action
@@ -1046,7 +1046,7 @@ class HomeController < ApplicationController
     }.compact
 
     lang_context = if target_is_georgian
-      "████ TARGET LANGUAGE: GEORGIAN (ქართული) ████ ALL text content in the output JSON MUST be in Georgian. This applies to: \"desc\", \"name\", \"reason\", \"raw_summary\", \"sub_categories\" text, and \"client\". JSON field NAMES and section keys (\"labor\", \"materials\", etc.) stay in English — only VALUES are Georgian. WARNING: The examples in this prompt are in English for readability; you MUST output Georgian text regardless. E.g., 'Filter Replacement' → 'ფილტრის შეცვლა', 'Nails' → 'ლურსმნები', 'AC Repair' → 'კონდიციონერის შეკეთება'. If user input is already Georgian, keep it Georgian. If user input is English, translate values to Georgian."
+      "████ TARGET LANGUAGE: GEORGIAN (ქართული) ████ ALL text content in the output JSON MUST be in Georgian. This applies to: \"desc\", \"name\", \"reason\", \"raw_summary\", \"sub_categories\" text, and \"client\". JSON field NAMES and section keys (\"labor\", \"products\", etc.) stay in English — only VALUES are Georgian. WARNING: The examples in this prompt are in English for readability; you MUST output Georgian text regardless. E.g., 'Filter Replacement' → 'ფილტრის შეცვლა', 'Nails' → 'ლურსმნები', 'AC Repair' → 'კონდიციონერის შეკეთება'. If user input is already Georgian, keep it Georgian. If user input is English, translate values to Georgian."
     else
       "TARGET LANGUAGE: English. All extracted names, descriptions, and sub_categories text MUST be in English. If the input is in Georgian or any other language, you MUST translate ALL text content to English. Do NOT leave any Georgian text in item names or descriptions. E.g., 'ნაჯახი' becomes 'Axe', 'მაცივრის შეკეთება' becomes 'Refrigerator Repair', 'ფანჯრის შეკეთება' becomes 'Window Repair', 'ლურსმანი' becomes 'Nail'."
     end
@@ -1056,9 +1056,9 @@ class HomeController < ApplicationController
     # The Transcript Language only affects item names/descriptions, not category titles
     ui_is_georgian = (I18n.locale.to_s == "ka")
     sec_labels = if ui_is_georgian
-      { labor: "პროფესიონალური მომსახურება", materials: "პროდუქტები", expenses: "ხარჯები", fees: "მოსაკრებლები" }
+      { labor: "პროფესიონალური მომსახურება", products: "პროდუქტები", reimbursements: "ანაზღაურებები", fees: "მოსაკრებლები" }
     else
-      { labor: "Labor/Service", materials: "Products", expenses: "Expenses", fees: "Fees" }
+      { labor: "Labor/Service", products: "Products", reimbursements: "Reimbursements", fees: "Fees" }
     end
 
     hours_per_workday = (@profile.hours_per_workday.presence || 8).to_f
@@ -1090,7 +1090,15 @@ CORE DIRECTIVES (non-negotiable)
    - Example Input: "Condenser, coil, line set... products were 2300"
    - Output: ONE Products item { "name": "Products", "qty": 1, "unit_price": 2300, "sub_categories": ["Condenser", "Coil", "Line set"], "taxable": null }.
    - LATE TOTAL RULE: Even if items are listed first without prices (e.g. "Got a condenser and a coil... total products 2300"), consolidate them into a single item with the total price. Do NOT leave them priced at 0.
-7. NUMERIC WORDS: "twelve hundred" -> 1200, "twenty-three hundred" -> 2300, "thirty-five hundred" -> 3500. Always return numbers as numeric strings or integers.
+7. CLEAN NAMING RULE: Description (desc) or name (name) fields MUST contain ONLY the subject of the line item (e.g., "Axe", "Battery", "Labor").
+   - Strip all "interrogative" or "conversational" fluff: "How much for...", "Can you add...", "Change the...".#{' '}
+   - Strip all Georgian helper verbs: "დამატე", "დაამატე", "დამატება", "შეცვალე".
+   - Strip all Georgian question words: "რა ფასად", "რამდენი", "რა ღირს", "რა სახის".
+   - Strip all punctuation and trailing question marks.
+8. STRICT QUANTITY RULE: ALWAYS put the numeric quantity in the "qty" or "hours" field. DO NOT repeat the quantity in the description text.
+   - Example Input: "3 Apples" -> { "name": "Apple", "qty": 3 } (NOT { "name": "3 Apples", "qty": 1 })
+   - Example Input: "Axe (x2)" -> { "name": "Axe", "qty": 2 }
+9. NUMERIC WORDS: "twelve hundred" -> 1200, "twenty-three hundred" -> 2300, "thirty-five hundred" -> 3500. Always return numbers as numeric strings or integers.
 8. CLIENT EXTRACTION: Explicitly look for introductions like "This is [Name]", "Invoice for [Name]", "Bill to [Name]".
    - "Hello, this is Apex Roofing" -> Client: "Apex Roofing"
    - Georgian: "კლიენტი", "კლიენტია" → extract the name that follows.
@@ -1114,7 +1122,7 @@ EXTRACTION STRATEGY
 ----------------------------
 NATURAL LANGUAGE / SLANG RULESET (pragmatic)
 ----------------------------
-- Accept trade slang: "bucks", "quid" → count as currency; "knock off", "hook him up" → credit/discount intent; "trip charge", "service call" → fee; common part names ("P-Trap", "SharkBite") → materials.
+- Accept trade slang: "bucks", "quid" → count as currency; "knock off", "hook him up" → credit/discount intent; "trip charge", "service call" → fee; common part names ("P-Trap", "SharkBite") → products.
 - MEASUREMENTS vs QUANTITY: "25 feet of pipe" → Qty: 1, Name/Desc: "25 feet of pipe". Do NOT extract '25' as quantity unless it refers to discrete units (e.g. "25 pipes").
 - If explicit currency word omitted (e.g., "Take 20 off"), treat as CURRENCY (flat amount). Only infer percent if "percent" or "%" is explicitly used.
 - THOUSANDS SEPARATOR: Spaces in numbers are thousands separators. "4 599" = 4599, "12 000" = 12000, "1 200 000" = 1200000. NEVER split "4 599" into qty=4 and price=599.
@@ -1133,8 +1141,8 @@ NATURAL LANGUAGE / SLANG RULESET (pragmatic)
 ----------------------------
 CATEGORY RULES (must map correctly)
 ----------------------------
-Categories: LABOR/SERVICE, PRODUCTS (type: "materials"), EXPENSES, FEES, CREDITS.
-THESE ARE THE ONLY 5 CATEGORIES. You MUST classify every item into one of these. There is NO "other", "notes", "miscellaneous", or any other category. If an item does not clearly fit LABOR, EXPENSES, or FEES, classify it as PRODUCTS (section type: "materials" in JSON).
+Categories: LABOR/SERVICE, PRODUCTS (type: "products"), REIMBURSEMENTS, FEES, CREDITS.
+THESE ARE THE ONLY 5 CATEGORIES. You MUST classify every item into one of these. There is NO "other", "notes", "miscellaneous", or any other category. If an item does not clearly fit LABOR, REIMBURSEMENTS, or FEES, classify it as PRODUCTS (section type: "products" in JSON).
 
 LABOR:
 - SERVICE ACTIONS: Implementation, deployment, installation, configuration, setup, migration, integration, consulting, training are ALWAYS labor/service — even if the object sounds like a product (e.g., "ERP system implementation" = SERVICE, "server installation" = SERVICE, "database migration" = SERVICE). Georgian: "დანერგვა", "ინსტალაცია", "კონფიგურაცია", "მიგრაცია", "ინტეგრაცია" = ALWAYS SERVICE.
@@ -1148,20 +1156,22 @@ LABOR:
 - Be concise but descriptive.#{' '}
 - Put additional task details into 'sub_categories' ONLY if they add new information.
 - FREE LABOR ITEMS: If user mentions "free", "no charge", "complimentary", "on the house" (Georgian: "უფასოდ", "უფასო", "უფასოდ ჩავუთვლი", "უფასოდ გავუკეთე") for a labor item, you MUST set price=0, hours=0, rate=0, mode="fixed", and taxable=false. Do NOT assign any default rate or price.
+- TAX & DISCOUNTS: If user says an item/section should be untaxed ("no tax", "don’t tax", "tax off", "არ დაბეგრო"), set that item's "taxable": false AND "tax_rate": 0. ALSO update the top-level "tax_scope" to remove that category (e.g., "don't tax products" → remove "product" from tax_scope).
 
-PRODUCTS (JSON type: "materials"):
+PRODUCTS (JSON type: "products"):
 - Physical goods the client keeps or receives (servers, parts, equipment, supplies). NOT services/actions.
+- NOTE: Materials ("მასალები") and "Products" ("პროდუქტები") are the same. Put them in "products".
 - "hardware" / "აპარატურა" / "equipment" = ONLY physical items (servers, devices, parts). Implementation, installation, configuration are NOT hardware.
 - Extract ONLY the noun/item name, stripping action verbs.
 - NAMING: When user says "used nails" or "got filters", the action verb ("used", "got", "bought", "grabbed") is NOT part of the item name. Extract just "Nails", "Filters". Only include adjectives that describe the item itself (e.g., "new filters" → "New Filters", "copper pipe" → "Copper Pipe").
-#{target_is_georgian ? '- GEORGIAN NAMING: Keep material names in singular form (e.g., "ნაჯახი" for any quantity). Do NOT pluralize.' : '- TRANSLATION: If the input is in Georgian or any other non-English language, you MUST translate material names to English. E.g., "ნაჯახი" → "Axe", "ლურსმანი" → "Nail", "მილი" → "Pipe". Do NOT leave Georgian text in the name field.'}
-- UNIT PRICE RULE: "unit_price" is ALWAYS per-unit (per-item). NEVER multiply qty × unit_price to compute a total.
-  - If user gives BOTH qty AND per-unit price (e.g., "5 phones, 50 each" or "რაოდენობა 5, ფასი 50"), set qty=5, unit_price=50. NOT unit_price=250.
-  - If a total price is given for a quantity (e.g., "4 items cost 60"), set qty=4 and unit_price=60/4=15. Do NOT assign total as unit_price.
+#{target_is_georgian ? '- GEORGIAN NAMING: Keep product names in singular form (e.g., "ნაჯახი" for any quantity). Do NOT pluralize.' : '- TRANSLATION: If the input is in Georgian or any other non-English language, you MUST translate product names to English. E.g., "ნაჯახი" → "Axe", "ლურსმანი" → "Nail", "მილი" → "Pipe". Do NOT leave Georgian text in the name field.'}
+- PRICE RULE: "price" is ALWAYS per-unit (per-item). NEVER multiply qty × price to compute a total.
+  - If user gives BOTH qty AND per-unit price (e.g., "5 phones, 50 each" or "რაოდენობა 5, ფასი 50"), set qty=5, price=50. NOT price=250.
+  - If a total price is given for a quantity (e.g., "4 items cost 60"), set qty=4 and price=60/4=15. Do NOT assign total as price.
 - DISTINCT ITEMS: If user lists multiple named items (e.g. "used nails, used filters"), create SEPARATE product entries for each. Do NOT bundle them as subcategories.
 - BUNDLING ONLY: Only bundle into subcategories when user gives a COLLECTIVE total (e.g. "products were $500" or "parts cost 300 total"). In that case, create ONE item named "Products" with that price, and list specific part names in 'sub_categories'.
 - Extract QUANTITY into the 'qty' field (default 1).
-- Extract UNIT PRICE (price per item) into 'unit_price'. If an item has no price mentioned, leave unit_price as null.
+- Extract UNIT PRICE (price per item) into 'price'. If an item has no price mentioned, leave price as null.
 - DO NOT put "(x2)" or quantity info in the description/name if you are setting the 'qty' field.
 - If user says "2 items at 40 each", 'qty' is 2 and 'unit_price' is 40.
 - If quantity is "3 or 4", "3 to 4", use the HIGHER value (4) for the 'qty' field.
@@ -1173,19 +1183,20 @@ AMBIGUOUS ITEMS (Labor vs Products):
 - REDUNDANCY CHECK: Do NOT add a sub_category that just repeats the main title or is a variation of it. (e.g. if desc is "AC Repair", do NOT add "Repaired AC" as a subcategory). Subcategories are ONLY for additional details (e.g. specific part names, location) not implied by the title.
 - Only classify as Products if the spoken text purely describes the object (e.g. "The filter cost $25", "New filter: $25").
 - If in doubt, prefer Labor/Service for tasks.
-- SECTION TYPE DISAMBIGUATION: When you genuinely cannot determine which section an item belongs to (e.g., "100 ლარი" with no context, or an item that could equally be labor, materials, or fees), add a clarification with field: "section_type", guess: your best guess section name (e.g., "labor"), options: ["labor", "materials", "expenses", "fees"] (only include plausible sections), and question asking the user where to categorize the item. Place the item in your guessed section initially. Example: { "field": "section_type", "guess": "materials", "options": ["labor", "materials", "fees"], "question": "სად ჩავწეროთ ეს ელემენტი?" }
+- SECTION TYPE DISAMBIGUATION: When you genuinely cannot determine which section an item belongs to (e.g., "100 ლარი" with no context, or an item that could equally be labor, products, or fees), add a clarification with field: "section_type", guess: your best guess section name (e.g., "labor"), options: ["labor", "products", "reimbursements", "fees"] (only include plausible sections), and question asking the user where to categorize the item. Place the item in your guessed section initially. Example: { "field": "section_type", "guess": "products", "options": ["labor", "products", "fees"], "question": "სად ჩავწეროთ ეს ელემენტი?" }
 - CURRENCY DISAMBIGUATION: When the currency is ambiguous (e.g., user says a number with no currency indicator and the context doesn't make it clear, or mixed currency signals), add a clarification with field: "currency", guess: your best guess ISO code (e.g., "GEL"), options: ["GEL", "USD", "EUR"] (plausible currencies), and question asking which currency. Example: { "field": "currency", "guess": "GEL", "options": ["GEL", "USD", "EUR"], "question": "რომელი ვალუტა გამოვიყენოთ?" }
 
-EXPENSES:
+REIMBURSEMENTS:
+- NOTE: Expenses ("ხარჯები") and "Reimbursements" ("ანაზღაურებები") are the same. Put them in "reimbursements".
 - Pass-through reimbursables (parking, tolls, Uber). Usually not taxed. Price numeric required.
-- BUNDLING: If user gives a TOTAL PRICE for "expenses" (plural), create ONE main item named "Expenses" (or specific group name) with that price. List component details in 'sub_categories'.
+- BUNDLING: If user gives a TOTAL PRICE for "reimbursements" (plural), create ONE main item named "Reimbursements" (or specific group name) with that price. List component details in 'sub_categories'.
 
 FEES:
 - Surcharges, disposal, rush fees, rent/lease payments, utility bills, late/penalty charges. Return `taxable: null` to defer to system settings unless user explicitly says "tax this" or "no tax".
 - RENT/LEASE: Monthly rent, lease payments ("ქირა", "იჯარა") → ALWAYS classify as FEES. E.g., "February rent 1200" → Fee item { name: "February Rent", price: 1200 }.
 - UTILITIES: Utility bills, communal payments ("კომუნალური", "კომუნალური გადასახადები") → FEES.
 - PENALTIES: Late fees, fines, penalties ("ჯარიმა", "დაგვიანების ჯარიმა", "საჯარიმო") → FEES.
-- BUNDLING: Same logic as Materials/Expenses. If a total fee amount is given for multiple fee types, bundle them into one main Fee item with sub-categories.
+- BUNDLING: Same logic as Products/Reimbursements. If a total fee amount is given for multiple fee types, bundle them into one main Fee item with sub-categories.
 
 CREDITS:
 - Each credit reason must be its own entry with its own amount.
@@ -1221,16 +1232,20 @@ DISCOUNT & CREDIT RULES
 TAX RULES
 ----------------------------
 - TAXABLE FIELD DEFAULT: Return `taxable: null` to use system defaults.
-- REMOVE TAX / NO TAX: "no tax" / "remove tax" / "მოაშორე გადასახადი" / "გადასახადი მოაშორე" / "ნუ დაადებ დღგ-ს" / "დღგ არ დაადო" / "დღგ არ მინდა" / "გადასახადი არ" / "გადასახადი არ მინდა" / "ნუ დაამატებ გადასახადს" / "tax off" → Set `labor_taxable: false` AND `taxable: false` on EVERY SINGLE item (labor, materials, expenses, fees). Also set tax_rate: null and tax_scope: null. No exceptions. This is a COMMAND.
+- REMOVE TAX / NO TAX: "no tax" / "remove tax" / "მოაშორე გადასახადი" / "გადასახადი მოაშორე" / "ნუ დაადებ დღგ-ს" / "დღგ არ დაადო" / "დღგ არ მინდა" / "გადასახადი არ" / "გადასახადი არ მინდა" / "ნუ დაამატებ გადასახადს" / "tax off" → Set `labor_taxable: false` AND `taxable: false` on EVERY SINGLE item (labor, products, reimbursements, fees). Also set tax_rate: null and tax_scope: null. No exceptions. This is a COMMAND.
 - EXPLICIT "Tax everything except [X]": Set `taxable: false` for X, `taxable: true` for all others.
 - EXPLICIT "Tax [X] only": Set `taxable: true` for X, `taxable: false` for others.
 - EXPLICIT "Don't tax labor": Set `labor_taxable: false` AND `taxable: false` on EVERY labor_service_item.
-- EXPLICIT "Don't tax materials": Set `taxable: false` on EVERY material item.
-- PER-ITEM TAX EXEMPTION: When user says specific items are not taxable (e.g., "კექსი და ნამცხვარი არ იბეგრება", "iPhone is tax-free", "X და Y არ იბეგრება", "X-ზე დღგ არ დაადო"), find those items BY NAME across ALL sections and set `taxable: false` on each matching item. Leave all other items unchanged.
-- TAX SCOPE: Use null if no instruction. "tax ONLY on parts" → `tax_scope: "materials"`.
+  - EXPLICIT "Don't tax products/products": Set `taxable: false` AND `tax_rate: 0` on EVERY product item (all products, not just one).
+  - EXPLICIT "Don't tax reimbursements" / "Don't tax reimbursements": Set `taxable: false` AND `tax_rate: 0` on EVERY reimbursement item.
+  - EXPLICIT "Don't tax fees": Set `taxable: false` AND `tax_rate: 0` on EVERY fee item.
+  - PER-ITEM TAX EXEMPTION: When user says specific items are not taxable (e.g., "კექსი და ნამცხვარი არ იბეგრება", "iPhone is tax-free", "X და Y არ იბეგრება", "X-ზე დღგ არ დაადო"), find those items BY NAME across ALL sections and set `taxable: false` and `tax_rate: 0` on each matching item. Leave all other items unchanged.
+  - EXAMPLE: "Don't tax the products" → EVERY item in products: `taxable:false`, `tax_rate:0`. Other sections stay as-is unless mentioned.
+  - TAX SCOPE: Use null if no instruction. "tax ONLY on parts" → `tax_scope: "products"`.
 - TAX RATES: "8% tax" → tax_rate: 8.0. Set on every item.
 - GENERAL TAX (e.g., "add 18% tax", "დაამატე 18% დღგ"): Set `tax_rate` on every item. Leave `tax_scope: null`. Do NOT break apart per category.
 - TAX IS NEVER A CLARIFICATION. "add X% tax" / "X% VAT" / "remove tax" → just apply it. Never ask.
+- EXAMPLE: "No tax on the products" → EVERY product item: `taxable:false`, `tax_rate:0`. Other sections stay as-is unless mentioned.
 
 ----------------------------
 CLARIFICATION QUESTIONS
@@ -1282,10 +1297,10 @@ Ask ONLY when a category is mentioned but has NO number at all:
    - THIS IS MANDATORY: When 2+ items exist and a note/warranty/guarantee is mentioned without specifying EXACTLY which items it covers, you MUST add a clarification question. Do NOT silently assume it applies to one item.
    - ONE QUESTION ONLY: Create exactly ONE clarification for each ambiguous note/warranty. NEVER split into multiple questions per item.
      WRONG (3 separate questions):
-       { "field": "materials.warranty", "guess": "iPhone 15 Pro", "question": "..." }
-       { "field": "materials.warranty", "guess": "დამცავი ქეისი", "question": "..." }
+       { "field": "products.warranty", "guess": "iPhone 15 Pro", "question": "..." }
+       { "field": "products.warranty", "guess": "დამცავი ქეისი", "question": "..." }
      CORRECT (1 combined question):
-       { "field": "materials.warranty", "guess": "iPhone 15 Pro, დამცავი ქეისი, მონაცემთა გადატანის სერვისი", "question": "რომელ პროდუქტს ან მომსახურებას ეხება 1 წლიანი გარანტია?" }
+       { "field": "products.warranty", "guess": "iPhone 15 Pro, დამცავი ქეისი, მონაცემთა გადატანის სერვისი", "question": "რომელ პროდუქტს ან მომსახურებას ეხება 1 წლიანი გარანტია?" }
    - DEFAULT GUESS = ALL ITEMS: When the note/warranty doesn't specify which items, your default guess should include ALL items from ALL sections (products AND services AND fees). Only guess fewer items if there's a clear reason to exclude some.
    - GUESS = ITEM NAME(S): The guess field lists which items you think the note applies to (comma-separated if multiple). NEVER the note text itself.
      WRONG: { "guess": "1 წლიანი გარანტია" } ← note text, NOT item names.
@@ -1310,7 +1325,7 @@ ITEM NAME RULE (CRITICAL):
 - The "question" field is for the QUESTION TEXT only (e.g., "რა სახის შეკეთებაა?"). NEVER embed item names inside question text as if they were the item name.
 - WRONG: { "field": "labor.price", "question": "რა ფასად გსურთ შეკეთების?" } ← no item_name, name buried in question
 - CORRECT: { "field": "labor.price", "item_name": "შეკეთება", "question": "რა ფასია?" }
-- PRODUCT vs SERVICE NAMES: If the user says "add X" / "დამატე X", treat this as a PRODUCT/MATERIAL name of just "X" (drop the helper verb). If the user describes work like "clean the phone" / "ტელეფონის გაწმენდა" / "სკამის შეკეთება", keep the action+object as the service name. NEVER prepend/helper-verb-wrap nouns with "დამატება", "add", "install" unless the verb itself is the work being sold (e.g., installation service).
+- PRODUCT vs SERVICE NAMES: If the user says "add X" / "დამატე X", treat this as a PRODUCT/PRODUCT name of just "X" (drop the helper verb). If the user describes work like "clean the phone" / "ტელეფონის გაწმენდა" / "სკამის შეკეთება", keep the action+object as the service name. NEVER prepend/helper-verb-wrap nouns with "დამატება", "add", "install" unless the verb itself is the work being sold (e.g., installation service).
 
 RESPONSE TYPE TAXONOMY (every clarification MUST include a "type" field):
 - "choice": user picks ONE option from a list. MUST include "options": ["opt1", "opt2", ...]. Example: section_type, currency.
@@ -1369,10 +1384,10 @@ Return EXACTLY the JSON structure below (use null for unknown numeric, empty arr
   "labor_service_items": [
     { "desc": "", "hours": "", "rate": "", "price": "", "mode": "hourly|fixed", "taxable": null, "tax_rate": null, "discount_flat": "", "discount_percent": "", "sub_categories": [] }
   ],
-  "materials": [
-    { "name": "", "qty": "", "unit_price": "", "taxable": null, "tax_rate": null, "discount_flat": "", "discount_percent": "", "sub_categories": [] }
+  "products": [
+    { "name": "", "qty": "", "price": "", "taxable": null, "tax_rate": null, "discount_flat": "", "discount_percent": "", "sub_categories": [] }
   ],
-  "expenses": [
+  "reimbursements": [
     { "name": "", "price": "", "taxable": false, "tax_rate": null, "discount_flat": "", "discount_percent": "", "sub_categories": [] }
   ],
   "fees": [
@@ -1434,10 +1449,10 @@ PROMPT
         user_input_parts << { text: "USER INPUT (MANUAL TEXT):\n#{params[:manual_text]}" }
       else
         audio = params[:audio]
-        return render json: { error: t('no_audio') }, status: 400 unless audio
+        return render json: { error: t("no_audio") }, status: 400 unless audio
 
         if audio.size > 10.megabytes
-          return render json: { error: t('audio_too_large') }, status: 413
+          return render json: { error: t("audio_too_large") }, status: 413
         end
 
         browser_transcript = params[:browser_transcript].to_s.strip
@@ -1513,7 +1528,7 @@ PROMPT
         ai_log[:error] = body["error"]
         ai_log[:status] = "model_error"
         log_ai_assistant(ai_log)
-        return render json: { error: t('ai_failed_response') }, status: 500
+        return render json: { error: t("ai_failed_response") }, status: 500
       end
 
       parts = body.dig("candidates", 0, "content", "parts")
@@ -1524,7 +1539,7 @@ PROMPT
         ai_log[:error] = "empty_raw_response"
         ai_log[:status] = "empty_response"
         log_ai_assistant(ai_log)
-        return render json: { error: t('ai_failed_response') }, status: 500
+        return render json: { error: t("ai_failed_response") }, status: 500
       end
 
       # ── Log AI thinking if present ──
@@ -1557,7 +1572,7 @@ PROMPT
       unless json
         ai_log[:status] = "parse_failed"
         log_ai_assistant(ai_log)
-        return render json: { error: t('invalid_ai_output') }, status: 422
+        return render json: { error: t("invalid_ai_output") }, status: 422
       end
 
       Rails.logger.info "AI MODEL USED: #{gemini_model}"
@@ -1573,13 +1588,13 @@ PROMPT
       # #10: Structural JSON validation — ensure AI returned a usable object
       unless json.is_a?(Hash)
         Rails.logger.error "AI SCHEMA FAIL: response is not a Hash, got #{json.class}"
-        return render json: { error: t('invalid_ai_output') }, status: 422
+        return render json: { error: t("invalid_ai_output") }, status: 422
       end
 
       # Coerce sections to array if AI returned wrong structure
       if json["sections"].present? && !json["sections"].is_a?(Array)
         Rails.logger.warn "AI SCHEMA FIX: sections was #{json["sections"].class}, wrapping in array"
-        json["sections"] = [json["sections"]]
+        json["sections"] = [ json["sections"] ]
       end
 
       # Validate section items structure
@@ -1591,7 +1606,7 @@ PROMPT
         end
         if sec["items"].present? && !sec["items"].is_a?(Array)
           Rails.logger.warn "AI SCHEMA FIX: sections[#{i}].items was #{sec["items"].class}, wrapping"
-          sec["items"] = [sec["items"]]
+          sec["items"] = [ sec["items"] ]
         end
         (sec["items"] || []).reject! { |item| !item.is_a?(Hash) }
       end
@@ -1600,7 +1615,7 @@ PROMPT
       # Validate clarifications structure
       if json["clarifications"].present? && !json["clarifications"].is_a?(Array)
         Rails.logger.warn "AI SCHEMA FIX: clarifications was #{json["clarifications"].class}, wrapping"
-        json["clarifications"] = [json["clarifications"]]
+        json["clarifications"] = [ json["clarifications"] ]
       end
       (json["clarifications"] || []).reject! { |c| !c.is_a?(Hash) }
 
@@ -1622,11 +1637,11 @@ PROMPT
           next i.to_s.truncate(60) unless i.is_a?(Hash)
           { desc: i["desc"].to_s.truncate(60), hours: i["hours"], rate: i["rate"], price: i["price"], mode: i["mode"], taxable: i["taxable"], tax_rate: i["tax_rate"], disc_flat: i["discount_flat"], disc_pct: i["discount_percent"] }.compact
         },
-        materials: (json["materials"] || []).map { |m|
+        products: (json["products"] || []).map { |m|
           next m.to_s.truncate(60) unless m.is_a?(Hash)
           { name: (m["name"] || m["desc"]).to_s.truncate(60), qty: m["qty"], price: m["unit_price"], taxable: m["taxable"], tax_rate: m["tax_rate"] }.compact
         },
-        expenses: (json["expenses"] || []).map { |e|
+        reimbursements: (json["reimbursements"] || []).map { |e|
           next e.to_s.truncate(60) unless e.is_a?(Hash)
           { name: (e["name"] || e["desc"]).to_s.truncate(60), price: e["price"], taxable: e["taxable"], tax_rate: e["tax_rate"] }.compact
         },
@@ -1638,14 +1653,14 @@ PROMPT
       }.compact
 
       # Enforce Array Safety
-      %w[labor_service_items materials expenses fees credits].each { |k| json[k] = Array(json[k]) }
+      %w[labor_service_items products reimbursements fees credits].each { |k| json[k] = Array(json[k]) }
 
       # --- EMPTY RESULT DETECTION ---
       # If AI returned a structurally valid JSON but with no meaningful data
       # (no sections, no items, no client, empty transcript), treat as empty audio
       has_any_items = json["labor_service_items"].any? { |i| i.is_a?(Hash) && (i["desc"].to_s.strip.present? || i["price"].to_s.strip.present? || i["hours"].to_s.strip.present?) } ||
-                      json["materials"].any? { |i| i.is_a?(Hash) && (i["name"].to_s.strip.present? || i["unit_price"].to_s.strip.present?) } ||
-                      json["expenses"].any? { |i| i.is_a?(Hash) && (i["name"].to_s.strip.present? || i["price"].to_s.strip.present?) } ||
+                      json["products"].any? { |i| i.is_a?(Hash) && (i["name"].to_s.strip.present? || i["unit_price"].to_s.strip.present?) } ||
+                      json["reimbursements"].any? { |i| i.is_a?(Hash) && (i["name"].to_s.strip.present? || i["price"].to_s.strip.present?) } ||
                       json["fees"].any? { |i| i.is_a?(Hash) && (i["name"].to_s.strip.present? || i["price"].to_s.strip.present?) } ||
                       json["credits"].any? { |i| i.is_a?(Hash) && i["amount"].to_s.strip.present? }
       has_client = json["client"].to_s.strip.present?
@@ -1656,7 +1671,7 @@ PROMPT
         Rails.logger.warn "AI RETURNED EMPTY RESULT: no items, no client, no meaningful summary"
         ai_log[:status] = "empty_result"
         log_ai_assistant(ai_log)
-        return render json: { error: t('empty_audio') }, status: 422
+        return render json: { error: t("empty_audio") }, status: 422
       end
 
       # ---------- NORMALIZATION ----------
@@ -1830,50 +1845,21 @@ PROMPT
         }
       end
 
-      # MATERIALS (physical goods with price)
-      if json["materials"]&.any?
+      # PRODUCTS (physical goods with price)
+      if json["products"]&.any?
         json["sections"] << {
-          type: "materials",
-          title: sec_labels[:materials],
-          items: json["materials"].map do |m|
-            # Fallback: Extract quantity from description if missing in field
+          type: "products",
+          title: sec_labels[:products],
+          items: json["products"].map do |m|
             d_text = (m["name"].presence || m["desc"].presence || "").to_s.strip
-            q_val = clean_num(m["qty"])
-
-            if q_val.nil? || q_val == 1.0
-              # Try to find (x5), x5, (5), 5 off
-              if match = d_text.match(/[\(\s]x?(\d+)[\)]?$/i) || d_text.match(/^(\d+)\s+x\s+/)
-                 extracted_q = match[1].to_f
-                 if extracted_q > 1
-                   q_val = extracted_q
-                   # key: remove (x2) from description? Maybe keeps it clean.
-                   d_text = d_text.gsub(/[\(\s]x?(\d+)[\)]?$/i, "").strip.sub(/^(\d+)\s+x\s+/, "")
-                 end
-              elsif match = d_text.match(/^(\d+)\s+([A-Za-z]+)/) # "2 Fittings", but careful with "2 inch"
-                  dist = match[1].to_f
-                  # Simple heuristic: if quantity is 1 (default), and desc starts with "2 Fittings", assume 2 is qty
-                  # BUT exclude common measurements like "2 inch", "3 mm"
-                  word = match[2].downcase
-                  unless %w[inch in mm cm m ft kg lb oz gal].include?(word)
-                    if dist > 1
-                       q_val = dist
-                       d_text = d_text.sub(/^(\d+)\s+/, "")
-                    end
-                  end
-              elsif match = d_text.match(/\s(\d+)\s+each$/i)
-                  extracted_q = match[1].to_f
-                  if extracted_q > 1
-                    q_val = extracted_q
-                    d_text = d_text.gsub(/\s(\d+)\s+each$/i, "").strip
-                  end
-              end
-            end
+            q_val = clean_num(m["qty"]) || 1.0
 
             # Calculate price first so we can check if it's present
-            item_price = clean_num(m["unit_price"])
+            item_price = clean_num(m["price"] || m["unit_price"])
             # Only apply tax scope if there's actually a price to tax
             item_taxable = if m["taxable"].nil?
-                             item_price.present? && item_price > 0 && (effective_tax_scope.include?("material") || effective_tax_scope.include?("product") || effective_tax_scope.include?("all") || effective_tax_scope.include?("total"))
+                             has_product_scope = effective_tax_scope.any? { |s| s.include?("product") || s.include?("part") }
+                             item_price.present? && item_price > 0 && (has_product_scope || effective_tax_scope.include?("all") || effective_tax_scope.include?("total"))
             else
                              to_bool(m["taxable"])
             end
@@ -1892,16 +1878,17 @@ PROMPT
         }
       end
 
-      # EXPENSES (pass-through reimbursements)
-      if json["expenses"]&.any?
-        expense_items = json["expenses"].map do |e|
+      # REIMBURSEMENTS (pass-through reimbursements)
+      if json["reimbursements"]&.any?
+        reimbursement_items = json["reimbursements"].map do |e|
           item_price = clean_num(e["price"])
           item_desc = (e["name"].presence || e["desc"].presence || "").to_s.strip
           # Skip items with no description
           next nil if item_desc.blank?
 
           item_taxable = if e["taxable"].nil?
-                           item_price.present? && item_price > 0 && (effective_tax_scope.include?("expense") || effective_tax_scope.include?("all") || effective_tax_scope.include?("total"))
+                           has_reim_scope = effective_tax_scope.any? { |s| s.include?("reimbursement") || s.include?("reimburse") }
+                           item_price.present? && item_price > 0 && (has_reim_scope || effective_tax_scope.include?("all") || effective_tax_scope.include?("total"))
           else
                            to_bool(e["taxable"])
           end
@@ -1917,11 +1904,11 @@ PROMPT
         end.compact
 
         # Only add section if there are valid items
-        if expense_items.any?
+        if reimbursement_items.any?
           json["sections"] << {
-            type: "expenses",
-            title: sec_labels[:expenses],
-            items: expense_items
+            type: "reimbursements",
+            title: sec_labels[:reimbursements],
+            items: reimbursement_items
           }
         end
       end
@@ -1985,9 +1972,9 @@ PROMPT
         sec_type = section["type"].to_s
         in_scope = pa_tax_all ||
                    (sec_type.include?("labor") && pa_scope_parts.any? { |s| s.include?("labor") }) ||
-                   (sec_type.include?("material") && pa_scope_parts.any? { |s| s.include?("material") }) ||
+                   (sec_type.include?("product") && pa_scope_parts.any? { |s| s.include?("product") }) ||
                    (sec_type.include?("fee") && pa_scope_parts.any? { |s| s.include?("fee") }) ||
-                   (sec_type.include?("expense") && pa_scope_parts.any? { |s| s.include?("expense") })
+                   (sec_type.include?("reimbursement") && pa_scope_parts.any? { |s| s.include?("reimbursement") })
 
         (section["items"] || []).each do |item|
           if item["taxable"] == false || item["taxable"] == "false"
@@ -2211,6 +2198,9 @@ PROMPT
 
     # ── CLIENT CHANGE SHORTCUT: bypass AI entirely, just do client matching ──
     if ActiveModel::Type::Boolean.new.cast(params[:client_change_only])
+      unless client_change_shortcut_applicable?(user_message)
+        Rails.logger.info "CLIENT CHANGE SHORTCUT SKIPPED: complex/negated message"
+      else
       result = current_json.is_a?(String) ? (JSON.parse(current_json) rescue {}) : current_json.to_unsafe_h.to_h
       result = result.deep_stringify_keys
       new_client_name = user_message.to_s.strip
@@ -2282,6 +2272,7 @@ PROMPT
 
       Rails.logger.info "CLIENT CHANGE DIRECT: #{new_client_name} → clarifications: #{result["clarifications"].map { |c| c["field"] }.join(", ")}"
       return render json: result
+      end
     end
 
     doc_language = (params[:language] || @profile.try(:transcription_language) || session[:transcription_language] || @profile.try(:document_language) || "en").to_s.downcase
@@ -2345,17 +2336,34 @@ PROMPT
       #{assistant_reply_rule}
 
       ═══ SCHEMA ═══
-      sections: [{type: "labor_items"|"materials_items"|"expenses_items"|"fees_items", title, items: [...]}]
+      sections: [{type: "labor"|"products"|"reimbursements"|"fees", title, items: [...]}]
+      DO NOT invent new section types or titles. Only these 4 types exist: labor, products, reimbursements, fees.
+      NOTE: Materials ("მასალები") and "Products" ("პროდუქტები") are the same. Put them in "products", and if user refers to "materials", they mean the items in the "products" section.
+      NOTE: Expenses ("ხარჯები") and "Reimbursements" ("ანაზღაურებები") are the same. Put them in "reimbursements", and if user refers to "expenses", they mean the items in the "reimbursements" section.
+      Title must match the current system language equivalents: #{ui_is_georgian ? '"მომსახურებები", "პროდუქტები", "ანაზღაურებები", "მოსაკრებლები"' : '"Services", "Products", "Reimbursements", "Fees"'}. Reuse the existing section titles from the input JSON; never output custom or mixed-case variants.
+      If user says an item/section should be untaxed ("no tax", "don’t tax", "tax off", "არ დაბეგრო"), set that item's taxable=false AND tax_rate=0, for any section (labor/products/reimbursements/fees). ALSO update the top-level "tax_scope" to remove that category (e.g., if user says "don't tax products", remove "product" from tax_scope). Do not reapply defaults.
+      ALWAYS apply the user's no-tax instruction to EVERY mentioned item/section. Keep other sections' tax as-is unless the user mentions them.
+
+      ═══ CLEAN NAMING & QUANTITY ═══
+      1. Description (desc) fields MUST contain ONLY the subject of the line item (e.g., "Axe", "Battery").
+      2. Strip all "interrogative" or "conversational" fluff: "How much for...", "Can you add...", "Change the...".
+      3. Strip all Georgian helper verbs: "დამატე", "დაამატე", "დამატება", "შეცვალე".
+      4. Strip all Georgian question words: "რა ფასად", "რამდენი", "რა ღირს", "რა სახის".
+      5. Strip all punctuation and trailing question marks.
+      6. STRICT QUANTITY RULE: ALWAYS put the numeric quantity in the "qty" or "hours" field. DO NOT repeat the quantity in the description text.
+         - Input: "დაამატე 3 ცალი ნაჯახი" -> { "desc": "ნაჯახი", "qty": 3 } (NOT { "desc": "3 ნაჯახი", "qty": 1 }).
+
+      ═══ ITEM OBJECTS ═══
       Labor item: {desc, price, hours, rate, mode: "hourly"|"fixed", taxable, tax_rate, discount_flat, discount_percent, sub_categories: []}
-      Material item: {desc, qty, price (PER UNIT, not total), taxable, tax_rate, discount_flat, discount_percent, sub_categories: []}
-      Expense/Fee item: {desc, price, taxable, tax_rate, discount_flat, discount_percent, sub_categories: []}
-      Top-level: client, date, due_date, global_discount_flat, global_discount_percent, credits: [{amount, reason}], reply, clarifications: []
+      Product item: {desc, qty, price (PER UNIT, not total), taxable, tax_rate, discount_flat, discount_percent, sub_categories: []}
+      Reimbursement/Fee item: {desc, price, taxable, tax_rate, discount_flat, discount_percent, sub_categories: []}
+      Top-level: client, date, due_date, global_discount_flat, global_discount_percent, tax_scope, credits: [{amount, reason}], reply, clarifications: []
 
       ═══ EXAMPLES ═══
 
       1) ADD ITEMS WITH QUANTITY
       User: "დაამატე 3 ვიდეო თვალი და 5 შოკოლადი"
-      → materials_items: {desc: "ვიდეო თვალი", qty: 3, price: null}, {desc: "შოკოლადი", qty: 5, price: null}
+      → products: {desc: "ვიდეო თვალი", qty: 3, price: null}, {desc: "შოკოლადი", qty: 5, price: null}
       → reply: "დავამატე ვიდეო თვალი (3 ცალი) და შოკოლადი (5 ცალი)."
       Note: "3" before item = QUANTITY, not tax rate.
 
@@ -2364,6 +2372,16 @@ PROMPT
       → ქეისი item: taxable: false, tax_rate: 0
       → reply: "ქეისს დაბეგვრა მოვაშორე."
 
+      2b) REMOVE TAX FROM PRODUCTS (ALL)
+      User: "Don’t tax the products"
+      → Every item in products: taxable:false, tax_rate:0. Services keep their tax settings.
+      → reply: "ყველა პროდუქტს საგადასახადო ვადა მოვხსენი." / "Removed tax from all products."
+
+      2c) REMOVE TAX FROM FEES
+      User: "dont set tax for fees"
+      → Every item in fees: taxable:false, tax_rate:0.
+      → reply: "მოსაკრებლებს საგადასახადო ვადა მოვხსენი." / "Removed tax from all fees."
+
       3) SET TAX RATE ON ALL EXCEPT ONE
       User: "82% ყველაფერზე გარდა ქეისისა"
       → All items EXCEPT ქეისი: taxable: true, tax_rate: 82. ქეისი unchanged.
@@ -2371,7 +2389,7 @@ PROMPT
 
       4) ADD ITEM WITH PER-ITEM DISCOUNT
       User: "დაამატე ვიდეოთვალი და ფასდაკლება გაუკეთე ორმოცდასამი"
-      → Add ვიდეოთვალი to materials. Set discount on THE NEW ITEM, NOT globally.
+      → Add ვიდეოთვალი to products. Set discount on THE NEW ITEM, NOT globally.
       → But is 43 a percent or flat amount? ASK via clarification:
       → clarifications: [{"field": "discount_type", "question": "43 პროცენტია თუ ფიქსირებული?", "options": ["პროცენტი (%)", "ფიქსირებული (₾)"], "item_name": "ვიდეოთვალი"}]
       → reply: "ვიდეოთვალი დავამატე. ფასდაკლების ტიპი დავაზუსტოთ."
@@ -2497,11 +2515,12 @@ PROMPT
       ai_log[:input_credits] = input_parsed["credits"] if input_parsed["credits"].present?
       ai_log[:input_items] = (input_parsed["sections"] || []).flat_map { |s| (s["items"] || []).map { |i| h = { name: i["desc"] || i["name"], sec: s["type"], taxable: i["taxable"], tax_rate: i["tax_rate"], price: i["price"] || i["unit_price"] }; h[:qty] = i["qty"] if i["qty"]; h[:hours] = i["hours"] if i["hours"]; h[:rate] = i["rate"] if i["rate"]; h[:mode] = i["mode"] if i["mode"]; h[:disc_flat] = i["discount_flat"] if i["discount_flat"].to_f > 0; h[:disc_pct] = i["discount_percent"] if i["discount_percent"].to_f > 0; h } } rescue []
       ai_log[:conv_history_len] = trimmed_history.length
+      ai_log[:conversation_history] = trimmed_history[0, 4000] if trimmed_history.present?
 
       # ── Call AI with JSON mode (responseMimeType forces valid JSON output) ──
       result = nil
       used_model = gemini_model
-      models_to_try = [gemini_model, fallback_model].compact.uniq
+      models_to_try = [ gemini_model, fallback_model ].compact.uniq
       models_to_try.each_with_index do |model, attempt|
         used_model = model
         ai_log[:model] = model
@@ -2510,7 +2529,7 @@ PROMPT
         body = gemini_generate_content(
           api_key: api_key,
           model: model,
-          prompt_parts: [{ text: prompt }],
+          prompt_parts: [ { text: prompt } ],
           thinking_budget: thinking_budget,
           system_instruction: refine_system_instruction,
           response_mime_type: "application/json"
@@ -2584,27 +2603,75 @@ PROMPT
       result["credits"] ||= []
       result["clarifications"] = Array(result["clarifications"]).select { |c| c.is_a?(Hash) && c["question"].present? }
 
+      # ── Enforce canonical section types/titles and string keys ──
+      canonical_titles = if ui_is_georgian
+        { "labor" => "მომსახურებები", "products" => "პროდუქტები", "reimbursements" => "ანაზღაურებები", "fees" => "მოსაკრებლები" }
+      else
+        { "labor" => "Services", "products" => "Products", "reimbursements" => "Reimbursements", "fees" => "Fees" }
+      end
+
+      allowed_section_types = {
+        "labor" => "labor",
+        "labor_items" => "labor",
+        "labor/services" => "labor",
+        "professional service" => "labor",
+        "professional services" => "labor",
+        "services" => "labor",
+        "service" => "labor",
+        "products" => "products",
+        "products_items" => "products",
+        "product" => "products",
+        "parts" => "products",
+        "reimbursements" => "reimbursements",
+        "reimbursements_items" => "reimbursements",
+        "reimbursement" => "reimbursements",
+        "fees" => "fees",
+        "fees_items" => "fees",
+        "fee" => "fees",
+        "surcharge" => "fees",
+        "surcharges" => "fees"
+      }
+
+      result["sections"].each do |sec|
+        next unless sec.is_a?(Hash)
+
+        sec.transform_keys!(&:to_s)
+
+        raw_type = sec["type"].to_s.downcase.strip
+        normalized_type = allowed_section_types[raw_type] || allowed_section_types[raw_type.tr("_", " ")] || "products"
+        sec["type"] = normalized_type
+        sec["title"] = canonical_titles[normalized_type] || canonical_titles["products"]
+
+        (sec["items"] || []).each { |item| item.transform_keys!(&:to_s) if item.is_a?(Hash) }
+      end
+
       # ── Normalize tax values: null tax_rate is ambiguous, force explicit values ──
       default_tax_rate = (result["labor_tax_rate"] || @profile.try(:tax_rate) || 18).to_f
       tax_scope_raw = (result["tax_scope"] || @profile.try(:tax_scope) || "").to_s.downcase
       tax_scope_parts = tax_scope_raw.split(",").map(&:strip)
       tax_all = tax_scope_parts.include?("all") || tax_scope_parts.include?("total") || tax_scope_parts.length >= 4
 
+      # ── DEBUG: Log raw AI tax fields before normalization ──
+      Rails.logger.info "TAX_DEBUG_BEFORE: #{(result["sections"] || []).map { |s| { type: s["type"], items: (s["items"] || []).map { |i| { desc: (i["desc"] || i["name"]).to_s.truncate(30), taxable: i["taxable"], tax_rate: i["tax_rate"] } } } }.to_json}"
+
       (result["sections"] || []).each do |section|
         sec_type = section["type"].to_s
         is_labor = sec_type.include?("labor")
-        is_material = sec_type.include?("material")
+        is_product = sec_type.include?("product")
         is_fee = sec_type.include?("fee")
-        is_expense = sec_type.include?("expense")
+        is_reimbursement = sec_type.include?("reimbursement")
         in_scope = tax_all || (is_labor && tax_scope_parts.any? { |s| s.include?("labor") }) ||
-                   (is_material && tax_scope_parts.any? { |s| s.include?("material") }) ||
+                   (is_product && tax_scope_parts.any? { |s| s.include?("product") }) ||
                    (is_fee && tax_scope_parts.any? { |s| s.include?("fee") }) ||
-                   (is_expense && tax_scope_parts.any? { |s| s.include?("expense") })
+                   (is_reimbursement && tax_scope_parts.any? { |s| s.include?("reimbursement") })
 
         (section["items"] || []).each do |item|
-          if item["taxable"] == false || item["taxable"] == "false"
-            # CRITICAL: taxable:false must always have tax_rate:0, never null
-            item["tax_rate"] = 0 if item["tax_rate"].nil? || item["tax_rate"].to_s.strip == ""
+          explicit_zero_tax = item.key?("tax_rate") && item["tax_rate"].to_f == 0
+
+          if item["taxable"] == false || item["taxable"] == "false" || (item["taxable"].nil? && explicit_zero_tax)
+            # CRITICAL: explicit no-tax (via taxable:false or tax_rate:0) must stick
+            item["taxable"] = false
+            item["tax_rate"] = 0
           elsif item["taxable"] == true || item["taxable"] == "true"
             # taxable:true must have a numeric tax_rate
             if item["tax_rate"].nil? || item["tax_rate"].to_s.strip == ""
@@ -2623,6 +2690,9 @@ PROMPT
           end
         end
       end
+
+      # ── DEBUG: Log tax fields after normalization ──
+      Rails.logger.info "TAX_DEBUG_AFTER: #{(result["sections"] || []).map { |s| { type: s["type"], items: (s["items"] || []).map { |i| { desc: (i["desc"] || i["name"]).to_s.truncate(30), taxable: i["taxable"], tax_rate: i["tax_rate"] } } } }.to_json}"
 
       # ── Log items after AI + tax normalization ──
       ai_log[:items_after_ai] = snapshot_items_for_log(result)
@@ -2824,7 +2894,7 @@ PROMPT
       contents: [ { parts: prompt_parts } ],
       generationConfig: gen_config
     }
-    payload[:systemInstruction] = { parts: [{ text: system_instruction }] } if system_instruction.present?
+    payload[:systemInstruction] = { parts: [ { text: system_instruction } ] } if system_instruction.present?
     payload[:cachedContent] = cached_instruction_name if cached_instruction_name.present?
     req.body = payload.to_json
 
@@ -2860,20 +2930,57 @@ PROMPT
 
 
   def gemini_prompt_cache_enabled?
-    explicit = ENV["GEMINI_PROMPT_CACHE_ENABLED"].to_s.strip.downcase
-    return true if explicit == "true"
-    return false if explicit == "false"
-    return false unless Rails.env.production?
-    return false if Rails.cache.is_a?(ActiveSupport::Cache::MemoryStore)
-
-    true
+    # DISABLE: Gemini prompt caching is currently disabled to prevent cost spikes 
+    # from redundant cache creations in cloud environments.
+    false
   end
+
 
   def gemini_prompt_cache_ttl_seconds
     raw_value = ENV["GEMINI_PROMPT_CACHE_TTL"].presence || "3600s"
     seconds = raw_value.to_s[/\d+/].to_i
     seconds = 3600 unless seconds.positive?
     seconds
+  end
+
+  # Detect when the client-change shortcut should NOT run (negations or mixed intents)
+  def client_change_shortcut_applicable?(user_message)
+    msg = user_message.to_s.strip
+    return false if msg.blank?
+
+    # Negations / "don't add" phrases (Georgian + English)
+    neg_patterns = [
+      /არ\s*(ვ)?[ააი]ღ(ა|ე)მ?ე/i,               # generic "ar ..." forms
+      /არ\s*მინდა/i,
+      /არ\s*დაამატ/i,
+      /არ\s*და(ვ)?ა?კ(ა|ე)ვეთ/i,
+      /არ\s*ახალი/i,
+      /არ\s*გააკეთ/i,
+      /don'?t\s+add/i,
+      /no\s+new/i,
+      /not\s+new/i
+    ]
+    return false if neg_patterns.any? { |p| msg.match?(p) }
+
+    # Phrases that indicate updating details, not creating
+    update_patterns = [
+      /დაუმატ(ე|ეე)/i,
+      /დავამატო/i,
+      /update/i,
+      /add\s+(a\s+)?phone/i,
+      /add\s+(an\s+)?email/i,
+      /add\s+(the\s+)?address/i,
+      /phone\s*\d{6,}/i,
+      /ტელ(ე)?ფონ/i,
+      /იმეილ/i,
+      /მისამართ/i
+    ]
+    return false if update_patterns.any? { |p| msg.match?(p) }
+
+    # Short clean names are OK; very long strings probably include instructions
+    return false if msg.length > 80
+
+    true
   end
 
   def gemini_primary_model_for(profile: @profile)
@@ -2984,7 +3091,7 @@ PROMPT
     if created_name.present?
       ttl_seconds = effective_ttl.to_s[/\d+/].to_i
       ttl_seconds = gemini_prompt_cache_ttl_seconds unless ttl_seconds.positive?
-      local_expiry = [ttl_seconds - 300, 300].max.seconds
+      local_expiry = [ ttl_seconds - 300, 300 ].max.seconds
       Rails.cache.write(cache_key, created_name, expires_in: local_expiry)
       Rails.logger.info("GEMINI CACHE CREATED: model=#{model} ttl=#{effective_ttl} key=#{cache_key}")
       return [ cache_key, created_name ]
@@ -3012,6 +3119,8 @@ PROMPT
 
   def to_bool(val)
     return false if val.nil?
+    return true if val == true
+    return false if val == false
     str = val.to_s.downcase.strip
     [ "true", "1", "yes", "on" ].include?(str)
   end
@@ -4052,9 +4161,9 @@ PROMPT
     # ── Financial Health Score ──
     health_score = (total_invoiced > 0 ? ((total_paid_amount / total_invoiced) * 100).round(0) : 100).clamp(0, 100)
     health_level = if health_score >= 90 then "healthy"
-                   elsif health_score >= 60 then "risk"
-                   else "critical"
-                   end
+    elsif health_score >= 60 then "risk"
+    else "critical"
+    end
 
     # ── Collection Rate ──
     collection_rate = (total_sent_amount > 0 ? ((total_paid_amount / total_sent_amount) * 100).round(0) : 100).clamp(0, 100)
@@ -4063,7 +4172,7 @@ PROMPT
     outstanding_ratio = (total_invoiced > 0 ? ((total_outstanding / total_invoiced) * 100).round(0) : 0).clamp(0, 100)
 
     # ── Revenue Projection ──
-    days_elapsed = [today.day, 1].max
+    days_elapsed = [ today.day, 1 ].max
     days_in_month = today.end_of_month.day
     projected_revenue = ((collected_this_month / days_elapsed) * days_in_month).round(2)
 
@@ -4092,7 +4201,7 @@ PROMPT
     avg_days_to_pay = paid_durations.any? ? (paid_durations.sum / paid_durations.size).round(1) : nil
 
     # ── Sort due_soon by urgency (fewest days left first, then highest amount) ──
-    due_soon_invoices.sort_by! { |inv| [inv[:days_left], -inv[:amount]] }
+    due_soon_invoices.sort_by! { |inv| [ inv[:days_left], -inv[:amount] ] }
 
     # ── Top Client Revenue Share ──
     top_client_share = 0
@@ -4150,11 +4259,11 @@ PROMPT
   def build_alerts(data, profile)
     alerts = []
     currency_symbol = case (profile.currency.presence || "USD")
-                      when "GEL" then "₾"
-                      when "EUR" then "€"
-                      when "GBP" then "£"
-                      else "$"
-                      end
+    when "GEL" then "₾"
+    when "EUR" then "€"
+    when "GBP" then "£"
+    else "$"
+    end
     fmt = ->(v) { "#{currency_symbol}#{ActionController::Base.helpers.number_with_delimiter(v.round(2))}" }
 
     if data[:overdue_count] > 0
@@ -4200,11 +4309,11 @@ PROMPT
   # ── Time-series helpers for new metrics ──
   def outstanding_time_series(user_id, period)
     range = case period
-            when "7d" then 7.days.ago..Time.current
-            when "30d" then 30.days.ago..Time.current
-            when "12m" then 12.months.ago..Time.current
-            else 30.days.ago..Time.current
-            end
+    when "7d" then 7.days.ago..Time.current
+    when "30d" then 30.days.ago..Time.current
+    when "12m" then 12.months.ago..Time.current
+    else 30.days.ago..Time.current
+    end
     trunc = period == "12m" ? "month" : "day"
 
     Log.where(user_id: user_id).kept
@@ -4218,11 +4327,11 @@ PROMPT
 
   def collected_time_series(user_id, period)
     range = case period
-            when "7d" then 7.days.ago..Time.current
-            when "30d" then 30.days.ago..Time.current
-            when "12m" then 12.months.ago..Time.current
-            else 30.days.ago..Time.current
-            end
+    when "7d" then 7.days.ago..Time.current
+    when "30d" then 30.days.ago..Time.current
+    when "12m" then 12.months.ago..Time.current
+    else 30.days.ago..Time.current
+    end
     trunc = period == "12m" ? "month" : "day"
 
     Log.where(user_id: user_id).kept
@@ -4262,8 +4371,8 @@ PROMPT
     ka = I18n.locale.to_s == "ka"
 
     # Locale-aware dummy client names
-    clients_en = ["Acme Corp", "BuildRight LLC", "Nova Studio", "Peak Solutions", "Bright Media"]
-    clients_ka = ["აქმე კორპ", "ბილდრაიტი", "ნოვა სტუდია", "პიქ სოლუშენსი", "ბრაიტ მედია"]
+    clients_en = [ "Acme Corp", "BuildRight LLC", "Nova Studio", "Peak Solutions", "Bright Media" ]
+    clients_ka = [ "აქმე კორპ", "ბილდრაიტი", "ნოვა სტუდია", "პიქ სოლუშენსი", "ბრაიტ მედია" ]
     client_names = ka ? clients_ka : clients_en
 
     @currency_symbol   = currency_symbol_for(@profile.currency.presence || "GEL")
@@ -4305,11 +4414,11 @@ PROMPT
     ]
 
     @client_insights = client_names.first(4).each_with_index.map do |name, i|
-      totals    = [6_200.0, 4_800.0, 3_900.0, 2_100.0]
-      outs      = [0.0, 1_200.0, 0.0, 840.0]
-      counts    = [8, 6, 5, 3]
-      last_ats  = [3.days.ago, 10.days.ago, 20.days.ago, 45.days.ago]
-      badges    = [["top_client"], [], ["repeat"], []]
+      totals    = [ 6_200.0, 4_800.0, 3_900.0, 2_100.0 ]
+      outs      = [ 0.0, 1_200.0, 0.0, 840.0 ]
+      counts    = [ 8, 6, 5, 3 ]
+      last_ats  = [ 3.days.ago, 10.days.ago, 20.days.ago, 45.days.ago ]
+      badges    = [ [ "top_client" ], [], [ "repeat" ], [] ]
       { name: name, total: totals[i], outstanding: outs[i], count: counts[i],
         last_at: last_ats[i], badges: badges[i] }
     end
@@ -4331,18 +4440,12 @@ PROMPT
     clars = data["clarifications"]
     return unless clars.is_a?(Array) && clars.any?
 
-    ui_ka = language.to_s.start_with?("ka") || I18n.locale.to_s == "ka"
-    default_billing = begin; @profile&.billing_mode || "hourly"; rescue; "hourly"; end
-    cat_prefixes = %w[labor materials expenses fees]
-
-    # ── Detection patterns ──
     price_re   = /ღირს|ფასი|ფასად|price|cost|charge/i
     qty_re     = /რაოდენობ|quantity|რამდენ/i
     disc_re    = /ფასდაკლება|discount/i
     tax_re     = /დღგ|vat|tax.*rate|tax.*განაკვეთ/i
     ambig_re   = /სახის|რისი|what kind|what type|describe|აღწერ/i
     exclude_re = /ფასდაკლება|discount|დღგ|vat|tax|გადასახ/i
-    labor_re   = /შეკეთება|რემონტი|მონტაჟი|ინსტალაცია|repair|install|service|maintenance|fix|labor|work|მომსახურება|წმენდა|cleaning|painting|შეღებვა/i
 
     # ── Section items for name matching & per-item widgets ──
     # Support both symbol keys (from process_audio section building) and string keys (from refine_invoice)
@@ -4355,41 +4458,7 @@ PROMPT
     # ── Name resolution: prefer AI-provided item_name, fallback to regex cleaning ──
     # clean_name: FALLBACK regex extraction (only used when AI doesn't provide item_name)
     clean_name = lambda do |raw|
-      name = raw.to_s.strip
-      # If user said "add X" (დამატე/დამატება X), treat it as product name X
-      name = name.gsub(/^დამატ(ე|ება)\s+/i, "")
-      return "Item" if name.blank? || name.match?(/\A[\d.,\s]+\z/)
-      # Strip full question patterns: "რა ფასად გსურთ X-ის დამატება?", "რა ღირს X?", etc.
-      name = name.gsub(/[?？]+\s*$/, "")                             # trailing ?
-                  .gsub(/^რა\s+ფასად\s+გსურთ\s+/i, "")              # რა ფასად გსურთ ...
-                  .gsub(/^რა\s+ღირს\s+/i, "")                       # რა ღირს ...
-                  .gsub(/^რამდენი?\s+/i, "")                         # რამდენი ...
-                  .gsub(/^რა\s+სახის\s+/i, "")                      # რა სახის ...
-                  .gsub(/^გსურთ\s+/i, "")                           # გსურთ ...
-                  .gsub(/\s+დამატება$/i, "")                        # ... დამატება
-                  .gsub(/\s+შეცვლა$/i, "")                         # ... შეცვლა
-                  .gsub(/\s+გსურთ$/i, "")                           # ... გსურთ (trailing)
-                  .gsub(/\(.*?\)/, "")                               # (...) parenthetical
-                  .gsub(/\s+/, " ").strip
-      # Remove any remaining standalone helper verb inside the name
-      name = name.gsub(/\bდამატ(ე|ება)\b/i, "").gsub(/\s+/, " ").strip
-      # Strip Georgian genitive suffix -ის if it makes a match
-      if name.end_with?("ის") && name.length > 3
-        stem = name[0..-3]
-        si = section_items.find { |s| s[:desc].downcase == stem.downcase }
-        name = si[:desc] if si
-      elsif name.end_with?("ს") && name.length > 2
-        stem = name[0..-2]
-        si = section_items.find { |s| s[:desc].downcase == stem.downcase }
-        name = si[:desc] if si
-      end
-      return "Item" if name.blank?
-      norm = name.downcase
-      match = section_items.find do |si|
-        d = si[:desc].downcase
-        d == norm || norm.include?(d) || d.include?(norm)
-      end
-      match ? match[:desc] : name
+      raw.to_s.strip.presence || "Item"
     end
 
     # resolve_name: use AI-provided item_name if present, otherwise fallback to regex
@@ -4495,7 +4564,7 @@ PROMPT
       q_text = ui_ka ? "გთხოვთ დააზუსტოთ ინფორმაცია:" : "Please clarify:"
       items = ambig_list.map do |a|
         label = a[:clar]["question"].to_s.gsub(/[?？]\s*$/, "").strip
-        { "name" => a[:name], "inputs" => [{ "key" => "description", "label" => label, "type" => "text" }] }
+        { "name" => a[:name], "inputs" => [ { "key" => "description", "label" => label, "type" => "text" } ] }
       end
       new_clars << { "type" => "item_input_list", "field" => "item_clarification", "question" => q_text, "items" => items }
     elsif ambig_list.length == 1
@@ -4529,19 +4598,19 @@ PROMPT
           si = section_items.find { |s| s[:desc].downcase == item["name"].downcase }
           cat = si[:category] if si
           cat = "labor" if cat.blank? && item["name"].to_s.match?(labor_re)
-          # If name came from an "add X" intent, default to materials
-          cat = "materials" if cat.blank? && item["name"].to_s.match?(/^(დამატე|დამატება)\s+/i)
-          cat = "materials" if cat.blank? && item["name"].to_s.match?(/დამატება$/i)
+          # If name came from an "add X" intent, default to products
+          cat = "products" if cat.blank? && item["name"].to_s.match?(/^(დამატე|დამატება)\s+/i)
+          cat = "products" if cat.blank? && item["name"].to_s.match?(/დამატება$/i)
           item["category"] = cat
         end
-        # Ensure materials have qty input
+        # Ensure products have qty input
         has_qty = (item["inputs"] || []).any? { |inp| inp["key"] == "qty" }
-        if cat == "materials" && !has_qty
+        if cat == "products" && !has_qty
           (item["inputs"] ||= []).unshift({ "key" => "qty", "label" => qty_lbl, "type" => "number", "value" => 1 })
         end
         # Ensure labor has billing_mode toggle with profile default
         if cat == "labor" && item["toggle"].nil?
-          item["toggle"] = { "key" => "billing_mode", "options" => ["fixed", "hourly"], "default" => default_billing }
+          item["toggle"] = { "key" => "billing_mode", "options" => [ "fixed", "hourly" ], "default" => default_billing }
         elsif item["toggle"] && item["toggle"]["key"] == "billing_mode" && item["toggle"]["default"].blank?
           item["toggle"]["default"] = default_billing
         end
@@ -4570,9 +4639,9 @@ PROMPT
         absorbed << mq.object_id if mq
 
         inputs = []
-        inputs << { "key" => "qty", "label" => qty_lbl, "type" => "number", "value" => 1 } if mq || category == "materials"
+        inputs << { "key" => "qty", "label" => qty_lbl, "type" => "number", "value" => 1 } if mq || category == "products"
         inputs << { "key" => "price", "label" => price_lbl, "type" => "number" }
-        toggle = category == "labor" ? { "key" => "billing_mode", "options" => ["fixed", "hourly"], "default" => default_billing } : nil
+        toggle = category == "labor" ? { "key" => "billing_mode", "options" => [ "fixed", "hourly" ], "default" => default_billing } : nil
         { "name" => item_name, "category" => category, "inputs" => inputs, "toggle" => toggle }
       end
       # Absorb leftover qty questions for items already in card
@@ -4601,22 +4670,22 @@ PROMPT
         next if existing_names.include?(item_name.downcase)
         field_cat = pc["field"].to_s.split(".").first
         category = cat_prefixes.include?(field_cat) ? field_cat : nil
-        # Treat explicit "add X" as product/material
+        # Treat explicit "add X" as product/product
         if category.blank? && item_name.match?(/^(დამატე|დამატება)\s+/i)
           item_name = item_name.gsub(/^(დამატე|დამატება)\s+/i, "").strip
-          category = "materials"
+          category = "products"
         end
         if category.blank? && item_name.match?(/დამატება$/i)
           item_name = item_name.gsub(/დამატება$/i, "").strip
-          category = "materials"
+          category = "products"
         end
         category ||= section_items.find { |s| s[:desc].downcase == item_name.downcase }&.dig(:category)
         category ||= "labor" if item_name.match?(labor_re)
 
         inputs = []
-        inputs << { "key" => "qty", "label" => qty_lbl, "type" => "number", "value" => 1 } if category == "materials"
+        inputs << { "key" => "qty", "label" => qty_lbl, "type" => "number", "value" => 1 } if category == "products"
         inputs << { "key" => "price", "label" => price_lbl, "type" => "number" }
-        toggle = category == "labor" ? { "key" => "billing_mode", "options" => ["fixed", "hourly"], "default" => default_billing } : nil
+        toggle = category == "labor" ? { "key" => "billing_mode", "options" => [ "fixed", "hourly" ], "default" => default_billing } : nil
 
         (price_card["items"] ||= []) << { "name" => item_name, "category" => category, "inputs" => inputs, "toggle" => toggle }
         existing_names << item_name.downcase
@@ -4649,8 +4718,8 @@ PROMPT
         items = disc_item_names.map do |item_name|
           {
             "name" => item_name,
-            "inputs" => [{ "key" => "amount", "label" => amt_lbl, "type" => "number" }],
-            "toggle" => { "key" => "discount_type", "options" => ["fixed", "percentage"], "default" => "percentage" }
+            "inputs" => [ { "key" => "amount", "label" => amt_lbl, "type" => "number" } ],
+            "toggle" => { "key" => "discount_type", "options" => [ "fixed", "percentage" ], "default" => "percentage" }
           }
         end
         new_clars << { "type" => "item_input_list", "field" => "discount_setup", "question" => disc_q, "items" => items }
@@ -4659,8 +4728,8 @@ PROMPT
         disc_label = ui_ka ? "ფასდაკლება" : "Discount"
         new_clars << {
           "type" => "item_input_list", "field" => "discount_setup", "question" => disc_q,
-          "items" => [{ "name" => disc_label, "inputs" => [{ "key" => "amount", "label" => amt_lbl, "type" => "number" }],
-                         "toggle" => { "key" => "discount_type", "options" => ["fixed", "percentage"], "default" => "percentage" } }]
+          "items" => [ { "name" => disc_label, "inputs" => [ { "key" => "amount", "label" => amt_lbl, "type" => "number" } ],
+                         "toggle" => { "key" => "discount_type", "options" => [ "fixed", "percentage" ], "default" => "percentage" } } ]
         }
       end
     end
@@ -4716,9 +4785,9 @@ PROMPT
         is_labor = sec["type"].to_s.match?(/labor|service/i)
         has_price = if is_labor && item["mode"] == "hourly"
                      item["rate"].to_f > 0
-                   else
+        else
                      (item["price"] || item["unit_price"]).to_f > 0
-                   end
+        end
         next if has_price
         next if already_covers.call(name, /price|unit_price|cost|item_prices/i)
 
@@ -4730,10 +4799,10 @@ PROMPT
     if items_needing_price.any? && clars.none? { |c| c["type"] == "item_input_list" && c["field"].to_s.match?(/price/i) }
       iil_items = items_needing_price.map do |ip|
         inputs = []
-        inputs << { "key" => "qty", "label" => (is_ka ? "რაოდენობა" : "Qty"), "type" => "number", "value" => 1 } if ip[:category].match?(/material/i)
+        inputs << { "key" => "qty", "label" => (is_ka ? "რაოდენობა" : "Qty"), "type" => "number", "value" => 1 } if ip[:category].match?(/product/i)
         inputs << { "key" => "price", "label" => (is_ka ? "ფასი" : "Price"), "type" => "number" }
         h = { "name" => ip[:name], "category" => ip[:category], "inputs" => inputs }
-        h["toggle"] = { "key" => "billing_mode", "options" => ["fixed", "hourly"], "default" => "fixed" } if ip[:is_labor]
+        h["toggle"] = { "key" => "billing_mode", "options" => [ "fixed", "hourly" ], "default" => "fixed" } if ip[:is_labor]
         h
       end
       new_clars << {
@@ -4820,7 +4889,7 @@ PROMPT
       }
     }
   rescue => e
-    [{ error: e.message }]
+    [ { error: e.message } ]
   end
 
   def gemini_usage_snapshot(body)
@@ -4841,10 +4910,10 @@ PROMPT
   def normalize_client_name(name)
     n = name.to_s.dup
     # Strip Georgian/international legal forms
-    n.gsub!(/\b(შპს|შ\.პ\.ს\.|ს\.ს\.|სს|Ltd\.?|LLC|Inc\.?|Corp\.?|GmbH|ООО|ИП|ОАО|ЗАО|S\.?A\.?|S\.?L\.?|PLC|Pty|Co\.?)\b/i, '')
+    n.gsub!(/\b(შპს|შ\.პ\.ს\.|ს\.ს\.|სს|Ltd\.?|LLC|Inc\.?|Corp\.?|GmbH|ООО|ИП|ОАО|ЗАО|S\.?A\.?|S\.?L\.?|PLC|Pty|Co\.?)\b/i, "")
     # Strip special quotes: Georgian „", «», "", standard ""
-    n.gsub!(/[„""«»"\u201C\u201D\u201E\u00AB\u00BB]/, '')
-    n.strip.gsub(/\s+/, ' ').downcase
+    n.gsub!(/[„""«»"\u201C\u201D\u201E\u00AB\u00BB]/, "")
+    n.strip.gsub(/\s+/, " ").downcase
   end
 
   def profile_params

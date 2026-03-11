@@ -223,7 +223,7 @@ class RuntimeGatingFlowsTest < ActionDispatch::IntegrationTest
       tax_rate: 18,
       currency: "USD",
       billing_mode: "hourly",
-      tax_scope: "labor,materials_only"
+      tax_scope: "labor,products_only"
     )
 
     user.reload
@@ -239,7 +239,7 @@ class RuntimeGatingFlowsTest < ActionDispatch::IntegrationTest
       tasks: [],
       credits: [],
       billing_mode: "hourly",
-      tax_scope: "labor,materials_only",
+      tax_scope: "labor,products_only",
       currency: "USD",
       hourly_rate: 100,
       invoice_number: invoice_number,
@@ -257,7 +257,7 @@ class RuntimeGatingFlowsTest < ActionDispatch::IntegrationTest
       tasks: [],
       credits: [],
       billing_mode: "hourly",
-      tax_scope: "labor,materials_only",
+      tax_scope: "labor,products_only",
       currency: "USD",
       hourly_rate: 100,
       invoice_number: 1001,

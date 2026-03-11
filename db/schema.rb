@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_03_02_093508) do
+ActiveRecord::Schema[8.0].define(version: 2026_03_10_111807) do
   create_schema "auth"
   create_schema "neon_auth"
   create_schema "pgrst"
@@ -105,11 +105,11 @@ ActiveRecord::Schema[8.0].define(version: 2026_03_02_093508) do
     t.string "client"
     t.string "time"
     t.text "tasks"
-    t.text "materials"
+    t.text "products"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "billing_mode"
-    t.string "tax_scope", default: "labor,materials_only", null: false
+    t.string "tax_scope", default: "labor,products_only", null: false
     t.boolean "labor_taxable"
     t.decimal "labor_discount_flat"
     t.decimal "labor_discount_percent"
@@ -162,7 +162,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_03_02_093508) do
     t.decimal "tax_rate"
     t.string "billing_mode"
     t.string "currency"
-    t.string "tax_scope", default: "labor,materials_only", null: false
+    t.string "tax_scope", default: "labor,products_only", null: false
     t.string "invoice_style"
     t.string "discount_tax_rule", default: "post_tax"
     t.decimal "labor_price"
@@ -234,9 +234,13 @@ ActiveRecord::Schema[8.0].define(version: 2026_03_02_093508) do
     t.string "unconfirmed_email"
     t.string "session_token"
     t.string "name"
+    t.integer "failed_attempts", default: 0, null: false
+    t.string "unlock_token"
+    t.datetime "locked_at"
     t.index ["confirmation_token"], name: "index_users_on_confirmation_token", unique: true
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
+    t.index ["unlock_token"], name: "index_users_on_unlock_token", unique: true
   end
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"

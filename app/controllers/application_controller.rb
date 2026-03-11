@@ -80,7 +80,7 @@ class ApplicationController < ActionController::Base
         hourly_rate: 100.00,
         tax_rate: 18.0,
         currency: "USD",
-        tax_scope: "labor,materials_only",
+        tax_scope: "labor,products_only",
         payment_instructions: I18n.t("guest_profile.payment_instructions"),
         note: I18n.t("guest_profile.note"),
         plan: "guest"
@@ -106,7 +106,7 @@ class ApplicationController < ActionController::Base
       tax_rate: 18.0,
       note: default_note,
       billing_mode: "hourly",
-      tax_scope: "labor,materials_only",
+      tax_scope: "labor,products_only",
       system_language: locale
     )
   end

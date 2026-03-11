@@ -407,7 +407,7 @@ class LogsController < ApplicationController
         date: Date.today.strftime("%b %d, %Y"),
         due_date: (Date.today + 30).strftime("%b %d, %Y"),
         billing_mode: "hourly",
-        tax_scope: "labor,materials_only,fees_only",
+        tax_scope: "labor,products_only,fees_only",
         labor_taxable: true,
         currency: profile.currency,
         hourly_rate: profile.hourly_rate,
@@ -440,13 +440,13 @@ class LogsController < ApplicationController
             ]
           },
           {
-            "title" => "Hardware & Materials",
+            "title" => "Hardware & Products",
             "items" => [
               { "desc" => "Shielded Signal Cabling (ft)", "qty" => "50", "price" => "2.50", "taxable" => true, "discount_flat" => 25.0 }
             ]
           },
           {
-            "title" => "Project Expenses",
+            "title" => "Project Reimbursements",
             "items" => [
               { "desc" => "Express Site Logistics", "qty" => "1", "price" => "45.00", "taxable" => false }
             ]
@@ -484,15 +484,15 @@ class LogsController < ApplicationController
       accent_color = allowed_accent_color_for(profile, requested_color: params[:accent_color])
 
       # Generate 40+ items for multi-page testing
-      material_items = (1..35).map do |i|
-        { "desc" => "Material Item ##{i} - Extended description to test text wrapping behavior in PDF",
+      product_items = (1..35).map do |i|
+        { "desc" => "Product Item ##{i} - Extended description to test text wrapping behavior in PDF",
           "qty" => (rand(1..5)).to_s,
           "price" => (rand(10..200).to_f + rand(0..99)/100.0).to_s,
           "taxable" => i.odd? }
       end
 
-      expense_items = (1..10).map do |i|
-        { "desc" => "Expense Item ##{i} - Service charge",
+      reimbursement_items = (1..10).map do |i|
+        { "desc" => "Reimbursement Item ##{i} - Service charge",
           "qty" => "1",
           "price" => (rand(50..300).to_f).to_s,
           "taxable" => true }
@@ -523,8 +523,8 @@ class LogsController < ApplicationController
             { "desc" => "Installation and Configuration", "qty" => "4", "price" => "0", "taxable" => false },
             { "desc" => "Testing and Quality Assurance", "qty" => "2.5", "price" => "0", "taxable" => false }
           ] },
-          { "title" => "Materials", "items" => material_items },
-          { "title" => "Expenses", "items" => expense_items },
+          { "title" => "Products", "items" => product_items },
+          { "title" => "Reimbursements", "items" => reimbursement_items },
           { "title" => "Field Notes", "items" => field_notes }
         ].to_json
       )

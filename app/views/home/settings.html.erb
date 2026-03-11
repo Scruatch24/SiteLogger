@@ -360,11 +360,11 @@
             <button type="button" data-scope="labor" onclick="<%= @profile.guest? ? '' : 'toggleScopeToken(this)' %>" class="flex-1 flex items-center justify-center text-[10px] font-black uppercase transition-all border-2 border-black rounded-xl scope-toggle bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 <%= 'opacity-50 cursor-not-allowed pointer-events-none' if @profile.guest? %>">
               <span class="hidden md:inline"><%= t('labor') %></span><span class="md:hidden"><%= t('labor_short') %></span>
             </button>
-            <button type="button" data-scope="materials_only" onclick="<%= @profile.guest? ? '' : 'toggleScopeToken(this)' %>" class="flex-1 flex items-center justify-center text-[10px] font-black uppercase transition-all border-2 border-black rounded-xl scope-toggle bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 <%= 'opacity-50 cursor-not-allowed pointer-events-none' if @profile.guest? %>">
-              <span class="hidden md:inline"><%= t('materials_only') %></span><span class="md:hidden"><%= t('materials_only_short') %></span>
+            <button type="button" data-scope="products_only" onclick="<%= @profile.guest? ? '' : 'toggleScopeToken(this)' %>" class="flex-1 flex items-center justify-center text-[10px] font-black uppercase transition-all border-2 border-black rounded-xl scope-toggle bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 <%= 'opacity-50 cursor-not-allowed pointer-events-none' if @profile.guest? %>">
+              <span class="hidden md:inline"><%= t('products_only') %></span><span class="md:hidden"><%= t('products_only_short') %></span>
             </button>
-            <button type="button" data-scope="expenses_only" onclick="<%= @profile.guest? ? '' : 'toggleScopeToken(this)' %>" class="flex-1 flex items-center justify-center text-[10px] font-black uppercase transition-all border-2 border-black rounded-xl scope-toggle bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 <%= 'opacity-50 cursor-not-allowed pointer-events-none' if @profile.guest? %>">
-              <span class="hidden md:inline"><%= t('expense') %></span><span class="md:hidden"><%= t('expense_short') %></span>
+            <button type="button" data-scope="reimbursements_only" onclick="<%= @profile.guest? ? '' : 'toggleScopeToken(this)' %>" class="flex-1 flex items-center justify-center text-[10px] font-black uppercase transition-all border-2 border-black rounded-xl scope-toggle bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 <%= 'opacity-50 cursor-not-allowed pointer-events-none' if @profile.guest? %>">
+              <span class="hidden md:inline"><%= t('reimbursement') %></span><span class="md:hidden"><%= t('reimbursement_short') %></span>
             </button>
             <button type="button" data-scope="fees_only" onclick="<%= @profile.guest? ? '' : 'toggleScopeToken(this)' %>" class="flex-1 flex items-center justify-center text-[10px] font-black uppercase transition-all border-2 border-black rounded-xl scope-toggle bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 <%= 'opacity-50 cursor-not-allowed pointer-events-none' if @profile.guest? %>">
               <span class="hidden md:inline"><%= t('fee') %></span><span class="md:hidden"><%= t('fee_short') %></span>
@@ -609,7 +609,7 @@
 
   window.setScopeAll = function() {
     const hidden = document.getElementById('tax_scope_hidden');
-    activeTokens = ["labor", "materials_only", "fees_only", "expenses_only"];
+    activeTokens = ["labor", "products_only", "fees_only", "reimbursements_only"];
     if (hidden) hidden.value = activeTokens.join(',');
     updateScopeUI();
   };

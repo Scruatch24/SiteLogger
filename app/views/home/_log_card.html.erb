@@ -353,35 +353,35 @@
           </div>
         <% end %>
 
-        <% # MATERIALS %>
-        <% if stats[:categorized_items][:material].any? %>
+        <% # PRODUCTS %>
+        <% if stats[:categorized_items][:product].any? %>
           <div class="space-y-1 pt-4">
             <div class="flex items-center gap-2 pb-1 border-b border-gray-100">
               <div class="w-5 h-5 bg-orange-100 rounded flex items-center justify-center text-orange-600">
                 <svg class="h-3 w-3">
-                  <use xlink:href="#icon-material"></use>
+                  <use xlink:href="#icon-product"></use>
                 </svg>
               </div>
-              <span class="text-xs font-black text-gray-400 uppercase tracking-widest"><%= t('material') %></span>
+              <span class="text-xs font-black text-gray-400 uppercase tracking-widest"><%= t('product') %></span>
             </div>
-            <% stats[:categorized_items][:material].each do |item| %>
+            <% stats[:categorized_items][:product].each do |item| %>
               <%= render partial: "home/history_item", locals: { item: item, profile: @profile, currency: currency } %>
             <% end %>
           </div>
         <% end %>
 
-        <% # EXPENSES %>
-        <% if stats[:categorized_items][:expense].any? %>
+        <% # REIMBURSEMENTS %>
+        <% if stats[:categorized_items][:reimbursement].any? %>
           <div class="space-y-1 pt-4">
             <div class="flex items-center w-full gap-2 pb-1 border-b border-gray-100">
               <div class="w-5 h-5 bg-red-100 rounded flex items-center justify-center text-red-600">
                 <svg class="h-3 w-3">
-                  <use xlink:href="#icon-expense"></use>
+                  <use xlink:href="#icon-reimbursement"></use>
                 </svg>
               </div>
-              <span class="text-xs font-black text-gray-400 uppercase tracking-widest"><%= t('expense') %></span>
+              <span class="text-xs font-black text-gray-400 uppercase tracking-widest"><%= t('reimbursement') %></span>
             </div>
-            <% stats[:categorized_items][:expense].each do |item| %>
+            <% stats[:categorized_items][:reimbursement].each do |item| %>
               <%= render partial: "home/history_item", locals: { item: item, profile: @profile, currency: currency } %>
             <% end %>
           </div>

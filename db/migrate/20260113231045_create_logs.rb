@@ -5,7 +5,7 @@ class CreateLogs < ActiveRecord::Migration[8.0]
       t.string :client
       t.string :time
       t.text :tasks
-      t.text :materials
+      t.text :products
 
       t.timestamps
     end

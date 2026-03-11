@@ -28,8 +28,8 @@ Rails.application.configure do
     config.action_controller.perform_caching = false
   end
 
-  # Change to :null_store to avoid any caching.
-  config.cache_store = :memory_store
+  config.cache_store = :null_store
+
 
   # Use S3 in development too — we share the same database as production,
   # so all file references point to S3. Falls back to :local if AWS env vars missing.
