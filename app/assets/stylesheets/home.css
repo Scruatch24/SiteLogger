@@ -82,7 +82,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+    /* box-shadow removed as part of no-shadow logo update */
     flex-shrink: 0;
   }
   @media (min-width: 1280px) {
@@ -247,34 +247,31 @@ body {
   }
   .site-auth-signin {
     background: white;
+    /* box-shadow removed */
     color: black;
-    box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
   }
   .site-auth-signin:hover {
     background: #f9fafb;
     transform: translate(-1px, -1px);
-    box-shadow: 3px 3px 0px 0px rgba(0,0,0,1);
   }
   .site-auth-signup {
     background: #ea580c;
+    /* box-shadow removed */
     color: white;
-    box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
   }
   .site-auth-signup:hover {
     background: #c2410c;
     transform: translate(-1px, -1px);
-    box-shadow: 3px 3px 0px 0px rgba(0,0,0,1);
   }
   .site-auth-logout {
     background: white;
+    /* box-shadow removed */
     color: black;
-    box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
   }
   .site-auth-logout:hover {
     background: #fef2f2;
     color: #dc2626;
     border-color: #dc2626;
-    box-shadow: 2px 2px 0px 0px #dc2626;
   }
 
   /* Hamburger — mobile only */
@@ -290,7 +287,7 @@ body {
     border: 2px solid black;
     border-radius: 10px;
     cursor: pointer;
-    box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+    /* box-shadow removed */
     transition: all 0.2s ease;
     flex-shrink: 0;
   }
@@ -617,11 +614,8 @@ body {
     background: #fff7ed;
     border: 2px solid black;
     border-radius: 20px;
+    /* box-shadow removed */
     display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto 1.5rem;
-    box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);
   }
   .contact-title {
     font-size: 2rem;
@@ -1555,9 +1549,9 @@ body {
       color: #16A34A;
       /* Green-600 */
       border-color: #16A34A;
+      border-bottom: none;
       border-bottom-left-radius: 0;
       border-bottom-right-radius: 0;
-      border-bottom: none;
       z-index: 10;
   }
 
@@ -2065,8 +2059,8 @@ body {
 
     /* Contact card: reduce shadow */
     .contact-card {
-      box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);
-      padding: 1.25rem;
+      /* box-shadow removed */
+    margin: 0 auto 1.5rem;
     }
 
     /* Footer: tighter */
