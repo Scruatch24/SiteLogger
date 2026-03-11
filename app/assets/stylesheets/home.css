@@ -247,31 +247,34 @@ body {
   }
   .site-auth-signin {
     background: white;
-    /* box-shadow removed */
     color: black;
+    box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
   }
   .site-auth-signin:hover {
     background: #f9fafb;
     transform: translate(-1px, -1px);
+    box-shadow: 3px 3px 0px 0px rgba(0,0,0,1);
   }
   .site-auth-signup {
     background: #ea580c;
-    /* box-shadow removed */
     color: white;
+    box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
   }
   .site-auth-signup:hover {
     background: #c2410c;
     transform: translate(-1px, -1px);
+    box-shadow: 3px 3px 0px 0px rgba(0,0,0,1);
   }
   .site-auth-logout {
     background: white;
-    /* box-shadow removed */
     color: black;
+    box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
   }
   .site-auth-logout:hover {
     background: #fef2f2;
     color: #dc2626;
     border-color: #dc2626;
+    box-shadow: 2px 2px 0px 0px #dc2626;
   }
 
   /* Hamburger — mobile only */
@@ -388,7 +391,7 @@ body {
     text-decoration: none;
     cursor: pointer;
     border: 2px solid black;
-    /* box-shadow removed */
+    box-shadow: 3px 3px 0px 0px rgba(0,0,0,1);
     transition: all 0.2s ease;
   }
   .site-mobile-auth-btn.site-auth-signin {
