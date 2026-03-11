@@ -35,23 +35,17 @@ Rails.application.configure do
   # so all file references point to S3. Falls back to :local if AWS env vars missing.
   config.active_storage.service = ENV["AWS_ACCESS_KEY_ID"].present? ? :amazon : :local
 
-  # Don't care if the mailer can't send.
-  config.action_mailer.raise_delivery_errors = true
-  config.action_mailer.delivery_method = :smtp
-  config.action_mailer.perform_deliveries = true
+  # Use Resend in development if API key is present, otherwise fallback to letter_opener or smtp
+  if ENV["RESEND_API_KEY"].present?
+    config.action_mailer.delivery_method = :resend
+    config.action_mailer.resend_settings = {
+      api_key: ENV["RESEND_API_KEY"]
+    }
+  else
+    config.action_mailer.delivery_method = :letter_opener
+  end
 
-  config.action_mailer.smtp_settings = {
-    address:              ENV["SMTP_ADDRESS"],
-    port:                 ENV.fetch("SMTP_PORT", 587).to_i,
-    domain:               ENV["SMTP_DOMAIN"],
-    user_name:            ENV["SMTP_USERNAME"],
-    password:             ENV["SMTP_PASSWORD"],
-    authentication:       :login,
-    enable_starttls_auto: ENV.fetch("SMTP_PORT", 587).to_i != 465,
-    tls:                  ENV.fetch("SMTP_PORT", 587).to_i == 465
-  }
-
-  config.action_mailer.default_options = { from: "TalkInvoice <#{ENV['SMTP_USERNAME']}>" }
+  config.action_mailer.default_options = { from: "TalkInvoice <#{ENV['MAILER_FROM_ADDRESS'] || 'contact@talkinvoice.online'}>" }
 
   # Make template changes take effect immediately.
   config.action_mailer.perform_caching = false

@@ -4,7 +4,7 @@ class ContactMailer < ApplicationMailer
     @subject = subject
     @description = description
     mail(
-      to: "contact@talkinvoice.online",
+      to: ENV["MAILER_FROM_ADDRESS"],
       subject: "Contact Form: #{subject}",
       reply_to: email
     )

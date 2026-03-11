@@ -62,27 +62,15 @@ Rails.application.configure do
 
   # Set host to be used by links generated in mailer templates.
   config.action_mailer.default_url_options = { host: "talkinvoice.online", protocol: "https" }
-  config.action_mailer.default_options = { from: "TalkInvoice <#{ENV['SMTP_USERNAME']}>" }
+  config.action_mailer.default_options = { from: "TalkInvoice <#{ENV['MAILER_FROM_ADDRESS'] || 'contact@talkinvoice.online'}>" }
 
-  # Specify outgoing email server (ZeptoMail API over HTTPS)
-  config.action_mailer.delivery_method = :zohozeptomail
+  # Specify outgoing email server (Resend)
+  config.action_mailer.delivery_method = :resend
   config.action_mailer.perform_deliveries = true
   config.action_mailer.raise_delivery_errors = true
 
-  # The ZeptoMail gem has a few bugs we need to work around:
-  # 1. It crashes if the region is just 'EU' (it needs the full host)
-  if ENV["ZOHO_ZEPTOMAIL_HOSTED_REGION"] == "EU" || ENV["ZOHO_ZEPTOMAIL_HOSTED_REGION"].blank?
-    ENV["ZOHO_ZEPTOMAIL_HOSTED_REGION"] = "zeptomail.zoho.eu"
-  end
-
-  # 2. It needs the 'Zoho-enczapikey ' prefix on the token if it's not there
-  if ENV["ZOHO_ZEPTOMAIL_API_KEY_TOKEN"].present? && !ENV["ZOHO_ZEPTOMAIL_API_KEY_TOKEN"].start_with?("Zoho-enczapikey")
-    ENV["ZOHO_ZEPTOMAIL_API_KEY_TOKEN"] = "Zoho-enczapikey #{ENV["ZOHO_ZEPTOMAIL_API_KEY_TOKEN"]}"
-  end
-
-  config.action_mailer.zohozeptomail_settings = {
-    api_key: ENV["ZOHO_ZEPTOMAIL_API_KEY_TOKEN"],
-    region:  ENV["ZOHO_ZEPTOMAIL_HOSTED_REGION"]
+  config.action_mailer.resend_settings = {
+    api_key: ENV["RESEND_API_KEY"]
   }
 
   # Enable locale fallbacks for I18n (makes lookups for any locale fall back to
