@@ -1096,6 +1096,7 @@ CORE DIRECTIVES (non-negotiable)
    - Strip all Georgian question words: "რა ფასად", "რამდენი", "რა ღირს", "რა სახის".
    - Strip all punctuation and trailing question marks.
 8. STRICT QUANTITY RULE: ALWAYS put the numeric quantity in the "qty" or "hours" field. DO NOT repeat the quantity in the description text.
+   - FORBIDDEN: Never include "(x1)", "(x2)", "3x", or "Quantity: X" in any description field. This is redundant and cluttered.
    - Example Input: "3 Apples" -> { "name": "Apple", "qty": 3 } (NOT { "name": "3 Apples", "qty": 1 })
    - Example Input: "Axe (x2)" -> { "name": "Axe", "qty": 2 }
 9. NUMERIC WORDS: "twelve hundred" -> 1200, "twenty-three hundred" -> 2300, "thirty-five hundred" -> 3500. Always return numbers as numeric strings or integers.
@@ -2351,6 +2352,7 @@ PROMPT
       4. Strip all Georgian question words: "რა ფასად", "რამდენი", "რა ღირს", "რა სახის".
       5. Strip all punctuation and trailing question marks.
       6. STRICT QUANTITY RULE: ALWAYS put the numeric quantity in the "qty" or "hours" field. DO NOT repeat the quantity in the description text.
+         - FORBIDDEN: Never include "(x1)", "(x2)", "3x", or "Quantity: X" in any description field. This is redundant and cluttered.
          - Input: "დაამატე 3 ცალი ნაჯახი" -> { "desc": "ნაჯახი", "qty": 3 } (NOT { "desc": "3 ნაჯახი", "qty": 1 }).
 
       ═══ ITEM OBJECTS ═══
