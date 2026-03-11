@@ -1590,9 +1590,9 @@
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
         </button>
         <div class="pwa-icon-wrap" style="position:relative;margin-bottom:2rem;">
-          <div class="pwa-pulse-ring" style="position:absolute;inset:-12px;border-radius:28px;border:1px solid rgba(234,88,12,0.4);"></div>
+          <div class="pwa-pulse-ring" style="position:absolute;inset:-12px;border-radius:28px;border:2px solid rgba(234,88,12,0.4);"></div>
           <div class="pwa-pulse-ring" style="position:absolute;inset:-24px;border-radius:36px;border:1px solid rgba(234,88,12,0.2);animation-delay:0.5s;"></div>
-          <div style="position:relative;width:96px;height:96px;border-radius:24px;overflow:hidden;box-shadow:0 8px 32px rgba(234,88,12,0.35),0 0 0 1px rgba(255,255,255,0.08);">
+          <div style="position:relative;width:96px;height:96px;border-radius:24px;overflow:hidden;">
             <img src="/logo-no-shadow.svg" alt="TalkInvoice" style="width:100%;height:100%;object-fit:cover;">
           </div>
         </div>
@@ -1610,7 +1610,7 @@
             <span style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.7);"><%= t('pwa.feat1') %></span>
           </div>
           <div style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:999px;padding:6px 14px;">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ea580c" stroke-width="2.5" stroke-linecap="round"><path d="M18 364l4 4m0 0l-4 4m4-4H3" stroke-width="2.5"/></svg>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ea580c" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h.01"/><path d="M2 8a12.91 12.91 0 0 1 20 0"/><path d="M5 11a8.91 8.91 0 0 1 14 0"/><path d="M8 14a4.91 4.91 0 0 1 8 0"/></svg>
             <span style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.7);"><%= t('pwa.feat2') %></span>
           </div>
           <div style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:999px;padding:6px 14px;">
@@ -1719,9 +1719,8 @@
           }
         }
 
-        function showModal(force) {
-          if (!force && (isStandalone() || wasDismissed())) return;
-          if (!modal) return;
+        function showModal() {
+          if (isStandalone() || wasDismissed()) return;
           modal.style.opacity = '0';
           modal.style.display = 'block';
           modal.style.transition = 'opacity 0.4s ease';
@@ -1736,14 +1735,6 @@
           });
         }
 
-        // Expose trigger to global scope for testing
-        window.showPWAModal = function() { showModal(true); };
-
-        // Check for manual trigger in URL
-        if (window.location.search.includes('pwa_test=1')) {
-          setTimeout(function() { showModal(true); }, 800);
-        }
-
         function isIOS() {
           return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
         }
@@ -1756,7 +1747,7 @@
         window.addEventListener('beforeinstallprompt', function(e) {
           e.preventDefault();
           deferredPrompt = e;
-          setTimeout(function() { showModal(false); }, 2500);
+          setTimeout(showModal, 2500);
         });
 
         // Install button (Android)
