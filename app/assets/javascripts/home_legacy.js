@@ -3704,9 +3704,6 @@ function addFullSection(title, items, isProtected = false, explicitType = null) 
 
       if (typeof item === 'object') {
         val = item.desc || "";
-        if (item.qty && item.qty !== '1' && item.qty !== 'N/A') {
-          val += ` (x${item.qty})`;
-        }
         price = item.price || "";
         if (item.taxable !== undefined && item.taxable !== null) {
           taxable = item.taxable;
