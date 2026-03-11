@@ -1756,15 +1756,15 @@
           } else if (isIOS()) {
             iosSafariSteps.style.display = 'block';
           } else {
-            // Fallback for other devices
-            if (isDesktop()) {
-               // On desktop without prompt, we DON'T show the modal because the button won't work.
-               // Browsers like Firefox or Safari on Desktop don't support beforeinstallprompt.
-               return;
-            }
-            // Generic mobile - show the button as a best effort (might not work, but user said "all devices")
+            // Fallback for other devices, including Desktop where beforeinstallprompt hasn't fired yet
             installBtn.style.display = 'block';
-            installBtn.textContent = "<%= j t('pwa.install_btn') %>";
+            installBtn.textContent = isDesktop() ? "<%= j t('pwa.install_desktop') %>" : "<%= j t('pwa.install_btn') %>";
+            
+            if (isDesktop()) {
+               // Optional: Disable or style the button as loading/waiting if on desktop without prompt?
+               // For now, we just show it. If they click it before prompt arrives, it does nothing.
+               // The event listener for beforeinstallprompt will update it if it fires later.
+            }
           }
 
           modal.style.opacity = '0';
