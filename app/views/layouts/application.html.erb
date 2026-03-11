@@ -1727,45 +1727,34 @@
           return !/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
         }
 
-        // Native install prompt listener
-        window.addEventListener('beforeinstallprompt', function(e) {
-          e.preventDefault();
-          deferredPrompt = e;
-          // If modal is already showing but currently "empty" or fallback on desktop, 
-          // we should update it to show the button now that we have a prompt.
-          if (modal.style.display === 'block' && isDesktop()) {
-             installBtn.style.display = 'block';
-             installBtn.textContent = "<%= j t('pwa.install_desktop') %>";
-          }
-        });
+        var hasAttemptedShow = false;
 
         function showModal() {
           if (isStandalone() || wasDismissed()) return;
+          hasAttemptedShow = true;
           
           // Reset visibility
           installBtn.style.display = 'none';
           iosChromeSteps.style.display = 'none';
           iosSafariSteps.style.display = 'none';
 
-          if (deferredPrompt) {
-            // Android / Chrome Desktop with native prompt
-            installBtn.style.display = 'block';
-            installBtn.textContent = isDesktop() ? "<%= j t('pwa.install_desktop') %>" : "<%= j t('pwa.install_btn') %>";
-          } else if (isIOSChrome()) {
+          if (isIOSChrome()) {
             iosChromeSteps.style.display = 'block';
           } else if (isIOS()) {
             iosSafariSteps.style.display = 'block';
-          } else {
-            // Fallback for other devices, including Desktop where beforeinstallprompt hasn't fired yet
+          } else if (deferredPrompt) {
+            // Android / Chrome Desktop with native prompt
             installBtn.style.display = 'block';
             installBtn.textContent = isDesktop() ? "<%= j t('pwa.install_desktop') %>" : "<%= j t('pwa.install_btn') %>";
-            
-            if (isDesktop()) {
-               // Optional: Disable or style the button as loading/waiting if on desktop without prompt?
-               // For now, we just show it. If they click it before prompt arrives, it does nothing.
-               // The event listener for beforeinstallprompt will update it if it fires later.
-            }
+          } else {
+            // We are on Android/Desktop but haven't received the install prompt yet.
+            // This means we are either in a browser that doesn't support it (Firefox),
+            // or the user already installed the app, or the event is delayed.
+            // We abort here so we don't show a useless modal.
+            return;
           }
+
+          if (modal.style.display === 'block') return; // Already showing
 
           modal.style.opacity = '0';
           modal.style.display = 'block';
@@ -1785,7 +1774,26 @@
           return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
         }
 
-        // Universal Trigger: Show after 2.5s for everyone not in standalone
+        function isIOSChrome() {
+          return isIOS() && /CriOS/.test(navigator.userAgent);
+        }
+
+        function isDesktop() {
+          return !/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        }
+
+        // Native install prompt listener
+        window.addEventListener('beforeinstallprompt', function(e) {
+          e.preventDefault();
+          deferredPrompt = e;
+          // If the 2.5s timer already tried to show the modal and failed because
+          // this prompt was delayed, we show it now.
+          if (hasAttemptedShow) {
+             showModal();
+          }
+        });
+
+        // Universal Trigger: Show after 2.5s 
         setTimeout(showModal, 2500);
 
         // Install button (Android)
