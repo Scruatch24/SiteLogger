@@ -388,7 +388,7 @@ body {
     text-decoration: none;
     cursor: pointer;
     border: 2px solid black;
-    box-shadow: 3px 3px 0px 0px rgba(0,0,0,1);
+    /* box-shadow removed */
     transition: all 0.2s ease;
   }
   .site-mobile-auth-btn.site-auth-signin {
@@ -666,7 +666,7 @@ body {
     border: 2px solid black;
     border-radius: 14px;
     text-decoration: none;
-    box-shadow: 3px 3px 0px 0px rgba(0,0,0,1);
+    /* box-shadow removed */
     transition: all 0.2s ease;
   }
   .contact-email-link:hover {
