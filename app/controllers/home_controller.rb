@@ -1275,7 +1275,7 @@ NEVER create clarifications about:
 - ANY value that has a number next to it, regardless of language.
 - ANY rate (hourly rate, team rate, special rate) → system has defaults.
 - Confirmation of something the user already stated (NEVER ask yes/no or true/false).
-- CLIENT NAMES or CLIENT MATCHING. The system handles client matching automatically with interactive selection buttons. Just use the best matching name from EXISTING CLIENTS or the spoken name as-is. NEVER ask "which client?" or "which [name]?" in clarifications.
+- Confirmation of something the user already stated (NEVER ask yes/no or true/false).
 
 ████ WHEN TO ASK (ONLY these narrow cases) ████
 
@@ -1328,6 +1328,14 @@ ITEM NAME RULE (CRITICAL):
 - CORRECT: { "field": "labor.price", "item_name": "შეკეთება", "question": "რა ფასია?" }
 - PRODUCT vs SERVICE NAMES: If the user says "add X" / "დამატე X", treat this as a PRODUCT/PRODUCT name of just "X" (drop the helper verb). If the user describes work like "clean the phone" / "ტელეფონის გაწმენდა" / "სკამის შეკეთება", keep the action+object as the service name. NEVER prepend/helper-verb-wrap nouns with "დამატება", "add", "install" unless the verb itself is the work being sold (e.g., installation service).
 
+6. CLIENT MATCHING AMBIGUITY (CRITICAL):
+   - You are provided with a list of "EXISTING CLIENTS" in the format "id:name".
+   - If the user mentions a client (e.g., "ინვოისი გიორგის"), you must find the exact match in the database list.
+   - If the name is ambiguous (e.g. there are multiple "გიორგი"s like "გიორგი ბერიძე" and "გიორგი მელაძე"), DO NOT GUESS AND DO NOT ASSIGN A `client_id`.
+   - Instead, you MUST create a clarification to ask the user which one they meant.
+   - Use field: "client_match", type: "client_match", and include "similar_clients" array containing the matching names.
+   - Example Clarification: { "field": "client_match", "type": "client_match", "question": "მოიძებნა რამდენიმე მსგავსი კლიენტი. რომელი მათგანია?", "similar_clients": [{"id": 1, "name": "გიორგი ბერიძე"}, {"id": 2, "name": "გიორგი მელაძე"}] }
+   - Only use this if there are actually multiple matches. If there is only one logical match, assign the `client_id` directly and don't ask.
 RESPONSE TYPE TAXONOMY (every clarification MUST include a "type" field):
 - "choice": user picks ONE option from a list. MUST include "options": ["opt1", "opt2", ...]. Example: section_type, currency.
 - "multi_choice": user picks ONE OR MORE from a list. MUST include "options": [...]. Example: warranty scope across items.
@@ -1364,6 +1372,7 @@ Return EXACTLY the JSON structure below (use null for unknown numeric, empty arr
 #{target_is_georgian ? '⚠️ REMINDER: All "desc", "name", "reason", "raw_summary", and "sub_categories" VALUES must be in Georgian (ქართული). Do NOT output English text in these fields.' : ''}
 
 {
+  "client_id": null,
   "client": "",
   "address": "",
   "labor_hours": "",
@@ -2005,50 +2014,46 @@ PROMPT
       recipient_info = nil
       if user_signed_in? && json["client"].present?
         client_name = json["client"].to_s.strip
-        norm_spoken = normalize_client_name(client_name)
 
-        # Tier 1: Exact match — first try ILIKE, then normalized name comparison
-        exact_match = current_user.clients.where("name ILIKE ?", client_name).first
-        unless exact_match
-          exact_match = current_user.clients.detect { |c| normalize_client_name(c.name) == norm_spoken } if norm_spoken.present?
+        # Instead of manual regex/fuzzy logic, we now trust the AI to return the exact `client_id`
+        # based on the list we fed it in the prompt.
+        ai_client_id = json["client_id"] || json["client_id"].to_s.strip.to_i
+        ai_client_id = nil if ai_client_id == 0
+
+        # Check if AI already flagged this as ambiguous and returned a matching widget
+        has_client_match_clarification = (json["clarifications"] || []).any? { |c| c["field"] == "client_match" || c["type"] == "client_match" }
+
+        exact_match = nil
+        if ai_client_id
+          exact_match = current_user.clients.find_by(id: ai_client_id)
+        elsif client_name.present? && !has_client_match_clarification
+          # Fallback: exact string match if AI dropped the ID but kept the exact name
+          exact_match = current_user.clients.find_by(name: client_name)
         end
 
         if exact_match
           recipient_info = { "client_id" => exact_match.id, "name" => exact_match.name, "email" => exact_match.email, "phone" => exact_match.phone, "address" => exact_match.address }
           json["client"] = exact_match.name
-          # Only confirm if client is new/rare (<3 invoices) — well-known clients don't need confirmation
-          if exact_match.logs.kept.count < 3
-            confirm_q = t("client_exists_confirm")
-            json["clarifications"] ||= []
-            json["clarifications"] << { "field" => "client_confirm_existing", "type" => "yes_no", "question" => confirm_q, "client_name" => exact_match.name, "client_id" => exact_match.id }
-          end
+          # Show client info card so user sees who was matched
+          invoice_count = exact_match.logs.kept.count
+          confirm_q = I18n.locale.to_s == "ka" ? "დავაყენე ქვემოთმოცემული კლიენტი თქვენი კლიენტთა სიიდან:" : "Matched client from your list:"
+          json["clarifications"] ||= []
+          json["clarifications"] << {
+            "field" => "client_confirm_existing", "type" => "client_info_card", "question" => confirm_q,
+            "client_name" => exact_match.name, "client_id" => exact_match.id,
+            "invoices_count" => invoice_count,
+            "email" => exact_match.email, "phone" => exact_match.phone,
+            "address" => exact_match.address, "notes" => exact_match.try(:notes)
+          }
+        elsif has_client_match_clarification
+          # AI already generated a multi_choice clarification for ambiguous matched clients
+          # Do not treat as new client, don't inject client_details
+          recipient_info = { "client_id" => nil, "name" => client_name, "is_new" => false }
         else
-          # Tier 2: Fuzzy match — ILIKE pattern + normalized comparison
-          safe_name = client_name.gsub(/[%_]/, "")
-          similar = current_user.clients.where("name ILIKE ?", "%#{safe_name}%").limit(10).to_a
-          # Also find by normalized name if ILIKE missed them
-          if norm_spoken.length >= 3
-            current_user.clients.each do |c|
-              norm_db = normalize_client_name(c.name)
-              if norm_db.include?(norm_spoken) || norm_spoken.include?(norm_db)
-                similar << c unless similar.any? { |s| s.id == c.id }
-              end
-            end
-          end
-
-          if similar.any?
-            similar_with_counts = similar.map { |c| { "id" => c.id, "name" => c.name, "invoices_count" => c.logs.kept.count, "email" => c.email, "phone" => c.phone } }
-              .sort_by { |c| -c["invoices_count"] }
-              .first(3)
-            best_guess = similar_with_counts.first["name"]
-            question_text = I18n.locale.to_s == "ka" ? "მოიძებნა რამდენიმე მსგავსი კლიენტი:" : "Multiple similar clients found:"
-            json["clarifications"] ||= []
-            json["clarifications"] << { "field" => "client_match", "guess" => best_guess, "question" => question_text, "similar_clients" => similar_with_counts }
-            recipient_info = { "client_id" => nil, "name" => client_name, "is_new" => true }
-          else
-            # No match at all — treat as new client
-            recipient_info = { "client_id" => nil, "name" => client_name, "is_new" => true }
-          end
+          # New client — trigger client_details widget for optional detail entry
+          recipient_info = { "client_id" => nil, "name" => client_name, "is_new" => true }
+          json["clarifications"] ||= []
+          json["clarifications"] << { "field" => "client_details", "type" => "client_details" }
         end
       end
 
@@ -2197,84 +2202,7 @@ PROMPT
     return render json: { error: t("input_too_short", default: "Input too short.") }, status: :unprocessable_entity if user_message.length < 2
     return render json: { error: "Missing invoice data" }, status: :unprocessable_entity if current_json.blank?
 
-    # ── CLIENT CHANGE SHORTCUT: bypass AI entirely, just do client matching ──
-    if ActiveModel::Type::Boolean.new.cast(params[:client_change_only])
-      unless client_change_shortcut_applicable?(user_message)
-        Rails.logger.info "CLIENT CHANGE SHORTCUT SKIPPED: complex/negated message"
-      else
-      result = current_json.is_a?(String) ? (JSON.parse(current_json) rescue {}) : current_json.to_unsafe_h.to_h
-      result = result.deep_stringify_keys
-      new_client_name = user_message.to_s.strip
-      result["client"] = new_client_name
-      result["recipient_info"] = nil
-      result["clarifications"] = []
-      result["sections"] ||= []
-      result["credits"] ||= []
 
-      if user_signed_in? && @profile.paid?
-        norm_spoken = normalize_client_name(new_client_name)
-
-        # Tier 1: Exact match
-        exact_match = current_user.clients.where("name ILIKE ?", new_client_name).first
-        unless exact_match
-          exact_match = current_user.clients.detect { |c| normalize_client_name(c.name) == norm_spoken } if norm_spoken.present?
-        end
-
-        if exact_match
-          result["recipient_info"] = { "client_id" => exact_match.id, "name" => exact_match.name, "email" => exact_match.email, "phone" => exact_match.phone, "address" => exact_match.address }
-          result["client"] = exact_match.name
-          # Only confirm if client is new/rare (<3 invoices)
-          if exact_match.logs.kept.count < 3
-            confirm_q = t("client_exists_confirm")
-            result["clarifications"] << { "field" => "client_confirm_existing", "type" => "yes_no", "question" => confirm_q, "client_name" => exact_match.name, "client_id" => exact_match.id }
-          end
-        else
-          # Tier 2: Fuzzy match
-          safe_name = new_client_name.gsub(/[%_]/, "")
-          similar = current_user.clients.where("name ILIKE ?", "%#{safe_name}%").limit(10).to_a
-          if norm_spoken.length >= 3
-            current_user.clients.each do |c|
-              norm_db = normalize_client_name(c.name)
-              if norm_db.include?(norm_spoken) || norm_spoken.include?(norm_db)
-                similar << c unless similar.any? { |s| s.id == c.id }
-              end
-            end
-          end
-
-          if similar.length == 1
-            match = similar.first
-            result["recipient_info"] = { "client_id" => match.id, "name" => match.name, "email" => match.email, "phone" => match.phone, "address" => match.address }
-            result["client"] = match.name
-            # Only confirm if client is new/rare (<3 invoices)
-            if match.logs.kept.count < 3
-              confirm_q = t("client_exists_confirm")
-              result["clarifications"] << { "field" => "client_confirm_existing", "type" => "yes_no", "question" => confirm_q, "client_name" => match.name, "client_id" => match.id }
-            end
-          elsif similar.length > 1
-            similar_with_counts = similar.map { |c| { "id" => c.id, "name" => c.name, "invoices_count" => c.logs.kept.count, "email" => c.email, "phone" => c.phone } }
-              .sort_by { |c| -c["invoices_count"] }
-              .first(5)
-            best_guess = similar_with_counts.first["name"]
-            question_text = I18n.locale.to_s == "ka" ? "მოიძებნა რამდენიმე მსგავსი კლიენტი:" : "Multiple similar clients found:"
-            result["clarifications"] << { "field" => "client_match", "guess" => best_guess, "question" => question_text, "similar_clients" => similar_with_counts }
-            result["recipient_info"] = { "client_id" => nil, "name" => new_client_name, "is_new" => true }
-          else
-            result["recipient_info"] = { "client_id" => nil, "name" => new_client_name, "is_new" => true }
-            add_q = I18n.locale.to_s == "ka" ? "გსურთ მეტი დეტალის მითითება \"#{new_client_name}\"-სთვის?" : "Would you like to add more details for \"#{new_client_name}\"?"
-            result["clarifications"] << { "field" => "add_client_to_list", "type" => "yes_no", "question" => add_q, "guess" => nil, "client_name" => new_client_name }
-          end
-        end
-      else
-        # Not paid: just set name, no matching
-        result["recipient_info"] = { "client_id" => nil, "name" => new_client_name, "is_new" => true }
-        add_q = I18n.locale.to_s == "ka" ? "გსურთ მეტი დეტალის მითითება \"#{new_client_name}\"-სთვის?" : "Would you like to add more details for \"#{new_client_name}\"?"
-        result["clarifications"] << { "field" => "add_client_to_list", "type" => "yes_no", "question" => add_q, "guess" => nil, "client_name" => new_client_name }
-      end
-
-      Rails.logger.info "CLIENT CHANGE DIRECT: #{new_client_name} → clarifications: #{result["clarifications"].map { |c| c["field"] }.join(", ")}"
-      return render json: result
-      end
-    end
 
     doc_language = (params[:language] || @profile.try(:transcription_language) || session[:transcription_language] || @profile.try(:document_language) || "en").to_s.downcase
     assistant_locale = (params[:assistant_language].presence || @profile.try(:system_language).presence || I18n.locale.to_s).to_s.downcase
@@ -2456,23 +2384,56 @@ PROMPT
       User: "ტელეფონი ორას ოცდაორი ლარი ფასდაკლება" → discount_flat: 222
       User: "ტელეფონი ორმოცი პროცენტი ფასდაკლება" → discount_percent: 40
       When user says "ლარი" = flat. When user says "პროცენტი" / "%" = percent.
-      When NEITHER is specified → ASK (like example 4).
+      When NEITHER is specified → GUESS: if number ≤ 50 assume PERCENT, if > 50 assume FLAT (₾). APPLY the guess immediately and tell user what you did. Do NOT add a clarification widget — let the user correct you naturally if the guess was wrong.
+
+      ═══ SMART WIDGETS (clarifications) ═══
+      When the user triggers a generic action, return the appropriate clarification widget in the "clarifications" array.
+      The frontend renders these widgets automatically. You MUST use the exact field/type values below.
+
+      ACTION CHIPS → WIDGET TRIGGERS:
+      • "დამატება" / "Add item" → reply: ask what to add (e.g. "რა გსურთ დაამატოთ?"). No widget needed — just ask naturally.
+      • "წაშლა" / "Remove item" → type: "multi_choice", field: "remove_items", options: [list of ALL current item names from sections].
+      • "ფასდაკლება" / "Discount":
+          - If >1 item in invoice → type: "multi_choice", field: "discount_scope", options: [all item names].
+          - If 1 item → type: "text", field: "discount_amount", question: "რა ოდენობის ფასდაკლება?" / "What discount amount?"
+          - If 0 items → reply: "ჯერ ნივთები დაამატეთ." / "Add items first." No widget.
+      • "გადასახადის მართვა" / "Manage Tax" → type: "tax_management", field: "tax_rate", question: "დააყენეთ საგადასახადო განაკვეთები:" / "Set tax rates:"
+      • "თარიღის მართვა" / "Change/Manage Date" → type: "date_picker", field: "date_picker", question: "აირჩიეთ თარიღი:" / "Pick a date:"
+      • "კლიენტის შეცვლა" / "Change Client" → reply: ask who the new client is (e.g. "ვინ არის ახალი კლიენტი?"). When user provides a name, SET client field in JSON. Backend handles matching automatically.
+      • Client details (email/phone/address) → When user ASKS to add details (e.g. "ნიკას დაუმატე დეტალები"): return type: "client_details", field: "client_details", question: "რა დეტალების დამატება გსურთ?". When user PROVIDES details (e.g. "მეილი test@ge"), update recipient_info: {email: "..."} directly. Handle ALL provided fields in one response.
+      • "კლიენტების სია" / "Show clients" → type: "client_list", field: "client_browse", question: "აირჩიეთ კლიენტი:". Backend will populate the clients list automatically.
+
+      AUTOMATIC WIDGETS (generate when appropriate):
+      • New items without prices → type: "item_input_list", field: "item_prices", items: [{name, category, inputs: [{key:"price",label,type:"number"}]}]
+      • Vague item name (e.g. "შეკეთება", "სერვისი") → type: "text", field: "item_description", question: "რა სახის [name]?"
+      • Discount amount ambiguous (% vs ₾) → field: "discount_type", options: ["პროცენტი (%)", "ფიქსირებული (₾)"], item_name: "..."
+
+      ═══ VOICE-FIRST PRINCIPLE ═══
+      Widgets are OPTIONAL UI helpers. Users have 3 ways to interact: (1) use the widget, (2) type text, (3) speak by voice.
+      • When you present a widget, briefly hint that the user can also type or speak instead. Example: "...ან უბრალოდ მითხარით ტექსტით ან ხმით." Keep it SHORT — one phrase, not a paragraph.
+      • You MUST always accept a natural language answer to your own pending question.
+      • If user gives a text/voice answer that overrides/bypasses a widget → apply it directly, do NOT re-ask via widget.
+      • If user changes topic mid-widget (e.g. "Actually, just delete the axe") → handle the new request, drop the old widget context.
+      • Complex batch commands (e.g. "Add hammer, price 50, 10% discount, no tax") → handle ALL parts in one response with NO widgets.
 
       ═══ KEY PRINCIPLES ═══
       • ALWAYS include "reply" — a short friendly message about what you did.
+      • REPLY ENDING RULE: If you COMPLETED the user's request (e.g. applied discount, changed tax, deleted item), END your reply with "სხვა რამის შეცვლა გსურთ?" or equivalent. If you are ASKING a follow-up question (e.g. "what price?" or "fill in prices"), do NOT add "anything else?" — just ask your question.
       • Modify ONLY what's requested. Preserve everything else exactly.
       • Numbers before item names = QUANTITIES (qty). Tax rates need "%", "დღგ", or "დაბეგვრა".
       • Tax is a COMMAND — apply directly, never ask. 0% = taxable:false, tax_rate:0.
       • CRITICAL TAX RULE: taxable:false MUST always have tax_rate:0 (NEVER null/empty). taxable:true MUST always have a numeric tax_rate.
       • "არ დაბეგრო" / "მოაშორე დაბეგვრა" / "don't tax" = taxable:false, tax_rate:0 on the target item(s).
+      • INTEGRITY RULE: If your reply says you changed something, the JSON MUST reflect that change. NEVER say "I applied 10% tax" if the item's tax_rate is still 0. Lying in the reply is FORBIDDEN.
+      • When user says "X-ს და Y-ს Z და W დღგ გაუკეთე" → apply Z% to X AND W% to Y. Match numbers to items IN ORDER.
       • HOURLY RATE RULE: "X საათი Y ლარი" = hours:X, rate:Y, price:X*Y. Y is the RATE per hour, NOT the total.
       • Discount: if user says "X ფასდაკლება" for a SPECIFIC ITEM → apply to THAT item, NOT globally.
-      • Discount: if user doesn't specify % or ₾ → ADD a clarification asking which type.
+      • Discount: if user doesn't specify % or ₾ → GUESS best type (≤50 = %, >50 = ₾), APPLY it. No widget needed — user can correct via voice.
       • Products price = per-unit. qty:5, price:50 = 50 each.
       • New items without price → price: null (backend makes a price widget).
-      • Client names — don't ask, backend handles matching.
+      • Client names — when user sets a client, look at the EXISTING CLIENTS list. If there is an EXACT UNIQUE match, set `client_id` and `client`. If there are MULTIPLE matches (e.g. user says "გიორგი" and there is "გიორგი ბერიძე" and "გიორგი მაისურაძე"), DO NOT guess. Leave `client_id` empty, set `client` to the ambiguous name, and return a clarification: type: "multi_choice", field: "client_match", question: "რომელი [name]?", options: [list of matching full names].
       • When user asks to see/list clients → return JSON UNCHANGED + reply with a short acknowledgment. Backend generates a client selection widget. Do NOT list client IDs or names in reply.
-      • GEORGIAN LANGUAGE: NEVER use "ელემენტები" or "პოზიციები" in replies. Use natural terms: "ნივთი", "სერვისი", "მასალა", or item names directly.
+      • GEORGIAN LANGUAGE: NEVER use "ელემენტები", "პოზიციები", or "ნივთი" in replies. Use "პუნქტი" / "პუნქტები" as the generic term for invoice items, or use item names directly.
       • When user says "დააბრუნე"/"undo" → check conversation history for what was changed and reverse it.
       • [AI asked: ...] messages: ALWAYS apply the answer. Never ignore, never re-ask.
       • Keep raw_summary unchanged.
@@ -2702,36 +2663,21 @@ PROMPT
       # ── Auto-upgrade clarifications: merge prices+qty, fix discount, convert tax ──
       auto_upgrade_clarifications!(result, params[:language].to_s)
 
-      # ── Server-side clarification generation: catch anything AI missed ──
-      generate_missing_clarifications(result, user_message, current_json)
+      # ── AI-First: Gemini now generates all clarifications via SMART WIDGETS prompt section ──
+      # generate_missing_clarifications(result, user_message, current_json)
 
-      # ── Client list widget: detect when user asks about clients ──
-      if user_message =~ /კლიენტ|client|show.*client|მაჩვენე.*კლიენტ|კლიენტთა.*სია|სია.*კლიენტ/i && user_signed_in?
-        # Extract optional name filter from message
-        name_filter = nil
-        if user_message =~ /სახელად\s+(\S+)/i
-          name_filter = $1
-        elsif user_message =~ /named?\s+(\S+)/i
-          name_filter = $1
-        end
-
+      # ── AI-First: populate client data when Gemini returns a client_browse clarification ──
+      if user_signed_in? && (ai_client_browse = (result["clarifications"] || []).find { |c| c["field"] == "client_browse" })
         clients_q = current_user.clients.order(:name)
-        clients_q = clients_q.where("name ILIKE ?", "%#{name_filter}%") if name_filter.present?
         client_records = clients_q.limit(20).to_a
 
         if client_records.any?
           client_data = client_records.map { |c| { "id" => c.id, "name" => c.name, "invoices_count" => c.logs.kept.count } }
-          question_text = I18n.locale.to_s == "ka" ? "აირჩიეთ კლიენტი:" : "Select a client:"
-          # Remove any existing client_browse clarification to avoid duplicates
+          ai_client_browse["type"] = "client_list"
+          ai_client_browse["clients"] = client_data
+        else
+          # No clients in DB — remove the clarification, AI reply is enough
           result["clarifications"].reject! { |c| c["field"] == "client_browse" }
-          result["clarifications"] << {
-            "field" => "client_browse",
-            "type" => "client_list",
-            "question" => question_text,
-            "clients" => client_data
-          }
-          # Suppress AI reply text — the widget is the reply
-          result["reply"] = nil
         end
       end
 
@@ -2756,12 +2702,18 @@ PROMPT
         if exact_match
           result["recipient_info"] = { "client_id" => exact_match.id, "name" => exact_match.name, "email" => exact_match.email, "phone" => exact_match.phone, "address" => exact_match.address }
           result["client"] = exact_match.name
-          # Only confirm existing client if: <3 invoices (new/rare client) AND initial analysis (not refinement)
+          # Show client info card on initial analysis so user sees who was matched
           is_initial_analysis = params[:source].to_s == "initial" || params[:source].to_s == "live_transcript"
-          invoice_count = exact_match.logs.kept.count
-          if invoice_count < 3 && is_initial_analysis
-            confirm_q = t("client_exists_confirm")
-            result["clarifications"] << { "field" => "client_confirm_existing", "type" => "yes_no", "question" => confirm_q, "client_name" => exact_match.name, "client_id" => exact_match.id }
+          if is_initial_analysis
+            invoice_count = exact_match.logs.kept.count
+            confirm_q = I18n.locale.to_s == "ka" ? "დავაყენე ქვემოთმოცემული კლიენტი თქვენი კლიენტთა სიიდან:" : "Matched client from your list:"
+            result["clarifications"] << {
+              "field" => "client_confirm_existing", "type" => "client_info_card", "question" => confirm_q,
+              "client_name" => exact_match.name, "client_id" => exact_match.id,
+              "invoices_count" => invoice_count,
+              "email" => exact_match.email, "phone" => exact_match.phone,
+              "address" => exact_match.address, "notes" => exact_match.try(:notes)
+            }
           end
         else
           # Tier 2: Fuzzy match — ILIKE + normalized comparison, exclude current client
@@ -2790,9 +2742,11 @@ PROMPT
             result["clarifications"] << { "field" => "client_match", "guess" => best_guess, "question" => question_text, "similar_clients" => similar_with_counts }
             result["recipient_info"] = { "client_id" => nil, "name" => client_name, "is_new" => true }
           else
+            # New client — trigger client_details widget for optional detail entry
             result["recipient_info"] = { "client_id" => nil, "name" => client_name, "is_new" => true }
-            add_q = I18n.locale.to_s == "ka" ? "გსურთ მეტი დეტალის მითითება \"#{client_name}\"-სთვის?" : "Would you like to add more details for \"#{client_name}\"?"
-            result["clarifications"] << { "field" => "add_client_to_list", "type" => "yes_no", "question" => add_q, "guess" => nil, "client_name" => client_name }
+            new_q = I18n.locale.to_s == "ka" ? "როგორც ჩანს \"#{client_name}\" ახალი კლიენტია. გსურთ დეტალების დამატება?" : "\"#{client_name}\" appears to be a new client. Want to add details?"
+            result["reply"] = new_q if result["reply"].blank?
+            result["clarifications"] << { "field" => "client_details", "type" => "client_details" }
           end
         end
       end
@@ -2945,45 +2899,6 @@ PROMPT
     seconds
   end
 
-  # Detect when the client-change shortcut should NOT run (negations or mixed intents)
-  def client_change_shortcut_applicable?(user_message)
-    msg = user_message.to_s.strip
-    return false if msg.blank?
-
-    # Negations / "don't add" phrases (Georgian + English)
-    neg_patterns = [
-      /არ\s*(ვ)?[ააი]ღ(ა|ე)მ?ე/i,               # generic "ar ..." forms
-      /არ\s*მინდა/i,
-      /არ\s*დაამატ/i,
-      /არ\s*და(ვ)?ა?კ(ა|ე)ვეთ/i,
-      /არ\s*ახალი/i,
-      /არ\s*გააკეთ/i,
-      /don'?t\s+add/i,
-      /no\s+new/i,
-      /not\s+new/i
-    ]
-    return false if neg_patterns.any? { |p| msg.match?(p) }
-
-    # Phrases that indicate updating details, not creating
-    update_patterns = [
-      /დაუმატ(ე|ეე)/i,
-      /დავამატო/i,
-      /update/i,
-      /add\s+(a\s+)?phone/i,
-      /add\s+(an\s+)?email/i,
-      /add\s+(the\s+)?address/i,
-      /phone\s*\d{6,}/i,
-      /ტელ(ე)?ფონ/i,
-      /იმეილ/i,
-      /მისამართ/i
-    ]
-    return false if update_patterns.any? { |p| msg.match?(p) }
-
-    # Short clean names are OK; very long strings probably include instructions
-    return false if msg.length > 80
-
-    true
-  end
 
   def gemini_primary_model_for(profile: @profile)
     if profile&.paid?
@@ -3041,68 +2956,7 @@ PROMPT
 
 
   def gemini_instruction_cached_content(api_key:, model:, instruction:)
-    return [ nil, nil ] if api_key.blank?
-    return [ nil, nil ] unless gemini_prompt_cache_enabled?
-
-    fingerprint = Digest::SHA256.hexdigest("#{model}\n#{instruction}")
-    cache_key = "gemini_instruction_cache:v2:#{fingerprint}"
-    cached_name = Rails.cache.read(cache_key).to_s.strip
-    if cached_name.present?
-      Rails.logger.info("GEMINI CACHE HIT: model=#{model} key=#{cache_key}")
-      return [ cache_key, cached_name ]
-    end
-
-    uri = URI("https://generativelanguage.googleapis.com/v1beta/cachedContents")
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = true
-    http.read_timeout = 15
-    http.open_timeout = 5
-
-    req = Net::HTTP::Post.new(uri, "Content-Type" => "application/json", "x-goog-api-key" => api_key)
-    requested_ttl = "#{gemini_prompt_cache_ttl_seconds}s"
-    effective_ttl = requested_ttl
-
-    req.body = {
-      model: "models/#{model}",
-      contents: [ {
-        role: "user",
-        parts: [ { text: instruction } ]
-      } ],
-      ttl: requested_ttl
-    }.to_json
-
-    res = http.request(req)
-    body = JSON.parse(res.body) rescue {}
-
-    if body["name"].blank? && requested_ttl != "86400s"
-      effective_ttl = "86400s"
-      req.body = {
-        model: "models/#{model}",
-        contents: [ {
-          role: "user",
-          parts: [ { text: instruction } ]
-        } ],
-        ttl: effective_ttl
-      }.to_json
-      res = http.request(req)
-      body = JSON.parse(res.body) rescue {}
-    end
-
-    created_name = body["name"].to_s.strip
-
-    if created_name.present?
-      ttl_seconds = effective_ttl.to_s[/\d+/].to_i
-      ttl_seconds = gemini_prompt_cache_ttl_seconds unless ttl_seconds.positive?
-      local_expiry = [ ttl_seconds - 300, 300 ].max.seconds
-      Rails.cache.write(cache_key, created_name, expires_in: local_expiry)
-      Rails.logger.info("GEMINI CACHE CREATED: model=#{model} ttl=#{effective_ttl} key=#{cache_key}")
-      return [ cache_key, created_name ]
-    end
-
-    Rails.logger.warn("GEMINI CACHE CREATE FAILED: #{body.to_json}")
-    [ cache_key, nil ]
-  rescue => e
-    Rails.logger.warn("GEMINI CACHE ERROR: #{e.message}")
+    # Explicit Gemini prompt caching is fully disabled to avoid cached-content storage charges.
     [ nil, nil ]
   end
 
@@ -4441,6 +4295,8 @@ PROMPT
   def auto_upgrade_clarifications!(data, language)
     clars = data["clarifications"]
     return unless clars.is_a?(Array) && clars.any?
+
+    ui_ka = language.to_s.match?(/ka|ge/i)
 
     price_re   = /ღირს|ფასი|ფასად|price|cost|charge/i
     qty_re     = /რაოდენობ|quantity|რამდენ/i

@@ -5792,8 +5792,10 @@ function handleClarifications(clarifications) {
         window._lastAiReply = null;
         if (aiReply) {
           addAIBubble(aiReply);
+        } else {
+          // No AI reply at all — show fallback
+          addAIBubble(window.APP_LANGUAGES.anything_else || "Anything else to change?", null, null, { 'anything-else': 'true' });
         }
-        addAIBubble(window.APP_LANGUAGES.anything_else || "Anything else to change?", null, null, { 'anything-else': 'true' });
         renderQuickActionChips();
         // Auto-trigger invoice preview ONCE per session, then manual-only
         if (!window._invoicePreviewShownOnce && !window._userClosedInvoice) {
@@ -5922,6 +5924,7 @@ function showNextQueueItem() {
     renderClientListCard(c);
   } else if (c.field === 'client_confirm_existing') {
     renderClientConfirmExistingCard(c);
+    return;
   } else if (c.field === 'add_client_to_list') {
     renderAddClientToListCard(c);
   } else if (c.field === 'client_match' && c.similar_clients && c.similar_clients.length > 0) {
@@ -5934,6 +5937,14 @@ function showNextQueueItem() {
     renderSectionTypeCard(c);
   } else if (c.field === 'currency' && c.options && c.options.length > 0) {
     renderCurrencyCard(c);
+  } else if (c.type === 'date_picker' || c.field === 'date_picker') {
+    // AI-triggered calendar widget
+    addAIBubble(c.question || (window.APP_LANGUAGES || {}).date_enter_prompt || 'Pick a date:', null, c._progressTag);
+    renderDatePickerCard();
+  } else if (c.type === 'client_details' || c.field === 'client_details') {
+    // AI-triggered client details widget (email, phone, address buttons)
+    renderClientDetailOptions();
+    // DO NOT return — input must stay active so user can type text directly
   } else if (c.type === 'tax_management') {
     renderTaxManagementInQueue(c);
     // DO NOT return — input must stay active so user can type text instead of using widget
@@ -5979,17 +5990,6 @@ function handleQueueAnswer(answer) {
     guess: currentItem.guess
   });
 
-  // TAX TEXT PRE-PROCESSING: if user typed text during a tax_management step,
-  // parse it and apply directly to JSON as safety net (AI struggles with 0%)
-  if (currentItem.type === 'tax_management' && answer && answer !== '__CANCELLED__') {
-    applyTaxTextDirectly(answer);
-    // Also disable the tax widget card if it was showing
-    var taxCard = document.getElementById('taxQueueCard');
-    if (taxCard) {
-      taxCard.querySelectorAll('button, input').forEach(function (el) { el.disabled = true; el.style.opacity = '0.5'; });
-    }
-    window._taxQueueItems = null;
-  }
 
   // WIDGET-TEXT CONFLICT: if user typed text while a widget was showing, disable that widget
   if (currentItem.type === 'item_input_list') {
@@ -6030,7 +6030,7 @@ function batchSubmitQueueAnswers() {
 
   // Filter out client answers and cancelled items — tax MUST go to AI too (AI is the brain)
   var aiAnswers = answers.filter(function (qa) {
-    return qa.field !== 'client_match' && qa.field !== 'add_client_to_list' && qa.field !== 'client_confirm_existing' && qa.answer !== '__CANCELLED__';
+    return qa.field !== 'client_match' && qa.field !== 'add_client_to_list' && qa.field !== 'client_confirm_existing' && qa.field !== 'client_details' && qa.answer !== '__CANCELLED__';
   });
 
   // If only client answers remained, skip AI and handle locally
@@ -6200,36 +6200,86 @@ function renderClientConfirmExistingCard(clarification) {
   var conversation = document.getElementById('assistantConversation');
   if (!conversation) return;
   var L = window.APP_LANGUAGES || {};
-  var questionText = clarification.question || L.client_exists_confirm || 'This client already exists in your client list, correct?';
+  var questionText = clarification.question || L.client_matched_from_list || 'Matched client from your list:';
   var clientName = clarification.client_name || '';
-  var yesLabel = L.yes_btn || 'Yes';
-  var noLabel = L.no_btn || 'No';
+  var invoiceCount = clarification.invoices_count || 0;
+  var email = clarification.email || '';
+  var phone = clarification.phone || '';
+  var address = clarification.address || '';
+  var notes = clarification.notes || '';
+
+  var invoiceLabel = L.invoices_label || 'ინვოისი';
+
+  // Client initial for avatar
+  var initial = clientName.charAt(0).toUpperCase();
+
+  // Build detail rows — compact icon + text, only if data exists
+  var detailsHtml = '';
+  if (email) {
+    detailsHtml += '<div class="flex items-center gap-2">'
+      + '<svg class="w-3 h-3 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>'
+      + '<span class="text-[11px] text-gray-600 truncate">' + escapeHtml(email) + '</span></div>';
+  }
+  if (phone) {
+    detailsHtml += '<div class="flex items-center gap-2">'
+      + '<svg class="w-3 h-3 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 0 0 2.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 0 1-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 0 0-1.091-.852H4.5A2.25 2.25 0 0 0 2.25 4.5v2.25Z"/></svg>'
+      + '<span class="text-[11px] text-gray-600">' + escapeHtml(phone) + '</span></div>';
+  }
+  if (address) {
+    detailsHtml += '<div class="flex items-center gap-2">'
+      + '<svg class="w-3 h-3 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>'
+      + '<span class="text-[11px] text-gray-600 truncate">' + escapeHtml(address) + '</span></div>';
+  }
+  if (notes) {
+    detailsHtml += '<div class="flex items-center gap-2">'
+      + '<svg class="w-3 h-3 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>'
+      + '<span class="text-[11px] text-gray-600 truncate">' + escapeHtml(notes) + '</span></div>';
+  }
 
   var div = document.createElement('div');
   div.className = 'flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300';
+
+  // Same wrapper as renderItemInputListCard: logo + gray bordered bubble
   div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
-    + '<div class="max-w-[85%]">'
+    + '<div class="max-w-[85%] w-full">'
     + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
-    + '<div class="flex items-center gap-2 mb-2">'
-    + '<div class="w-8 h-8 rounded-full bg-orange-50 border-2 border-orange-200 flex items-center justify-center shrink-0">'
-    + '<svg class="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>'
+
+    // Question text (header)
+    + '<div class="text-xs font-bold text-gray-800 mb-2">' + escapeHtml(questionText) + '</div>'
+
+    // Inner white card with client info
+    + '<div class="bg-white rounded-xl border border-gray-100 p-3">'
+
+    // Top row: avatar + name + badge
+    + '<div class="flex items-center gap-2.5">'
+    + '<div class="w-9 h-9 rounded-full bg-orange-100 border border-orange-200 flex items-center justify-center shrink-0">'
+    + '<span class="text-sm font-black text-orange-600">' + escapeHtml(initial) + '</span>'
     + '</div>'
-    + '<span class="text-[13px] font-bold text-gray-800">' + escapeHtml(clientName) + '</span>'
+    + '<div class="flex-1 min-w-0">'
+    + '<div class="text-[13px] font-bold text-gray-800 truncate leading-tight">' + escapeHtml(clientName) + '</div>'
+    + '<div class="text-[10px] font-semibold text-gray-400 mt-0.5">' + invoiceCount + ' ' + escapeHtml(invoiceLabel) + '</div>'
     + '</div>'
-    + '<div class="text-xs font-bold text-gray-600 mb-2.5">' + escapeHtml(questionText) + '</div>'
-    + '<div class="flex gap-2">'
-    + '<button type="button" onclick="confirmExistingClientYes()" class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border-2 border-green-300 bg-green-50 hover:bg-green-100 transition-all cursor-pointer active:scale-[0.97] text-[12px] font-bold text-green-600">'
-    + '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>'
-    + escapeHtml(yesLabel)
-    + '</button>'
-    + '<button type="button" onclick="confirmExistingClientNo()" class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border-2 border-gray-200 bg-white hover:bg-gray-50 transition-all cursor-pointer active:scale-[0.97] text-[12px] font-bold text-gray-500">'
-    + '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
-    + escapeHtml(noLabel)
-    + '</button>'
     + '</div>'
-    + '</div></div>';
+
+    // Detail rows (if any)
+    + (detailsHtml ? '<div class="mt-2 pt-2 border-t border-gray-100 flex flex-col gap-1.5">' + detailsHtml + '</div>' : '')
+
+    + '</div>' // end inner white card
+    + '</div>' // end gray bubble
+    + '</div>'; // end max-w wrapper
+
+  // Mark as resolved
+  window.clientMatchResolved = true;
+
   conversation.appendChild(div);
   conversation.scrollTop = conversation.scrollHeight;
+
+  // Auto-proceed: Tell the queue we saw this, without sending a full message to the server
+  setTimeout(function() {
+    if (window._clarificationQueue && window._clarificationQueue.length > 0 && window._clarificationQueue[0].field === 'client_confirm_existing') {
+      handleQueueAnswer('[acknowledged]');
+    }
+  }, 1000);
 }
 
 function confirmExistingClientYes() {
@@ -6739,91 +6789,26 @@ function renderQuickActionChips() {
   conversation.scrollTop = conversation.scrollHeight;
 }
 
-// ── CHIP HANDLER: CHANGE CLIENT (conversation starter → AI) ──
+// ── CHIP HANDLER: CHANGE CLIENT (AI-first → Gemini asks and backend matches) ──
 function handleChipChangeClient() {
   if (window._pendingAnswer) return;
   window._collectingClientDetail = null;
   var L = window.APP_LANGUAGES || {};
+  var promptMeta = assistantPromptMeta();
 
   addUserBubble(L.action_change_client || 'Change client');
   window.clientMatchResolved = false; // Reset so backend re-runs matching
-
   showTypingIndicator();
-  setTimeout(function () {
-    removeTypingIndicator();
-    addAIBubble(L.change_client_prompt || 'Who is the new client?');
-    window._collectingClientDetail = 'change_client';
-    var assistInput = document.getElementById('assistantInput');
-    if (assistInput) {
-      assistInput.value = '';
-      assistInput.placeholder = L.change_client_prompt || 'Who is the new client?';
-      assistInput.focus();
-    }
-  }, 400);
+  // AI-first: Gemini asks "Who is the new client?" naturally
+  triggerAssistantReparse(L.action_change_client || 'Change client', 'refinement', promptMeta.userRequestedChange);
 }
 
 // ── DIRECT CLIENT CHANGE: bypass AI, use backend matching only ──
 async function directClientChange(newClientName) {
-  var L = window.APP_LANGUAGES || {};
-
-  // Push undo checkpoint
-  if (window.lastAiResult) {
-    try {
-      if (!window._undoStack) window._undoStack = [];
-      var conv = document.getElementById('assistantConversation');
-      window._undoStack.push({
-        json: JSON.parse(JSON.stringify(window.lastAiResult)),
-        chatHtml: conv ? conv.innerHTML : '',
-        historyLength: (window.clarificationHistory || []).length,
-        clientMatchResolved: !!window.clientMatchResolved,
-        recentQuestions: (window._recentQuestions || []).slice(),
-        userItemOverrides: window._userItemOverrides ? JSON.parse(JSON.stringify(window._userItemOverrides)) : null
-      });
-      if (window._undoStack.length > 10) window._undoStack.shift();
-    } catch (e) { /* ignore */ }
-  }
-
-  var assistInput = document.getElementById('assistantInput');
-  if (assistInput) assistInput.disabled = true;
-
-  try {
-    var res = await fetch("/refine_invoice", {
-      method: "POST",
-      headers: {
-        "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]').content,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        current_json: window.lastAiResult,
-        user_message: newClientName,
-        client_change_only: true
-      })
-    });
-    var data = await res.json();
-    removeTypingIndicator();
-
-    if (data.error) {
-      showError(data.error);
-      if (assistInput) assistInput.disabled = false;
-      return;
-    }
-
-    // Reset client match state so new clarifications show
-    window.clientMatchResolved = false;
-    window._recentQuestions = [];
-
-    // Update UI with the result (client changed + matching clarifications)
-    updateUIWithoutTranscript(data);
-    window.lastAiResult = data;
-
-    if (assistInput) assistInput.disabled = false;
-
-  } catch (e) {
-    removeTypingIndicator();
-    showError(L.network_error || 'Network error.');
-    console.error('Client change error:', e);
-    if (assistInput) assistInput.disabled = false;
-  }
+  if (!window.lastAiResult) return;
+  // Route the client change through the standard AI assistant flow
+  // instead of bypassing it, so the AI has context of the change.
+  autoSubmitAssistantMessage(newClientName);
 }
 
 // ── CHIP HANDLER: ADD DISCOUNT (conversation starter → AI handles clarifications) ──
@@ -6953,19 +6938,16 @@ window.cancelClientListSelection = function (cancelBtn) {
   }
 };
 
-// ── CHIP HANDLER: REMOVE ITEM (accordion-style picker) ──
+// ── CHIP HANDLER: REMOVE ITEM (AI-first → Gemini returns multi_choice widget) ──
 function handleChipRemoveItem() {
   if (window._pendingAnswer) return;
   window._collectingClientDetail = null;
   var L = window.APP_LANGUAGES || {};
+  var promptMeta = assistantPromptMeta();
 
   addUserBubble(L.cancel_what_prompt || 'Remove item');
-
   showTypingIndicator();
-  setTimeout(function () {
-    removeTypingIndicator();
-    renderRemoveItemCard();
-  }, 400);
+  triggerAssistantReparse(L.cancel_what_prompt || 'Remove item', 'refinement', promptMeta.userRequestedChange);
 }
 
 function renderRemoveItemCard() {
@@ -7275,39 +7257,17 @@ function performUndoTo(targetIdx) {
   }, 400);
 }
 
-// ── CHIP HANDLER: CHANGE DATE (2-step: pick date type → enter date) ──
+// ── CHIP HANDLER: CHANGE DATE (AI-first → Gemini returns date_picker widget) ──
 function handleChipChangeDate() {
   if (window._pendingAnswer) return;
   window._collectingClientDetail = null;
   var L = window.APP_LANGUAGES || {};
+  var promptMeta = assistantPromptMeta();
 
   addUserBubble(L.action_change_date || 'Change date');
-
   showTypingIndicator();
-  setTimeout(function () {
-    removeTypingIndicator();
-    // Show date type choice: Invoice date vs Due date
-    var conversation = document.getElementById('assistantConversation');
-    if (!conversation) return;
-    window.disablePreviousInteractiveElements();
-
-    var div = document.createElement('div');
-    div.className = 'flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300';
-    div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
-      + '<div class="max-w-[85%]">'
-      + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
-      + '<div class="text-xs font-bold text-gray-800 mb-2">' + escapeHtml(L.date_type_prompt || 'Which date?') + '</div>'
-      + '<div class="flex gap-2">'
-      + '<button type="button" onclick="selectDateType(\'invoice\')" class="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border-2 border-gray-200 bg-white hover:bg-orange-50 hover:border-orange-300 transition-all cursor-pointer active:scale-[0.97]">'
-      + '<svg class="w-4 h-4 text-orange-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>'
-      + '<span class="text-[11px] font-bold text-gray-700 whitespace-nowrap">' + escapeHtml(L.date_type_invoice || 'Issue date') + '</span></button>'
-      + '<button type="button" onclick="selectDateType(\'due\')" class="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border-2 border-red-200 bg-white hover:bg-red-50 hover:border-red-300 transition-all cursor-pointer active:scale-[0.97]">'
-      + '<svg class="w-4 h-4 text-red-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg>'
-      + '<span class="text-[11px] font-bold text-red-600 whitespace-nowrap">' + escapeHtml(L.date_type_due || 'Due date') + '</span></button>'
-      + '</div></div></div>';
-    conversation.appendChild(div);
-    conversation.scrollTop = conversation.scrollHeight;
-  }, 400);
+  // AI-first: Gemini will ask which date / show date_picker clarification
+  triggerAssistantReparse(L.action_change_date || 'Change date', 'refinement', promptMeta.userRequestedChange);
 }
 
 function selectDateType(type) {
@@ -8030,14 +7990,12 @@ function handleChipManageTax() {
   if (window._pendingAnswer) return;
   window._collectingClientDetail = null;
   var L = window.APP_LANGUAGES || {};
+  var promptMeta = assistantPromptMeta();
 
   addUserBubble(L.action_manage_tax || 'Manage Taxes');
-
   showTypingIndicator();
-  setTimeout(function () {
-    removeTypingIndicator();
-    renderTaxManagementCard();
-  }, 400);
+  // AI-first: Gemini returns tax_management clarification → rendered by renderTaxManagementInQueue
+  triggerAssistantReparse(L.action_manage_tax || 'Manage Taxes', 'refinement', promptMeta.userRequestedChange);
 }
 
 function renderTaxManagementCard() {
@@ -8457,34 +8415,18 @@ function _reapplyAllOverrides(data) {
   return;
 }
 
-// ── TAX TEXT DIRECT APPLY: parse natural language tax instructions and apply to JSON ──
-// Safety net for AI failures — especially with 0% tax rates
-function applyTaxTextDirectly(text) {
-  // Purposefully left empty: Let the AI handle 100% of tax instructions
-  return;
-}
 
 // ── CHIP HANDLER: ADD ITEM (conversation starter → AI) ──
 function handleChipAddItem() {
   if (window._pendingAnswer) return;
   window._collectingClientDetail = null;
   var L = window.APP_LANGUAGES || {};
+  var promptMeta = assistantPromptMeta();
 
   addUserBubble(L.action_add_item || 'Add item');
-
-  window._collectingClientDetail = 'add_item_name';
-
   showTypingIndicator();
-  setTimeout(function () {
-    removeTypingIndicator();
-    addAIBubble(L.add_item_what_prompt || 'What do you want to add?');
-    var assistInput = document.getElementById('assistantInput');
-    if (assistInput) {
-      assistInput.value = '';
-      assistInput.placeholder = L.add_item_what_prompt || 'What do you want to add?';
-      assistInput.focus();
-    }
-  }, 400);
+  // AI-first: Gemini will ask "What do you want to add?" naturally
+  triggerAssistantReparse(L.action_add_item || 'Add item', 'refinement', promptMeta.userRequestedChange);
 }
 
 // ── DISCOUNT FLOW: removed — AI now handles discount clarifications via generic widgets ──
@@ -8752,63 +8694,45 @@ function renderClientDetailOptions(excludeFields) {
   var defs = getDetailFieldDefs();
   var exclude = excludeFields || [];
 
-  var questionText = exclude.length > 0
-    ? (L.detail_more_options || 'Would you like to add anything else?')
-    : (L.add_client_details_question || 'Would you like to add details for this client?');
-
   var colorMap = {
-    blue: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-500', hover: 'hover:bg-blue-50 hover:border-blue-300' },
-    green: { bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-500', hover: 'hover:bg-green-50 hover:border-green-300' },
-    purple: { bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-500', hover: 'hover:bg-purple-50 hover:border-purple-300' },
-    amber: { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-500', hover: 'hover:bg-amber-50 hover:border-amber-300' }
+    blue: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-500', activeBg: 'bg-blue-100', activeBorder: 'border-blue-400' },
+    green: { bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-500', activeBg: 'bg-green-100', activeBorder: 'border-green-400' },
+    purple: { bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-500', activeBg: 'bg-purple-100', activeBorder: 'border-purple-400' },
+    amber: { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-500', activeBg: 'bg-amber-100', activeBorder: 'border-amber-400' }
   };
 
+  var widgetId = 'clientDetailSelect_' + Date.now();
   var btns = '';
   var fields = ['email', 'phone', 'address', 'notes'];
-  var hasOptions = false;
   fields.forEach(function (key) {
     if (exclude.indexOf(key) !== -1) return;
-    hasOptions = true;
     var d = defs[key];
     var cm = colorMap[d.color];
-    btns += '<button type="button" onclick="startDetailCollection(\'' + key + '\')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-gray-200 bg-white ' + cm.hover + ' transition-all cursor-pointer active:scale-[0.97] text-left">'
-      + '<div class="w-7 h-7 rounded-full ' + cm.bg + ' border ' + cm.border + ' flex items-center justify-center flex-shrink-0">'
+    btns += '<button type="button" data-detail-field="' + key + '" data-widget-id="' + widgetId + '" '
+      + 'onclick="toggleDetailSelection(this)" '
+      + 'class="detail-toggle-btn w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-gray-200 bg-white hover:' + cm.activeBg + ' hover:' + cm.activeBorder + ' transition-all cursor-pointer active:scale-[0.97] text-left">'
+      + '<div class="detail-icon w-7 h-7 rounded-full ' + cm.bg + ' border ' + cm.border + ' flex items-center justify-center flex-shrink-0">'
       + '<svg class="w-3.5 h-3.5 ' + cm.text + '" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + d.icon + '</svg>'
       + '</div>'
-      + '<div class="text-[12px] font-bold text-gray-700">' + escapeHtml(d.label) + '</div>'
+      + '<div class="text-[12px] font-bold text-gray-700 flex-1">' + escapeHtml(d.label) + '</div>'
+      + '<div class="detail-check hidden w-5 h-5 rounded-full bg-orange-500 flex items-center justify-center flex-shrink-0">'
+      + '<svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>'
+      + '</div>'
       + '</button>';
   });
 
-  // Show collected fields as confirmed items
-  exclude.forEach(function (key) {
-    var d = defs[key];
-    if (!d) return;
-    var val = window._newClientDetails[key] || '';
-    var cm = colorMap[d.color];
-    btns += '<div class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-green-200 bg-green-50 text-left opacity-70">'
-      + '<div class="w-7 h-7 rounded-full bg-green-100 border border-green-300 flex items-center justify-center flex-shrink-0">'
-      + '<svg class="w-3.5 h-3.5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>'
-      + '</div>'
-      + '<div class="flex-1 min-w-0">'
-      + '<div class="text-[11px] font-bold text-green-700 truncate">' + escapeHtml(d.label) + ': ' + escapeHtml(val) + '</div>'
-      + '</div>'
-      + '</div>';
-  });
-
-  var noLabel = L.detail_done || 'Done';
-  btns += '<button type="button" onclick="finishClientDetailCollection()" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-dashed border-gray-300 bg-white hover:bg-gray-50 hover:border-gray-400 transition-all cursor-pointer active:scale-[0.97] text-left">'
-    + '<div class="w-7 h-7 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center flex-shrink-0">'
-    + '<svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
-    + '</div>'
-    + '<div class="text-[12px] font-bold text-gray-500">' + escapeHtml(noLabel) + '</div>'
+  var confirmLabel = L.detail_confirm_selection || 'დადასტურება';
+  btns += '<button type="button" id="' + widgetId + '_confirm" onclick="confirmDetailSelection(\'' + widgetId + '\')" '
+    + 'class="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border-2 border-orange-200 bg-orange-50 hover:bg-orange-100 transition-all cursor-pointer active:scale-[0.97] opacity-40 pointer-events-none" disabled>'
+    + '<div class="text-[12px] font-black text-orange-600 uppercase tracking-wider">' + escapeHtml(confirmLabel) + '</div>'
     + '</button>';
 
   var div = document.createElement('div');
   div.className = "flex items-start gap-2 animate-in fade-in slide-in-from-left-2 duration-300";
+  div.setAttribute('data-widget-id', widgetId);
   div.innerHTML = '<img src="/logo-no-shadow.svg" alt="" class="shrink-0 w-7 h-7 rounded-lg">'
-    + '<div class="max-w-[85%]">'
+    + '<div class="w-full max-w-[85%]">'
     + '<div class="bg-gray-50 border-2 border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">'
-    + '<div class="text-xs font-bold text-gray-800 mb-2.5">' + escapeHtml(questionText) + '</div>'
     + '<div class="space-y-1.5">' + btns + '</div>'
     + '</div>'
     + '</div>';
@@ -8817,26 +8741,78 @@ function renderClientDetailOptions(excludeFields) {
   conversation.scrollTop = conversation.scrollHeight;
 }
 
+// Toggle a detail field button on/off
+function toggleDetailSelection(btn) {
+  var check = btn.querySelector('.detail-check');
+  var isSelected = btn.classList.contains('detail-selected');
+
+  if (isSelected) {
+    btn.classList.remove('detail-selected', 'border-orange-300', 'bg-orange-50');
+    btn.classList.add('border-gray-200', 'bg-white');
+    check.classList.add('hidden');
+  } else {
+    btn.classList.add('detail-selected', 'border-orange-300', 'bg-orange-50');
+    btn.classList.remove('border-gray-200', 'bg-white');
+    check.classList.remove('hidden');
+  }
+
+  // Enable/disable confirm button
+  var widgetId = btn.dataset.widgetId;
+  var container = document.querySelector('[data-widget-id="' + widgetId + '"]');
+  var anySelected = container && container.querySelectorAll('.detail-selected').length > 0;
+  var confirmBtn = document.getElementById(widgetId + '_confirm');
+  if (confirmBtn) {
+    if (anySelected) {
+      confirmBtn.disabled = false;
+      confirmBtn.classList.remove('opacity-40', 'pointer-events-none');
+    } else {
+      confirmBtn.disabled = true;
+      confirmBtn.classList.add('opacity-40', 'pointer-events-none');
+    }
+  }
+}
+
+// Confirm selection: send all selected detail fields to AI as one message
+function confirmDetailSelection(widgetId) {
+  var container = document.querySelector('[data-widget-id="' + widgetId + '"]');
+  if (!container) return;
+
+  var selected = container.querySelectorAll('.detail-selected');
+  if (selected.length === 0) return;
+
+  var defs = getDetailFieldDefs();
+  var labels = [];
+  var prompts = [];
+  selected.forEach(function (btn) {
+    var field = btn.dataset.detailField;
+    var def = defs[field];
+    if (def) {
+      labels.push(def.label);
+      prompts.push(def.prompt);
+    }
+  });
+
+  // Disable the widget
+  container.querySelectorAll('button').forEach(function (b) { b.disabled = true; b.classList.add('opacity-50', 'pointer-events-none'); });
+
+  // Send contextualized message to AI
+  var displayText = labels.join(', ');
+  var contextMessage = prompts.join(' ');
+  addUserBubble(displayText);
+  showTypingIndicator();
+  triggerAssistantReparse(contextMessage, 'refinement', assistantPromptMeta().userRequestedChange);
+}
+
 function startDetailCollection(field) {
   var defs = getDetailFieldDefs();
   var def = defs[field];
   if (!def) return;
 
-  window._collectingClientDetail = field;
+  // AI-first: send contextualized prompt so AI knows this is about client details, not a product
+  var contextMessage = def.prompt; // e.g. "Please tell me the client's phone number:"
   addUserBubble(def.label);
-
   showTypingIndicator();
-  setTimeout(function () {
-    removeTypingIndicator();
-    addAIBubble(def.prompt);
-
-    var assistInput = document.getElementById('assistantInput');
-    if (assistInput) {
-      assistInput.value = '';
-      assistInput.placeholder = def.prompt;
-      assistInput.focus();
-    }
-  }, 400);
+  triggerAssistantReparse(contextMessage, 'refinement', assistantPromptMeta().userRequestedChange);
 }
 
 function handleClientDetailInput(value) {
@@ -9420,17 +9396,6 @@ async function triggerAssistantReparse(userAnswer, type, questionsText) {
     } catch (e) { /* ignore serialization errors */ }
   }
 
-  // PRE-PROCESS: if this looks like a tax instruction, apply directly as safety net
-  // AI struggles with 0% tax, so frontend must handle it immediately
-  // SKIP for batch messages — tax already applied directly by confirmTaxQueue
-  var isBatchMsg = userAnswer && userAnswer.indexOf('[AI asked:') !== -1;
-  if (!isBatchMsg) {
-    var lc = userAnswer.toLowerCase();
-    var hasTaxKeyword = ['tax', 'დღგ', 'დაბეგვრ', 'დაბეგრ', 'მოაშორე', 'გადასახად', 'taxable', 'tax free', 'ია%', '% tax'].some(function (k) { return lc.indexOf(k) !== -1; });
-    if (hasTaxKeyword || /\d+\s*%/.test(lc)) {
-      applyTaxTextDirectly(userAnswer);
-    }
-  }
 
   // Queue answer for display AFTER AI finishes
   window._pendingAnswer = { text: userAnswer, type: type, historyEntry: historyEntry };
@@ -10057,5 +10022,4 @@ Object.assign(window, {
   toggleDiscountType,
   confirmDiscountTypes,
   validateDiscountInput,
-  applyTaxTextDirectly,
 });
