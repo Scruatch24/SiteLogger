@@ -1098,7 +1098,7 @@
       <div class="ana-demo-banner-right">
         <% if user_signed_in? %>
           <%= link_to checkout_path, class: 'ana-demo-cta-btn' do %>
-            <svg style="width:13px;height:13px;" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            <svg style="width:13px;height:13px;" fill="currentColor" viewBox="0 0 24 24" stroke="none"><path d="M12 2.4c.33 0 .63.2.76.5l1.87 4.34 4.64.36c.63.05.88.84.38 1.23l-3.55 3.05 1.06 4.44c.13.55-.44.98-.94.7L12 14.72l-4.22 2.3c-.5.28-1.07-.15-.94-.7l1.06-4.44-3.55-3.05c-.5-.39-.25-1.18.38-1.23l4.64-.36 1.87-4.34c.13-.3.43-.5.76-.5z"/></svg>
             <%= t('analytics_page.upgrade_to_pro') %>
           <% end %>
         <% else %>
