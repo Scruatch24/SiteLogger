@@ -2664,8 +2664,13 @@ end}
       Georgian commands: "დამატე"=add, "წაშალე"=delete, "შეცვალე"=change, "მოაშორე"=remove, "დაბეგვრა"=tax, "ფასდაკლება"=discount.
       RULE: "X საათი Y ლარი" = hours:X, rate:Y (per hour), price:X*Y.
       When user says "ლარი" for discount = flat. When user says "პროცენტი"/"%"= percent.
-      When NEITHER specified: if number <= 50 assume PERCENT, if > 50 assume FLAT. Apply your guess AND add a "discount_type" clarification so user can correct if wrong.
-      CRITICAL: NEVER modify the base "price" field when applying a discount. Discounts go in discount_flat or discount_percent ONLY. The price stays unchanged.
+      DISCOUNT PRIORITY (follow in order):
+      1. User says "%" or "პროცენტი" → set discount_percent=N, discount_flat=0. NO clarification. Done.
+      2. User says "ლარი" or "$" or "off" → set discount_flat=N, discount_percent=0. NO clarification. Done.
+      3. Number > 100 with no type → ALWAYS flat. Set discount_flat=N. NO clarification.
+      4. Number 1-100 with no type → GUESS: set discount_percent=N (assume %), discount_flat=0 in JSON, AND add "discount_type" clarification so user can correct.
+      CRITICAL: The guessed value MUST appear in the JSON fields. If reply says "Applied 15%" then discount_percent MUST be 15, NOT 0.
+      CRITICAL: NEVER modify the base "price" field when applying a discount. Discounts go in discount_flat or discount_percent ONLY.
       NOTE: Materials ("მასალები") = "Products". Expenses ("ხარჯები") = "Reimbursements".
 
       ═══ SMART WIDGETS (clarifications) ═══
@@ -2706,7 +2711,8 @@ end}
       • INTEGRITY: If reply says you changed something, JSON MUST reflect it. Lying is FORBIDDEN.
       • HOURLY RATE: "X საათი Y ლარი" = hours:X, rate:Y, price:X*Y.
       • Discount on specific item → item-level, NOT global.
-      • Discount without type: GUESS (<=50 = %, >50 = flat), apply guess + ask confirmation via "discount_type" clarification.
+      • Discount with explicit type ("%", "ლარი", "$", "off"): apply directly. NO clarification needed.
+      • Discount without type (ambiguous number): GUESS (<=50 = %, >50 = flat), SET the value in JSON, then add "discount_type" clarification. The value MUST be in JSON — if reply says "applied 15%" then discount_percent MUST be 15.
       • NEVER modify base "price" when applying discounts. Discounts go in discount_flat or discount_percent ONLY.
       • Products price = per-unit.
       • New items without price → price: null.
@@ -2832,6 +2838,18 @@ end}
             Rails.logger.warn("REFINE VALIDATION FAIL (#{model}): sections/items structure invalid")
             ai_log[:error] = "validation_fail"
           end
+        elsif parsed && parsed.is_a?(Hash) && parsed["reply"].present?
+          # AI returned a reply-only response (e.g., off-topic redirect, conversational)
+          # Return original invoice data with the AI's reply
+          Rails.logger.info("REFINE REPLY-ONLY (#{model}): #{parsed["reply"].truncate(200)}")
+          ai_log[:reply_only] = true
+          input_parsed = current_json.is_a?(String) ? (JSON.parse(current_json) rescue {}) : (current_json.respond_to?(:to_unsafe_h) ? current_json.to_unsafe_h : current_json.to_h).deep_stringify_keys
+          reply_only_response = input_parsed.merge(
+            "reply" => parsed["reply"],
+            "clarifications" => Array(parsed["clarifications"]).select { |c| c.is_a?(Hash) && c["question"].present? }
+          )
+          log_ai_assistant(ai_log)
+          return render json: reply_only_response
         else
           Rails.logger.warn("REFINE VALIDATION FAIL (#{model}): no sections array")
           ai_log[:error] = "no_sections"
@@ -2943,6 +2961,49 @@ end}
 
       # ── DEBUG: Log tax fields after normalization ──
       Rails.logger.info "TAX_DEBUG_AFTER: #{(result["sections"] || []).map { |s| { type: s["type"], items: (s["items"] || []).map { |i| { desc: (i["desc"] || i["name"]).to_s.truncate(30), taxable: i["taxable"], tax_rate: i["tax_rate"] } } } }.to_json}"
+
+      # ── Discount integrity guard: fix model INTEGRITY violations ──
+      # If AI reply says it applied a discount but JSON items have 0/0, extract and fix.
+      reply_text = result["reply"].to_s
+      if reply_text.present?
+        all_items = (result["sections"] || []).flat_map { |s| s["items"] || [] }
+
+        # Detect discount mention in reply (English + Georgian)
+        discount_match = reply_text.match(/(\d+(?:\.\d+)?)\s*%/) ||
+                         reply_text.match(/(\d+(?:\.\d+)?)\s*(?:GEL|USD|EUR|₾|\$|€|lari|ლარ)/i) ||
+                         reply_text.match(/(?:discount|knocked off|applied|მოაკელი|ფასდაკლება)\D*(\d+(?:\.\d+)?)/i)
+        if discount_match
+          mentioned_amount = discount_match[1].to_f
+          is_percent = reply_text.include?("%") || reply_text.match?(/პროცენტ/i)
+          is_flat = reply_text.match?(/GEL|USD|EUR|₾|\$|€|lari|ლარ|flat/i)
+
+          # Check if any item actually has the discount applied
+          has_any_discount = all_items.any? { |i| i["discount_flat"].to_f > 0 || i["discount_percent"].to_f > 0 }
+
+          if !has_any_discount && mentioned_amount > 0 && all_items.length == 1
+            # AI lied — said it applied but didn't. Fix the single item.
+            item = all_items.first
+            if is_percent || (!is_flat && mentioned_amount <= 100)
+              item["discount_percent"] = mentioned_amount
+              item["discount_flat"] = 0
+            else
+              item["discount_flat"] = mentioned_amount
+              item["discount_percent"] = 0
+            end
+            Rails.logger.warn("DISCOUNT_INTEGRITY_FIX: reply='#{reply_text.truncate(100)}' → applied #{is_percent ? 'percent' : 'flat'}=#{mentioned_amount}")
+            ai_log[:discount_integrity_fix] = { type: is_percent ? "percent" : "flat", amount: mentioned_amount }
+          elsif has_any_discount && mentioned_amount > 0
+            # Verify the applied value matches what the reply says
+            all_items.each do |item|
+              if is_percent && item["discount_percent"].to_f > 0 && item["discount_percent"].to_f != mentioned_amount
+                Rails.logger.warn("DISCOUNT_INTEGRITY_FIX: reply says #{mentioned_amount}% but JSON has #{item["discount_percent"]}% → fixing")
+                item["discount_percent"] = mentioned_amount
+                ai_log[:discount_integrity_fix] = { type: "percent_correction", from: item["discount_percent"], to: mentioned_amount }
+              end
+            end
+          end
+        end
+      end
 
       # ── Log items after AI + tax normalization ──
       ai_log[:items_after_ai] = snapshot_items_for_log(result)
