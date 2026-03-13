@@ -41,11 +41,7 @@ class ApplicationController < ActionController::Base
     return session[:auto_detected_locale] if session[:auto_detected_locale]
 
     country = detect_country_by_ip
-    locale = case country
-    when "GE" then :ka
-    when "RU" then :ru
-    else :en
-    end
+    locale = (country == "GE") ? :ka : :en
     session[:auto_detected_locale] = locale.to_s
     locale
   rescue StandardError => e
@@ -54,17 +50,30 @@ class ApplicationController < ActionController::Base
   end
 
   def detect_country_by_ip
+    return session[:detected_country_code] if session[:detected_country_code].present?
+
     ip = client_ip
     return nil if ip.blank? || ip == "127.0.0.1" || ip == "::1" || ip.start_with?("192.168.", "10.", "172.")
 
-    # Use Accept-Language header as a lightweight locale hint instead of
-    # making a synchronous external HTTP call that blocks the request.
+    # Try real IP lookup via ip-api.com (free, no key required)
+    begin
+      # Fields: 2 (status), 16384 (countryCode)
+      response = HTTP.timeout(1.5).get("http://ip-api.com/json/#{ip}?fields=16386")
+      if response.status.success?
+        json = JSON.parse(response.body.to_s)
+        if json["status"] == "success"
+          country_code = json["countryCode"]
+          session[:detected_country_code] = country_code
+          return country_code
+        end
+      end
+    rescue => e
+      Rails.logger.warn("IP Geolocation failed for #{ip}: #{e.message}")
+    end
+
+    # Fallback to language header if IP lookup fails or is slow
     accept_lang = request.env["HTTP_ACCEPT_LANGUAGE"].to_s.downcase
     return "GE" if accept_lang.start_with?("ka")
-    return "RU" if accept_lang.start_with?("ru")
-    nil
-  rescue StandardError => e
-    Rails.logger.warn("detect_country_by_ip failed: #{e.message}")
     nil
   end
 
