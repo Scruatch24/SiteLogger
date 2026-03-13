@@ -97,4 +97,9 @@ module ApplicationHelper
         "lightning" => '<path d="M11.983 1.907a.75.75 0 0 0-1.292-.657l-8.5 9.5A.75.75 0 0 0 2.75 12h6.572l-1.305 6.093a.75.75 0 0 0 1.292.657l8.5-9.5A.75.75 0 0 0 17.25 8h-6.572l1.305-6.093Z" />'
       }
     end
+    def js_t(key, options = {})
+      # Using raw + escape_javascript ensures the string is escaped for JS 
+      # but not re-escaped for HTML by Rails' <%= %> block.
+      raw(escape_javascript(t(key, **options)))
+    end
 end

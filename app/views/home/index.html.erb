@@ -115,31 +115,27 @@
     // Get Lengths
     const lenT = elT ? elT.value.length : 0;
     const lenA = elA ? elA.value.length : 0;
-    const lenHistory = window.calculateHistoricalChars();
     
-    const totalUsed = lenT + lenA + lenHistory;
-    const remaining = Math.max(0, limit - totalUsed);
-    
-    // Update Transcript Counter (T)
+    // Update Transcript Counter (T) - Fixed maximum
     const valT = document.getElementById('currentCharCount');
     const maxT = document.getElementById('mainTranscriptMax');
     if (valT && maxT) {
       valT.innerText = lenT;
-      maxT.innerText = Math.max(0, limit - lenA - lenHistory);
+      maxT.innerText = limit;
     }
     
-    // Update Assistant Counter (A)
+    // Update Assistant Counter (A) - Dynamic maximum based on transcript usage
     const valA = document.getElementById('assistantCharCount');
     const maxA = document.getElementById('assistantMax');
     if (valA && maxA) {
       valA.innerText = lenA;
-      maxA.innerText = Math.max(0, limit - lenT - lenHistory);
+      maxA.innerText = Math.max(0, limit - lenT);
     }
     
-    // Inline nudge: show hint when approaching 80% of limit (non-paid users)
+    // Inline nudge: show hint when approaching 80% of limit based only on transcript usage
     const nudge = document.getElementById('charLimitNudge');
     if (nudge) {
-      const pct = totalUsed / limit;
+      const pct = lenT / Math.max(limit, 1);
       if (pct >= 0.8 && pct < 1) {
         nudge.textContent = window.APP_LANGUAGES?.upgrade_hint_chars || 'Running low? Upgrade for 10,000 characters';
         nudge.classList.remove('hidden');
@@ -148,16 +144,32 @@
       }
     }
 
-    return totalUsed;
+    // Return the lengths for the updateDynamicCountersCheck bounds check
+    return { lenT: lenT, lenA: lenA, limit: limit };
   };
   
   window.updateDynamicCountersCheck = function(el) {
-    const total = window.updateDynamicCounters();
+    const counters = window.updateDynamicCounters();
     const limit = <%= @profile.char_limit %>;
     
-    if (total > limit) {
+    let isOverflow = false;
+    let excess = 0;
+
+    if (el && el.id === 'mainTranscript') {
+      if (counters.lenT > limit) {
+        isOverflow = true;
+        excess = counters.lenT - limit;
+      }
+    } else if (el && el.id === 'assistantInput') {
+      const assistLimit = Math.max(0, limit - counters.lenT);
+      if (counters.lenA > assistLimit) {
+        isOverflow = true;
+        excess = counters.lenA - assistLimit;
+      }
+    }
+    
+    if (isOverflow) {
        // Trim the input that caused the overflow
-       let excess = total - limit;
        if (el && excess > 0) {
           el.value = el.value.slice(0, -excess);
        }
@@ -250,276 +262,280 @@
   window.isPaidUser = <%= @profile.paid? %>;
   window.profileTaxScope = "<%= @profile.tax_scope %>";
   window.profileAudioLimit = <%= @profile.audio_limit %>;
+  window.profileSystemLanguage = "<%= @profile.try(:system_language) || I18n.locale.to_s %>";
   window.currentUserId = <%= user_signed_in? ? current_user.id.to_json : 'null' %>;
   window.profileTaxRate = <%= @profile.tax_rate || 0 %>;
   window.APP_LANGUAGES = {
     en: "<%= t('transcript_english') %>",
     ka: "<%= t('transcript_georgian') %>",
     ru: "<%= t('transcript_russian') %>",
-        labor_hours_caps: "<%= j t('labor_hours_caps') %>",
-        labor_price_caps: "<%= j t('labor_price_caps') %>",
-        after_tax: "<%= j t('after_tax') %>",
-        no_charge: "<%= j t('no_charge') %>",
-        add_subcategory: "<%= j t('add_subcategory') %>",
-        add_price: "<%= j t('add_price') %>",
-        add_discount: "<%= j t('add_discount') %>",
-        labor_add_discount: "<%= j t('labor_add_discount', default: t('add_discount')) %>",
-        discount_percentage_type: "<%= j t('discount_percentage_type', default: t('percentage')) %>",
-        discount_flat_type: "<%= j t('discount_flat_type', default: t('fixed')) %>",
-        hourly: "<%= j t('hourly') %>",
-        fixed: "<%= j t('fixed') %>",
-        billing_model: "<%= j t('billing_model') %>",
-        taxable: "<%= j t('taxable') %>",
-        credit_quantity: "<%= j t('credit_quantity', default: t('amount')) %>",
-        credit_amount_caps: "<%= j t('credit_amount_caps') %>",
-        price: "<%= j t('price') %>",
-        quantity: "<%= j t('quantity', default: 'QTY') %>",
-        item_discount: "<%= j t('item_discount') %>",
-        tax: "<%= j t('tax') %>",
-        discount: "<%= j t('discount') %>",
-        rate: "<%= j t('rate') %>",
-        products: "<%= j t('products') %>",
-        reimbursements: "<%= j t('reimbursements') %>",
-        fees: "<%= j t('fees') %>",
-        item: "<%= j t('item') %>",
-        item_product: "<%= j t('item_product') %>",
-        item_reimbursement: "<%= j t('item_reimbursement') %>",
-        item_fee: "<%= j t('item_fee') %>",
-        product: "<%= j t('product') %>",
-        fee: "<%= j t('fee') %>",
-        reimbursement: "<%= j t('reimbursement') %>",
-        ka: "<%= j t('georgian') %>",
-        en: "<%= j t('english') %>",
-        ru: "<%= j t('russian') %>",
-        stop: "<%= j t('stop') %>",
-        processing: "<%= j t('processing_caps') %>",
-        tap_to_record: "<%= j t('tap_to_record_caps') %>",
-        recording: "<%= j t('recording') %>",
-        profile_saved: "<%= j t('profile_saved') %>",
-        network_error: "<%= j t('network_error') %>",
-        speech_not_recognized: "<%= j t('speech_not_recognized') %>",
-        microphone_access_denied: "<%= j t('microphone_access_denied') %>",
-        hold_longer: "<%= j t('hold_longer') %>",
-        render_failed: "<%= j t('render_failed') %>",
-        changes_saved_excl: "<%= j t('changes_saved') %>",
-        error_saving_profile_text: "<%= j t('error_saving_profile') %>",
-        input_unclear: "<%= j t('input_unclear') %>",
-        input_empty: "<%= j t('input_empty') %>",
-        pdf_loading: "<%= j t('pdf_loading') %>",
-        draft_prepared: "<%= j t('draft_prepared') %>",
-        ui_update_error: "<%= j t('ui_update_error') %>",
-        voice_limit_reached: "<%= j t('voice_limit_reached') %>",
-        recording_failed: "<%= j t('recording_failed') %>",
-        enter_instruction: "<%= j t('enter_instruction') %>",
-        limit_reached_upgrade: "<%= j t('limit_reached_upgrade') %>",
-        provide_answer: "<%= j t('provide_answer') %>",
-        reserved_category: "<%= j t('reserved_category') %>",
-        cancel: "<%= j t('cancel') %>",
-        draft: "<%= j t('draft') %>",
-        sent: "<%= j t('sent') %>",
-        paid: "<%= j t('paid') %>",
-        no_category: "<%= j t('no_category') %>",
-        no_client: "<%= j t('no_client') %>",
-        overdue: "<%= j t('overdue') %>",
-        ready: "<%= j t('ready') %>",
-        saving: "<%= j t('saving') %>",
-        professional_services: "<%= j t('professional_services') %>",
-        save: "<%= j t('save') %>",
-        saved: "<%= j t('saved') %>",
-        limit_reached: "<%= j t('limit_reached') %>",
-        limit_voice: "<%= j t('limit_voice') %>",
-        limit_transcript: "<%= j t('limit_transcript') %>",
-        limit_exports: "<%= j t('limit_exports') %>",
-        limit_preview: "<%= j t('limit_preview') %>",
-        limit_design: "<%= j t('limit_design') %>",
-        limit_logo: "<%= j t('limit_logo') %>",
-        limit_category: "<%= j t('limit_category') %>",
-        limit_enhance: "<%= j t('limit_enhance') %>",
-        upgrade_hint_chars: "<%= j t('upgrade_hint_chars') %>",
-        upgrade_hint_audio: "<%= j t('upgrade_hint_audio') %>",
-        description_placeholder: "<%= j t('description_placeholder') %>",
-        amount: "<%= j t('amount') %>",
-        courtesy_credit: "<%= j t('courtesy_credit') %>",
-        reason_for_credit: "<%= j t('reason_for_credit') %>",
-        subcategory_placeholder: "<%= j t('subcategory_placeholder') %>",
-        discount_reason_placeholder: "<%= j t('discount_reason_placeholder') %>",
-        due_today: "<%= j t('due_today') %>",
-        in_x_days: "<%= j t('in_x_days', count: '%{count}') %>",
-        x_days_overdue: "<%= j t('x_days_overdue', count: '%{count}') %>",
-        jan: "<%= j t('jan') %>",
-        feb: "<%= j t('feb') %>",
-        mar: "<%= j t('mar') %>",
-        apr: "<%= j t('apr') %>",
-        may: "<%= j t('may') %>",
-        jun: "<%= j t('jun') %>",
-        jul: "<%= j t('jul') %>",
-        aug: "<%= j t('aug') %>",
-        sep: "<%= j t('sep') %>",
-        oct: "<%= j t('oct') %>",
-        nov: "<%= j t('nov') %>",
-        dec: "<%= j t('dec') %>",
+    operation_limit_reached: "<%= js_t('operation_limit_reached', default: "You've reached the maximum number of AI operations for this invoice.") %>",
+    upgrade_for_more: "<%= js_t('upgrade_for_more', default: "Upgrade for more") %>",
+    start_fresh: "<%= js_t('start_fresh', default: "Start a new invoice") %>",
+        labor_hours_caps: "<%= js_t('labor_hours_caps') %>",
+        labor_price_caps: "<%= js_t('labor_price_caps') %>",
+        after_tax: "<%= js_t('after_tax') %>",
+        no_charge: "<%= js_t('no_charge') %>",
+        add_subcategory: "<%= js_t('add_subcategory') %>",
+        add_price: "<%= js_t('add_price') %>",
+        add_discount: "<%= js_t('add_discount') %>",
+        labor_add_discount: "<%= js_t('labor_add_discount', default: t('add_discount')) %>",
+        discount_percentage_type: "<%= js_t('discount_percentage_type', default: t('percentage')) %>",
+        discount_flat_type: "<%= js_t('discount_flat_type', default: t('fixed')) %>",
+        hourly: "<%= js_t('hourly') %>",
+        fixed: "<%= js_t('fixed') %>",
+        billing_model: "<%= js_t('billing_model') %>",
+        taxable: "<%= js_t('taxable') %>",
+        credit_quantity: "<%= js_t('credit_quantity', default: t('amount')) %>",
+        credit_amount_caps: "<%= js_t('credit_amount_caps') %>",
+        price: "<%= js_t('price') %>",
+        quantity: "<%= js_t('quantity', default: 'QTY') %>",
+        item_discount: "<%= js_t('item_discount') %>",
+        tax: "<%= js_t('tax') %>",
+        discount: "<%= js_t('discount') %>",
+        rate: "<%= js_t('rate') %>",
+        products: "<%= js_t('products') %>",
+        reimbursements: "<%= js_t('reimbursements') %>",
+        fees: "<%= js_t('fees') %>",
+        item: "<%= js_t('item') %>",
+        item_product: "<%= js_t('item_product') %>",
+        item_reimbursement: "<%= js_t('item_reimbursement') %>",
+        item_fee: "<%= js_t('item_fee') %>",
+        product: "<%= js_t('product') %>",
+        fee: "<%= js_t('fee') %>",
+        reimbursement: "<%= js_t('reimbursement') %>",
+        ka: "<%= js_t('georgian') %>",
+        en: "<%= js_t('english') %>",
+        ru: "<%= js_t('russian') %>",
+        stop: "<%= js_t('stop') %>",
+        processing: "<%= js_t('processing_caps') %>",
+        tap_to_record: "<%= js_t('tap_to_record_caps') %>",
+        recording: "<%= js_t('recording') %>",
+        profile_saved: "<%= js_t('profile_saved') %>",
+        network_error: "<%= js_t('network_error') %>",
+        speech_not_recognized: "<%= js_t('speech_not_recognized') %>",
+        microphone_access_denied: "<%= js_t('microphone_access_denied') %>",
+        hold_longer: "<%= js_t('hold_longer') %>",
+        render_failed: "<%= js_t('render_failed') %>",
+        changes_saved_excl: "<%= js_t('changes_saved') %>",
+        error_saving_profile_text: "<%= js_t('error_saving_profile') %>",
+        input_unclear: "<%= js_t('input_unclear') %>",
+        input_empty: "<%= js_t('input_empty') %>",
+        pdf_loading: "<%= js_t('pdf_loading') %>",
+        draft_prepared: "<%= js_t('draft_prepared') %>",
+        ui_update_error: "<%= js_t('ui_update_error') %>",
+        voice_limit_reached: "<%= js_t('voice_limit_reached') %>",
+        recording_failed: "<%= js_t('recording_failed') %>",
+        enter_instruction: "<%= js_t('enter_instruction') %>",
+        limit_reached_upgrade: "<%= js_t('limit_reached_upgrade') %>",
+        provide_answer: "<%= js_t('provide_answer') %>",
+        reserved_category: "<%= js_t('reserved_category') %>",
+        cancel: "<%= js_t('cancel') %>",
+        draft: "<%= js_t('draft') %>",
+        sent: "<%= js_t('sent') %>",
+        paid: "<%= js_t('paid') %>",
+        no_category: "<%= js_t('no_category') %>",
+        no_client: "<%= js_t('no_client') %>",
+        overdue: "<%= js_t('overdue') %>",
+        ready: "<%= js_t('ready') %>",
+        saving: "<%= js_t('saving') %>",
+        professional_services: "<%= js_t('professional_services') %>",
+        save: "<%= js_t('save') %>",
+        saved: "<%= js_t('saved') %>",
+        limit_reached: "<%= js_t('limit_reached') %>",
+        limit_voice: "<%= js_t('limit_voice') %>",
+        limit_transcript: "<%= js_t('limit_transcript') %>",
+        limit_exports: "<%= js_t('limit_exports') %>",
+        limit_preview: "<%= js_t('limit_preview') %>",
+        limit_design: "<%= js_t('limit_design') %>",
+        limit_logo: "<%= js_t('limit_logo') %>",
+        limit_category: "<%= js_t('limit_category') %>",
+        limit_enhance: "<%= js_t('limit_enhance') %>",
+        upgrade_hint_chars: "<%= js_t('upgrade_hint_chars') %>",
+        upgrade_hint_audio: "<%= js_t('upgrade_hint_audio') %>",
+        description_placeholder: "<%= js_t('description_placeholder') %>",
+        amount: "<%= js_t('amount') %>",
+        courtesy_credit: "<%= js_t('courtesy_credit') %>",
+        reason_for_credit: "<%= js_t('reason_for_credit') %>",
+        subcategory_placeholder: "<%= js_t('subcategory_placeholder') %>",
+        discount_reason_placeholder: "<%= js_t('discount_reason_placeholder') %>",
+        due_today: "<%= js_t('due_today') %>",
+        in_x_days: "<%= js_t('in_x_days', count: '%{count}') %>",
+        x_days_overdue: "<%= js_t('x_days_overdue', count: '%{count}') %>",
+        jan: "<%= js_t('jan') %>",
+        feb: "<%= js_t('feb') %>",
+        mar: "<%= js_t('mar') %>",
+        apr: "<%= js_t('apr') %>",
+        may: "<%= js_t('may') %>",
+        jun: "<%= js_t('jun') %>",
+        jul: "<%= js_t('jul') %>",
+        aug: "<%= js_t('aug') %>",
+        sep: "<%= js_t('sep') %>",
+        oct: "<%= js_t('oct') %>",
+        nov: "<%= js_t('nov') %>",
+        dec: "<%= js_t('dec') %>",
     labor_hours: "<%= t('labor_hours') %>",
     labor_price: "<%= t('labor_price') %>",
-    rate_limit_slow_down: "<%= j t('rate_limit_slow_down') %>",
-    failed_switch_language: "<%= j t('failed_switch_language') %>",
-    error_saving_prefix: "<%= j t('error_saving_prefix') %>",
-    please_check_inputs: "<%= j t('please_check_inputs') %>",
-    something_went_wrong_saving: "<%= j t('something_went_wrong_saving') %>",
-    file_size_limit: "<%= j t('file_size_limit') %>",
-    failed_save_changes: "<%= j t('failed_save_changes') %>",
-    error_while_saving: "<%= j t('error_while_saving') %>",
-    failed_update_status: "<%= j t('failed_update_status') %>",
-    error_updating_status: "<%= j t('error_updating_status') %>",
-    failed_update_pinning: "<%= j t('failed_update_pinning') %>",
-    an_error_occurred: "<%= j t('an_error_occurred') %>",
-    inv_short: "<%= j t('inv_short') %>",
-    rename_label: "<%= j t('rename_label') %>",
-    done_label: "<%= j t('done_label') %>",
-    stop_process: "<%= j t('stop_process') %>",
-    try_again: "<%= j t('try_again') %>",
-    record_another: "<%= j t('record_another') %>",
-    analyzing_audio: "<%= j t('analyzing_audio') %>",
-    ai_failed_process: "<%= j t('ai_failed_process') %>",
-    unpin_log: "<%= j t('unpin_log') %>",
-    pin_log: "<%= j t('pin_log') %>",
-    save_changes: "<%= j t('save_changes') %>",
-    current_guess: "<%= j t('current_guess') %>",
-    not_specified: "<%= j t('not_specified') %>",
-    empty_audio: "<%= j t('empty_audio') %>",
-    refinement_placeholder: "<%= j t('refinement_placeholder') %>",
-    answer_placeholder: "<%= j t('answer_placeholder') %>",
-    ai_assistant: "<%= j t('ai_assistant') %>",
-    confirm: "<%= j t('confirm') %>",
-    confirm_all: "<%= j t('confirm_all') %>",
-    anything_else: "<%= j t('anything_else') %>",
-    assistant_placeholder: "<%= j t('assistant_placeholder') %>",
-    invoice_ready: "<%= j t('invoice_ready') %>",
-    questions_to_confirm: "<%= j t('questions_to_confirm') %>",
-    confirmed_value: "<%= j t('confirmed_value') %>",
-    editing_value: "<%= j t('editing_value') %>",
-    guess_yes: "<%= j t('guess_yes') %>",
-    guess_no: "<%= j t('guess_no') %>",
-    create_new_client: "<%= j t('create_new_client') %>",
-    invoices_count: "<%= j t('invoices_count', count: '__COUNT__') %>",
-    invoices_count_one: "<%= j t('invoices_count_one') %>",
-    add_client_details_question: "<%= j t('add_client_details_question') %>",
-    detail_email: "<%= j t('detail_email') %>",
-    detail_phone: "<%= j t('detail_phone') %>",
-    detail_address: "<%= j t('detail_address') %>",
-    detail_notes: "<%= j t('detail_notes') %>",
-    detail_no: "<%= j t('detail_no') %>",
-    detail_prompt_phone: "<%= j t('detail_prompt_phone') %>",
-    detail_prompt_email: "<%= j t('detail_prompt_email') %>",
-    detail_prompt_address: "<%= j t('detail_prompt_address') %>",
-    detail_prompt_notes: "<%= j t('detail_prompt_notes') %>",
-    detail_saved: "<%= j t('detail_saved') %>",
-    detail_done: "<%= j t('detail_done') %>",
-    detail_detected_email: "<%= j t('detail_detected_email') %>",
-    detail_more_options: "<%= j t('detail_more_options') %>",
-    question_progress: "<%= j t('question_progress', current: '__CURRENT__', total: '__TOTAL__') %>",
-    use_best_guess: "<%= j t('use_best_guess') %>",
-    confirm_all_guesses: "<%= j t('confirm_all_guesses') %>",
-    show_invoice: "<%= j t('show_invoice') %>",
-    yes_btn: "<%= j t('yes_btn') %>",
-    no_btn: "<%= j t('no_btn') %>",
-    done_btn: "<%= j t('done_btn') %>",
-    ai_guess: "<%= j t('ai_guess') %>",
-    section_labor: "<%= j t('section_labor') %>",
-    section_products: "<%= j t('section_products') %>",
-    section_reimbursements: "<%= j t('section_reimbursements') %>",
-    section_fees: "<%= j t('section_fees') %>",
-    action_change_client: "<%= j t('action_change_client') %>",
-    action_add_discount: "<%= j t('action_add_discount') %>",
-    action_add_item: "<%= j t('action_add_item') %>",
-    action_change_date: "<%= j t('action_change_date') %>",
-    action_remove_tax: "<%= j t('action_remove_tax') %>",
-    date_type_prompt: "<%= j t('date_type_prompt') %>",
-    date_type_invoice: "<%= j t('date_type_invoice') %>",
-    date_type_due: "<%= j t('date_type_due') %>",
-    date_enter_prompt: "<%= j t('date_enter_prompt') %>",
-    change_client_prompt: "<%= j t('change_client_prompt') %>",
-    add_item_what_prompt: "<%= j t('add_item_what_prompt') %>",
-    add_item_price_prompt: "<%= j t('add_item_price_prompt') %>",
-    discount_amount_prompt: "<%= j t('discount_amount_prompt') %>",
-    discount_type_prompt: "<%= j t('discount_type_prompt') %>",
-    discount_type_fixed: "<%= j t('discount_type_fixed') %>",
-    discount_type_percentage: "<%= j t('discount_type_percentage') %>",
-    discount_category_prompt: "<%= j t('discount_category_prompt') %>",
-    discount_items_prompt: "<%= j t('discount_items_prompt') %>",
-    discount_cat_services: "<%= j t('discount_cat_services') %>",
-    discount_cat_products: "<%= j t('discount_cat_products') %>",
-    discount_cat_reimbursements: "<%= j t('discount_cat_reimbursements') %>",
-    discount_cat_fees: "<%= j t('discount_cat_fees') %>",
-    discount_invalid_amount: "<%= j t('discount_invalid_amount') %>",
-    discount_accordion_prompt: "<%= j t('discount_accordion_prompt') %>",
-    discount_invoice_discount: "<%= j t('discount_invoice_discount') %>",
-    confirm_btn: "<%= j t('confirm_btn') %>",
-    select_all_btn: "<%= j t('select_all_btn') %>",
-    undo_btn: "<%= j t('undo_btn') %>",
-    undo_confirmed: "<%= j t('undo_confirmed') %>",
-    invoice_manual_update: "<%= j t('invoice_manual_update') %>",
-    got_it: "<%= j t('got_it') %>",
-    action_manage_tax: "<%= j t('action_manage_tax') %>",
-    tax_management_prompt: "<%= j t('tax_management_prompt') %>",
-    tax_on: "<%= j t('tax_on') %>",
-    tax_off: "<%= j t('tax_off') %>",
-    tax_remove_all: "<%= j t('tax_remove_all') %>",
-    tax_apply_all: "<%= j t('tax_apply_all') %>",
-    tax_apply_btn: "<%= j t('tax_apply_btn') %>",
-    date_or_pick: "<%= j t('date_or_pick') %>",
-    month_january: "<%= j t('month_january') %>",
-    month_february: "<%= j t('month_february') %>",
-    month_march: "<%= j t('month_march') %>",
-    month_april: "<%= j t('month_april') %>",
-    month_may: "<%= j t('month_may') %>",
-    month_june: "<%= j t('month_june') %>",
-    month_july: "<%= j t('month_july') %>",
-    month_august: "<%= j t('month_august') %>",
-    month_september: "<%= j t('month_september') %>",
-    month_october: "<%= j t('month_october') %>",
-    month_november: "<%= j t('month_november') %>",
-    month_december: "<%= j t('month_december') %>",
-    calendar_today: "<%= j t('calendar_today') %>",
-    day_mon: "<%= j t('day_mon') %>",
-    day_tue: "<%= j t('day_tue') %>",
-    day_wed: "<%= j t('day_wed') %>",
-    day_thu: "<%= j t('day_thu') %>",
-    day_fri: "<%= j t('day_fri') %>",
-    day_sat: "<%= j t('day_sat') %>",
-    day_sun: "<%= j t('day_sun') %>",
-    tax_all_removed: "<%= j t('tax_all_removed') %>",
-    tax_summary: "<%= j t('tax_summary') %>",
-    discount_type_prompt: "<%= j t('discount_type_prompt') %>",
-    discount_fixed_label: "<%= j t('discount_fixed_label') %>",
-    discount_percent_label: "<%= j t('discount_percent_label') %>",
-    audio_empty_error: "<%= j t('audio_empty_error') %>",
-    undo_and_revert: "<%= j t('undo_and_revert') %>",
-    client_exists_confirm: "<%= j t('client_exists_confirm') %>",
-    client_new_added: "<%= j t('client_new_added') %>",
-    widget_cancel: "<%= j t('widget_cancel') %>",
-    entire_invoice: "<%= j t('entire_invoice') %>",
-    action_remove_item: "<%= j t('action_remove_item') %>",
-    cancel_what_prompt: "<%= j t('cancel_what_prompt') %>",
-    remove_prefix: "<%= j t('remove_prefix') %>",
-    invoice_cleared: "<%= j t('invoice_cleared') %>",
-    detected_phone: "<%= j t('detected_phone') %>",
-    detected_address: "<%= j t('detected_address') %>",
-    detected_notes: "<%= j t('detected_notes') %>",
-    none_selected: "<%= j t('none_selected') %>",
-    hourly_label: "<%= j t('hourly_label') %>",
-    fixed_label: "<%= j t('fixed_label') %>",
-    hours_label: "<%= j t('hours_label') %>",
-    rate_label: "<%= j t('rate_label') %>",
-    price_label: "<%= j t('price_label') %>",
-    amount_label: "<%= j t('amount_label') %>",
-    discount_fixed_on: "<%= j t('discount_fixed_on') %>",
-    discount_pct_on: "<%= j t('discount_pct_on') %>",
-    per_hour_suffix: "<%= j t('per_hour_suffix') %>",
-    currency_suffix: "<%= j t('currency_suffix') %>",
-    ai_did_not_understand: "<%= j t('ai_did_not_understand') %>",
-    confirm_remove: "<%= j t('confirm_remove') %>"
+    rate_limit_slow_down: "<%= js_t('rate_limit_slow_down') %>",
+    failed_switch_language: "<%= js_t('failed_switch_language') %>",
+    error_saving_prefix: "<%= js_t('error_saving_prefix') %>",
+    please_check_inputs: "<%= js_t('please_check_inputs') %>",
+    something_went_wrong_saving: "<%= js_t('something_went_wrong_saving') %>",
+    file_size_limit: "<%= js_t('file_size_limit') %>",
+    failed_save_changes: "<%= js_t('failed_save_changes') %>",
+    error_while_saving: "<%= js_t('error_while_saving') %>",
+    failed_update_status: "<%= js_t('failed_update_status') %>",
+    error_updating_status: "<%= js_t('error_updating_status') %>",
+    failed_update_pinning: "<%= js_t('failed_update_pinning') %>",
+    an_error_occurred: "<%= js_t('an_error_occurred') %>",
+    inv_short: "<%= js_t('inv_short') %>",
+    rename_label: "<%= js_t('rename_label') %>",
+    done_label: "<%= js_t('done_label') %>",
+    stop_process: "<%= js_t('stop_process') %>",
+    try_again: "<%= js_t('try_again') %>",
+    record_another: "<%= js_t('record_another') %>",
+    analyzing_audio: "<%= js_t('analyzing_audio') %>",
+    ai_failed_process: "<%= js_t('ai_failed_process') %>",
+    unpin_log: "<%= js_t('unpin_log') %>",
+    pin_log: "<%= js_t('pin_log') %>",
+    save_changes: "<%= js_t('save_changes') %>",
+    current_guess: "<%= js_t('current_guess') %>",
+    not_specified: "<%= js_t('not_specified') %>",
+    empty_audio: "<%= js_t('empty_audio') %>",
+    refinement_placeholder: "<%= js_t('refinement_placeholder') %>",
+    answer_placeholder: "<%= js_t('answer_placeholder') %>",
+    ai_assistant: "<%= js_t('ai_assistant') %>",
+    confirm: "<%= js_t('confirm') %>",
+    confirm_all: "<%= js_t('confirm_all') %>",
+    anything_else: "<%= js_t('anything_else') %>",
+    assistant_placeholder: "<%= js_t('assistant_placeholder') %>",
+    invoice_ready: "<%= js_t('invoice_ready') %>",
+    questions_to_confirm: "<%= js_t('questions_to_confirm') %>",
+    confirmed_value: "<%= js_t('confirmed_value') %>",
+    editing_value: "<%= js_t('editing_value') %>",
+    guess_yes: "<%= js_t('guess_yes') %>",
+    guess_no: "<%= js_t('guess_no') %>",
+    create_new_client: "<%= js_t('create_new_client') %>",
+    invoices_count: "<%= js_t('invoices_count', count: '__COUNT__') %>",
+    invoices_count_one: "<%= js_t('invoices_count_one') %>",
+    add_client_details_question: "<%= js_t('add_client_details_question') %>",
+    detail_email: "<%= js_t('detail_email') %>",
+    detail_phone: "<%= js_t('detail_phone') %>",
+    detail_address: "<%= js_t('detail_address') %>",
+    detail_notes: "<%= js_t('detail_notes') %>",
+    detail_no: "<%= js_t('detail_no') %>",
+    detail_prompt_phone: "<%= js_t('detail_prompt_phone') %>",
+    detail_prompt_email: "<%= js_t('detail_prompt_email') %>",
+    detail_prompt_address: "<%= js_t('detail_prompt_address') %>",
+    detail_prompt_notes: "<%= js_t('detail_prompt_notes') %>",
+    detail_saved: "<%= js_t('detail_saved') %>",
+    detail_done: "<%= js_t('detail_done') %>",
+    detail_detected_email: "<%= js_t('detail_detected_email') %>",
+    detail_more_options: "<%= js_t('detail_more_options') %>",
+    question_progress: "<%= js_t('question_progress', current: '__CURRENT__', total: '__TOTAL__') %>",
+    use_best_guess: "<%= js_t('use_best_guess') %>",
+    confirm_all_guesses: "<%= js_t('confirm_all_guesses') %>",
+    show_invoice: "<%= js_t('show_invoice') %>",
+    yes_btn: "<%= js_t('yes_btn') %>",
+    no_btn: "<%= js_t('no_btn') %>",
+    done_btn: "<%= js_t('done_btn') %>",
+    ai_guess: "<%= js_t('ai_guess') %>",
+    section_labor: "<%= js_t('section_labor') %>",
+    section_products: "<%= js_t('section_products') %>",
+    section_reimbursements: "<%= js_t('section_reimbursements') %>",
+    section_fees: "<%= js_t('section_fees') %>",
+    action_change_client: "<%= js_t('action_change_client') %>",
+    action_add_discount: "<%= js_t('action_add_discount') %>",
+    action_add_item: "<%= js_t('action_add_item') %>",
+    action_change_date: "<%= js_t('action_change_date') %>",
+    action_remove_tax: "<%= js_t('action_remove_tax') %>",
+    date_type_prompt: "<%= js_t('date_type_prompt') %>",
+    date_type_invoice: "<%= js_t('date_type_invoice') %>",
+    date_type_due: "<%= js_t('date_type_due') %>",
+    date_enter_prompt: "<%= js_t('date_enter_prompt') %>",
+    change_client_prompt: "<%= js_t('change_client_prompt') %>",
+    add_item_what_prompt: "<%= js_t('add_item_what_prompt') %>",
+    add_item_price_prompt: "<%= js_t('add_item_price_prompt') %>",
+    discount_amount_prompt: "<%= js_t('discount_amount_prompt') %>",
+    discount_type_prompt: "<%= js_t('discount_type_prompt') %>",
+    discount_type_fixed: "<%= js_t('discount_type_fixed') %>",
+    discount_type_percentage: "<%= js_t('discount_type_percentage') %>",
+    discount_category_prompt: "<%= js_t('discount_category_prompt') %>",
+    discount_items_prompt: "<%= js_t('discount_items_prompt') %>",
+    discount_cat_services: "<%= js_t('discount_cat_services') %>",
+    discount_cat_products: "<%= js_t('discount_cat_products') %>",
+    discount_cat_reimbursements: "<%= js_t('discount_cat_reimbursements') %>",
+    discount_cat_fees: "<%= js_t('discount_cat_fees') %>",
+    discount_invalid_amount: "<%= js_t('discount_invalid_amount') %>",
+    discount_accordion_prompt: "<%= js_t('discount_accordion_prompt') %>",
+    discount_invoice_discount: "<%= js_t('discount_invoice_discount') %>",
+    confirm_btn: "<%= js_t('confirm_btn') %>",
+    select_all_btn: "<%= js_t('select_all_btn') %>",
+    undo_btn: "<%= js_t('undo_btn') %>",
+    undo_confirmed: "<%= js_t('undo_confirmed') %>",
+    invoice_manual_update: "<%= js_t('invoice_manual_update') %>",
+    got_it: "<%= js_t('got_it') %>",
+    action_manage_tax: "<%= js_t('action_manage_tax') %>",
+    tax_management_prompt: "<%= js_t('tax_management_prompt') %>",
+    tax_on: "<%= js_t('tax_on') %>",
+    tax_off: "<%= js_t('tax_off') %>",
+    tax_remove_all: "<%= js_t('tax_remove_all') %>",
+    tax_apply_all: "<%= js_t('tax_apply_all') %>",
+    tax_apply_btn: "<%= js_t('tax_apply_btn') %>",
+    date_or_pick: "<%= js_t('date_or_pick') %>",
+    month_january: "<%= js_t('month_january') %>",
+    month_february: "<%= js_t('month_february') %>",
+    month_march: "<%= js_t('month_march') %>",
+    month_april: "<%= js_t('month_april') %>",
+    month_may: "<%= js_t('month_may') %>",
+    month_june: "<%= js_t('month_june') %>",
+    month_july: "<%= js_t('month_july') %>",
+    month_august: "<%= js_t('month_august') %>",
+    month_september: "<%= js_t('month_september') %>",
+    month_october: "<%= js_t('month_october') %>",
+    month_november: "<%= js_t('month_november') %>",
+    month_december: "<%= js_t('month_december') %>",
+    calendar_today: "<%= js_t('calendar_today') %>",
+    day_mon: "<%= js_t('day_mon') %>",
+    day_tue: "<%= js_t('day_tue') %>",
+    day_wed: "<%= js_t('day_wed') %>",
+    day_thu: "<%= js_t('day_thu') %>",
+    day_fri: "<%= js_t('day_fri') %>",
+    day_sat: "<%= js_t('day_sat') %>",
+    day_sun: "<%= js_t('day_sun') %>",
+    tax_all_removed: "<%= js_t('tax_all_removed') %>",
+    tax_summary: "<%= js_t('tax_summary') %>",
+    discount_type_prompt: "<%= js_t('discount_type_prompt') %>",
+    discount_fixed_label: "<%= js_t('discount_fixed_label') %>",
+    discount_percent_label: "<%= js_t('discount_percent_label') %>",
+    audio_empty_error: "<%= js_t('audio_empty_error') %>",
+    undo_and_revert: "<%= js_t('undo_and_revert') %>",
+    client_exists_confirm: "<%= js_t('client_exists_confirm') %>",
+    client_new_added: "<%= js_t('client_new_added') %>",
+    widget_cancel: "<%= js_t('widget_cancel') %>",
+    entire_invoice: "<%= js_t('entire_invoice') %>",
+    action_remove_item: "<%= js_t('action_remove_item') %>",
+    cancel_what_prompt: "<%= js_t('cancel_what_prompt') %>",
+    remove_prefix: "<%= js_t('remove_prefix') %>",
+    invoice_cleared: "<%= js_t('invoice_cleared') %>",
+    detected_phone: "<%= js_t('detected_phone') %>",
+    detected_address: "<%= js_t('detected_address') %>",
+    detected_notes: "<%= js_t('detected_notes') %>",
+    none_selected: "<%= js_t('none_selected') %>",
+    hourly_label: "<%= js_t('hourly_label') %>",
+    fixed_label: "<%= js_t('fixed_label') %>",
+    hours_label: "<%= js_t('hours_label') %>",
+    rate_label: "<%= js_t('rate_label') %>",
+    price_label: "<%= js_t('price_label') %>",
+    amount_label: "<%= js_t('amount_label') %>",
+    discount_fixed_on: "<%= js_t('discount_fixed_on') %>",
+    discount_pct_on: "<%= js_t('discount_pct_on') %>",
+    per_hour_suffix: "<%= js_t('per_hour_suffix') %>",
+    currency_suffix: "<%= js_t('currency_suffix') %>",
+    ai_did_not_understand: "<%= js_t('ai_did_not_understand') %>",
+    confirm_remove: "<%= js_t('confirm_remove') %>"
   };
-  window.clarificationLimit = <%= @profile.clarification_limit %>;
+  window.operationLimit = <%= @profile.operation_limit %>;
 
   // ── FROM / BILLED TO State ──
   const decodeEntities = (str) => {
@@ -639,7 +655,7 @@
     // Update display
     const display = document.getElementById('fromFieldDisplay');
     if (display) {
-      display.textContent = window.profileDefaults.business_name || '<%= j t("from_placeholder") %>';
+      display.textContent = window.profileDefaults.business_name || '<%= js_t("from_placeholder") %>';
     }
   }
 
@@ -784,7 +800,7 @@
     if (clients.length === 0) {
       const empty = document.createElement('p');
       empty.className = 'text-xs text-gray-400 font-bold text-center py-3';
-      empty.textContent = window.APP_LANGUAGES.no_clients_found || '<%= j t("no_clients_found") %>';
+      empty.textContent = window.APP_LANGUAGES.no_clients_found || '<%= js_t("no_clients_found") %>';
       container.appendChild(empty);
     }
   }
@@ -813,7 +829,7 @@
     // Update display
     const display = document.getElementById('billedToFieldDisplay');
     if (display) {
-      display.textContent = '<%= j t("billed_to_placeholder") %>';
+      display.textContent = '<%= js_t("billed_to_placeholder") %>';
       display.classList.add('text-gray-300');
       display.classList.remove('text-black');
     }
@@ -821,7 +837,7 @@
     document.getElementById('editClient').value = '';
     // Update client badge in PDF modal
     const clientBadge = document.getElementById('pdfClientText');
-    if (clientBadge) clientBadge.textContent = '<%= j t("no_client") %>';
+    if (clientBadge) clientBadge.textContent = '<%= js_t("no_client") %>';
   }
 
   function saveBilledToModal() {
@@ -964,7 +980,7 @@
                         </button>
                         
                         <div id="pdfCategoryDropdown" class="pdf-selector-dropdown absolute left-0 right-0 top-full mt-2 bg-white border-2 border-black rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] max-h-60 overflow-y-auto custom-scrollbar">
-                            <button type="button" onclick="setPdfCategory('', '<%= j t('no_category') %>', '')" 
+                            <button type="button" onclick="setPdfCategory('', '<%= js_t('no_category') %>', '')" 
                                     class="w-full flex items-center gap-3 px-4 py-3 text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all border-b border-gray-100 text-gray-400">
                                 <%= t('no_category') %>
                             </button>

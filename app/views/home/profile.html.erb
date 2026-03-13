@@ -502,14 +502,14 @@
 
       if (btn) {
         btn.disabled = true;
-        text.innerText = "<%= j t('saving') %>";
+        text.innerText = "<%= js_t('saving') %>";
         spinner.classList.remove('hidden');
       }
 
       if (mobileBtn) {
         mobileBtn.disabled = true;
         mobileBtn.classList.add('opacity-70');
-        if (mobileBtnSpan) mobileBtnSpan.innerText = "<%= j t('saving') %>";
+        if (mobileBtnSpan) mobileBtnSpan.innerText = "<%= js_t('saving') %>";
       }
       
       try {
@@ -529,9 +529,9 @@
             window.trackEvent('signup_completed');
             window.isNewProfile = false;
           }
-          window.showSuccess("<%= j t('changes_saved') %>");
+          window.showSuccess("<%= js_t('changes_saved') %>");
         } else {
-          alert("<%= j t('error_saving_profile') %>");
+          alert("<%= js_t('error_saving_profile') %>");
         }
       } catch (error) {
         console.error("Save failed:", error);

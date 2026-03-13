@@ -52,7 +52,7 @@ class Profile < ApplicationRecord
       "paid" => nil
     }.freeze
 
-    CLARIFICATION_LIMITS = {
+    OPERATION_LIMITS = {
       "guest" => 3,
       "free" => 3,
       "paid" => 10
@@ -78,8 +78,8 @@ class Profile < ApplicationRecord
       ENHANCEMENT_LIMITS[plan.presence || "guest"]
     end
 
-    def clarification_limit
-      CLARIFICATION_LIMITS[plan.presence || "guest"] || 3
+    def operation_limit
+      OPERATION_LIMITS[plan.presence || "guest"] || 3
     end
 
     def guest?

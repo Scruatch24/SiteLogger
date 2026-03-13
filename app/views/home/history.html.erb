@@ -1476,29 +1476,29 @@
   }
 
   window.APP_LANGUAGES = {
-    draft: "<%= j t('draft') %>",
-    sent: "<%= j t('sent') %>",
-    paid: "<%= j t('paid') %>",
-    overdue: "<%= j t('overdue') %>",
-    file_size_limit: "<%= j t('file_size_limit') %>",
-    failed_save_changes: "<%= j t('failed_save_changes') %>",
-    error_while_saving: "<%= j t('error_while_saving') %>",
-    failed_update_status: "<%= j t('failed_update_status') %>",
-    error_updating_status: "<%= j t('error_updating_status') %>",
-    failed_update_pinning: "<%= j t('failed_update_pinning') %>",
-    an_error_occurred: "<%= j t('an_error_occurred') %>",
-    rename_label: "<%= j t('rename_label') %>",
-    done_label: "<%= j t('done_label') %>",
-    unpin_log: "<%= j t('unpin_log') %>",
-    pin_log: "<%= j t('pin_log') %>",
-    save_changes: "<%= j t('save_changes') %>",
-    overdue_for_badge: "<%= j t('overdue_for_badge', count: '%{count}') %>",
-    due_today: "<%= j t('due_today') %>",
-    due_in_days: "<%= j t('due_in_days', count: '%{count}') %>",
-    days_suffix: "<%= j t('days_suffix', count: '%{count}') %>",
-    due: "<%= j t('due') %>",
-    cancel: "<%= j t('cancel') %>",
-    loading: "<%= j t('loading', default: 'Loading') %>"
+    draft: "<%= js_t('draft') %>",
+    sent: "<%= js_t('sent') %>",
+    paid: "<%= js_t('paid') %>",
+    overdue: "<%= js_t('overdue') %>",
+    file_size_limit: "<%= js_t('file_size_limit') %>",
+    failed_save_changes: "<%= js_t('failed_save_changes') %>",
+    error_while_saving: "<%= js_t('error_while_saving') %>",
+    failed_update_status: "<%= js_t('failed_update_status') %>",
+    error_updating_status: "<%= js_t('error_updating_status') %>",
+    failed_update_pinning: "<%= js_t('failed_update_pinning') %>",
+    an_error_occurred: "<%= js_t('an_error_occurred') %>",
+    rename_label: "<%= js_t('rename_label') %>",
+    done_label: "<%= js_t('done_label') %>",
+    unpin_log: "<%= js_t('unpin_log') %>",
+    pin_log: "<%= js_t('pin_log') %>",
+    save_changes: "<%= js_t('save_changes') %>",
+    overdue_for_badge: "<%= js_t('overdue_for_badge', count: '%{count}') %>",
+    due_today: "<%= js_t('due_today') %>",
+    due_in_days: "<%= js_t('due_in_days', count: '%{count}') %>",
+    days_suffix: "<%= js_t('days_suffix', count: '%{count}') %>",
+    due: "<%= js_t('due') %>",
+    cancel: "<%= js_t('cancel') %>",
+    loading: "<%= js_t('loading', default: 'Loading') %>"
   };
 
   const pageLocale = "<%= I18n.locale %>";
@@ -2730,7 +2730,7 @@
     const modalTitle = modal.querySelector('h2');
     
     logIdInput.value = JSON.stringify(ids);
-    modalTitle.innerHTML = ids.length > 1 ? `<%= j t('bulk_manage') %>` : `<%= j t('manage') %>`;
+    modalTitle.innerHTML = ids.length > 1 ? `<%= js_t('bulk_manage') %>` : `<%= js_t('manage') %>`;
 
     // Reset client selection
     selectedManageClientId = null;
@@ -3591,7 +3591,7 @@
     if (!ensureClientManagementEnabled()) return;
     closeAllModals();
     document.getElementById('clientModalId').value = '';
-    document.getElementById('clientModalTitle').innerHTML = '<%= j t("new_client") %>';
+    document.getElementById('clientModalTitle').innerHTML = '<%= js_t("new_client") %>';
     document.getElementById('clientNameInput').value = '';
     document.getElementById('clientEmailInput').value = '';
     document.getElementById('clientPhoneInput').value = '';
@@ -3608,7 +3608,7 @@
     const data = clientDataCache[clientId];
     if (!data) return;
     document.getElementById('clientModalId').value = clientId;
-    document.getElementById('clientModalTitle').innerHTML = '<%= j t("edit_client") %>';
+    document.getElementById('clientModalTitle').innerHTML = '<%= js_t("edit_client") %>';
     document.getElementById('clientNameInput').value = data.name;
     document.getElementById('clientEmailInput').value = data.email;
     document.getElementById('clientPhoneInput').value = data.phone;
@@ -3637,7 +3637,7 @@
     const isEdit = clientId !== '';
     const btn = document.getElementById('saveClientBtn');
     btn.disabled = true;
-    btn.innerHTML = '<span class="animate-pulse"><%= j t("saving") %></span>';
+    btn.innerHTML = '<span class="animate-pulse"><%= js_t("saving") %></span>';
 
     const payload = {
       client: {
@@ -3667,14 +3667,14 @@
       } else {
         alert(res.errors ? res.errors.join(', ') : window.APP_LANGUAGES.error_while_saving);
         btn.disabled = false;
-        btn.textContent = '<%= j t("save_client") %>';
+        btn.textContent = '<%= js_t("save_client") %>';
       }
     })
     .catch(err => {
       console.error(err);
       alert(window.APP_LANGUAGES.error_while_saving);
       btn.disabled = false;
-      btn.textContent = '<%= j t("save_client") %>';
+      btn.textContent = '<%= js_t("save_client") %>';
     });
   }
 

@@ -1666,7 +1666,7 @@
           } else if (deferredPrompt) {
             // Android / Chrome Desktop with native prompt
             installBtn.style.display = 'block';
-            installBtn.textContent = isDesktop() ? "<%= j t('pwa.install_desktop') %>" : "<%= j t('pwa.install_btn') %>";
+            installBtn.textContent = isDesktop() ? "<%= js_t('pwa.install_desktop') %>" : "<%= js_t('pwa.install_btn') %>";
           } else {
             // Should not happen with new decoupled triggers, but just in case
             return;

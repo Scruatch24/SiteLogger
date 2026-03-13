@@ -33,7 +33,7 @@ class ApplicationController < ActionController::Base
       I18n.locale = I18n.default_locale
     end
 
-    # Sync session for guests
+    # Sync session for guests (always keep it up to date with I18n.locale)
     session[:system_language] = I18n.locale.to_s
   end
 

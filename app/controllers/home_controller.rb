@@ -1048,7 +1048,8 @@ class HomeController < ApplicationController
 
     # Priority: 1. URL Param, 2. Profile Transcription Lang, 3. session, 4. Profile Doc Lang, 5. Default English
     # NOTE: AI language should not be affected by UI/system language
-    doc_language = params[:language] || @profile.try(:transcription_language) || session[:transcription_language] || @profile.try(:document_language) || "en"
+    doc_language = (params[:language] || @profile.try(:transcription_language) || session[:transcription_language] || @profile.try(:document_language) || "en").to_s.downcase
+    assistant_locale = (params[:assistant_language].presence || @profile.try(:system_language).presence || session[:system_language].presence || I18n.locale.to_s).to_s.downcase
     target_is_georgian = (doc_language == "ge" || doc_language == "ka")
     target_is_russian = (doc_language == "ru")
 
@@ -1077,15 +1078,35 @@ class HomeController < ApplicationController
     # Section Labels for the generated JSON
     # IMPORTANT: Section titles should match the SYSTEM LANGUAGE (UI), NOT the Transcript Language
     # The Transcript Language only affects item names/descriptions, not category titles
-    ui_locale = I18n.locale.to_s
-    ui_is_georgian = (ui_locale == "ka" || ui_locale == "ge")
+    ui_locale = assistant_locale
     sec_labels = case ui_locale
-    when "ka"
-      { labor: "პროფესიონალური მომსახურება", products: "პროდუქტები", reimbursements: "ანაზღაურებები", fees: "მოსაკრებლები" }
+    when "ka", "ge"
+      { labor: "მომსახურებები", products: "პროდუქტები", reimbursements: "ანაზღაურებები", fees: "მოსაკრებლები" }
     when "ru"
       { labor: "Профессиональные услуги", products: "Товары", reimbursements: "Возмещения", fees: "Сборы" }
     else
-      { labor: "Labor/Service", products: "Products", reimbursements: "Reimbursements", fees: "Fees" }
+      { labor: "Services", products: "Products", reimbursements: "Reimbursements", fees: "Fees" }
+    end
+
+    ui_strings = case ui_locale
+    when "ka", "ge"
+      {
+        discount_amount: "რა ოდენობის ფასდაკლებაა?",
+        discount_options: '["ფიქსირებული", "პროცენტული"]',
+        option_lang: "Georgian"
+      }
+    when "ru"
+      {
+        discount_amount: "Какая сумма скидки?",
+        discount_options: '["Фиксированная", "Процент (%)"]',
+        option_lang: "Russian"
+      }
+    else
+      {
+        discount_amount: "What is the discount amount?",
+        discount_options: '["Fixed", "Percentage"]',
+        option_lang: "English"
+      }
     end
 
     hours_per_workday = (@profile.hours_per_workday.presence || 8).to_f
@@ -1127,16 +1148,16 @@ CORE DIRECTIVES (non-negotiable)
    - Example Input: "3 Apples" -> { "name": "Apple", "qty": 3 } (NOT { "name": "3 Apples", "qty": 1 })
    - Example Input: "Axe (x2)" -> { "name": "Axe", "qty": 2 }
 9. NUMERIC WORDS: "twelve hundred" -> 1200, "twenty-three hundred" -> 2300, "thirty-five hundred" -> 3500. Always return numbers as numeric strings or integers.
-8. CLIENT EXTRACTION: Explicitly look for introductions like "This is [Name]", "Invoice for [Name]", "Bill to [Name]".
+10. CLIENT EXTRACTION: Explicitly look for introductions like "This is [Name]", "Invoice for [Name]", "Bill to [Name]".
    - "Hello, this is Apex Roofing" -> Client: "Apex Roofing"
    - Georgian: "კლიენტი", "კლიენტია" → extract the name that follows.
    - GEORGIAN COMPANY NAMES: In Georgian, the legal form (შპს, სს, შპს-ი) comes BEFORE the quoted company name. Normalize: "ჯეო ლოჯისტიქსი" შპს → შპს "ჯეო ლოჯისტიქსი". Strip trailing periods/extra quotes. Output clean format: შპს "Company Name".
    - CLIENT CONTACT INFO: If user mentions client's phone, email, or address, include them in the output "client_phone", "client_email", "client_address" fields.
    - SENDER OVERRIDES: If user mentions changing their own business name, phone, email, address, or tax ID, include them in "sender_business_name", "sender_phone", "sender_email", "sender_address", "sender_tax_id" fields.
    - PAYMENT INSTRUCTIONS: If user mentions "bank transfer only" or "საბანკო გადარიცხვით", check if sender payment details contain bank info. If not, ask for bank details via clarification. If user provides new payment instructions, include in "sender_payment_instructions".
-9. Output STRICT JSON. No extra fields. Use null for unknown numeric values, empty arrays for absent categories.
-10. OUTPUT TONE: Use Title Case for 'desc'/'name' fields. Be extremely brief — short, impactful technical terms. No parentheses/metadata in descriptions. Put specifics into 'sub_categories'.
-11. AMBIGUOUS REDUCTIONS: If no currency or percent indicated, default to CURRENCY (flat amount). Hours with no rate → return hours, hourly_rate = null (system applies default).
+11. Output STRICT JSON. No extra fields. Use null for unknown numeric values, empty arrays for absent categories.
+12. OUTPUT TONE: Use Title Case for 'desc'/'name' fields. Be extremely brief — short, impactful technical terms. No parentheses/metadata in descriptions. Put specifics into 'sub_categories'.
+13. AMBIGUOUS REDUCTIONS: If no currency or percent indicated, default to CURRENCY (flat amount). Hours with no rate → return hours, hourly_rate = null (system applies default).
 
 ----------------------------
 EXTRACTION STRATEGY
@@ -1245,10 +1266,10 @@ DISCOUNT & CREDIT RULES
 - discount_percent ≤ 100. discount_flat ≤ item total price.
 - Same rules apply to global_discount_flat/percent and labor_discount_flat/percent.
 - DISCOUNT CLARIFICATION ORDER: When user mentions a discount but does NOT specify the amount:
-  1. FIRST ask "რა ოდენობის ფასდაკლებაა?" / "What is the discount amount?" with field: "discount_amount", type: "text". Do NOT assume percentage.
+  1. FIRST ask "რა ოდენობის ფასდაკლებაა?" / "What is the discount amount?" / "Какая сумма скидки?" with field: "discount_amount", type: "text". Do NOT assume percentage.
   2. If user gives a number WITHOUT % sign:
      - If the number is > 100 → it is ALWAYS a flat amount. Apply discount_flat directly. Do NOT ask about type.
-     - If the number is 1-100 (ambiguous range), return a clarification with field: "discount_type", type: "choice", options: #{ui_is_georgian ? '["ფიქსირებული", "პროცენტული"]' : '["Fixed", "Percentage"]'}. The frontend renders clickable buttons. ALL option values MUST be in #{ui_is_georgian ? 'Georgian' : 'English'}.
+     - If the number is 1-100 (ambiguous range), return a clarification with field: "discount_type", type: "choice", options: #{ui_strings[:discount_options]}. The frontend renders clickable buttons. ALL option values MUST be in #{ui_strings[:option_lang]}.
   3. If discount scope is ambiguous (multiple items exist and user didn't specify which), ask with field: "discount_scope", type: "multi_choice", options: [list ALL item names]. The frontend renders an accordion with an "Invoice Discount" button.
   4. If user answers "Invoice Discount" to a discount_scope question, apply as global_discount_flat or global_discount_percent. Otherwise apply per-item.
   5. NEVER ask "რომელი პროცენტით?" — always ask for amount first, then type if ambiguous, then scope if needed.
@@ -1302,7 +1323,6 @@ NEVER create clarifications about:
 - ANY value that has a number next to it, regardless of language.
 - ANY rate (hourly rate, team rate, special rate) → system has defaults.
 - Confirmation of something the user already stated (NEVER ask yes/no or true/false).
-- Confirmation of something the user already stated (NEVER ask yes/no or true/false).
 
 ████ WHEN TO ASK (ONLY these narrow cases) ████
 
@@ -1347,17 +1367,31 @@ FORMAT: { "field": "[category].[field_name]", "guess": [best_guess_value], "ques
 - For missing numbers: guess = your best numeric estimate (or 0)
 - For ambiguous notes/warranty: guess = ITEM NAME(S) the note applies to (NEVER the note text itself)
 
+#{if ui_locale == "ka" || ui_locale == "ge"
+  ex_items = '"შეკეთება", "ტელეფონი", "ქეისი"'
+  ex_q = "რა სახის შეკეთებაა?"
+  ex_add = "დაამატე X"
+  ex_desc = '"სკამის შეკეთება"'
+elsif ui_locale == "ru"
+  ex_items = '"Ремонт", "Телефон", "Чехол"'
+  ex_q = "Какой вид ремонта?"
+  ex_add = "добавь X"
+  ex_desc = '"ремонт стула"'
+else
+  ex_items = '"Repair", "Phone", "Case"'
+  ex_q = "What kind of repair is it?"
+  ex_add = "add X"
+  ex_desc = '"chair repair"'
+end}
 ITEM NAME RULE (CRITICAL):
-- Every clarification about a specific item MUST include "item_name" with the EXACT clean item name from sections (e.g., "შეკეთება", "ტელეფონი", "ქეისი").
+- Every clarification about a specific item MUST include "item_name" with the EXACT clean item name from sections (e.g., #{ex_items}).
 - "item_name" must match a section item's "desc" field EXACTLY. No question phrases, no suffixes, no wrapping.
-- The "question" field is for the QUESTION TEXT only (e.g., "რა სახის შეკეთებაა?"). NEVER embed item names inside question text as if they were the item name.
-- WRONG: { "field": "labor.price", "question": "რა ფასად გსურთ შეკეთების?" } ← no item_name, name buried in question
-- CORRECT: { "field": "labor.price", "item_name": "შეკეთება", "question": "რა ფასია?" }
-- PRODUCT vs SERVICE NAMES: If the user says "add X" / "დამატე X", treat this as a PRODUCT/PRODUCT name of just "X" (drop the helper verb). If the user describes work like "clean the phone" / "ტელეფონის გაწმენდა" / "სკამის შეკეთება", keep the action+object as the service name. NEVER prepend/helper-verb-wrap nouns with "დამატება", "add", "install" unless the verb itself is the work being sold (e.g., installation service).
+- The "question" field is for the QUESTION TEXT only (e.g., "#{ex_q}"). NEVER embed item names inside question text as if they were the item name.
+- PRODUCT vs SERVICE NAMES: If the user says "#{ex_add}", treat this as a PRODUCT/PRODUCT name of just "X" (drop the helper verb). If the user describes work like #{ex_desc}, keep the action+object as the service name. NEVER prepend/helper-verb-wrap nouns with "დამატება", "add", "install" unless the verb itself is the work being sold (e.g., installation service).
 
 6. CLIENT MATCHING AMBIGUITY (CRITICAL, NON-NEGOTIABLE):
    - You are provided with a list of "EXISTING CLIENTS" in the format "id:name".
-   - When the user mentions a client (e.g., "ინვოისი გიორგის"), you MUST resolve it against that list.
+   - When the user mentions a client (e.g., "#{(ui_locale.match?(/ka|ge/i)) ? 'ინვოისი გიორგის' : 'invoice for George'}"), you MUST resolve it against that list.
    - If the spoken/written name you extract is compatible with MORE THAN ONE entry in that list (for example:
      • user says just "გიორგი" and the list contains "6:გიორგი ბერიძე" and "11:გიორგი მელაძე", OR
      • the exact same full name string appears with multiple different IDs),
@@ -1366,7 +1400,7 @@ ITEM NAME RULE (CRITICAL):
      • Leave `client_id` as null.
      • Set `client` to exactly what the user said (e.g. "გიორგი").
      • Add a clarification object with field: "client_match", type: "client_match", and a "similar_clients" array that includes EVERY plausible match from the list (id + full name, optionally invoice counts if you know them).
-   - Example Clarification (Georgian UI): { "field": "client_match", "type": "client_match", "question": "მოიძებნა რამდენიმე მსგავსი კლიენტი. რომელს გულისხმობთ?", "similar_clients": [{"id": 6, "name": "გიორგი ბერიძე"}, {"id": 11, "name": "გიორგი მელაძე"}] }
+   - Example Clarification (#{(ui_locale.match?(/ka|ge/i)) ? 'Georgian' : 'English'} UI): { "field": "client_match", "type": "client_match", "question": "#{(ui_locale.match?(/ka|ge/i)) ? 'მოიძებნა რამდენიმე მსგავსი კლიენტი. რომელს გულისხმობთ?' : 'Found several similar clients. Which one do you mean?'}", "similar_clients": [{"id": 6, "name": "გიორგი ბერიძე"}, {"id": 11, "name": "გიორგი მელაძე"}] }
    - When the user later answers this question by voice or text (e.g. "გიორგი ბერიძე", "ბერიძე", "პირველი"), you MUST interpret their intent and PICK ONE of the previously suggested similar_clients, set `client_id` to that client's id, update `client` to the full name, and REMOVE the `client_match` clarification from your output. Use the EXISTING CLIENTS list and the names you yourself presented to resolve partial names and ordinal answers — do not call this "ambiguous" again if a clear choice can be inferred.
    - It is always better to ask than to be wrong. ONLY when there is exactly one clear match in the list (one unique compatible name) may you assign `client_id` directly without a clarification.
    - Violating this rule (by silently picking one of multiple possible Giorgis BEFORE the user answers, or by ignoring a clear follow-up answer) is considered an incorrect output.
@@ -1385,8 +1419,12 @@ SAFETY RULES:
 - When multiple items need prices/qty/hours, RETURN A SINGLE `item_input_list` that lists ALL those items together, even if some values are missing. Leave missing values blank/0 as guesses inside that same card. Do NOT split into separate text clarifications when the item is already identified.
 
 CLARIFICATION LANGUAGE (NON-NEGOTIABLE):
-#{ui_is_georgian ? '- You MUST write ALL clarification question text in Georgian (ქართული). Every single "question" value MUST be in Georgian.' : '- You MUST write ALL clarification question text in English.'}
-- If locale is Georgian, ALL options/labels/guesses you emit must stay in Georgian—avoid English fallbacks.
+#{if ui_locale == "ka" || ui_locale == "ge" || ui_locale == "ru"
+    lang_name = (ui_locale == "ru") ? "Russian" : "Georgian"
+    "- You MUST write ALL clarification question text in #{lang_name}. Every single \"question\" value MUST be in #{lang_name}.\n- If locale is #{lang_name}, ALL options/labels/guesses you emit must stay in #{lang_name}—avoid English fallbacks."
+  else
+    "- You MUST write ALL clarification question text in English. All replies and questions MUST be in English. NEVER output Georgian or Russian text in UI fields."
+  end}
 
 ADDITIONAL RULES:
 - Prioritize the most impactful clarifications. You may add "type": "info" clarifications to tell the user about your assumptions.
@@ -1543,7 +1581,8 @@ PROMPT
         model: gemini_model,
         prompt_parts: prompt_parts,
         cached_instruction_name: (use_cached_instruction ? cached_instruction_name : nil),
-        thinking_budget: thinking_budget
+        thinking_budget: thinking_budget,
+        response_mime_type: "application/json"
       )
 
 
@@ -1560,7 +1599,8 @@ PROMPT
           model: gemini_model,
           prompt_parts: fallback_parts,
           cached_instruction_name: nil,
-          thinking_budget: thinking_budget
+          thinking_budget: thinking_budget,
+          response_mime_type: "application/json"
         )
       end
 
@@ -1599,18 +1639,24 @@ PROMPT
 
       Rails.logger.info "AI RAW RESPONSE (#{gemini_model}): #{raw}"
 
-      # More robust JSON extraction to handle preamble or "thinking" blocks
-      json_match = raw.match(/\{[\s\S]*\}/m)
-      if json_match
-        begin
-          json = JSON.parse(json_match[0])
-        rescue => e
-          Rails.logger.error "AI JSON PARSE ERROR (#{gemini_model}): #{e.message}. Raw: #{raw}"
-          ai_log[:error] = "json_parse: #{e.message}"
+      # With response_mime_type: "application/json", output should be clean JSON.
+      # Try direct parse first, fall back to regex extraction for edge cases.
+      begin
+        json = JSON.parse(raw)
+      rescue => e
+        Rails.logger.warn "AI DIRECT JSON PARSE FAILED (#{gemini_model}): #{e.message}, trying regex extraction"
+        json_match = raw.match(/\{[\s\S]*\}/m)
+        if json_match
+          begin
+            json = JSON.parse(json_match[0])
+          rescue => e2
+            Rails.logger.error "AI JSON REGEX PARSE ERROR (#{gemini_model}): #{e2.message}. Raw: #{raw}"
+            ai_log[:error] = "json_parse: #{e2.message}"
+          end
+        else
+          Rails.logger.error "AI NO JSON FOUND IN RAW (#{gemini_model}): #{raw}"
+          ai_log[:error] = "no_json_in_raw"
         end
-      else
-        Rails.logger.error "AI NO JSON FOUND IN RAW (#{gemini_model}): #{raw}"
-        ai_log[:error] = "no_json_in_raw"
       end
 
       unless json
@@ -2042,7 +2088,7 @@ PROMPT
       ai_log[:items_after_section_build] = snapshot_items_for_log(json)
 
       # ── Auto-upgrade clarifications: merge prices+qty, fix discount, convert tax ──
-      auto_upgrade_clarifications!(json, (params[:language] || doc_language).to_s)
+      auto_upgrade_clarifications!(json, assistant_locale)
 
       # ── Client Matching Post-Processing (paid users only) ──
       recipient_info = nil
@@ -2070,7 +2116,13 @@ PROMPT
           json["client"] = exact_match.name
           # Show client info card so user sees who was matched
           invoice_count = exact_match.logs.kept.count
-          confirm_q = I18n.locale.to_s == "ka" ? "დავაყენე ქვემოთმოცემული კლიენტი თქვენი კლიენტთა სიიდან:" : "Matched client from your list:"
+          confirm_q = if assistant_locale.match?(/ka|ge/i)
+                        "დავაყენე ქვემოთმოცემული კლიენტი თქვენი კლიენტთა სიიდან:"
+                      elsif assistant_locale.match?(/ru/i)
+                        "Выбран клиент из вашего списка:"
+                      else
+                        "Matched client from your list:"
+                      end
           json["clarifications"] ||= []
           json["clarifications"] << {
             "field" => "client_confirm_existing", "type" => "client_info_card", "question" => confirm_q,
@@ -2383,22 +2435,81 @@ PROMPT
 
     return render json: { error: t("input_too_short", default: "Input too short.") }, status: :unprocessable_entity if user_message.length < 2
     doc_language = (params[:language] || @profile.try(:transcription_language) || session[:transcription_language] || @profile.try(:document_language) || "en").to_s.downcase
-    assistant_locale = (params[:assistant_language].presence || @profile.try(:system_language).presence || I18n.locale.to_s).to_s.downcase
-    target_is_georgian = (doc_language == "ge" || doc_language == "ka")
-    ui_is_georgian = (assistant_locale == "ge" || assistant_locale == "ka")
+    assistant_locale = (params[:assistant_language].presence || @profile.try(:system_language).presence || session[:system_language].presence || I18n.locale.to_s).to_s.downcase
     today_for_prompt = Date.today.strftime("%b %d, %Y")
 
-    lang_rule = if target_is_georgian
-      "ALL text values (desc, name, reason, sub_categories) MUST be in Georgian (ქართული). JSON keys and section type values stay in English."
+    doc_lang_name = case doc_language
+                    when "ge", "ka" then "Georgian"
+                    when "ru" then "Russian"
+                    else "English"
+                    end
+
+    question_lang = case assistant_locale
+                    when "ge", "ka" then "Georgian"
+                    when "ru" then "Russian"
+                    else "English"
+                    end
+
+    lang_rule = case doc_lang_name
+                when "Georgian"
+                  "ALL text values (desc, name, reason, sub_categories) MUST be in Georgian (ქართული). JSON keys and section type values stay in English."
+                when "Russian"
+                  "ALL text values (desc, name, reason, sub_categories) MUST be in Russian (Русский). JSON keys and section type values stay in English."
+                else
+                  "ALL text values (desc, name, reason, sub_categories) MUST be in English. Translate text to English if needed. JSON keys and section type values stay in English."
+                end
+
+    assistant_reply_rule = "ASSISTANT LANGUAGE (NON-NEGOTIABLE): The \"reply\" field, EVERY clarification \"question\", and ALL widget option labels MUST be written fully in #{question_lang}. Do not leak English words, labels, or mixed-language phrasing."
+    if question_lang != "English"
+      assistant_reply_rule += "\nEven if the user writes in English or another language, your replies, questions, and widget labels MUST ALWAYS be in #{question_lang}."
     else
-      "ALL text values (desc, name, reason, sub_categories) MUST be in English. Translate Georgian text to English if needed. JSON keys and section type values stay in English."
+      assistant_reply_rule += "\nEven if the user writes in Georgian/Russian or the invoice data contains other languages, your replies, questions, and widget labels MUST ALWAYS be in English. NEVER output Georgian/Russian text in reply, question, or option fields."
     end
 
-    question_lang = ui_is_georgian ? "Georgian (ქართული)" : "English"
-    assistant_reply_rule = if ui_is_georgian
-      'ASSISTANT LANGUAGE (NON-NEGOTIABLE): The "reply" field and EVERY clarification "question" MUST be written fully in Georgian (ქართული). Do not leak English words, labels, or mixed-language phrasing when the assistant language is Georgian.'
+
+    ui_strings = case question_lang
+    when "Georgian"
+      {
+        sections: '"მომსახურებები", "პროდუქტები", "ანაზღაურებები", "მოსაკრებლები"',
+        discount_amount: "რა ოდენობის ფასდაკლება?",
+        add_items_first: "ჯერ ნივთები დაამატეთ.",
+        set_tax_rates: "დააყენეთ საგადასახადო განაკვეთები:",
+        pick_a_date: "აირჩიეთ თარიღი:",
+        client_details: "რა დეტალების დამატება გსურთ?",
+        select_a_client: "აირჩიეთ კლიენტი:",
+        price_label: "ფასი",
+        discount_type_options: '["პროცენტი (%)", "ფიქსირებული (₾)"]',
+        anything_else: "სხვა რამის შეცვლა გსურთ?",
+        which_one: "რომელი?"
+      }
+    when "Russian"
+      {
+        sections: '"Услуги", "Товары", "Возмещения", "Сборы"',
+        discount_amount: "Какая сумма скидки?",
+        add_items_first: "Сначала добавьте товары.",
+        set_tax_rates: "Установите налоговые ставки:",
+        pick_a_date: "Выберите дату:",
+        client_details: "Какие детали вы хотели бы добавить?",
+        select_a_client: "Выберите клиента:",
+        price_label: "Цена",
+        discount_type_options: '["Процент (%)", "Фиксированная сумма"]',
+        anything_else: "Хотите изменить что-то еще?",
+        which_one: "Какой именно?"
+      }
     else
-      'ASSISTANT LANGUAGE (NON-NEGOTIABLE): The "reply" field and EVERY clarification "question" MUST be written fully in English. Do not switch into Georgian unless the system language is Georgian.'
+      {
+        sections: '"Services", "Products", "Reimbursements", "Fees"',
+        discount_amount: "What discount amount?",
+        add_items_first: "Add items first.",
+        set_tax_rates: "Set tax rates:",
+        pick_a_date: "Pick a date:",
+        client_details: "What details would you like to add?",
+        select_a_client: "Select a client:",
+        price_label: "Price",
+        discount_type_options: '["Percentage (%)", "Fixed amount"]',
+        anything_else: "Anything else to change?",
+        which_one: "Which one?"
+      }
     end
     conversation_history = params[:conversation_history].to_s
 
@@ -2425,9 +2536,9 @@ PROMPT
     user_plan = @profile.plan.presence || "guest"
     unless @profile.paid?
       plan_features = if user_plan == "guest"
-        "Guest user (not signed in). Limits: #{@profile.char_limit} char transcript, #{@profile.audio_limit}s audio, #{@profile.export_limit} PDF exports/day, #{@profile.clarification_limit} AI questions per invoice. NO client list, NO custom invoice styles, NO logo upload, NO saved history. Must sign up (free) to save invoices."
+        "Guest user (not signed in). Limits: #{@profile.char_limit} char transcript, #{@profile.audio_limit}s audio, #{@profile.export_limit} PDF exports/day, #{@profile.operation_limit} AI operations per invoice. NO client list, NO custom invoice styles, NO logo upload, NO saved history. Must sign up (free) to save invoices."
       else
-        "Free plan user. Limits: #{@profile.char_limit} char transcript, #{@profile.audio_limit}s audio, #{@profile.export_limit} PDF exports/day, #{@profile.clarification_limit} AI questions per invoice. Client management is available. NO custom invoice styles (classic only), NO logo upload. Upgrade to Pro for unlimited exports, 5min audio, 10K chars, custom styles, and logo upload."
+        "Free plan user. Limits: #{@profile.char_limit} char transcript, #{@profile.audio_limit}s audio, #{@profile.export_limit} PDF exports/day, #{@profile.operation_limit} AI operations per invoice. Client management is available. NO custom invoice styles (classic only), NO logo upload. Upgrade to Pro for unlimited exports, 5min audio, 10K chars, custom styles, and logo upload."
       end
       plan_context = "\nUSER PLAN: #{plan_features}\nIf user asks about a feature they don't have access to, politely explain the limitation and suggest upgrading."
     end
@@ -2447,7 +2558,7 @@ PROMPT
       DO NOT invent new section types or titles. Only these 4 types exist: labor, products, reimbursements, fees.
       NOTE: Materials ("მასალები") and "Products" ("პროდუქტები") are the same. Put them in "products", and if user refers to "materials", they mean the items in the "products" section.
       NOTE: Expenses ("ხარჯები") and "Reimbursements" ("ანაზღაურებები") are the same. Put them in "reimbursements", and if user refers to "expenses", they mean the items in the "reimbursements" section.
-      Title must match the current system language equivalents: #{ui_is_georgian ? '"მომსახურებები", "პროდუქტები", "ანაზღაურებები", "მოსაკრებლები"' : '"Services", "Products", "Reimbursements", "Fees"'}. Reuse the existing section titles from the input JSON; never output custom or mixed-case variants.
+      Title must match the current system language equivalents: #{ui_strings[:sections]}. Reuse the existing section titles from the input JSON; never output custom or mixed-case variants.
       If user says an item/section should be untaxed ("no tax", "don’t tax", "tax off", "არ დაბეგრო"), set that item's taxable=false AND tax_rate=0, for any section (labor/products/reimbursements/fees). ALSO update the top-level "tax_scope" to remove that category (e.g., if user says "don't tax products", remove "product" from tax_scope). Do not reapply defaults.
       ALWAYS apply the user's no-tax instruction to EVERY mentioned item/section. Keep other sections' tax as-is unless the user mentions them.
 
@@ -2468,154 +2579,130 @@ PROMPT
       Top-level: client, date, due_date, global_discount_flat, global_discount_percent, tax_scope, credits: [{amount, reason}], reply, clarifications: []
 
       ═══ EXAMPLES ═══
+      IMPORTANT: All example replies and widget questions below are in #{question_lang}.
+      Your output MUST follow this same language.
 
-      1) ADD ITEMS WITH QUANTITY
+#{if question_lang == "Georgian"
+<<~KA
+      1) ADD ITEMS: User: "დაამატე 3 ვიდეო თვალი"
+      → {desc: "ვიდეო თვალი", qty: 3, price: null} → reply: "დავამატე ვიდეო თვალი (3 ცალი)."
+
+      2) REMOVE TAX: User: "ქეისსაც მოაშორე დაბეგვრა"
+      → taxable: false, tax_rate: 0 → reply: "ქეისს დაბეგვრა მოვაშორე."
+
+      3) DISCOUNT CLARIFICATION: User: "ფასდაკლება გაუკეთე 43"
+      → clarifications: [{"field": "discount_type", "question": "43 პროცენტია თუ ფიქსირებული?", "options": ["პროცენტი (%)", "ფიქსირებული (₾)"], "item_name": "..."}]
+      → reply: "ფასდაკლების ტიპი დავაზუსტოთ."
+
+      4) COMPLETED → reply: "82% დავადე ყველაფერზე. სხვა რამის შეცვლა გსურთ?"
+
+      5) CONVERSATIONAL: User: "სად გაქრი?" → reply: "აქ ვარ! რა შევცვალო ინვოისში?"
+KA
+elsif question_lang == "Russian"
+<<~RU
+      1) ADD ITEMS: User: "Добавь 3 камеры"
+      → {desc: "Камера", qty: 3, price: null} → reply: "Добавил Камеру (3 шт)."
+
+      2) REMOVE TAX: User: "Убери налог с кейса"
+      → taxable: false, tax_rate: 0 → reply: "Убрал налог с кейса."
+
+      3) DISCOUNT CLARIFICATION: User: "Сделай скидку 43"
+      → clarifications: [{"field": "discount_type", "question": "43 это процент или фиксированная сумма?", "options": ["Процент (%)", "Фиксированная сумма"], "item_name": "..."}]
+      → reply: "Давайте уточним тип скидки."
+
+      4) COMPLETED → reply: "Применил 82% ко всему. Хотите изменить что-то еще?"
+
+      5) CONVERSATIONAL: User: "Куда пропал?" → reply: "Я здесь! Что изменить в инвойсе?"
+RU
+else
+<<~EN
+      1) ADD ITEMS: User: "Add 3 cameras and 5 chocolates"
+      → {desc: "Camera", qty: 3, price: null}, {desc: "Chocolate", qty: 5, price: null}
+      → reply: "Added Camera (x3) and Chocolate (x5)."
+
+      1b) ADD ITEMS (Georgian input, English reply):
       User: "დაამატე 3 ვიდეო თვალი და 5 შოკოლადი"
-      → products: {desc: "ვიდეო თვალი", qty: 3, price: null}, {desc: "შოკოლადი", qty: 5, price: null}
-      → reply: "დავამატე ვიდეო თვალი (3 ცალი) და შოკოლადი (5 ცალი)."
-      Note: "3" before item = QUANTITY, not tax rate.
+      → {desc: "ვიდეო თვალი", qty: 3, price: null}, {desc: "შოკოლადი", qty: 5, price: null}
+      → reply: "Added ვიდეო თვალი (x3) and შოკოლადი (x5)."
+      NOTE: Reply is ENGLISH even though user typed in Georgian! Item names stay in their original language in data fields.
 
-      2) REMOVE TAX FROM SPECIFIC ITEM
-      User: "ქეისსაც მოაშორე დაბეგვრა"
-      → ქეისი item: taxable: false, tax_rate: 0
-      → reply: "ქეისს დაბეგვრა მოვაშორე."
+      2) REMOVE TAX: User: "ქეისსაც მოაშორე დაბეგვრა"
+      → taxable: false, tax_rate: 0 → reply: "Removed tax from ქეისი."
 
-      2b) REMOVE TAX FROM PRODUCTS (ALL)
-      User: "Don’t tax the products"
-      → Every item in products: taxable:false, tax_rate:0. Services keep their tax settings.
-      → reply: "ყველა პროდუქტს საგადასახადო ვადა მოვხსენი." / "Removed tax from all products."
+      3) DISCOUNT CLARIFICATION: User: "Add a discount of 43"
+      → clarifications: [{"field": "discount_type", "question": "Is 43 a percentage or fixed amount?", "options": ["Percentage (%)", "Fixed amount"], "item_name": "..."}]
+      → reply: "Let's clarify the discount type."
 
-      2c) REMOVE TAX FROM FEES
-      User: "dont set tax for fees"
-      → Every item in fees: taxable:false, tax_rate:0.
-      → reply: "მოსაკრებლებს საგადასახადო ვადა მოვხსენი." / "Removed tax from all fees."
+      3b) DISCOUNT (Georgian input, English widget):
+      User: "ფასდაკლება გაუკეთე ორმოცდასამი"
+      → clarifications: [{"field": "discount_type", "question": "Is 43 a percentage or fixed amount?", "options": ["Percentage (%)", "Fixed amount"], "item_name": "..."}]
+      → reply: "Let's clarify the discount type."
+      NOTE: Question and options are ENGLISH even though user spoke Georgian!
 
-      3) SET TAX RATE ON ALL EXCEPT ONE
-      User: "82% ყველაფერზე გარდა ქეისისა"
-      → All items EXCEPT ქეისი: taxable: true, tax_rate: 82. ქეისი unchanged.
-      → reply: "82% დავადე ყველაფერზე, ქეისის გარდა."
+      4) COMPLETED → reply: "Applied 82% tax to everything. Anything else to change?"
 
-      4) ADD ITEM WITH PER-ITEM DISCOUNT
-      User: "დაამატე ვიდეოთვალი და ფასდაკლება გაუკეთე ორმოცდასამი"
-      → Add ვიდეოთვალი to products. Set discount on THE NEW ITEM, NOT globally.
-      → But is 43 a percent or flat amount? ASK via clarification:
-      → clarifications: [{"field": "discount_type", "question": "43 პროცენტია თუ ფიქსირებული?", "options": ["პროცენტი (%)", "ფიქსირებული (₾)"], "item_name": "ვიდეოთვალი"}]
-      → reply: "ვიდეოთვალი დავამატე. ფასდაკლების ტიპი დავაზუსტოთ."
+      5) CONVERSATIONAL: User: "სად გაქრი?" → reply: "I'm here! What would you like to change?"
+      NOTE: Georgian question gets ENGLISH reply!
 
-      5) GLOBAL DISCOUNT (explicitly says "ყველაფერზე" / "everything" / no specific item)
-      User: "ყველაფერზე ფასდაკლება ქენი 50 პროცენტი"
-      → global_discount_percent: 50
-      → reply: "50% ფასდაკლება ყველაფერზე."
-
-      6) BATCH ANSWERS — apply ALL answers directly
-      User: [AI asked: "შეავსეთ ფასები:" → User answered: "ხუთასი ქენი"]
-      → The item with null price → price: 500. Apply it!
-      → reply: "ფასი 500 დავაყენე."
-
-      User: [AI asked: "Fill in details:" → User answered: "ქეისი აღარ, შეკეთება 5 საათი 300 ლარი, ტელეფონი 5 ცალი 200 ლარი"]
-      → Remove ქეისი. შეკეთება: hours:5, rate:300, price:1500. ტელეფონი: qty:5, price:200.
-      → reply: "ქეისი წავშალე. შეკეთება: 5სთ, 300₾/სთ. ტელეფონი: 5ც, 200₾."
-
-      7) MOVE DISCOUNT BETWEEN ITEMS
-      User: "ეგ ფასდაკლება გადაიტანე ტელეფონზე და შეკეთებას მოაცილე"
-      → შეკეთება: discount_percent: null. ტელეფონი: discount_percent: 32 (copied from შეკეთება).
-      → reply: "32% ფასდაკლება ტელეფონზე გადავიტანე."
-
-      8) DELETE ITEM
-      User: "წაშალე ტელეფონი"
-      → Remove ტელეფონი. If section empty, remove section.
-      → reply: "ტელეფონი წავშალე."
-
-      9) RESTORE DELETED ITEM (use conversation history)
-      User: "დააბრუნე" / "undo" / "bring it back"
-      → Look in RECENT CONVERSATION for the item that was deleted/changed. Re-add it with its previous values.
-      → reply: "ტელეფონი დავაბრუნე (5 ცალი, 200₾)."
-
-      10) SWAP VALUES BETWEEN ITEMS
-      User: "ფასი, რაოდენობა, ფასდაკლება და დაბეგვრა ადგილებით შეუცვალე X-სა და Y-ს"
-      → Swap price, qty, discount, tax_rate between X and Y.
-      → reply: "X-სა და Y-ს მნიშვნელობები ადგილებით შევუცვალე."
-
-      11) CONVERSATIONAL MESSAGES (not invoice changes)
-      User: "სად გაქრი?" / "რატომ იკარგები?" / "პასუხი მომეცი"
-      → Return JSON UNCHANGED.
-      → reply: "აქ ვარ! რა შევცვალო ინვოისში?"
-
-      User: "მანახე კლიენტთა სია" / "show me my clients"
-      → Return JSON UNCHANGED. The EXISTING CLIENTS list is in the prompt — list them.
-      → reply: "თქვენი კლიენტები: [list from prompt context]"
-
-      12) DATES
-      User: "ბოლო ვადა ხვალინდელზე"
-      → due_date: tomorrow. Format "MMM DD, YYYY".
-      → reply: "ბოლო ვადა: Mar 02, 2026."
-
-      13) PRICES WITH GEORGIAN WORD NUMBERS
-      User: "ტელეფონი ორმოცი, ქეისი სამოცდასამი, შეკეთება სამი საათი ხუთას ორმოცი"
-      → ტელეფონი price: 40, ქეისი price: 63, შეკეთება hours: 3, rate: 540, price: 1620
-      RULE: "X საათი Y ლარი/ლარზე" = hours:X, rate:Y (per hour), price:X*Y.
-      The number after საათი is the HOURLY RATE, not the total. price = hours × rate.
+      6) BATCH ANSWER: User: [AI asked: "Fill in prices:" → User answered: "ხუთასი"]
+      → price: 500 → reply: "Set price to 500."
+EN
+end}
+      ═══ UNDERSTANDING MULTILINGUAL INPUT ═══
+      You MUST understand Georgian and Russian text even when system language is #{question_lang}.
       Georgian numbers: ორმოცი=40, ორმოცდასამი=43, სამოცდასამი=63, ოთხმოცდაორი=82, ხუთასი=500, ხუთას ორმოცი=540, ორასი=200, ორას ოცდაორი=222, სამასი=300.
-      → reply: "ტელეფონი: 40₾, ქეისი: 63₾, შეკეთება: 3სთ × 540₾ = 1620₾."
-
-      14) DISCOUNT WITH EXPLICIT TYPE
-      User: "ტელეფონი ორას ოცდაორი ლარი ფასდაკლება" → discount_flat: 222
-      User: "ტელეფონი ორმოცი პროცენტი ფასდაკლება" → discount_percent: 40
-      When user says "ლარი" = flat. When user says "პროცენტი" / "%" = percent.
-      When NEITHER is specified → GUESS: if number ≤ 50 assume PERCENT, if > 50 assume FLAT (₾). APPLY the guess immediately and tell user what you did. Do NOT add a clarification widget — let the user correct you naturally if the guess was wrong.
+      Georgian commands: "დამატე"=add, "წაშალე"=delete, "შეცვალე"=change, "მოაშორე"=remove, "დაბეგვრა"=tax, "ფასდაკლება"=discount.
+      RULE: "X საათი Y ლარი" = hours:X, rate:Y (per hour), price:X*Y.
+      When user says "ლარი" for discount = flat. When user says "პროცენტი"/"%"= percent.
+      When NEITHER specified: if number <= 50 assume PERCENT, if > 50 assume FLAT. APPLY immediately.
+      NOTE: Materials ("მასალები") = "Products". Expenses ("ხარჯები") = "Reimbursements".
 
       ═══ SMART WIDGETS (clarifications) ═══
-      When the user triggers a generic action, return the appropriate clarification widget in the "clarifications" array.
-      The frontend renders these widgets automatically. You MUST use the exact field/type values below.
+      Return widgets in the "clarifications" array. ALL question text and option labels MUST be in #{question_lang}.
 
-      ACTION CHIPS → WIDGET TRIGGERS:
-      • "დამატება" / "Add item" → reply: ask what to add (e.g. "რა გსურთ დაამატოთ?"). No widget needed — just ask naturally.
-      • "წაშლა" / "Remove item" → type: "multi_choice", field: "remove_items", options: [list of ALL current item names from sections].
-      • "ფასდაკლება" / "Discount":
-          - If >1 item in invoice → type: "multi_choice", field: "discount_scope", options: [all item names].
-          - If 1 item → type: "text", field: "discount_amount", question: "რა ოდენობის ფასდაკლება?" / "What discount amount?"
-          - If 0 items → reply: "ჯერ ნივთები დაამატეთ." / "Add items first." No widget.
-      • "გადასახადის მართვა" / "Manage Tax" → type: "tax_management", field: "tax_rate", question: "დააყენეთ საგადასახადო განაკვეთები:" / "Set tax rates:"
-      • "თარიღის მართვა" / "Change/Manage Date" → type: "date_picker", field: "date_picker", question: "აირჩიეთ თარიღი:" / "Pick a date:"
-      • "კლიენტის შეცვლა" / "Change Client" → reply: ask who the new client is (e.g. "ვინ არის ახალი კლიენტი?"). When user provides a name, SET client field in JSON. Backend handles matching automatically.
-      • Client details (email/phone/address) → When user ASKS to add details (e.g. "ნიკას დაუმატე დეტალები"): return type: "client_details", field: "client_details", question: "რა დეტალების დამატება გსურთ?". When user PROVIDES details (e.g. "მეილი test@ge"), update recipient_info: {email: "..."} directly. Handle ALL provided fields in one response.
-      • "კლიენტების სია" / "Show clients" → type: "client_list", field: "client_browse", question: "აირჩიეთ კლიენტი:". Backend will populate the clients list automatically.
+      ACTION CHIPS:
+      • Add item: reply asking what to add. No widget.
+      • Remove item: type: "multi_choice", field: "remove_items", options: [item names].
+      • Discount:
+          - >1 item: type: "multi_choice", field: "discount_scope", options: [item names].
+          - 1 item: type: "text", field: "discount_amount", question: "#{ui_strings[:discount_amount]}"
+          - 0 items: reply: "#{ui_strings[:add_items_first]}" No widget.
+      • Manage Tax: type: "tax_management", field: "tax_rate", question: "#{ui_strings[:set_tax_rates]}"
+      • Change Date: type: "date_picker", field: "date_picker", question: "#{ui_strings[:pick_a_date]}"
+      • Change Client: reply asking who the new client is. Backend handles matching.
+      • Client details: type: "client_details", field: "client_details", question: "#{ui_strings[:client_details]}"
+      • Show clients: type: "client_list", field: "client_browse", question: "#{ui_strings[:select_a_client]}"
 
-      AUTOMATIC WIDGETS (generate when appropriate):
-      • New items without prices → type: "item_input_list", field: "item_prices", items: [{name, category, inputs: [{key:"price",label,type:"number"}]}]
-      • Vague item name (e.g. "შეკეთება", "სერვისი") → type: "text", field: "item_description", question: "რა სახის [name]?"
-      • Discount amount ambiguous (% vs ₾) → field: "discount_type", options: ["პროცენტი (%)", "ფიქსირებული (₾)"], item_name: "..."
+      AUTOMATIC WIDGETS:
+      • Items without prices: type: "item_input_list", field: "item_prices", items: [{name, category, inputs: [{key:"price", label:"#{ui_strings[:price_label]}", type:"number"}]}]
+      • Discount type ambiguous: field: "discount_type", options: #{ui_strings[:discount_type_options]}
 
       ═══ VOICE-FIRST PRINCIPLE ═══
-      Widgets are OPTIONAL UI helpers. Users have 3 ways to interact: (1) use the widget, (2) type text, (3) speak by voice.
-      • When you present a widget, briefly hint that the user can also type or speak instead. Example: "...ან უბრალოდ მითხარით ტექსტით ან ხმით." Keep it SHORT — one phrase, not a paragraph.
-      • You MUST always accept a natural language answer to your own pending question.
-      • If user gives a text/voice answer that overrides/bypasses a widget → apply it directly, do NOT re-ask via widget.
-      • If user changes topic mid-widget (e.g. "Actually, just delete the axe") → handle the new request, drop the old widget context.
-      • Complex batch commands (e.g. "Add hammer, price 50, 10% discount, no tax") → handle ALL parts in one response with NO widgets.
+      Widgets are OPTIONAL. Users can also type or speak.
+      • Briefly hint they can type/speak instead. Keep it SHORT.
+      • Always accept natural language answers to pending questions.
+      • If user gives text/voice that overrides a widget, apply directly.
+      • If user changes topic mid-widget, handle the new request.
+      • Complex batch commands: handle ALL parts in one response, NO widgets.
 
       ═══ KEY PRINCIPLES ═══
-      • ALWAYS include "reply" — a short friendly message about what you did.
-      • REPLY ENDING RULE: If you COMPLETED the user's request (e.g. applied discount, changed tax, deleted item), END your reply with "სხვა რამის შეცვლა გსურთ?" or equivalent. If you are ASKING a follow-up question (e.g. "what price?" or "fill in prices"), do NOT add "anything else?" — just ask your question.
-      • Modify ONLY what's requested. Preserve everything else exactly.
-      • Numbers before item names = QUANTITIES (qty). Tax rates need "%", "დღგ", or "დაბეგვრა".
-      • Tax is a COMMAND — apply directly, never ask. 0% = taxable:false, tax_rate:0.
-      • CRITICAL TAX RULE: taxable:false MUST always have tax_rate:0 (NEVER null/empty). taxable:true MUST always have a numeric tax_rate.
-      • "არ დაბეგრო" / "მოაშორე დაბეგვრა" / "don't tax" = taxable:false, tax_rate:0 on the target item(s).
-      • INTEGRITY RULE: If your reply says you changed something, the JSON MUST reflect that change. NEVER say "I applied 10% tax" if the item's tax_rate is still 0. Lying in the reply is FORBIDDEN.
-      • When user says "X-ს და Y-ს Z და W დღგ გაუკეთე" → apply Z% to X AND W% to Y. Match numbers to items IN ORDER.
-      • HOURLY RATE RULE: "X საათი Y ლარი" = hours:X, rate:Y, price:X*Y. Y is the RATE per hour, NOT the total.
-      • Discount: if user says "X ფასდაკლება" for a SPECIFIC ITEM → apply to THAT item, NOT globally.
-      • Discount: if user doesn't specify % or ₾ → GUESS best type (≤50 = %, >50 = ₾), APPLY it. No widget needed — user can correct via voice.
-      • Products price = per-unit. qty:5, price:50 = 50 each.
-      • New items without price → price: null (backend makes a price widget).
-      • Client names — when user sets a client, look at the EXISTING CLIENTS list. If there is an EXACT UNIQUE match, set `client_id` and `client`. If there are MULTIPLE matches (e.g. user says "გიორგი" and there is "გიორგი ბერიძე" and "გიორგი მაისურაძე"), DO NOT guess. Leave `client_id` empty, set `client` to the ambiguous name, and return a clarification: type: "multi_choice", field: "client_match", question: "რომელი [name]?", options: [list of matching full names].
-      • When user asks to see/list clients → return JSON UNCHANGED + reply with a short acknowledgment. Backend generates a client selection widget. Do NOT list client IDs or names in reply.
-      • GEORGIAN LANGUAGE: NEVER use "ელემენტები", "პოზიციები", or "ნივთი" in replies. Use "პუნქტი" / "პუნქტები" as the generic term for invoice items, or use item names directly.
-      • When user says "დააბრუნე"/"undo" → check conversation history for what was changed and reverse it.
-      • [AI asked: ...] messages: ALWAYS apply the answer. Never ignore, never re-ask.
+      • ALWAYS include "reply" in #{question_lang}.
+      • REPLY ENDING: If COMPLETED, end with "#{ui_strings[:anything_else]}". If ASKING a follow-up, just ask.
+      • Modify ONLY what's requested. Preserve everything else.
+      • Numbers before items = QUANTITIES. Tax needs "%", "დღგ", or "დაბეგვრა".
+      • Tax is a COMMAND — apply directly. 0% = taxable:false, tax_rate:0.
+      • CRITICAL: taxable:false MUST have tax_rate:0 (NEVER null). taxable:true MUST have numeric tax_rate.
+      • INTEGRITY: If reply says you changed something, JSON MUST reflect it. Lying is FORBIDDEN.
+      • HOURLY RATE: "X საათი Y ლარი" = hours:X, rate:Y, price:X*Y.
+      • Discount on specific item → item-level, NOT global.
+      • Discount without type: GUESS (<=50 = %, >50 = flat), APPLY immediately.
+      • Products price = per-unit.
+      • New items without price → price: null.
+      • Client matching: EXACT UNIQUE → set client_id. MULTIPLE matches → clarification: type: "multi_choice", field: "client_match", question: "#{ui_strings[:which_one]}", options: [names].
+      • Show clients → JSON UNCHANGED, backend generates widget.
+      • "დააბრუნე"/"undo" → check history and reverse.
+      • [AI asked: ...] messages: ALWAYS apply the answer.
       • Keep raw_summary unchanged.
-      • If genuinely confused, return JSON UNCHANGED + reply explaining.
     SYSINSTRUCTION
 
     # Dynamic content (changes every request) — trim conversation history to last 5 exchanges
@@ -2745,8 +2832,11 @@ PROMPT
       result["clarifications"] = Array(result["clarifications"]).select { |c| c.is_a?(Hash) && c["question"].present? }
 
       # ── Enforce canonical section types/titles and string keys ──
-      canonical_titles = if ui_is_georgian
+      canonical_titles = case question_lang
+      when "Georgian"
         { "labor" => "მომსახურებები", "products" => "პროდუქტები", "reimbursements" => "ანაზღაურებები", "fees" => "მოსაკრებლები" }
+      when "Russian"
+        { "labor" => "Профессиональные услуги", "products" => "Товары", "reimbursements" => "Возмещения", "fees" => "Сборы" }
       else
         { "labor" => "Services", "products" => "Products", "reimbursements" => "Reimbursements", "fees" => "Fees" }
       end
@@ -2839,7 +2929,7 @@ PROMPT
       ai_log[:items_after_ai] = snapshot_items_for_log(result)
 
       # ── Auto-upgrade clarifications: merge prices+qty, fix discount, convert tax ──
-      auto_upgrade_clarifications!(result, params[:language].to_s)
+      auto_upgrade_clarifications!(result, assistant_locale)
 
       # ── AI-First: Gemini now generates all clarifications via SMART WIDGETS prompt section ──
       # generate_missing_clarifications(result, user_message, current_json)
@@ -2884,7 +2974,13 @@ PROMPT
           is_initial_analysis = params[:source].to_s == "initial" || params[:source].to_s == "live_transcript"
           if is_initial_analysis
             invoice_count = exact_match.logs.kept.count
-            confirm_q = I18n.locale.to_s == "ka" ? "დავაყენე ქვემოთმოცემული კლიენტი თქვენი კლიენტთა სიიდან:" : "Matched client from your list:"
+            confirm_q = if assistant_locale.match?(/ka|ge/i)
+                          "დავაყენე ქვემოთმოცემული კლიენტი თქვენი კლიენტთა სიიდან:"
+                        elsif assistant_locale.match?(/ru/i)
+                          "Выбран клиент из вашего списка:"
+                        else
+                          "Matched client from your list:"
+                        end
             result["clarifications"] << {
               "field" => "client_confirm_existing", "type" => "client_info_card", "question" => confirm_q,
               "client_name" => exact_match.name, "client_id" => exact_match.id,
@@ -2916,13 +3012,25 @@ PROMPT
               .sort_by { |c| -c["invoices_count"] }
               .first(3)
             best_guess = similar_with_counts.first["name"]
-            question_text = I18n.locale.to_s == "ka" ? "მოიძებნა რამდენიმე მსგავსი კლიენტი:" : "Multiple similar clients found:"
+            question_text = if assistant_locale.match?(/ka|ge/i)
+                              "მოიძებნა რამდენიმე მსგავსი კლიენტი:"
+                            elsif assistant_locale.match?(/ru/i)
+                              "Найдено несколько похожих клиентов:"
+                            else
+                              "Multiple similar clients found:"
+                            end
             result["clarifications"] << { "field" => "client_match", "guess" => best_guess, "question" => question_text, "similar_clients" => similar_with_counts }
             result["recipient_info"] = { "client_id" => nil, "name" => client_name, "is_new" => true }
           else
             # New client — trigger client_details widget for optional detail entry
             result["recipient_info"] = { "client_id" => nil, "name" => client_name, "is_new" => true }
-            new_q = I18n.locale.to_s == "ka" ? "როგორც ჩანს \"#{client_name}\" ახალი კლიენტია. გსურთ დეტალების დამატება?" : "\"#{client_name}\" appears to be a new client. Want to add details?"
+            new_q = if assistant_locale.match?(/ka|ge/i)
+                      "როგორც ჩანს \"#{client_name}\" ახალი კლიენტია. გსურთ დეტალების დამატება?"
+                    elsif assistant_locale.match?(/ru/i)
+                      "Похоже, \"#{client_name}\" — новый клиент. Хотите добавить детали?"
+                    else
+                      "\"#{client_name}\" appears to be a new client. Want to add details?"
+                    end
             result["reply"] = new_q if result["reply"].blank?
             result["clarifications"] << { "field" => "client_details", "type" => "client_details" }
           end
@@ -4402,12 +4510,16 @@ PROMPT
   end
 
   def populate_analytics_demo_data
-    ka = I18n.locale.to_s == "ka"
+    locale = I18n.locale.to_s.downcase
+    is_ka = locale.match?(/ka|ge/i)
+    is_ru = locale.match?(/ru/i)
 
     # Locale-aware dummy client names
     clients_en = [ "Acme Corp", "BuildRight LLC", "Nova Studio", "Peak Solutions", "Bright Media" ]
     clients_ka = [ "აქმე კორპ", "ბილდრაიტი", "ნოვა სტუდია", "პიქ სოლუშენსი", "ბრაიტ მედია" ]
-    client_names = ka ? clients_ka : clients_en
+    clients_ru = [ "АКМЭ Корп", "БилдРайт", "Нова Студио", "Пик Солюшнс", "Брайт Медиа" ]
+    
+    client_names = if is_ka then clients_ka elsif is_ru then clients_ru else clients_en end
 
     @currency_symbol   = currency_symbol_for(@profile.currency.presence || "GEL")
     @total_invoiced    = 18_450.0
@@ -4470,18 +4582,23 @@ PROMPT
   #    3. Per-item discounts                 →  item_input_list with amount + type toggle
   #    4. Tax rates                          →  tax_management widget (slider per item)
   #    Priority order: category → name → qty/price → discount → tax ──
-  def auto_upgrade_clarifications!(data, language)
+  def auto_upgrade_clarifications!(data, ui_language)
     clars = data["clarifications"]
     return unless clars.is_a?(Array) && clars.any?
 
-    ui_ka = language.to_s.match?(/ka|ge/i)
+    ui_locale = ui_language.to_s.downcase.presence || I18n.locale.to_s.downcase
+    ui_ka = ui_locale.match?(/ka|ge/i)
+    ui_ru = ui_locale.match?(/ru/i)
 
-    price_re   = /ღირს|ფასი|ფასად|price|cost|charge/i
-    qty_re     = /რაოდენობ|quantity|რამდენ/i
-    disc_re    = /ფასდაკლება|discount/i
-    tax_re     = /დღგ|vat|tax.*rate|tax.*განაკვეთ/i
-    ambig_re   = /სახის|რისი|what kind|what type|describe|აღწერ/i
-    exclude_re = /ფასდაკლება|discount|დღგ|vat|tax|გადასახ/i
+    # ── DEBUG LOGGING ──
+    Rails.logger.info "[AUTO-UPGRADE] ui_language='#{ui_language}' final_locale='#{ui_locale}' ka=#{ui_ka} ru=#{ui_ru}"
+
+    price_re   = /ღირს|ფასი|ფასად|price|cost|charge|цена|стоимость/i
+    qty_re     = /რაოდენობ|quantity|რამდენ|количество|штук|шт/i
+    disc_re    = /ფასდაკლება|discount|скидка/i
+    tax_re     = /დღგ|vat|tax.*rate|tax.*განაკვეთ|налог|ндс/i
+    ambig_re   = /სახის|რისი|what kind|what type|describe|აღწერ|тип|вид/i
+    exclude_re = /ფასდაკლება|discount|დღგ|vat|tax|გადასახ|скидка|налог|ндс/i
 
     # ── Section items for name matching & per-item widgets ──
     # Support both symbol keys (from process_audio section building) and string keys (from refine_invoice)
@@ -4597,7 +4714,13 @@ PROMPT
     # GROUP 1: AMBIGUITY — item type/description clarification (FIRST)
     # ══════════════════════════════════════════════════════════════════
     if ambig_list.length >= 2
-      q_text = ui_ka ? "გთხოვთ დააზუსტოთ ინფორმაცია:" : "Please clarify:"
+      q_text = if ui_ka
+                 "გთხოვთ დააზუსტოთ ინფორმაცია:"
+               elsif ui_ru
+                 "Пожалуйста, уточните информацию:"
+               else
+                 "Please clarify:"
+               end
       items = ambig_list.map do |a|
         label = a[:clar]["question"].to_s.gsub(/[?？]\s*$/, "").strip
         { "name" => a[:name], "inputs" => [ { "key" => "description", "label" => label, "type" => "text" } ] }
@@ -4612,9 +4735,15 @@ PROMPT
     # ══════════════════════════════════════════════════════════════════
     # GROUP 2: PRICES & QUANTITIES — merged item_input_list
     # ══════════════════════════════════════════════════════════════════
-    price_lbl = ui_ka ? "ფასი" : "Price"
-    qty_lbl   = ui_ka ? "რაოდენობა" : "Qty"
-    price_q   = ui_ka ? "შეავსეთ საჭირო ინფორმაცია:" : "Fill in the details:"
+    price_lbl = if ui_ka then "ფასი" elsif ui_ru then "Цена" else "Price" end
+    qty_lbl   = if ui_ka then "რაოდენობა" elsif ui_ru then "Кол-во" else "Qty" end
+    price_q   = if ui_ka
+                  "შეავსეთ საჭირო ინფორმაცია:"
+                elsif ui_ru
+                  "Заполните необходимую информацию:"
+                else
+                  "Fill in the details:"
+                end
 
     if existing_iil
       # Clean names + ensure inputs/toggles in AI-generated item_input_list
@@ -4707,8 +4836,8 @@ PROMPT
         field_cat = pc["field"].to_s.split(".").first
         category = cat_prefixes.include?(field_cat) ? field_cat : nil
         # Treat explicit "add X" as product/product
-        if category.blank? && item_name.match?(/^(დამატე|დამატება)\s+/i)
-          item_name = item_name.gsub(/^(დამატე|დამატება)\s+/i, "").strip
+        if category.blank? && item_name.match?(/^(დამატე|დამატება|add|добавь|добавить)\s+/i)
+          item_name = item_name.gsub(/^(დამატე|დამატება|add|добавь|добавить)\s+/i, "").strip
           category = "products"
         end
         if category.blank? && item_name.match?(/დამატება$/i)
@@ -4737,8 +4866,14 @@ PROMPT
     # Use section_items first; if empty, fall back to item names from group 2 price card
     # ══════════════════════════════════════════════════════════════════
     if disc_list.any?
-      disc_q   = ui_ka ? "შეიყვანეთ ფასდაკლების ინფორმაცია:" : "Enter discount details:"
-      amt_lbl  = ui_ka ? "თანხა" : "Amount"
+      disc_q = if ui_ka
+                 "შეიყვანეთ ფასდაკლების ინფორმაცია:"
+               elsif ui_ru
+                 "Введите информацию о скидке:"
+               else
+                 "Enter discount details:"
+               end
+      amt_lbl = if ui_ka then "თანხა" elsif ui_ru then "Сумма" else "Amount" end
 
       # Collect item names: prefer section_items, fall back to price card items
       disc_item_names = section_items.map { |si| si[:desc] }
@@ -4761,7 +4896,7 @@ PROMPT
         new_clars << { "type" => "item_input_list", "field" => "discount_setup", "question" => disc_q, "items" => items }
       else
         # Absolute fallback: single generic discount entry
-        disc_label = ui_ka ? "ფასდაკლება" : "Discount"
+        disc_label = if ui_ka then "ფასდაკლება" elsif ui_ru then "Скидка" else "Discount" end
         new_clars << {
           "type" => "item_input_list", "field" => "discount_setup", "question" => disc_q,
           "items" => [ { "name" => disc_label, "inputs" => [ { "key" => "amount", "label" => amt_lbl, "type" => "number" } ],
@@ -4774,7 +4909,13 @@ PROMPT
     # GROUP 4: TAX — use existing tax_management widget (sliders)
     # ══════════════════════════════════════════════════════════════════
     if tax_list.any?
-      tax_q = ui_ka ? "დააყენეთ დღგ-ს განაკვეთი:" : "Set tax rates:"
+      tax_q = if ui_ka
+                "დააყენეთ დღგ-ს განაკვეთი:"
+              elsif ui_ru
+                "Установите налоговую ставку:"
+              else
+                "Set tax rates:"
+              end
       new_clars << { "type" => "tax_management", "field" => "tax_rate", "question" => tax_q }
     end
 
@@ -4789,7 +4930,8 @@ PROMPT
   # Runs AFTER auto_upgrade_clarifications! to fill gaps without duplicating.
   def generate_missing_clarifications(result, user_message, previous_json)
     clars = result["clarifications"] || []
-    is_ka = I18n.locale.to_s == "ka"
+    ui_locale = I18n.locale.to_s.downcase
+    is_ka = ui_locale.match?(/ka|ge/i)
     new_clars = []
 
     # Parse previous JSON for comparison (find newly added items)
