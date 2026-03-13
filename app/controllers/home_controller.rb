@@ -2962,49 +2962,6 @@ end}
       # ── DEBUG: Log tax fields after normalization ──
       Rails.logger.info "TAX_DEBUG_AFTER: #{(result["sections"] || []).map { |s| { type: s["type"], items: (s["items"] || []).map { |i| { desc: (i["desc"] || i["name"]).to_s.truncate(30), taxable: i["taxable"], tax_rate: i["tax_rate"] } } } }.to_json}"
 
-      # ── Discount integrity guard: fix model INTEGRITY violations ──
-      # If AI reply says it applied a discount but JSON items have 0/0, extract and fix.
-      reply_text = result["reply"].to_s
-      if reply_text.present?
-        all_items = (result["sections"] || []).flat_map { |s| s["items"] || [] }
-
-        # Detect discount mention in reply (English + Georgian)
-        discount_match = reply_text.match(/(\d+(?:\.\d+)?)\s*%/) ||
-                         reply_text.match(/(\d+(?:\.\d+)?)\s*(?:GEL|USD|EUR|₾|\$|€|lari|ლარ)/i) ||
-                         reply_text.match(/(?:discount|knocked off|applied|მოაკელი|ფასდაკლება)\D*(\d+(?:\.\d+)?)/i)
-        if discount_match
-          mentioned_amount = discount_match[1].to_f
-          is_percent = reply_text.include?("%") || reply_text.match?(/პროცენტ/i)
-          is_flat = reply_text.match?(/GEL|USD|EUR|₾|\$|€|lari|ლარ|flat/i)
-
-          # Check if any item actually has the discount applied
-          has_any_discount = all_items.any? { |i| i["discount_flat"].to_f > 0 || i["discount_percent"].to_f > 0 }
-
-          if !has_any_discount && mentioned_amount > 0 && all_items.length == 1
-            # AI lied — said it applied but didn't. Fix the single item.
-            item = all_items.first
-            if is_percent || (!is_flat && mentioned_amount <= 100)
-              item["discount_percent"] = mentioned_amount
-              item["discount_flat"] = 0
-            else
-              item["discount_flat"] = mentioned_amount
-              item["discount_percent"] = 0
-            end
-            Rails.logger.warn("DISCOUNT_INTEGRITY_FIX: reply='#{reply_text.truncate(100)}' → applied #{is_percent ? 'percent' : 'flat'}=#{mentioned_amount}")
-            ai_log[:discount_integrity_fix] = { type: is_percent ? "percent" : "flat", amount: mentioned_amount }
-          elsif has_any_discount && mentioned_amount > 0
-            # Verify the applied value matches what the reply says
-            all_items.each do |item|
-              if is_percent && item["discount_percent"].to_f > 0 && item["discount_percent"].to_f != mentioned_amount
-                Rails.logger.warn("DISCOUNT_INTEGRITY_FIX: reply says #{mentioned_amount}% but JSON has #{item["discount_percent"]}% → fixing")
-                item["discount_percent"] = mentioned_amount
-                ai_log[:discount_integrity_fix] = { type: "percent_correction", from: item["discount_percent"], to: mentioned_amount }
-              end
-            end
-          end
-        end
-      end
-
       # ── Log items after AI + tax normalization ──
       ai_log[:items_after_ai] = snapshot_items_for_log(result)
 
