@@ -186,7 +186,7 @@ ru:
   ready: "Готово"
   tap_to_record: "Нажмите для записи"
   processing: "Обработка..."
-  rec: "ЗАП"
+  rec: "ЗАПИСЬ"
   live_transcript: "Транскрипция"
   transcript_placeholder: "Вставьте текст или запишите голос..."
   enhance_text: "Улучшить"

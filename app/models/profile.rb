@@ -100,8 +100,7 @@ class Profile < ApplicationRecord
       paddle_subscription_id.present? ||
         paddle_subscription_status.present? ||
         paddle_price_id.present? ||
-        paddle_next_bill_at.present? ||
-        (respond_to?(:paddle_customer_id) && paddle_customer_id.present?)
+        paddle_next_bill_at.present?
     end
 
     private
