@@ -280,6 +280,16 @@ class InvoiceGenerator
     text.upcase
   end
 
+  def font_for(text)
+    return @base_font_name if text.blank?
+    
+    # Check if the string contains any Georgian characters (Unicode range U+10D0 - U+10FF)
+    # If it does, we explicitly switch to NotoSansGeorgian to ensure bold weights are properly mapped
+    # since NotoSans regular doesn't have Georgian glyphs and Prawn fallbacks might not always
+    # preserve the bold style correctly when switching font families mid-stream.
+    text.match?(/[\u10D0-\u10FF]/) ? "NotoSansGeorgian" : @base_font_name
+  end
+
   def render
     case @style
     when "professional"
@@ -370,9 +380,9 @@ class InvoiceGenerator
 
       # Client Content (BILLED TO)
       @pdf.fill_color @dark_charcoal
-      @pdf.font(@base_font_name, style: :bold, size: 10) do
-        client_name = (@recipient.name.presence || labels[:valued_client])
-        client_name = safe_upcase(client_name)
+      client_name = (@recipient.name.presence || labels[:valued_client])
+      client_name = safe_upcase(client_name)
+      @pdf.font(font_for(client_name), style: :bold, size: 10) do
         @pdf.text client_name, leading: 2
       end
 
@@ -415,7 +425,7 @@ class InvoiceGenerator
       @pdf.font(@base_font_name, size: 10) do
         # Company Name + Black Dot + Tax ID
         name_text = []
-        name_text << { text: @sender.business_name, styles: [ :bold ], color: @dark_charcoal }
+        name_text << { text: @sender.business_name, styles: [ :bold ], color: @dark_charcoal, font: font_for(@sender.business_name) }
         if @sender.tax_id.present?
            name_text << { text: "  ", color: @dark_charcoal }
            name_text << { text: "•", color: "000000" }
@@ -1179,8 +1189,9 @@ class InvoiceGenerator
         ]
         @pdf.formatted_text parts
       else
-        @pdf.font(@base_font_name, style: :bold, size: 9) do
-          info_text = "#{labels[:page]} #{@pdf.page_number}  ·  #{@invoice_number}  ·  #{safe_upcase(@sender.business_name)}"
+        biz_name = @sender.business_name
+        @pdf.font(font_for(biz_name), style: :bold, size: 9) do
+          info_text = "#{labels[:page]} #{@pdf.page_number}  ·  #{@invoice_number}  ·  #{safe_upcase(biz_name)}"
           @pdf.text info_text, character_spacing: 1.2
         end
       end
@@ -1396,9 +1407,9 @@ class InvoiceGenerator
       end
       @pdf.move_down 8
       @pdf.fill_color "000000"
-      @pdf.font(@base_font_name, style: :bold, size: 11) do
-        bold_client = (@log.client.presence || "VALUED CLIENT")
-        bold_client = safe_upcase(bold_client)
+      bold_client = (@log.client.presence || "VALUED CLIENT")
+      bold_client = safe_upcase(bold_client)
+      @pdf.font(font_for(bold_client), style: :bold, size: 11) do
         @pdf.text bold_client, leading: 2
       end
       @pdf.move_down 5
@@ -1416,8 +1427,9 @@ class InvoiceGenerator
       end
       @pdf.move_down 8
       @pdf.fill_color "000000"
-      @pdf.font(@base_font_name, style: :bold, size: 10) do
-        @pdf.text safe_upcase(@sender.business_name), align: :right, leading: 2
+      biz_name = @sender.business_name
+      @pdf.font(font_for(biz_name), style: :bold, size: 10) do
+        @pdf.text safe_upcase(biz_name), align: :right, leading: 2
       end
       @pdf.font(@base_font_name, size: 8) do
         @pdf.fill_color @mid_gray
@@ -1483,9 +1495,9 @@ class InvoiceGenerator
         @pdf.text labels[:bill_to], character_spacing: 2
       end
       @pdf.move_down 10
-      @pdf.font(@base_font_name, style: :bold, size: 12) do
-        modern_client = (@log.client.presence || "CLIENT")
-        modern_client = safe_upcase(modern_client)
+      modern_client = (@log.client.presence || "CLIENT")
+      modern_client = safe_upcase(modern_client)
+      @pdf.font(font_for(modern_client), style: :bold, size: 12) do
         @pdf.text modern_client
       end
       @pdf.move_down 4
@@ -1501,8 +1513,9 @@ class InvoiceGenerator
         @pdf.text labels[:from], character_spacing: 2, align: :right
       end
       @pdf.move_down 10
-      @pdf.font(@base_font_name, style: :bold, size: 10) do
-        @pdf.text @sender.business_name, align: :right
+      biz_name = @sender.business_name
+      @pdf.font(font_for(biz_name), style: :bold, size: 10) do
+        @pdf.text biz_name, align: :right
       end
       @pdf.font(@base_font_name, size: 8) do
         @pdf.fill_color @mid_gray
@@ -1556,16 +1569,17 @@ class InvoiceGenerator
         @pdf.text labels[:billed_to], character_spacing: 1
       end
       @pdf.move_down 5
-      @pdf.font(@base_font_name, style: :bold, size: 16) do
-        bold_style_client = (@log.client.presence || "CLIENT")
-        bold_style_client = safe_upcase(bold_style_client)
+      bold_style_client = (@log.client.presence || "CLIENT")
+      bold_style_client = safe_upcase(bold_style_client)
+      @pdf.font(font_for(bold_style_client), style: :bold, size: 16) do
         @pdf.text bold_style_client, leading: 2
       end
     end
 
     @pdf.bounding_box([ col_width + 40, y_start ], width: col_width) do
-      @pdf.font(@base_font_name, size: 8, style: :bold) do
-        @pdf.text "#{labels[:from]}: #{@sender.business_name.upcase}", align: :right, leading: 2
+      biz_name = @sender.business_name
+      @pdf.font(font_for(biz_name), size: 8, style: :bold) do
+        @pdf.text "#{labels[:from]}: #{safe_upcase(biz_name)}", align: :right, leading: 2
         @pdf.text "INV: #{@invoice_number}", align: :right, leading: 2
         @pdf.text "#{labels[:date]}: #{@invoice_date}", align: :right, leading: 2
         @pdf.text "#{labels[:due]}: #{@due_date}", align: :right, leading: 2, color: @orange_color
@@ -1605,10 +1619,10 @@ class InvoiceGenerator
         @pdf.text "#{labels[:billed_to]}:", character_spacing: 1
       end
       @pdf.move_down 5
-      @pdf.font(@base_font_name, style: :bold, size: 10) do
+      min_client = (@log.client.presence || "CLIENT")
+      min_client = safe_upcase(min_client)
+      @pdf.font(font_for(min_client), style: :bold, size: 10) do
         @pdf.fill_color "000000"
-        min_client = (@log.client.presence || "CLIENT")
-        min_client = safe_upcase(min_client)
         @pdf.text min_client, leading: 2
       end
       @pdf.font(@base_font_name, size: 8) do
@@ -1618,8 +1632,9 @@ class InvoiceGenerator
     end
 
     @pdf.bounding_box([ col_width + 20, y_start ], width: col_width) do
-      @pdf.font(@base_font_name, size: 8, style: :bold) do
-        @pdf.text @sender.business_name, align: :right, leading: 2
+      biz_name = @sender.business_name
+      @pdf.font(font_for(biz_name), size: 8, style: :bold) do
+        @pdf.text biz_name, align: :right, leading: 2
       end
       @pdf.fill_color @mid_gray
       @pdf.font(@base_font_name, size: 7, style: :bold) do
@@ -1830,8 +1845,9 @@ class InvoiceGenerator
         @pdf.fill_rectangle [ margin, footer_y + 12 ], 8, 2
 
         @pdf.fill_color @mid_gray
-        @pdf.font(@base_font_name, size: 6.5, style: :bold) do
-          @pdf.text_box safe_upcase(@sender.business_name),
+        biz_name = @sender.business_name
+        @pdf.font(font_for(biz_name), size: 6.5, style: :bold) do
+          @pdf.text_box safe_upcase(biz_name),
             at: [ margin, footer_y ], width: 200, align: :left, character_spacing: 0.5
         end
 
