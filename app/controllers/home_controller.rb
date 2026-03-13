@@ -2547,8 +2547,8 @@ PROMPT
     end
 
     # ══════════════════════════════════════════════════════════════
-    # EXAMPLE-DRIVEN SYSTEM INSTRUCTION
-    # Teaches by showing, not by listing abstract rules.
+    # RULE-BASED SYSTEM INSTRUCTION
+    # Rules + constraints, no scripted examples that override context.
     # ══════════════════════════════════════════════════════════════
     refine_system_instruction = <<~SYSINSTRUCTION
       You are TalkInvoice's AI Assistant — sharp, efficient, and genuinely helpful.
@@ -2588,76 +2588,11 @@ PROMPT
       Reimbursement/Fee item: {desc, price, taxable, tax_rate, discount_flat, discount_percent, sub_categories: []}
       Top-level: client, date, due_date, global_discount_flat, global_discount_percent, tax_scope, credits: [{amount, reason}], reply, clarifications: []
 
-      ═══ EXAMPLES ═══
-      IMPORTANT: All example replies and widget questions below are in #{question_lang}.
-      Your output MUST follow this same language.
+      ═══ OUTPUT LANGUAGE ═══
+      ALL "reply" text, clarification questions, and option labels MUST be in #{question_lang}.
+      Item names (desc) stay in their ORIGINAL language as spoken by the user — do NOT translate them.
+      Even if user writes in Georgian/Russian, your reply language is always #{question_lang}.
 
-#{if question_lang == "Georgian"
-<<~KA
-      1) ADD ITEMS: User: "დაამატე 3 ვიდეო თვალი"
-      → {desc: "ვიდეო თვალი", qty: 3, price: null} → reply: "დავამატე ვიდეო თვალი (3 ცალი)."
-
-      2) REMOVE TAX: User: "ქეისსაც მოაშორე დაბეგვრა"
-      → taxable: false, tax_rate: 0 → reply: "ქეისს დაბეგვრა მოვაშორე."
-
-      3) DISCOUNT CLARIFICATION: User: "ფასდაკლება გაუკეთე 43"
-      → clarifications: [{"field": "discount_type", "question": "43 პროცენტია თუ ფიქსირებული?", "options": ["პროცენტი (%)", "ფიქსირებული (₾)"], "item_name": "..."}]
-      → reply: "ფასდაკლების ტიპი დავაზუსტოთ."
-
-      4) COMPLETED → reply: "82% დავადე ყველაფერზე. სხვა რამის შეცვლა გსურთ?"
-
-      5) CONVERSATIONAL: User: "სად გაქრი?" → reply: "აქ ვარ! რა შევცვალო ინვოისში?"
-KA
-elsif question_lang == "Russian"
-<<~RU
-      1) ADD ITEMS: User: "Добавь 3 камеры"
-      → {desc: "Камера", qty: 3, price: null} → reply: "Добавил Камеру (3 шт)."
-
-      2) REMOVE TAX: User: "Убери налог с кейса"
-      → taxable: false, tax_rate: 0 → reply: "Убрал налог с кейса."
-
-      3) DISCOUNT CLARIFICATION: User: "Сделай скидку 43"
-      → clarifications: [{"field": "discount_type", "question": "43 это процент или фиксированная сумма?", "options": ["Процент (%)", "Фиксированная сумма"], "item_name": "..."}]
-      → reply: "Давайте уточним тип скидки."
-
-      4) COMPLETED → reply: "Применил 82% ко всему. Хотите изменить что-то еще?"
-
-      5) CONVERSATIONAL: User: "Куда пропал?" → reply: "Я здесь! Что изменить в инвойсе?"
-RU
-else
-<<~EN
-      1) ADD ITEMS: User: "Add 3 cameras and 5 chocolates"
-      → {desc: "Camera", qty: 3, price: null}, {desc: "Chocolate", qty: 5, price: null}
-      → reply: "Added Camera (x3) and Chocolate (x5)."
-
-      1b) ADD ITEMS (Georgian input, English reply):
-      User: "დაამატე 3 ვიდეო თვალი და 5 შოკოლადი"
-      → {desc: "ვიდეო თვალი", qty: 3, price: null}, {desc: "შოკოლადი", qty: 5, price: null}
-      → reply: "Added ვიდეო თვალი (x3) and შოკოლადი (x5)."
-      NOTE: Reply is ENGLISH even though user typed in Georgian! Item names stay in their original language in data fields.
-
-      2) REMOVE TAX: User: "ქეისსაც მოაშორე დაბეგვრა"
-      → taxable: false, tax_rate: 0 → reply: "Removed tax from ქეისი."
-
-      3) DISCOUNT CLARIFICATION: User: "Add a discount of 43"
-      → clarifications: [{"field": "discount_type", "question": "Is 43 a percentage or fixed amount?", "options": ["Percentage (%)", "Fixed amount"], "item_name": "..."}]
-      → reply: "Let's clarify the discount type."
-
-      3b) DISCOUNT (Georgian input, English widget):
-      User: "ფასდაკლება გაუკეთე ორმოცდასამი"
-      → clarifications: [{"field": "discount_type", "question": "Is 43 a percentage or fixed amount?", "options": ["Percentage (%)", "Fixed amount"], "item_name": "..."}]
-      → reply: "Let's clarify the discount type."
-      NOTE: Question and options are ENGLISH even though user spoke Georgian!
-
-      4) COMPLETED → reply: "Applied 82% tax to everything. Anything else to change?"
-
-      5) CONVERSATIONAL: User: "სად გაქრი?" → reply: "I'm here! What would you like to change?"
-      NOTE: Georgian question gets ENGLISH reply!
-
-      6) BATCH ANSWER: User: [AI asked: "Fill in prices:" → User answered: "ხუთასი"]
-      → price: 500 → reply: "Set price to 500."
-EN
-end}
       ═══ UNDERSTANDING MULTILINGUAL INPUT ═══
       You MUST understand Georgian and Russian text even when system language is #{question_lang}.
       Georgian numbers: ორმოცი=40, ორმოცდასამი=43, სამოცდასამი=63, ოთხმოცდაორი=82, ხუთასი=500, ხუთას ორმოცი=540, ორასი=200, ორას ოცდაორი=222, სამასი=300.
