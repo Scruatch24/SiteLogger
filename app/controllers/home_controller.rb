@@ -3232,7 +3232,7 @@ end}
     else
       ENV["GEMINI_FREE_PRIMARY_MODEL"].presence ||
         ENV["GEMINI_FREE_MODEL"].presence ||
-        "gemini-2.5-flash-lite"
+        "gemini-3.1-flash-lite-preview"
     end
   end
 
