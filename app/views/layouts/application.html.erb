@@ -328,63 +328,29 @@
         backface-visibility: hidden; /* Reduces shifting */
       }
 
-      /* 2. Electric Border Container */
+      /* 2. Electric Border Container — static version (no animation for weak device perf) */
       .electric-border-container {
         position: relative;
-        border-radius: 24px; /* Default smaller for mobile */
+        border-radius: 24px;
         isolation: isolate;
         box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
         padding: 2px;
-        background: transparent;
+        background: linear-gradient(145deg, rgba(249,115,22,0.4), rgba(255,184,0,0.2), rgba(249,115,22,0.4));
         overflow: hidden;
       }
       
       @media (min-width: 768px) {
         .electric-border-container {
-          border-radius: 40px; /* Larger for desktop */
-        }
-      }
-
-      /* The rotating gradient */
-      .electric-border-container::before {
-        content: "";
-        position: absolute;
-        inset: -150%; /* Larger inset for mobile to smooth out the gradient edges */
-        width: 400%;  /* Much larger to center the gradient better */
-        height: 400%;
-        background: conic-gradient(
-          transparent, 
-          transparent, 
-          transparent, 
-          #FF6B00 30%, 
-          #FFB800 50%, 
-          #FF6B00 70%, 
-          transparent, 
-          transparent,
-          transparent
-        );
-        animation: rotateElectric 2.5s linear infinite;
-        transform-origin: center;
-        z-index: -1;
-        opacity: 0.5; /* Reduced intensity for mobile */
-        filter: blur(20px); /* Soften the edges */
-      }
-
-      @media (min-width: 768px) {
-        .electric-border-container::before {
-          inset: -50%;
-          width: 200%;
-          height: 200%;
-          opacity: 1;
-          filter: none;
+          border-radius: 40px;
+          background: linear-gradient(145deg, rgba(249,115,22,0.5), rgba(255,184,0,0.3), rgba(249,115,22,0.5));
         }
       }
 
       /* Inner background */
       .electric-border-content {
-        background: #000000; /* Solid black on mobile to hide center hub */
+        background: #000000;
         backdrop-filter: blur(24px);
-        border-radius: 22px; /* Matches container-2px */
+        border-radius: 22px;
         height: 100%;
         width: 100%;
         position: relative;
@@ -393,14 +359,9 @@
       
       @media (min-width: 768px) {
         .electric-border-content {
-          background: rgba(0, 0, 0, 0.85); /* Restore transparency on desktop */
+          background: rgba(0, 0, 0, 0.85);
           border-radius: 38px;
         }
-      }
-
-      @keyframes rotateElectric {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
       }
 
       /* 3. The Zenith Trace (Ultra-Premium Inline Box) */
@@ -687,44 +648,6 @@
               };
               document.addEventListener('touchmove', window._premiumPreventScroll, { passive: false });
               lastPremiumShowTime = now;
-
-              // Mobile Auto-Scroll
-              if (window.innerWidth < 768) {
-                  const scrollContainer = document.getElementById('premiumScrollContainer');
-                  if (scrollContainer) {
-                      scrollContainer.scrollTop = 0;
-                      
-                      setTimeout(() => {
-                          let animationId;
-                          let startTimestamp = null;
-                          const pixelsPerSecond = 50;
-                          
-                          const scrollStep = (timestamp) => {
-                              if (!startTimestamp) startTimestamp = timestamp;
-                              const elapsed = timestamp - startTimestamp;
-                              const currentScrollPos = (elapsed / 1000) * pixelsPerSecond;
-                              
-                              const maxScroll = scrollContainer.scrollHeight - scrollContainer.clientHeight;
-                              
-                              if (currentScrollPos < maxScroll) {
-                                  scrollContainer.scrollTop = currentScrollPos;
-                                  animationId = requestAnimationFrame(scrollStep);
-                              }
-                          };
-                          
-                          const stopAutoScroll = () => {
-                              if (animationId) cancelAnimationFrame(animationId);
-                              scrollContainer.removeEventListener('touchstart', stopAutoScroll);
-                              scrollContainer.removeEventListener('wheel', stopAutoScroll);
-                          };
-                          
-                          scrollContainer.addEventListener('touchstart', stopAutoScroll, { passive: true });
-                          scrollContainer.addEventListener('wheel', stopAutoScroll, { passive: true });
-                          
-                          animationId = requestAnimationFrame(scrollStep);
-                      }, 500);
-                  }
-              }
           }
       };
 
@@ -1049,8 +972,9 @@
                   <div class="flex items-center gap-3">
                     <div class="w-8 h-8 rounded-xl bg-orange-500 text-white flex items-center justify-center shrink-0 shadow-lg shadow-orange-500/20">
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M4 17a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1" />
-                        <path d="M12 15 4 3m0 0l4 12" />
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
                       </svg>
                     </div>
                     <span class="text-[11px] font-black text-orange-600 uppercase"><%= t('modal.exports') %></span>
@@ -1428,12 +1352,13 @@
                     <%= t('modal.you_are_here') %>
                   </div>
                 <% elsif user_signed_in? %>
-                  <button onclick="openPaddleCheckout()" class="w-full py-4 text-white rounded-2xl text-[10px] font-black uppercase text-center transition-all active:scale-95" style="background: linear-gradient(to right, #f97316, #ea580c); box-shadow: 0 6px 18px rgba(249,115,22,0.25); transition: all 0.3s ease;" onmouseover="this.style.transform='scale(1.02)'; this.style.boxShadow='0 10px 30px rgba(249,115,22,0.4)';" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 6px 18px rgba(249,115,22,0.25)';">
+                  <button onclick="openPaddleCheckout()" class="w-full py-4 text-white rounded-2xl text-[10px] font-black uppercase text-center transition-all active:scale-95 flex items-center justify-center gap-2" style="background: linear-gradient(to right, #f97316, #ea580c); box-shadow: 0 6px 18px rgba(249,115,22,0.25); transition: all 0.3s ease;" onmouseover="this.style.transform='scale(1.02)'; this.style.boxShadow='0 10px 30px rgba(249,115,22,0.4)';" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 6px 18px rgba(249,115,22,0.25)';">
+                    <svg class="w-3.5 h-3.5" fill="white" viewBox="0 0 24 24" stroke="none"><path d="M12 2.4c.33 0 .63.2.76.5l1.87 4.34 4.64.36c.63.05.88.84.38 1.23l-3.55 3.05 1.06 4.44c.13.55-.44.98-.94.7L12 14.72l-4.22 2.3c-.5.28-1.07-.15-.94-.7l1.06-4.44-3.55-3.05c-.5-.39-.25-1.18.38-1.23l4.64-.36 1.87-4.34c.13-.3.43-.5.76-.5z"/></svg>
                     <%= t('modal.upgrade_pro') %>
                   </button>
                 <% else %>
-                  <%= link_to new_user_registration_path, class: "block w-full py-4 text-white rounded-2xl text-[10px] font-black uppercase text-center", style: "background: linear-gradient(to right, #f97316, #ea580c); box-shadow: 0 6px 18px rgba(249,115,22,0.25); text-decoration: none; transition: all 0.3s ease;", onmouseover: "this.style.transform='scale(1.02)'; this.style.boxShadow='0 10px 30px rgba(249,115,22,0.4)';", onmouseout: "this.style.transform='scale(1)'; this.style.boxShadow='0 6px 18px rgba(249,115,22,0.25)';" do %>
-
+                  <%= link_to new_user_registration_path, class: "block w-full py-4 text-white rounded-2xl text-[10px] font-black uppercase text-center flex items-center justify-center gap-2", style: "background: linear-gradient(to right, #f97316, #ea580c); box-shadow: 0 6px 18px rgba(249,115,22,0.25); text-decoration: none; transition: all 0.3s ease;", onmouseover: "this.style.transform='scale(1.02)'; this.style.boxShadow='0 10px 30px rgba(249,115,22,0.4)';", onmouseout: "this.style.transform='scale(1)'; this.style.boxShadow='0 6px 18px rgba(249,115,22,0.25)';" do %>
+                    <svg class="w-3.5 h-3.5" fill="white" viewBox="0 0 24 24" stroke="none"><path d="M12 2.4c.33 0 .63.2.76.5l1.87 4.34 4.64.36c.63.05.88.84.38 1.23l-3.55 3.05 1.06 4.44c.13.55-.44.98-.94.7L12 14.72l-4.22 2.3c-.5.28-1.07-.15-.94-.7l1.06-4.44-3.55-3.05c-.5-.39-.25-1.18.38-1.23l4.64-.36 1.87-4.34c.13-.3.43-.5.76-.5z"/></svg>
                     <%= t('modal.upgrade_pro') %>
                   <% end %>
                 <% end %>

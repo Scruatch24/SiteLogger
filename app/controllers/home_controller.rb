@@ -705,7 +705,7 @@ class HomeController < ApplicationController
 
   def set_transcript_language
     lang = params[:language].to_s
-    if %w[en ge ka].include?(lang)
+    if %w[en ge ka ru].include?(lang)
       db_lang = (lang == "ge") ? "ka" : lang
       session[:transcription_language] = db_lang
 
@@ -989,10 +989,30 @@ class HomeController < ApplicationController
         http.open_timeout = 5
 
         req = Net::HTTP::Post.new(uri, "Content-Type" => "application/json", "x-goog-api-key" => api_key)
+
+        # Build a language-aware transcription instruction so Gemini knows
+        # which spoken language to expect and which alphabet to use.
+        stt_lang = ai_log.dig(:input, :language).to_s.downcase
+        georgian = (stt_lang == "ka" || stt_lang == "ge" || stt_lang == "ka-ge")
+        lang_instruction = if georgian
+          # Strong hint for Georgian: avoid Latin transliteration like "Kiorgi perize"
+          "The user is speaking Georgian (ka). Transcribe ONLY in Georgian using Georgian script (ქართული ანბანი). " \
+          "Do NOT transliterate Georgian names or words into Latin letters. For example, \"გიორგი ბერიძე\" must stay exactly \"გიორგი ბერიძე\"."
+        elsif stt_lang == "ru"
+          "The user is speaking Russian (ru). Transcribe ONLY in Russian using Cyrillic script. " \
+          "Do NOT transliterate Russian names or words into Latin letters."
+        else
+          "The user is speaking #{stt_lang.presence || 'English'}. Transcribe in that language using its native script."
+        end
         req.body = {
           contents: [ {
             parts: [
-              { text: "Transcribe this short audio clip. Return ONLY the spoken text, nothing else. If the audio is silent, empty, contains only noise/breathing, or has no intelligible speech, return exactly the word EMPTY and nothing else. Do NOT invent or hallucinate any words." },
+              {
+                text: "#{lang_instruction} Transcribe this short audio clip. " \
+                      "Return ONLY the spoken text, nothing else. " \
+                      "If the audio is silent, empty, contains only noise/breathing, or has no intelligible speech, " \
+                      "return exactly the word EMPTY and nothing else. Do NOT invent or hallucinate any words."
+              },
               { inline_data: { mime_type: audio.content_type, data: audio_data } }
             ]
           } ]
@@ -1030,6 +1050,7 @@ class HomeController < ApplicationController
     # NOTE: AI language should not be affected by UI/system language
     doc_language = params[:language] || @profile.try(:transcription_language) || session[:transcription_language] || @profile.try(:document_language) || "en"
     target_is_georgian = (doc_language == "ge" || doc_language == "ka")
+    target_is_russian = (doc_language == "ru")
 
     ai_log[:input] = {
       type: is_manual_text ? "manual_text" : "audio",
@@ -1047,6 +1068,8 @@ class HomeController < ApplicationController
 
     lang_context = if target_is_georgian
       "████ TARGET LANGUAGE: GEORGIAN (ქართული) ████ ALL text content in the output JSON MUST be in Georgian. This applies to: \"desc\", \"name\", \"reason\", \"raw_summary\", \"sub_categories\" text, and \"client\". JSON field NAMES and section keys (\"labor\", \"products\", etc.) stay in English — only VALUES are Georgian. WARNING: The examples in this prompt are in English for readability; you MUST output Georgian text regardless. E.g., 'Filter Replacement' → 'ფილტრის შეცვლა', 'Nails' → 'ლურსმნები', 'AC Repair' → 'კონდიციონერის შეკეთება'. If user input is already Georgian, keep it Georgian. If user input is English, translate values to Georgian."
+    elsif target_is_russian
+      "████ TARGET LANGUAGE: RUSSIAN (Русский) ████ ALL text content in the output JSON MUST be in Russian. This applies to: \"desc\", \"name\", \"reason\", \"raw_summary\", \"sub_categories\" text, and \"client\". JSON field NAMES and section keys (\"labor\", \"products\", etc.) stay in English — only VALUES are Russian. WARNING: The examples in this prompt are in English for readability; you MUST output Russian text regardless. E.g., 'Filter Replacement' → 'Замена фильтра', 'Nails' → 'Гвозди', 'AC Repair' → 'Ремонт кондиционера'. If user input is already Russian, keep it Russian. If user input is English, translate values to Russian."
     else
       "TARGET LANGUAGE: English. All extracted names, descriptions, and sub_categories text MUST be in English. If the input is in Georgian or any other language, you MUST translate ALL text content to English. Do NOT leave any Georgian text in item names or descriptions. E.g., 'ნაჯახი' becomes 'Axe', 'მაცივრის შეკეთება' becomes 'Refrigerator Repair', 'ფანჯრის შეკეთება' becomes 'Window Repair', 'ლურსმანი' becomes 'Nail'."
     end
@@ -1054,9 +1077,12 @@ class HomeController < ApplicationController
     # Section Labels for the generated JSON
     # IMPORTANT: Section titles should match the SYSTEM LANGUAGE (UI), NOT the Transcript Language
     # The Transcript Language only affects item names/descriptions, not category titles
-    ui_is_georgian = (I18n.locale.to_s == "ka")
-    sec_labels = if ui_is_georgian
+    ui_locale = I18n.locale.to_s
+    sec_labels = case ui_locale
+    when "ka"
       { labor: "პროფესიონალური მომსახურება", products: "პროდუქტები", reimbursements: "ანაზღაურებები", fees: "მოსაკრებლები" }
+    when "ru"
+      { labor: "Профессиональные услуги", products: "Товары", reimbursements: "Возмещения", fees: "Сборы" }
     else
       { labor: "Labor/Service", products: "Products", reimbursements: "Reimbursements", fees: "Fees" }
     end
@@ -1328,14 +1354,21 @@ ITEM NAME RULE (CRITICAL):
 - CORRECT: { "field": "labor.price", "item_name": "შეკეთება", "question": "რა ფასია?" }
 - PRODUCT vs SERVICE NAMES: If the user says "add X" / "დამატე X", treat this as a PRODUCT/PRODUCT name of just "X" (drop the helper verb). If the user describes work like "clean the phone" / "ტელეფონის გაწმენდა" / "სკამის შეკეთება", keep the action+object as the service name. NEVER prepend/helper-verb-wrap nouns with "დამატება", "add", "install" unless the verb itself is the work being sold (e.g., installation service).
 
-6. CLIENT MATCHING AMBIGUITY (CRITICAL):
+6. CLIENT MATCHING AMBIGUITY (CRITICAL, NON-NEGOTIABLE):
    - You are provided with a list of "EXISTING CLIENTS" in the format "id:name".
-   - If the user mentions a client (e.g., "ინვოისი გიორგის"), you must find the exact match in the database list.
-   - If the name is ambiguous (e.g. there are multiple "გიორგი"s like "გიორგი ბერიძე" and "გიორგი მელაძე"), DO NOT GUESS AND DO NOT ASSIGN A `client_id`.
-   - Instead, you MUST create a clarification to ask the user which one they meant.
-   - Use field: "client_match", type: "client_match", and include "similar_clients" array containing the matching names.
-   - Example Clarification: { "field": "client_match", "type": "client_match", "question": "მოიძებნა რამდენიმე მსგავსი კლიენტი. რომელი მათგანია?", "similar_clients": [{"id": 1, "name": "გიორგი ბერიძე"}, {"id": 2, "name": "გიორგი მელაძე"}] }
-   - Only use this if there are actually multiple matches. If there is only one logical match, assign the `client_id` directly and don't ask.
+   - When the user mentions a client (e.g., "ინვოისი გიორგის"), you MUST resolve it against that list.
+   - If the spoken/written name you extract is compatible with MORE THAN ONE entry in that list (for example:
+     • user says just "გიორგი" and the list contains "6:გიორგი ბერიძე" and "11:გიორგი მელაძე", OR
+     • the exact same full name string appears with multiple different IDs),
+     then the name is AMBIGUOUS. In ALL such cases you are FORBIDDEN from guessing.
+   - In an ambiguous case you MUST:
+     • Leave `client_id` as null.
+     • Set `client` to exactly what the user said (e.g. "გიორგი").
+     • Add a clarification object with field: "client_match", type: "client_match", and a "similar_clients" array that includes EVERY plausible match from the list (id + full name, optionally invoice counts if you know them).
+   - Example Clarification (Georgian UI): { "field": "client_match", "type": "client_match", "question": "მოიძებნა რამდენიმე მსგავსი კლიენტი. რომელს გულისხმობთ?", "similar_clients": [{"id": 6, "name": "გიორგი ბერიძე"}, {"id": 11, "name": "გიორგი მელაძე"}] }
+   - When the user later answers this question by voice or text (e.g. "გიორგი ბერიძე", "ბერიძე", "პირველი"), you MUST interpret their intent and PICK ONE of the previously suggested similar_clients, set `client_id` to that client's id, update `client` to the full name, and REMOVE the `client_match` clarification from your output. Use the EXISTING CLIENTS list and the names you yourself presented to resolve partial names and ordinal answers — do not call this "ambiguous" again if a clear choice can be inferred.
+   - It is always better to ask than to be wrong. ONLY when there is exactly one clear match in the list (one unique compatible name) may you assign `client_id` directly without a clarification.
+   - Violating this rule (by silently picking one of multiple possible Giorgis BEFORE the user answers, or by ignoring a clear follow-up answer) is considered an incorrect output.
 RESPONSE TYPE TAXONOMY (every clarification MUST include a "type" field):
 - "choice": user picks ONE option from a list. MUST include "options": ["opt1", "opt2", ...]. Example: section_type, currency.
 - "multi_choice": user picks ONE OR MORE from a list. MUST include "options": [...]. Example: warranty scope across items.
@@ -2046,7 +2079,36 @@ PROMPT
             "address" => exact_match.address, "notes" => exact_match.try(:notes)
           }
         elsif has_client_match_clarification
-          # AI already generated a multi_choice clarification for ambiguous matched clients
+          # AI already generated a client_match clarification for ambiguous clients.
+          # Enrich the similar_clients array with invoice counts and contact info
+          # so the frontend can display meaningful context (e.g. "2 ინვოისი").
+          if user_signed_in?
+            Array(json["clarifications"]).each do |clar|
+              next unless clar.is_a?(Hash) && (clar["field"] == "client_match" || clar["type"] == "client_match")
+              clar_clients = Array(clar["similar_clients"])
+              next if clar_clients.empty?
+
+              # Build a lookup hash of id → client record for all mentioned ids
+              ids = clar_clients.map { |c| c["id"] }.compact
+              next if ids.empty?
+              records_by_id = current_user.clients.where(id: ids).index_by(&:id)
+
+              clar["similar_clients"] = clar_clients.map do |c_hash|
+                cid = c_hash["id"]
+                rec = records_by_id[cid]
+                if rec
+                  c_hash.merge(
+                    "invoices_count" => rec.logs.kept.count,
+                    "email" => rec.email,
+                    "phone" => rec.phone
+                  )
+                else
+                  c_hash
+                end
+              end
+            end
+          end
+
           # Do not treat as new client, don't inject client_details
           recipient_info = { "client_id" => nil, "name" => client_name, "is_new" => false }
         else
@@ -2198,12 +2260,127 @@ PROMPT
     api_key = ENV["GEMINI_API_KEY"]
     current_json = params[:current_json]
     user_message = params[:user_message].to_s.strip
+    client_change_only = ActiveModel::Type::Boolean.new.cast(params[:client_change_only])
 
-    return render json: { error: t("input_too_short", default: "Input too short.") }, status: :unprocessable_entity if user_message.length < 2
     return render json: { error: "Missing invoice data" }, status: :unprocessable_entity if current_json.blank?
 
+    # ── Shortcut: direct client change without calling AI (widget click path) ──
+    if client_change_only
+      begin
+        input_parsed = current_json.is_a?(String) ? (JSON.parse(current_json) rescue {}) : (current_json.respond_to?(:to_unsafe_h) ? current_json.to_unsafe_h : current_json.to_h)
+        input_parsed = input_parsed.deep_stringify_keys
+      rescue
+        return render json: { error: t("processing_error") }, status: 500
+      end
 
+      unless user_signed_in?
+        return render json: input_parsed
+      end
 
+      raw = user_message.to_s
+      spoken_name, picked_id = raw.split("::", 2)
+      picked_id = picked_id.to_i if picked_id.present?
+
+      client_record = nil
+      if picked_id && picked_id > 0
+        client_record = current_user.clients.find_by(id: picked_id)
+      end
+
+      # Fallback: exact match by name if ID missing or not found
+      if !client_record && spoken_name.present?
+        client_record = current_user.clients.find_by(name: spoken_name.strip)
+      end
+
+      if client_record
+        input_parsed["client"] = client_record.name
+        recipient_info = {
+          "client_id" => client_record.id,
+          "name" => client_record.name,
+          "email" => client_record.email,
+          "phone" => client_record.phone,
+          "address" => client_record.address
+        }
+        input_parsed["recipient_info"] = recipient_info
+
+        # Clear any pending client_match clarifications now that user chose explicitly
+        if input_parsed["clarifications"].is_a?(Array)
+          input_parsed["clarifications"].reject! { |c| c.is_a?(Hash) && c["field"].to_s == "client_match" }
+        end
+      end
+
+      return render json: input_parsed
+    end
+
+    # ── Shortcut: answer to existing client_match via voice/text (non-widget intent) ──
+    # If current_json still has a client_match clarification and the user answers with a
+    # short name/ordinal (e.g. "გიორგი ბერიძე", "ბერიძე", "პირველი"), resolve that intent
+    # deterministically against the already-suggested similar_clients without re-asking AI.
+    begin
+      parsed_for_match = current_json.is_a?(String) ? (JSON.parse(current_json) rescue {}) : (current_json.respond_to?(:to_unsafe_h) ? current_json.to_unsafe_h : current_json.to_h)
+      parsed_for_match = parsed_for_match.deep_stringify_keys
+    rescue
+      parsed_for_match = {}
+    end
+
+    if user_signed_in? && user_message.present? && parsed_for_match["clarifications"].is_a?(Array)
+      cm_clar = parsed_for_match["clarifications"].find { |c| c.is_a?(Hash) && (c["field"] == "client_match" || c["type"] == "client_match") }
+      if cm_clar && cm_clar["similar_clients"].is_a?(Array) && cm_clar["similar_clients"].any?
+        # Extract just the user's answer if this came in the "[AI asked: ...] User answered: ..." wrapper
+        raw = user_message.dup
+        if raw.include?('User answered: "')
+          # Grab text between the last 'User answered: "' and the final quote
+          answer_part = raw.split('User answered: "').last
+          answer_part = answer_part.split('"').first if answer_part
+          raw = answer_part.to_s.strip if answer_part
+        end
+
+        spoken_down = raw.strip.downcase
+
+        if spoken_down.length > 0 && spoken_down.length <= 80
+          # Try to match by full name or by last-name/substring
+          candidate = nil
+          # Exact match first
+          candidate ||= cm_clar["similar_clients"].find { |c| c.is_a?(Hash) && c["name"].to_s.strip.downcase == spoken_down }
+          # Contains / partial: spoken is contained in name or vice versa
+          candidate ||= cm_clar["similar_clients"].find do |c|
+            next false unless c.is_a?(Hash)
+            n = c["name"].to_s.strip.downcase
+            n.include?(spoken_down) || spoken_down.include?(n)
+          end
+
+          # Ordinals: "first"/"second" or Georgian equivalents → index 0/1
+          if !candidate
+            idx = nil
+            case spoken_down
+            when "1", "first", "პირველი" then idx = 0
+            when "2", "second", "მეორე" then idx = 1
+            end
+            candidate = cm_clar["similar_clients"][idx] if idx && cm_clar["similar_clients"][idx]
+          end
+
+          if candidate && candidate["id"].present?
+            picked_id = candidate["id"].to_i
+            if picked_id > 0
+              client_record = current_user.clients.find_by(id: picked_id)
+              if client_record
+                parsed_for_match["client"] = client_record.name
+                parsed_for_match["recipient_info"] = {
+                  "client_id" => client_record.id,
+                  "name" => client_record.name,
+                  "email" => client_record.email,
+                  "phone" => client_record.phone,
+                  "address" => client_record.address
+                }
+                parsed_for_match["clarifications"].reject! { |c| c.is_a?(Hash) && c["field"].to_s == "client_match" }
+                return render json: parsed_for_match
+              end
+            end
+          end
+        end
+      end
+    end
+
+    return render json: { error: t("input_too_short", default: "Input too short.") }, status: :unprocessable_entity if user_message.length < 2
     doc_language = (params[:language] || @profile.try(:transcription_language) || session[:transcription_language] || @profile.try(:document_language) || "en").to_s.downcase
     assistant_locale = (params[:assistant_language].presence || @profile.try(:system_language).presence || I18n.locale.to_s).to_s.downcase
     target_is_georgian = (doc_language == "ge" || doc_language == "ka")

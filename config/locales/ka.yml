@@ -16,7 +16,7 @@ ka:
   # Global Settings
   system_language: "სისტემის ენა"
   document_language: "დოკუმენტის დათქმული ენა"
-  english: "ინგლისური (აშშ)"
+  english: "ინგლისური"
   georgian: "ქართული"
   transcript_english: "ინგლისური"
   transcript_georgian: "ქართული"
@@ -186,7 +186,7 @@ ka:
   tap_to_record: "დააჭირეთ ჩასაწერად"
   processing: "მუშავდება..."
   rec: "ჩაწერა"
-  live_transcript: "პირდაპირი ტრანსკრიპტი"
+  live_transcript: "ტრანსკრიპცია"
   transcript_placeholder: "შეიყვანეთ ტექსტი ან ჩაწერეთ ხმა..."
   enhance_text: "გაუმჯობესება"
   enhancing_text: "უმჯობესდება..."
@@ -357,6 +357,7 @@ ka:
   deposit_credit: "დეპოზიტი / კრედიტი"
   amount: "თანხა"
   due_date: "გადახდის ვადა"
+  issuing_date: "გაცემის ვადა"
   set_date: "თარიღის მითითება"
   
   # Totals

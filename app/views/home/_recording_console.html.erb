@@ -1,35 +1,54 @@
-<div class="relative flex flex-col items-center justify-center pt-4">
-  <div id="recordingWave" class="hidden recording-indicator" aria-hidden="true">
-    <div class="recording-indicator-ring recording-indicator-ring-outer"></div>
-    <div class="recording-indicator-ring recording-indicator-ring-inner"></div>
-    <div class="recording-indicator-bars">
-      <span></span>
-      <span></span>
-      <span></span>
-      <span></span>
-      <span></span>
+<div class="flex flex-col items-center justify-center pt-4">
+  <!-- ═══ BUTTON + EFFECTS WRAPPER (fixed dimensions, effects center on this) ═══ -->
+  <div class="relative" style="width: 16rem; height: 16rem; display: flex; align-items: center; justify-content: center;">
+    <!-- ═══ IDLE BREATHE RING ═══ -->
+    <div id="idleBreathRing" class="idle-breathe-ring" aria-hidden="true"></div>
+
+    <!-- ═══ SONAR RIPPLE RINGS (recording state) ═══ -->
+    <div id="sonarRipples" class="hidden sonar-container" aria-hidden="true">
+      <div class="sonar-ring sonar-ring-1"></div>
+      <div class="sonar-ring sonar-ring-2"></div>
+      <div class="sonar-ring sonar-ring-3"></div>
     </div>
+
+    <!-- ═══ VOICE-REACTIVE GLOW HALO (recording state) ═══ -->
+    <div id="voiceGlowHalo" class="hidden voice-glow-halo" aria-hidden="true"></div>
+
+    <!-- ═══ RADIAL WAVEFORM BARS (recording state — circular around button) ═══ -->
+    <div id="radialWaveform" class="hidden radial-waveform" aria-hidden="true">
+      <% 24.times do |i| %>
+        <div class="radial-bar" style="--bar-index: <%= i %>; --bar-count: 24;"></div>
+      <% end %>
+    </div>
+
+    <!-- ═══ ORBITAL SPINNER (analyzing state) ═══ -->
+    <div id="orbitalSpinner" class="hidden orbital-spinner-track" aria-hidden="true">
+      <div class="orbital-dot"></div>
+    </div>
+
+    <!-- ═══ MAIN RECORD BUTTON ═══ -->
+    <button id="recordButton" data-nosnippet class="record-btn relative flex flex-col items-center justify-center transition-all duration-300 active:scale-95 group">
+      <!-- Surface shimmer -->
+      <div class="record-btn-shimmer"></div>
+      <!-- Inner highlight ring -->
+      <div class="absolute inset-2 rounded-full border-2 border-white/20 pointer-events-none"></div>
+
+      <svg id="micIcon" class="w-12 h-12 text-white mb-2 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+      </svg>
+      <span id="buttonText" class="text-white text-[9px] font-black uppercase tracking-[0em] text-center px-4"><%= t('tap_to_record') %></span>
+    </button>
   </div>
-  
-  <button id="recordButton" data-nosnippet class="relative w-40 h-40 rounded-full flex flex-col items-center justify-center transition-all duration-300 active:scale-95 group"
-          style="background: linear-gradient(145deg, #f97316, #ea580c); box-shadow: 0 8px 32px rgba(249, 115, 22, 0.4), 0 4px 12px rgba(0,0,0,0.1), inset 0 2px 0 rgba(255,255,255,0.2);">
-    <!-- Inner highlight -->
-    <div class="absolute inset-2 rounded-full border-2 border-white/20"></div>
-    
-    <svg id="micIcon" class="w-12 h-12 text-white mb-2 group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-    </svg>
-    <span id="buttonText" class="text-white text-[9px] font-black uppercase tracking-[0em] text-center px-4"><%= t('tap_to_record') %></span>
-  </button>
-  
+
   <p id="status" data-nosnippet class="hidden"></p>
-  
-  <div id="recordingTimer" data-nosnippet class="hidden mt-3 flex items-center gap-2 bg-white border-2 border-black rounded-lg px-3 py-1.5 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] animate-in zoom-in-95 duration-200">
-    <div class="w-2 h-2 rounded-full bg-red-600 rec-dot"></div>
+
+  <!-- ═══ RECORDING TIMER (frosted glass pill) ═══ -->
+  <div id="recordingTimer" data-nosnippet class="hidden recording-timer-pill">
+    <div class="rec-dot-live"></div>
     <div class="flex items-baseline gap-1">
       <span id="currentAudioTime" class="text-sm font-black text-black font-mono">0</span>
       <span class="text-[9px] font-black text-gray-400 uppercase tracking-widest">/ <%= @profile.audio_limit %><%= I18n.locale == :ka ? 'წ' : 's' %></span>
     </div>
-    <div class="ml-1 pl-2 border-l border-gray-100 text-[9px] font-black text-red-600 tracking-tighter uppercase"><%= t('rec') %></div>
+    <div class="ml-1 pl-2 border-l border-gray-200/60 text-[9px] font-black text-red-500 tracking-tighter uppercase"><%= t('rec') %></div>
   </div>
 </div>

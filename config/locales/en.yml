@@ -16,7 +16,7 @@ en:
   # Global Settings
   system_language: "System Language"
   document_language: "Default Document Language"
-  english: "English (US)"
+  english: "English"
   georgian: "Georgian"
   transcript_english: "English"
   transcript_georgian: "Georgian"
@@ -186,7 +186,7 @@ en:
   tap_to_record: "Tap to record"
   processing: "Processing..."
   rec: "REC"
-  live_transcript: "Live Transcript"
+  live_transcript: "Transcription"
   transcript_placeholder: "Paste text or record voice..."
   enhance_text: "Enhance"
   enhancing_text: "Enhancing..."
@@ -355,6 +355,7 @@ en:
   deposit_credit: "Deposit / Credit"
   amount: "Amount"
   due_date: "Due Date"
+  issuing_date: "Issuing Date"
   set_date: "Set Date"
   
   # Totals

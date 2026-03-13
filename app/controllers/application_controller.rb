@@ -41,7 +41,11 @@ class ApplicationController < ActionController::Base
     return session[:auto_detected_locale] if session[:auto_detected_locale]
 
     country = detect_country_by_ip
-    locale = (country == "GE") ? :ka : :en
+    locale = case country
+    when "GE" then :ka
+    when "RU" then :ru
+    else :en
+    end
     session[:auto_detected_locale] = locale.to_s
     locale
   rescue StandardError => e
@@ -57,6 +61,7 @@ class ApplicationController < ActionController::Base
     # making a synchronous external HTTP call that blocks the request.
     accept_lang = request.env["HTTP_ACCEPT_LANGUAGE"].to_s.downcase
     return "GE" if accept_lang.start_with?("ka")
+    return "RU" if accept_lang.start_with?("ru")
     nil
   rescue StandardError => e
     Rails.logger.warn("detect_country_by_ip failed: #{e.message}")

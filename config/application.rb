@@ -12,7 +12,7 @@ module SiteLogger2
     config.load_defaults 8.0
 
     # Internationalization configuration
-    config.i18n.available_locales = [ :en, :ka ]
+    config.i18n.available_locales = [ :en, :ka, :ru ]
     config.i18n.default_locale = :en
 
     # Please, add to the `ignore` list any other `lib` subdirectories that do

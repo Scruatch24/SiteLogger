@@ -16,8 +16,10 @@
     saving: "<%= j t('saving') %>",
     changes_saved_en: "<%= j t('changes_saved', locale: :en) %>",
     changes_saved_ka: "<%= j t('changes_saved', locale: :ka) %>",
+    changes_saved_ru: "<%= j t('changes_saved', locale: :ru) %>",
     en: "<%= j t('english') %>",
-    ka: "<%= j t('georgian') %>"
+    ka: "<%= j t('georgian') %>",
+    ru: "<%= j t('russian') %>"
   };
 </script>
 
@@ -129,8 +131,8 @@
             
             <button type="button" id="systemLanguageSelectBtn" onclick="toggleSystemLanguageMenu(event)" class="w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black text-left flex justify-between items-center shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:outline-none transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none z-10">
               <span id="selectedSystemLanguageDisplay" class="flex items-center gap-2">
-                <span class="fi <%= I18n.locale == :ka ? 'fi-ge' : 'fi-us' %> rounded-sm shadow-sm" id="systemLangFlag"></span> 
-                <span class="ml-1 font-black uppercase tracking-widest" id="systemLangText"><%= I18n.locale == :ka ? "ქართული" : "English" %></span>
+                <span class="fi <%= I18n.locale == :ka ? 'fi-ge' : (I18n.locale == :ru ? 'fi-ru' : 'fi-us') %> rounded-sm shadow-sm" id="systemLangFlag"></span> 
+                <span class="ml-1 font-black uppercase tracking-widest" id="systemLangText"><%= I18n.locale == :ka ? "ქართული" : (I18n.locale == :ru ? "Русский" : "English") %></span>
               </span>
               <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M19 9l-7 7-7-7" stroke-width="3" stroke="black"/></svg>
             </button>
@@ -149,6 +151,12 @@
                     <span class="text-xs font-black text-black uppercase tracking-widest">ქართული</span>
                   </div>
                 </button>
+                <button type="button" onclick="selectSystemLanguage('ru')" class="w-full px-4 py-4 hover:bg-orange-50 cursor-pointer flex items-center justify-between border-b border-gray-100 last:border-0 transition-colors">
+                  <div class="flex items-center gap-3">
+                    <span class="fi fi-ru rounded-sm shadow-sm w-5 h-4"></span>
+                    <span class="text-xs font-black text-black uppercase tracking-widest">Русский</span>
+                  </div>
+                </button>
               </div>
             </div>
           </div>
@@ -162,8 +170,9 @@
             
             <button type="button" id="documentLanguageSelectBtn" onclick="toggleDocumentLanguageMenu(event)" class="w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black text-left flex justify-between items-center shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:outline-none transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none z-10 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed" <%= 'disabled' if is_guest %>>
               <span id="selectedDocumentLanguageDisplay" class="flex items-center gap-2">
-                <span class="fi <%= (@profile.try(:document_language) || "en") == "ka" ? 'fi-ge' : 'fi-us' %> rounded-sm shadow-sm" id="documentLangFlag"></span> 
-                <span class="ml-1 font-black uppercase tracking-widest" id="documentLangText"><%= (@profile.try(:document_language) || "en") == "ka" ? t('georgian') : t('english') %></span>
+                <% doc_lang = @profile.try(:document_language) || "en" %>
+                <span class="fi <%= doc_lang == "ka" ? 'fi-ge' : (doc_lang == "ru" ? 'fi-ru' : 'fi-us') %> rounded-sm shadow-sm" id="documentLangFlag"></span> 
+                <span class="ml-1 font-black uppercase tracking-widest" id="documentLangText"><%= doc_lang == "ka" ? t('georgian') : (doc_lang == "ru" ? t('russian') : t('english')) %></span>
               </span>
               <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M19 9l-7 7-7-7" stroke-width="3" stroke="black"/></svg>
             </button>
@@ -180,6 +189,12 @@
                   <div class="flex items-center gap-3">
                     <span class="fi fi-ge rounded-sm shadow-sm w-5 h-4"></span>
                     <span class="text-xs font-black text-black uppercase tracking-widest"><%= t('georgian') %></span>
+                  </div>
+                </button>
+                <button type="button" onclick="selectDocumentLanguage('ru')" class="w-full px-4 py-4 hover:bg-orange-50 cursor-pointer flex items-center justify-between border-b border-gray-100 last:border-0 transition-colors">
+                  <div class="flex items-center gap-3">
+                    <span class="fi fi-ru rounded-sm shadow-sm w-5 h-4"></span>
+                    <span class="text-xs font-black text-black uppercase tracking-widest"><%= t('russian') %></span>
                   </div>
                 </button>
               </div>
@@ -551,10 +566,12 @@
   window.APP_LANGUAGES = {
     en: "<%= t('english') %>",
     ka: "<%= t('georgian') %>",
+    ru: "<%= t('russian') %>",
     default_price: "<%= j t('default_price_with_symbol', symbol: '%{symbol}') %>",
     default_rate: "<%= j t('default_rate_hourly_with_symbol', symbol: '%{symbol}') %>",
     changes_saved_en: "<%= j t('changes_saved', locale: :en) %>",
     changes_saved_ka: "<%= j t('changes_saved', locale: :ka) %>",
+    changes_saved_ru: "<%= j t('changes_saved', locale: :ru) %>",
   };
   window.previewTimeout = null;
 
@@ -921,7 +938,7 @@
     const originalContent = btn.innerHTML;
     
     // Determine which "applying" text to use based on the SELECTED language
-    const applyingText = code === 'ka' ? "<%= j t('applying', locale: :ka) %>" : "<%= j t('applying', locale: :en) %>";
+    const applyingText = code === 'ka' ? "<%= j t('applying', locale: :ka) %>" : (code === 'ru' ? "<%= j t('applying', locale: :ru) %>" : "<%= j t('applying', locale: :en) %>");
     
     btn.disabled = true;
     btn.innerHTML = `<div class="flex items-center gap-2"><div class="animate-spin h-4 w-4 border-2 border-black border-t-transparent rounded-full"></div> <span class="text-[10px] font-black uppercase tracking-widest">${applyingText}</span></div>`;
@@ -935,7 +952,7 @@
       });
       
       if (response.ok) {
-        window.showSuccess(code === 'ka' ? window.APP_LANGUAGES.changes_saved_ka : window.APP_LANGUAGES.changes_saved_en);
+        window.showSuccess(code === 'ka' ? window.APP_LANGUAGES.changes_saved_ka : (code === 'ru' ? window.APP_LANGUAGES.changes_saved_ru : window.APP_LANGUAGES.changes_saved_en));
         setTimeout(() => window.location.reload(), 500);
       } else {
         alert(window.APP_LANGUAGES.failed_switch_language);
@@ -975,6 +992,9 @@
     if (code === 'ka') {
       flag.className = "fi fi-ge rounded-sm shadow-sm";
       text.innerText = "ქართული";
+    } else if (code === 'ru') {
+      flag.className = "fi fi-ru rounded-sm shadow-sm";
+      text.innerText = "Русский";
     } else {
       flag.className = "fi fi-us rounded-sm shadow-sm";
       text.innerText = "English";
@@ -989,6 +1009,9 @@
     if (code === 'ka') {
       flag.className = "fi fi-ge rounded-sm shadow-sm";
       text.innerText = window.APP_LANGUAGES.ka;
+    } else if (code === 'ru') {
+      flag.className = "fi fi-ru rounded-sm shadow-sm";
+      text.innerText = window.APP_LANGUAGES.ru;
     } else {
       flag.className = "fi fi-us rounded-sm shadow-sm";
       text.innerText = window.APP_LANGUAGES.en;
@@ -1164,10 +1187,11 @@
           docLangBtn.disabled = false;
           // Re-render the button content
           const isKa = code === 'ka';
+          const isRu = code === 'ru';
           docLangBtn.innerHTML = `
             <span id="selectedDocumentLanguageDisplay" class="flex items-center gap-2">
-              <span class="fi ${isKa ? 'fi-ge' : 'fi-us'} rounded-sm shadow-sm" id="documentLangFlag"></span> 
-              <span class="ml-1 font-black uppercase tracking-widest" id="documentLangText">${isKa ? window.APP_LANGUAGES.ka : window.APP_LANGUAGES.en}</span>
+              <span class="fi ${isKa ? 'fi-ge' : (isRu ? 'fi-ru' : 'fi-us')} rounded-sm shadow-sm" id="documentLangFlag"></span> 
+              <span class="ml-1 font-black uppercase tracking-widest" id="documentLangText">${isKa ? window.APP_LANGUAGES.ka : (isRu ? window.APP_LANGUAGES.ru : window.APP_LANGUAGES.en)}</span>
             </span>
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M19 9l-7 7-7-7" stroke-width="3" stroke="black"/></svg>
           `;

@@ -1,3 +1,26 @@
+/* ── Typewriter effect for textarea fields ── */
+window._typewriterTimer = null;
+function typewriterFill(textarea, text, speed) {
+  if (window._typewriterTimer) { clearInterval(window._typewriterTimer); window._typewriterTimer = null; }
+  textarea.value = '';
+  textarea.classList.add('typewriter-active');
+  let i = 0;
+  window._typewriterTimer = setInterval(function () {
+    if (i < text.length) {
+      // Add 2-4 chars at a time for snappier feel
+      const chunk = Math.min(text.length - i, 3);
+      textarea.value += text.substring(i, i + chunk);
+      i += chunk;
+      autoResize(textarea);
+    } else {
+      clearInterval(window._typewriterTimer);
+      window._typewriterTimer = null;
+      textarea.classList.remove('typewriter-active');
+      if (window.updateDynamicCounters) window.updateDynamicCounters();
+    }
+  }, speed || 12);
+}
+
 /* ── Sanitize filename for cross-platform sharing (Georgian → Latin transliteration) ── */
 window.sanitizeFileName = function (name) {
   var map = {
@@ -172,6 +195,7 @@ function _setTranscriptLanguageSelectorLocked(locked) {
   if (locked) {
     if (menu) menu.classList.add('hidden');
     if (chevron) chevron.classList.remove('rotate-180');
+    btn.classList.remove('pop-active');
   }
 }
 
@@ -301,10 +325,17 @@ window.toggleGlobalDiscountPanel = function (btn) {
 window.toggleGlobalCurrencyMenu = function (e) {
   e.stopPropagation();
   const menu = document.getElementById('globalCurrencyMenu');
-  menu.classList.toggle('hidden');
-  if (!menu.classList.contains('hidden')) {
+  const btn = document.getElementById('globalCurrencyBtn');
+  const isOpening = menu.classList.contains('hidden');
+
+  if (isOpening) {
+    menu.classList.remove('hidden');
+    if (btn) btn.classList.add('pop-active');
     document.getElementById('globalCurrencySearch').focus();
     renderGlobalCurrencyList("");
+  } else {
+    menu.classList.add('hidden');
+    if (btn) btn.classList.remove('pop-active');
   }
 }
 
@@ -363,15 +394,19 @@ window.renderGlobalCurrencyList = function (filter = "") {
 document.addEventListener('click', (e) => {
   // Global Currency Menu
   const menu = document.getElementById('globalCurrencyMenu');
+  const currencyBtn = document.getElementById('globalCurrencyBtn');
   if (menu && !e.target.closest('#globalCurrencyBtn') && !e.target.closest('#globalCurrencyMenu')) {
     menu.classList.add('hidden');
+    if (currencyBtn) currencyBtn.classList.remove('pop-active');
   }
 
   // Language Menu
   const langMenu = document.getElementById('languageMenu');
+  const langBtn = document.getElementById('languageSelectorBtn');
   if (langMenu && !e.target.closest('#languageSelectorBtn') && !e.target.closest('#languageMenu')) {
     langMenu.classList.add('hidden');
     document.getElementById('langChevron')?.classList.remove('rotate-180');
+    if (langBtn) langBtn.classList.remove('pop-active');
   }
 
   // PDF Selectors in Modal
@@ -389,6 +424,8 @@ window.setTranscriptLanguage = function (lang) {
   updateLanguageUI(normalizedLang);
   document.getElementById('languageMenu')?.classList.add('hidden');
   document.getElementById('langChevron')?.classList.remove('rotate-180');
+  const langBtn = document.getElementById('languageSelectorBtn');
+  if (langBtn) langBtn.classList.remove('pop-active');
   window.hidePopupBackdrop();
 
   // If actively recording, restart transcription with new language
@@ -420,6 +457,7 @@ function updateLanguageUI(lang) {
   const text = document.getElementById('currentLangText');
   const checkEn = document.getElementById('check-en');
   const checkGe = document.getElementById('check-ge');
+  const checkRu = document.getElementById('check-ru');
 
   if (normalizedLang === 'ge') {
     if (flag) flag.className = 'fi fi-ge scale-90 rounded-sm';
@@ -427,12 +465,20 @@ function updateLanguageUI(lang) {
     if (text) text.innerText = window.APP_LANGUAGES.ka;
     checkEn?.classList.add('hidden');
     checkGe?.classList.remove('hidden');
+    checkRu?.classList.add('hidden');
+  } else if (normalizedLang === 'ru') {
+    if (flag) flag.className = 'fi fi-ru scale-90 rounded-sm';
+    if (text) text.innerText = window.APP_LANGUAGES.ru;
+    checkEn?.classList.add('hidden');
+    checkGe?.classList.add('hidden');
+    checkRu?.classList.remove('hidden');
   } else {
     if (flag) flag.className = 'fi fi-us scale-90 rounded-sm';
     // Use localized string from server (window.APP_LANGUAGES.en)
     if (text) text.innerText = window.APP_LANGUAGES.en;
     checkEn?.classList.remove('hidden');
     checkGe?.classList.add('hidden');
+    checkRu?.classList.add('hidden');
   }
 }
 
@@ -447,7 +493,15 @@ document.addEventListener('DOMContentLoaded', () => {
       e.stopPropagation();
       const menu = document.getElementById('languageMenu');
       const isHidden = menu?.classList.contains('hidden');
-      menu?.classList.toggle('hidden');
+      if (menu) {
+        if (isHidden) {
+          menu.classList.remove('hidden');
+          langBtn.classList.add('pop-active');
+        } else {
+          menu.classList.add('hidden');
+          langBtn.classList.remove('pop-active');
+        }
+      }
       document.getElementById('langChevron')?.classList.toggle('rotate-180', isHidden);
     };
   }
@@ -1772,21 +1826,28 @@ document.addEventListener("DOMContentLoaded", () => {
   let recorderLevelData = null;
   let recorderLevelFrame = null;
   let recorderSmoothedLevel = 0;
-  const recordingWave = document.getElementById("recordingWave");
-  const recordingWaveBars = recordingWave ? Array.from(recordingWave.querySelectorAll('.recording-indicator-bars span')) : [];
+  const radialContainer = document.getElementById("radialWaveform");
+  const radialBars = radialContainer ? Array.from(radialContainer.querySelectorAll('.radial-bar')) : [];
+  const voiceGlowHalo = document.getElementById("voiceGlowHalo");
+  const sonarRipples = document.getElementById("sonarRipples");
+  const idleBreathRing = document.getElementById("idleBreathRing");
+  const orbitalSpinner = document.getElementById("orbitalSpinner");
 
   if (!recordBtn) return;
 
   function setRecorderMeterLevel(level) {
     const clamped = Math.max(0, Math.min(1, Number(level) || 0));
     recordBtn.style.setProperty('--voice-level', clamped.toFixed(3));
-    if (recordingWave) recordingWave.style.setProperty('--voice-level', clamped.toFixed(3));
-    recordingWaveBars.forEach(function (bar, idx) {
-      const distanceFromCenter = Math.abs(idx - ((recordingWaveBars.length - 1) / 2));
-      const emphasis = Math.max(0.62, 1.08 - (distanceFromCenter * 0.18));
-      const scale = Math.max(0.14, Math.min(1, 0.14 + (clamped * emphasis)));
-      bar.style.transform = 'scaleY(' + scale.toFixed(3) + ')';
-      bar.style.opacity = (0.34 + (scale * 0.66)).toFixed(3);
+    if (voiceGlowHalo) voiceGlowHalo.style.setProperty('--voice-level', clamped.toFixed(3));
+    // Drive radial waveform bars
+    radialBars.forEach(function (bar, idx) {
+      // Create organic variation using bar index
+      const phase = (idx / radialBars.length) * Math.PI * 2;
+      const variation = 0.6 + 0.4 * Math.sin(phase + Date.now() * 0.003);
+      const barLevel = Math.max(0.15, Math.min(1, clamped * variation * 1.3));
+      const height = 6 + (barLevel * 18);
+      bar.style.height = height.toFixed(1) + 'px';
+      bar.style.opacity = (0.3 + (barLevel * 0.7)).toFixed(3);
     });
   }
 
@@ -1869,7 +1930,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       enhanceTranscriptBtn.disabled = true;
-      enhanceTranscriptBtn.classList.add("opacity-50", "cursor-not-allowed");
+      enhanceTranscriptBtn.classList.add("opacity-50", "cursor-not-allowed", "pop-active");
       if (labelEl) labelEl.innerText = loadingLabel;
 
       try {
@@ -1901,7 +1962,7 @@ document.addEventListener("DOMContentLoaded", () => {
         showError(window.APP_LANGUAGES.network_error || "Network error.");
       } finally {
         enhanceTranscriptBtn.disabled = false;
-        enhanceTranscriptBtn.classList.remove("opacity-50", "cursor-not-allowed");
+        enhanceTranscriptBtn.classList.remove("opacity-50", "cursor-not-allowed", "pop-active");
         if (labelEl) labelEl.innerText = originalLabel;
       }
     };
@@ -1954,7 +2015,14 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("micIcon").innerHTML = '<rect x="7" y="7" width="10" height="10" rx="1" fill="currentColor" />';
 
         recordBtn.classList.add("recording");
-        document.getElementById("recordingWave").classList.remove("hidden");
+        // Show recording visuals, hide idle
+        if (idleBreathRing) idleBreathRing.classList.add("hidden");
+        if (sonarRipples) sonarRipples.classList.remove("hidden");
+        if (voiceGlowHalo) voiceGlowHalo.classList.remove("hidden");
+        if (radialContainer) radialContainer.classList.remove("hidden");
+        // Haptic feedback on mobile
+        if (navigator.vibrate) navigator.vibrate(50);
+
         document.getElementById("status").innerText = window.APP_LANGUAGES.recording || "RECORDING...";
         document.getElementById("status").classList.replace("text-orange-600", "text-red-600");
         document.getElementById("status").classList.replace("bg-orange-50", "bg-red-50");
@@ -2047,15 +2115,26 @@ document.addEventListener("DOMContentLoaded", () => {
     buttonText.classList.replace("text-xl", "text-[9px]"); // Restore size
 
     // Restore original orange button style
-    recordBtn.style.background = "linear-gradient(145deg, #f97316, #ea580c)";
-    recordBtn.style.boxShadow = "0 8px 32px rgba(249, 115, 22, 0.4), 0 4px 12px rgba(0,0,0,0.1), inset 0 2px 0 rgba(255,255,255,0.2)";
+    recordBtn.style.background = "";
+    recordBtn.style.boxShadow = "";
 
-    recordBtn.classList.remove("recording");
+    recordBtn.classList.remove("recording", "analyzing");
+    // Hide all state-specific visuals, restore idle
+    if (sonarRipples) sonarRipples.classList.add("hidden");
+    if (voiceGlowHalo) voiceGlowHalo.classList.add("hidden");
+    if (radialContainer) radialContainer.classList.add("hidden");
+    if (orbitalSpinner) orbitalSpinner.classList.add("hidden");
+    if (idleBreathRing) idleBreathRing.classList.remove("hidden");
+    // Reset radial bars
+    radialBars.forEach(function (bar) {
+      bar.style.height = '16px';
+      bar.style.opacity = '0.3';
+    });
+
     const statusEl = document.getElementById("status");
     statusEl.innerText = window.APP_LANGUAGES.ready || "READY";
     statusEl.classList.remove("text-red-600", "bg-red-50", "border-red-100", "text-yellow-600", "bg-yellow-50", "border-yellow-100");
     statusEl.classList.add("text-orange-600", "bg-orange-50", "border-orange-100");
-    document.getElementById("recordingWave").classList.add("hidden");
   }
 
   async function processAudio() {
@@ -2121,9 +2200,18 @@ document.addEventListener("DOMContentLoaded", () => {
     const micIcon = document.getElementById("micIcon");
     if (micIcon) micIcon.style.display = "none";
 
-    // Light warm yellow cancel button
-    recordBtn.style.background = "linear-gradient(145deg, #fbbf24, #f59e0b)";
-    recordBtn.style.boxShadow = "0 8px 32px rgba(251, 191, 36, 0.4), 0 4px 12px rgba(0,0,0,0.1), inset 0 2px 0 rgba(255,255,255,0.3)";
+    // Switch to analyzing visual state (CSS handles yellow gradient via .analyzing class)
+    recordBtn.style.background = "";
+    recordBtn.style.boxShadow = "";
+    recordBtn.classList.remove("recording");
+    recordBtn.classList.add("analyzing");
+
+    // Hide recording visuals, show orbital spinner
+    if (sonarRipples) sonarRipples.classList.add("hidden");
+    if (voiceGlowHalo) voiceGlowHalo.classList.add("hidden");
+    if (radialContainer) radialContainer.classList.add("hidden");
+    if (orbitalSpinner) orbitalSpinner.classList.remove("hidden");
+    if (idleBreathRing) idleBreathRing.classList.add("hidden");
 
     analysisAbortController = new AbortController();
 
@@ -2132,8 +2220,6 @@ document.addEventListener("DOMContentLoaded", () => {
     statusEl.classList.remove("text-red-600", "bg-red-50", "text-orange-600", "bg-orange-50", "border-orange-100", "border-red-100");
     statusEl.classList.add("text-yellow-600", "bg-yellow-50", "border-yellow-100");
     stopMainRecorderMeter();
-    recordBtn.classList.remove("recording");
-    document.getElementById("recordingWave").classList.add("hidden");
 
     const transcriptCont = document.getElementById('transcriptContainer');
     const reviewCont = document.getElementById('reviewContainer');
@@ -5393,8 +5479,14 @@ function updateUI(data) {
     // Skip transcript update if processing clarification (flag set by submitClarifications)
     if (data.raw_summary && !window.skipTranscriptUpdate) {
       const limit = window.profileCharLimit || 2000;
-      transcriptArea.value = data.raw_summary.substring(0, limit);
-      autoResize(transcriptArea);
+      const fullText = data.raw_summary.substring(0, limit);
+      // Typewriter effect — only for reasonable lengths
+      if (fullText.length > 0 && fullText.length <= 500) {
+        typewriterFill(transcriptArea, fullText, 12);
+      } else {
+        transcriptArea.value = fullText;
+        autoResize(transcriptArea);
+      }
     }
     // Reset assistant state for ANY fresh parse (not a follow-up)
     if (!window.skipTranscriptUpdate) {
@@ -6028,9 +6120,10 @@ function batchSubmitQueueAnswers() {
   window._queueTotal = 0;
   window.pendingClarifications = [];
 
-  // Filter out client answers and cancelled items — tax MUST go to AI too (AI is the brain)
+  // Filter out cancelled items only — ALL semantic answers (including client_match)
+  // must go back to the AI, which is the single source of truth for intent.
   var aiAnswers = answers.filter(function (qa) {
-    return qa.field !== 'client_match' && qa.field !== 'add_client_to_list' && qa.field !== 'client_confirm_existing' && qa.field !== 'client_details' && qa.answer !== '__CANCELLED__';
+    return qa.field !== 'add_client_to_list' && qa.field !== 'client_confirm_existing' && qa.field !== 'client_details' && qa.answer !== '__CANCELLED__';
   });
 
   // If only client answers remained, skip AI and handle locally
@@ -6342,10 +6435,22 @@ function renderClientMatchCard(clarification) {
 
   let clientButtons = '';
   clients.forEach(function (c) {
-    const countLabel = c.invoices_count === 1
-      ? (window.APP_LANGUAGES.invoices_count_one || '1 invoice')
-      : (window.APP_LANGUAGES.invoices_count || '%{count} invoices').replace('__COUNT__', c.invoices_count || 0);
-    clientButtons += '<button type="button" onclick="window.clientMatchResolved=true; autoSubmitAssistantMessage(\'' + escapeHtml(c.name).replace(/'/g, "\\'") + '\')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-gray-200 bg-white hover:bg-orange-50 hover:border-orange-300 transition-all cursor-pointer active:scale-[0.97] text-left">'
+    // Backfill and normalize invoices_count which may arrive as a string
+    var rawCount = (c && c.invoices_count != null) ? c.invoices_count : 0;
+    var parsedCount = Number(rawCount);
+    var count = Number.isFinite(parsedCount) && parsedCount >= 0 ? parsedCount : 0;
+    const pluralTemplate = (window.APP_LANGUAGES && window.APP_LANGUAGES.invoices_count) || '%{count} invoices';
+    const singularTemplate = (window.APP_LANGUAGES && window.APP_LANGUAGES.invoices_count_one) || '1 invoice';
+    var countLabel;
+    if (count === 1) {
+      countLabel = singularTemplate;
+    } else {
+      // Support both Rails-style "%{count}" and legacy "__COUNT__" placeholders
+      countLabel = pluralTemplate
+        .replace('%{count}', String(count))
+        .replace('__COUNT__', String(count));
+    }
+    clientButtons += '<button type="button" onclick="selectClientFromMatch(' + String(c.id) + ', \'' + escapeHtml(c.name).replace(/'/g, "\\'") + '\')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-gray-200 bg-white hover:bg-orange-50 hover:border-orange-300 transition-all cursor-pointer active:scale-[0.97] text-left">'
       + '<div class="w-7 h-7 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center flex-shrink-0">'
       + '<svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>'
       + '</div>'
@@ -6806,9 +6911,54 @@ function handleChipChangeClient() {
 // ── DIRECT CLIENT CHANGE: bypass AI, use backend matching only ──
 async function directClientChange(newClientName) {
   if (!window.lastAiResult) return;
-  // Route the client change through the standard AI assistant flow
-  // instead of bypassing it, so the AI has context of the change.
-  autoSubmitAssistantMessage(newClientName);
+  window.clientMatchResolved = true;
+  var L = window.APP_LANGUAGES || {};
+  var token = document.querySelector('meta[name="csrf-token"]').content;
+
+  // Send a minimal refine request that only changes the client on the invoice
+  var body = {
+    current_json: window.lastAiResult,
+    user_message: newClientName,
+    client_change_only: true,
+    assistant_language: window.profileSystemLanguage || document.documentElement.lang || 'en'
+  };
+
+  try {
+    showTypingIndicator();
+    var res = await fetch("/refine_invoice", {
+      method: "POST",
+      headers: {
+        "X-CSRF-Token": token,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(body)
+    });
+    var data = await res.json();
+    removeTypingIndicator();
+    if (data.error) {
+      showError(data.error);
+      return;
+    }
+    // Update global state and UI using the same helper as normal refinements
+    window.lastAiResult = data;
+    updateUIWithoutTranscript(data);
+    handleClarifications(data.clarifications || []);
+  } catch (e) {
+    console.error('directClientChange failed', e);
+    removeTypingIndicator();
+    showError((L.processing_error || 'Processing error.') + '');
+  }
+}
+
+// ── CLIENT MATCH SELECTION: existing client from ambiguity widget → direct client change ──
+async function selectClientFromMatch(clientId, clientName) {
+  if (!clientId) {
+    // Fallback to old behaviour if id missing
+    autoSubmitAssistantMessage(clientName);
+    return;
+  }
+  // For widget selection we want a deterministic, non-AI client switch
+  await directClientChange(clientName + '::' + String(clientId));
 }
 
 // ── CHIP HANDLER: ADD DISCOUNT (conversation starter → AI handles clarifications) ──

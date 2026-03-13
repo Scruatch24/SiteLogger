@@ -739,232 +739,316 @@ body {
       display: none !important;
   }
 
-  /* Pulsing glow animation for record button */
-  @keyframes pulseGlow {
+  /* ═══════════════════════════════════════════════════════════ */
+  /* PREMIUM RECORDING UI                                       */
+  /* ═══════════════════════════════════════════════════════════ */
 
-      0%,
-      100% {
-          box-shadow: 0 8px 32px rgba(249, 115, 22, 0.4), 0 4px 12px rgba(0, 0, 0, 0.1), inset 0 2px 0 rgba(255, 255, 255, 0.2);
+  /* ── RECORD BUTTON BASE ── */
+  .record-btn {
+      width: 10rem;
+      height: 10rem;
+      border-radius: 9999px;
+      background: linear-gradient(145deg, #f97316, #ea580c);
+      box-shadow: 0 8px 32px rgba(249, 115, 22, 0.4), 0 4px 12px rgba(0,0,0,0.1), inset 0 2px 0 rgba(255,255,255,0.2);
+      position: relative;
+      z-index: 4;
+      --voice-level: 0;
+      animation: idleBreathePulse 3s ease-in-out infinite;
+      transition: background 0.3s ease, box-shadow 0.3s ease;
+      overflow: hidden;
+  }
+
+  @keyframes idleBreathePulse {
+      0%, 100% {
           transform: scale(1);
+          box-shadow: 0 8px 32px rgba(249, 115, 22, 0.35), 0 4px 12px rgba(0,0,0,0.1), inset 0 2px 0 rgba(255,255,255,0.2);
       }
-
       50% {
-          box-shadow: 0 10px 38px rgba(249, 115, 22, 0.5), 0 5px 14px rgba(0, 0, 0, 0.12), inset 0 2px 0 rgba(255, 255, 255, 0.2);
-          transform: scale(1.01);
+          transform: scale(1.035);
+          box-shadow: 0 12px 40px rgba(249, 115, 22, 0.5), 0 6px 16px rgba(0,0,0,0.12), inset 0 2px 0 rgba(255,255,255,0.25);
       }
   }
 
-  @keyframes recordListeningGlow {
-
-      0%,
-      100% {
-          box-shadow: 0 10px 34px rgba(239, 68, 68, 0.34), 0 4px 12px rgba(0, 0, 0, 0.12), inset 0 2px 0 rgba(255, 255, 255, 0.18);
-          transform: scale(1);
-      }
-
-      50% {
-          box-shadow: 0 14px 46px rgba(239, 68, 68, 0.46), 0 8px 18px rgba(0, 0, 0, 0.16), inset 0 2px 0 rgba(255, 255, 255, 0.2);
-          transform: scale(1.018);
-      }
+  /* ── BUTTON SHIMMER OVERLAY ── */
+  .record-btn-shimmer {
+      position: absolute;
+      inset: 0;
+      border-radius: 9999px;
+      background: linear-gradient(
+          105deg,
+          transparent 0%,
+          transparent 35%,
+          rgba(255,255,255,0.18) 45%,
+          rgba(255,255,255,0.25) 50%,
+          rgba(255,255,255,0.18) 55%,
+          transparent 65%,
+          transparent 100%
+      );
+      background-size: 250% 100%;
+      animation: shimmerSweep 4s ease-in-out infinite;
+      pointer-events: none;
+      z-index: 1;
   }
 
-  @keyframes recordingRingOuter {
-
-      0%,
-      100% {
-          opacity: 0.24;
-          transform: scale(0.94);
-      }
-
-      50% {
-          opacity: 0.55;
-          transform: scale(1.02);
-      }
+  @keyframes shimmerSweep {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -50% 0; }
   }
 
-  @keyframes recordingRingInner {
-
-      0%,
-      100% {
-          opacity: 0.4;
-          transform: scale(0.98);
+  /* ── HOVER (desktop only) ── */
+  @media (hover: hover) {
+      .record-btn:hover {
+          animation: idleBreathePulse 1.5s ease-in-out infinite;
+          box-shadow: 0 14px 44px rgba(249, 115, 22, 0.5), 0 6px 16px rgba(0,0,0,0.14), inset 0 2px 0 rgba(255,255,255,0.25);
       }
-
-      50% {
-          opacity: 0.72;
-          transform: scale(1.04);
+      .record-btn:hover .record-btn-shimmer {
+          animation: shimmerSweep 2s ease-in-out infinite;
       }
-  }
-
-  @keyframes recordingBarPulse {
-
-      0%,
-      100% {
-          transform: scaleY(0.42);
-          opacity: 0.55;
-      }
-
-      50% {
-          transform: scaleY(1);
-          opacity: 1;
-      }
-  }
-
-  /* Mic icon bounce animation */
-  @keyframes micBounce {
-
-      0%,
-      100% {
-          transform: translateY(0);
-      }
-
-      25% {
-          transform: translateY(-3px) rotate(-3deg);
-      }
-
-      50% {
-          transform: translateY(0);
-      }
-
-      75% {
-          transform: translateY(-3px) rotate(3deg);
+      .record-btn:hover #micIcon {
+          transform: scale(1.12);
       }
   }
 
   #micIcon {
-      animation: none;
-      transition: transform 0.25s ease, opacity 0.25s ease;
-  }
-
-  #recordButton {
+      transition: transform 0.2s ease, opacity 0.2s ease;
       position: relative;
       z-index: 2;
-      --voice-level: 0;
-      animation: none;
-      transition: transform 0.12s linear, box-shadow 0.12s linear, background 0.2s ease;
   }
 
-  @media (hover: hover) {
-      #recordButton:hover {
-          animation: none;
-
-          transform: scale(1.05);
-          box-shadow: 0 12px 28px rgba(249, 115, 22, 0.28), 0 4px 12px rgba(0, 0, 0, 0.12), inset 0 2px 0 rgba(255, 255, 255, 0.2);
-      }
-
-      #recordButton:hover #micIcon {
-          animation: none;
-          transform: scale(1.1);
-      }
+  #buttonText {
+      position: relative;
+      z-index: 2;
   }
 
-  /* Recording state - red glow */
-  #recordButton.recording {
-      background: linear-gradient(145deg, #ef4444, #dc2626) !important;
-      transform: translateY(calc(var(--voice-level) * -2px)) scale(calc(1 + (var(--voice-level) * 0.025)));
-      box-shadow: 0 10px 24px rgba(220, 38, 38, 0.26), 0 4px 10px rgba(0, 0, 0, 0.12), inset 0 2px 0 rgba(255, 255, 255, 0.18);
-      animation: none;
-  }
-
-  #recordButton.recording #micIcon {
-      animation: none;
-      transform: scale(calc(0.9 + (var(--voice-level) * 0.12)));
-      opacity: 0.96;
-  }
-
-  .recording-indicator {
+  /* ── IDLE BREATHE RING (subtle ring behind button when idle) ── */
+  .idle-breathe-ring {
       position: absolute;
       top: 50%;
       left: 50%;
-      width: 208px;
-      height: 208px;
+      width: 12rem;
+      height: 12rem;
+      transform: translate(-50%, -50%);
+      border-radius: 9999px;
+      border: 2px solid rgba(249, 115, 22, 0.15);
+      animation: idleRingBreathe 3s ease-in-out infinite;
+      pointer-events: none;
+      z-index: 1;
+  }
+
+  @keyframes idleRingBreathe {
+      0%, 100% {
+          transform: translate(-50%, -50%) scale(0.95);
+          opacity: 0.3;
+          border-color: rgba(249, 115, 22, 0.12);
+      }
+      50% {
+          transform: translate(-50%, -50%) scale(1.05);
+          opacity: 0.6;
+          border-color: rgba(249, 115, 22, 0.25);
+      }
+  }
+
+  /* ═══ RECORDING STATE ═══ */
+
+  /* Button in recording mode */
+  .record-btn.recording {
+      background: linear-gradient(145deg, #ef4444, #dc2626) !important;
+      animation: none !important;
+      transform: translateY(calc(var(--voice-level) * -2px)) scale(calc(1 + (var(--voice-level) * 0.03)));
+      box-shadow:
+          0 calc(8px + (var(--voice-level) * 8px)) calc(24px + (var(--voice-level) * 16px)) rgba(239, 68, 68, calc(0.25 + (var(--voice-level) * 0.25))),
+          0 4px 10px rgba(0,0,0,0.12),
+          inset 0 2px 0 rgba(255,255,255,0.18);
+      transition: transform 0.08s linear, box-shadow 0.08s linear, background 0.3s ease;
+  }
+
+  .record-btn.recording .record-btn-shimmer {
+      animation: none;
+      opacity: 0;
+  }
+
+  .record-btn.recording #micIcon {
+      transform: scale(calc(0.9 + (var(--voice-level) * 0.15)));
+      opacity: 0.96;
+  }
+
+  /* ── SONAR RIPPLE RINGS ── */
+  .sonar-container {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 16rem;
+      height: 16rem;
       transform: translate(-50%, -50%);
       pointer-events: none;
       z-index: 1;
   }
 
-  .recording-indicator-ring {
+  .sonar-ring {
       position: absolute;
-      border-radius: 9999px;
-      border: 2px solid rgba(248, 113, 113, 0.3);
-      box-shadow: none;
-      transition: transform 0.12s linear, opacity 0.12s linear, border-color 0.12s linear;
-  }
-
-  .recording-indicator-ring-outer {
       inset: 0;
-      opacity: calc(0.16 + (var(--voice-level) * 0.42));
-      transform: scale(calc(0.92 + (var(--voice-level) * 0.1)));
-  }
-
-  .recording-indicator-ring-inner {
-      inset: 18px;
-      border-color: rgba(254, 202, 202, 0.52);
-      opacity: calc(0.28 + (var(--voice-level) * 0.44));
-      transform: scale(calc(0.96 + (var(--voice-level) * 0.08)));
-  }
-
-  .recording-indicator-bars {
-      position: absolute;
-      left: 50%;
-      bottom: 16px;
-      transform: translateX(-50%);
-      display: flex;
-      align-items: flex-end;
-      justify-content: center;
-      gap: 6px;
-      width: 78px;
-      height: 42px;
-      padding: 0 10px;
       border-radius: 9999px;
-      background: rgba(255, 255, 255, 0.88);
-      border: 1px solid rgba(239, 68, 68, 0.16);
-      box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+      border: 2px solid rgba(239, 68, 68, 0.4);
+      animation: sonarExpand 2.4s ease-out infinite;
+      opacity: 0;
   }
 
-  .recording-indicator-bars span {
-      display: block;
-      width: 6px;
-      height: 26px;
-      border-radius: 9999px;
-      transform-origin: center bottom;
-      background: linear-gradient(180deg, #fca5a5 0%, #ef4444 58%, #b91c1c 100%);
-      box-shadow: none;
-      transform: scaleY(0.14);
-      opacity: 0.34;
-      transition: transform 0.07s linear, opacity 0.07s linear;
-  }
+  .sonar-ring-2 { animation-delay: 0.8s; }
+  .sonar-ring-3 { animation-delay: 1.6s; }
 
-  .recording-indicator-bars span:nth-child(1) {
-      height: 14px;
-  }
-
-  .recording-indicator-bars span:nth-child(2) {
-      height: 22px;
-  }
-
-  .recording-indicator-bars span:nth-child(3) {
-      height: 28px;
-  }
-
-  .recording-indicator-bars span:nth-child(4) {
-      height: 20px;
-  }
-
-  .recording-indicator-bars span:nth-child(5) {
-      height: 12px;
-  }
-
-  @keyframes recBlink {
-
-      0%,
+  @keyframes sonarExpand {
+      0% {
+          transform: scale(0.65);
+          opacity: 0.6;
+          border-color: rgba(239, 68, 68, 0.5);
+      }
+      70% {
+          opacity: 0.15;
+      }
       100% {
-          opacity: 1;
-      }
-
-      50% {
+          transform: scale(1.3);
           opacity: 0;
+          border-color: rgba(239, 68, 68, 0.05);
       }
+  }
+
+  /* ── VOICE-REACTIVE GLOW HALO ── */
+  .voice-glow-halo {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 13rem;
+      height: 13rem;
+      transform: translate(-50%, -50%);
+      border-radius: 9999px;
+      background: radial-gradient(circle, rgba(239, 68, 68, calc(0.08 + (var(--voice-level) * 0.35))) 0%, transparent 70%);
+      filter: blur(16px);
+      pointer-events: none;
+      z-index: 0;
+      transition: background 0.1s linear;
+      --voice-level: 0;
+  }
+
+  /* ── RADIAL WAVEFORM BARS (circular around button) ── */
+  .radial-waveform {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 12.5rem;
+      height: 12.5rem;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 3;
+  }
+
+  .radial-bar {
+      --angle: calc((var(--bar-index) / var(--bar-count)) * 360deg);
+      position: absolute;
+      width: 3.5px;
+      height: 16px;
+      left: 50%;
+      top: 50%;
+      transform-origin: center center;
+      transform:
+          translate(-50%, -50%)
+          rotate(var(--angle))
+          translateY(-5.4rem)
+      ;
+      border-radius: 9999px;
+      background: linear-gradient(to top, #ef4444, #fca5a5);
+      opacity: 0.3;
+      transition: height 0.08s linear, opacity 0.08s linear;
+  }
+
+  /* ── ORBITAL SPINNER (analyzing state) ── */
+  .orbital-spinner-track {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 12.5rem;
+      height: 12.5rem;
+      transform: translate(-50%, -50%);
+      border-radius: 9999px;
+      border: 2px dashed rgba(251, 191, 36, 0.25);
+      animation: orbitalSpin 3s linear infinite;
+      pointer-events: none;
+      z-index: 5;
+  }
+
+  .orbital-dot {
+      position: absolute;
+      top: -5px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 10px;
+      height: 10px;
+      border-radius: 9999px;
+      background: linear-gradient(135deg, #fbbf24, #f59e0b);
+      box-shadow: 0 0 12px rgba(251, 191, 36, 0.6), 0 0 4px rgba(251, 191, 36, 0.8);
+  }
+
+  @keyframes orbitalSpin {
+      from { transform: translate(-50%, -50%) rotate(0deg); }
+      to   { transform: translate(-50%, -50%) rotate(360deg); }
+  }
+
+  /* ── ANALYZING STATE ── */
+  .record-btn.analyzing {
+      background: linear-gradient(145deg, #fbbf24, #f59e0b) !important;
+      box-shadow: 0 8px 32px rgba(251, 191, 36, 0.4), 0 4px 12px rgba(0,0,0,0.1), inset 0 2px 0 rgba(255,255,255,0.3);
+      animation: analyzingBreathe 1.8s ease-in-out infinite !important;
+  }
+
+  .record-btn.analyzing .record-btn-shimmer {
+      animation: none;
+      opacity: 0;
+  }
+
+  @keyframes analyzingBreathe {
+      0%, 100% { transform: scale(1); }
+      50%      { transform: scale(1.025); }
+  }
+
+  /* ── RECORDING TIMER PILL (frosted glass) ── */
+  .recording-timer-pill {
+      margin-top: 0.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(255, 255, 255, 0.82);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 9999px;
+      padding: 0.375rem 0.75rem;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
+      animation: timerSlideIn 0.3s ease-out both;
+  }
+
+  @keyframes timerSlideIn {
+      from {
+          opacity: 0;
+          transform: translateY(8px) scale(0.95);
+      }
+      to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+      }
+  }
+
+  /* ── LIVE REC DOT (smooth blink) ── */
+  .rec-dot-live {
+      width: 8px;
+      height: 8px;
+      border-radius: 9999px;
+      background: #ef4444;
+      box-shadow: 0 0 6px rgba(239, 68, 68, 0.5);
+      animation: recDotBlink 1.2s ease-in-out infinite;
+  }
+
+  @keyframes recDotBlink {
+      0%, 100% { opacity: 1; box-shadow: 0 0 6px rgba(239, 68, 68, 0.5); }
+      50%      { opacity: 0.2; box-shadow: 0 0 2px rgba(239, 68, 68, 0.2); }
   }
 
   /* Custom Scrollbar for Textareas */
@@ -1341,6 +1425,12 @@ body {
       /* orange-600 */
       color: #ea580c !important;
       /* orange-600 */
+      box-shadow: none !important;
+      transform: translate(1px, 1px) scale(0.97);
+  }
+
+  #globalCurrencyBtn.pop-active {
+      /* inherit base pop-active transform; keep width-specific feel if needed later */
   }
 
   #discountToggleBtn.pop-active {
@@ -1350,6 +1440,8 @@ body {
       /* green-600 */
       color: #16a34a !important;
       /* green-600 */
+      box-shadow: none !important;
+      transform: translate(2px, 2px) scale(0.97);
   }
 
   .slider-icon path {
@@ -1752,6 +1844,8 @@ body {
   .pop-active.btn-icon-hover {
       background-color: #fff7ed !important;
       /* orange-50 */
+      box-shadow: none !important;
+      transform: translate(1px, 1px) scale(0.95);
   }
 
   .pop-active.btn-icon-hover svg {
@@ -1781,6 +1875,8 @@ body {
       /* orange-50 */
       color: #ea580c !important;
       /* orange-600 */
+      box-shadow: none !important;
+      transform: translate(2px, 2px) scale(0.97);
   }
 
   /* Higher z-index for popups to ensure they clear ALL badges */
@@ -2037,27 +2133,44 @@ body {
       box-shadow: 3px 3px 0px 0px #F97316;
     }
 
-    /* Recording button: slightly smaller */
-    #recordButton {
-      width: 136px;
-      height: 136px;
+    /* Recording button: slightly smaller on mobile */
+    .record-btn {
+      width: 8.5rem;
+      height: 8.5rem;
     }
 
-    .recording-indicator {
-      width: 176px;
-      height: 176px;
+    .idle-breathe-ring {
+      width: 10.5rem;
+      height: 10.5rem;
     }
 
-    .recording-indicator-ring-inner {
-      inset: 16px;
+    .sonar-container {
+      width: 13rem;
+      height: 13rem;
     }
 
-    .recording-indicator-bars {
-      bottom: 12px;
-      width: 70px;
-      height: 38px;
-      gap: 5px;
-      padding: 0 9px;
+    .voice-glow-halo {
+      width: 11rem;
+      height: 11rem;
+    }
+
+    .radial-waveform {
+      width: 10.5rem;
+      height: 10.5rem;
+    }
+
+    .radial-bar {
+      height: 13px;
+      width: 3px;
+      transform:
+          translate(-50%, -50%)
+          rotate(var(--angle))
+          translateY(-4.5rem);
+    }
+
+    .orbital-spinner-track {
+      width: 10.5rem;
+      height: 10.5rem;
     }
 
     /* Contact card: reduce shadow */
