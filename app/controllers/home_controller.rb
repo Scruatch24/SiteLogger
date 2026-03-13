@@ -2539,7 +2539,7 @@ PROMPT
     user_plan = @profile.plan.presence || "guest"
     unless @profile.paid?
       plan_features = if user_plan == "guest"
-        "Guest user (not signed in). Limits: #{@profile.char_limit} char transcript, #{@profile.audio_limit}s audio, #{@profile.export_limit} PDF exports/day, #{@profile.operation_limit} AI operations per invoice. NO client list — if user asks to show clients, change client, or search clients, tell them to sign up first. NO custom invoice styles, NO logo upload, NO saved history. Must sign up (free) to save invoices and manage clients."
+        "Guest user (not signed in). HARD RESTRICTIONS — you MUST enforce these regardless of what the user asks: (1) FORBIDDEN: Do NOT set the client field, do NOT change the client, do NOT show clients, do NOT search clients. If user asks anything client-related, reply explaining they need to sign up first — do NOT modify the client field in JSON. (2) NO custom invoice styles, NO logo upload, NO saved history. Other limits: #{@profile.char_limit} char transcript, #{@profile.audio_limit}s audio, #{@profile.export_limit} PDF exports/day, #{@profile.operation_limit} AI operations per invoice."
       else
         "Free plan user. Limits: #{@profile.char_limit} char transcript, #{@profile.audio_limit}s audio, #{@profile.export_limit} PDF exports/day, #{@profile.operation_limit} AI operations per invoice. Client management is available. NO custom invoice styles (classic only), NO logo upload. Upgrade to Pro for unlimited exports, 5min audio, 10K chars, custom styles, and logo upload."
       end
