@@ -1264,6 +1264,7 @@ DISCOUNT & CREDIT RULES
 - MUTUALLY EXCLUSIVE: each item has EITHER discount_flat OR discount_percent, NEVER BOTH.
 - Percentage discount (e.g., "10% off") → use discount_percent. NEVER compute the flat equivalent.
 - Flat discount (e.g., "$50 off") → use discount_flat.
+- CRITICAL: NEVER modify the base "price" field when applying a discount. Discounts go in discount_flat or discount_percent ONLY. The price stays unchanged.
 - discount_percent ≤ 100. discount_flat ≤ item total price.
 - Same rules apply to global_discount_flat/percent and labor_discount_flat/percent.
 - DISCOUNT CLARIFICATION ORDER: When user mentions a discount but does NOT specify the amount:
@@ -2538,7 +2539,7 @@ PROMPT
     user_plan = @profile.plan.presence || "guest"
     unless @profile.paid?
       plan_features = if user_plan == "guest"
-        "Guest user (not signed in). Limits: #{@profile.char_limit} char transcript, #{@profile.audio_limit}s audio, #{@profile.export_limit} PDF exports/day, #{@profile.operation_limit} AI operations per invoice. NO client list, NO custom invoice styles, NO logo upload, NO saved history. Must sign up (free) to save invoices."
+        "Guest user (not signed in). Limits: #{@profile.char_limit} char transcript, #{@profile.audio_limit}s audio, #{@profile.export_limit} PDF exports/day, #{@profile.operation_limit} AI operations per invoice. NO client list — if user asks to show clients, change client, or search clients, tell them to sign up first. NO custom invoice styles, NO logo upload, NO saved history. Must sign up (free) to save invoices and manage clients."
       else
         "Free plan user. Limits: #{@profile.char_limit} char transcript, #{@profile.audio_limit}s audio, #{@profile.export_limit} PDF exports/day, #{@profile.operation_limit} AI operations per invoice. Client management is available. NO custom invoice styles (classic only), NO logo upload. Upgrade to Pro for unlimited exports, 5min audio, 10K chars, custom styles, and logo upload."
       end
@@ -2663,7 +2664,8 @@ end}
       Georgian commands: "დამატე"=add, "წაშალე"=delete, "შეცვალე"=change, "მოაშორე"=remove, "დაბეგვრა"=tax, "ფასდაკლება"=discount.
       RULE: "X საათი Y ლარი" = hours:X, rate:Y (per hour), price:X*Y.
       When user says "ლარი" for discount = flat. When user says "პროცენტი"/"%"= percent.
-      When NEITHER specified: if number <= 50 assume PERCENT, if > 50 assume FLAT. APPLY immediately.
+      When NEITHER specified: if number <= 50 assume PERCENT, if > 50 assume FLAT. Apply your guess AND add a "discount_type" clarification so user can correct if wrong.
+      CRITICAL: NEVER modify the base "price" field when applying a discount. Discounts go in discount_flat or discount_percent ONLY. The price stays unchanged.
       NOTE: Materials ("მასალები") = "Products". Expenses ("ხარჯები") = "Reimbursements".
 
       ═══ SMART WIDGETS (clarifications) ═══
@@ -2704,7 +2706,8 @@ end}
       • INTEGRITY: If reply says you changed something, JSON MUST reflect it. Lying is FORBIDDEN.
       • HOURLY RATE: "X საათი Y ლარი" = hours:X, rate:Y, price:X*Y.
       • Discount on specific item → item-level, NOT global.
-      • Discount without type: GUESS (<=50 = %, >50 = flat), APPLY immediately.
+      • Discount without type: GUESS (<=50 = %, >50 = flat), apply guess + ask confirmation via "discount_type" clarification.
+      • NEVER modify base "price" when applying discounts. Discounts go in discount_flat or discount_percent ONLY.
       • Products price = per-unit.
       • New items without price → price: null.
       • Client matching: EXACT UNIQUE → set client_id. MULTIPLE matches → clarification: type: "multi_choice", field: "client_match", question: "#{ui_strings[:which_one]}", options: [names].

@@ -6828,12 +6828,17 @@ function renderQuickActionChips() {
   renderInlineUndoBtn();
 
   var L = window.APP_LANGUAGES || {};
-  var chips = [
-    { label: L.action_change_client || 'Change client', handler: 'handleChipChangeClient', icon: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>', color: 'default' },
+  var chips = [];
+
+  // Change Client: only for signed-in users (guests have no client management)
+  if (window.userSignedIn) {
+    chips.push({ label: L.action_change_client || 'Change client', handler: 'handleChipChangeClient', icon: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>', color: 'default' });
+  }
+  chips.push(
     { label: L.action_add_discount || 'Add discount', handler: 'handleChipAddDiscount', icon: '<line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>', color: 'green' },
     { label: L.action_add_item || 'Add item', handler: 'handleChipAddItem', icon: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>', color: 'orange' },
     { label: L.action_change_date || 'Change date', handler: 'handleChipChangeDate', icon: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>', color: 'default' }
-  ];
+  );
 
   // Contextual: Manage Taxes chip — show when items exist
   var hasItems = false;
@@ -6896,11 +6901,51 @@ function showAnythingElseOrLimit(options) {
   
   if (skipUndo) window._skipNextUndoBtn = true;
   renderQuickActionChips();
+  updateOperationCounter();
 
   // Auto-trigger invoice preview ONCE per session
   if (!window._invoicePreviewShownOnce && !window._userClosedInvoice) {
     window._invoicePreviewShownOnce = true;
     if (window.setupSaveButton) window.setupSaveButton();
+  }
+}
+
+// ── Operation Counter Badge ──
+// Shows "X/Y" near the input so user knows remaining operations BEFORE hitting the limit.
+function updateOperationCounter() {
+  var limit = window.operationLimit || 3;
+  var count = window._operationCount || 0;
+  var isPaid = window.isPaidUser;
+
+  // Remove existing counter
+  var existing = document.getElementById('operationCounterBadge');
+  if (existing) existing.remove();
+
+  // Don't show for paid users with high limits or if no operations used yet
+  if (isPaid || count < 1) return;
+
+  var remaining = Math.max(0, limit - count);
+  var isLow = remaining <= 1;
+
+  var badge = document.createElement('div');
+  badge.id = 'operationCounterBadge';
+  badge.className = 'flex items-center gap-1 text-[10px] font-medium ' + (isLow ? 'text-red-500' : 'text-gray-400');
+  badge.innerHTML = '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>'
+    + '<span>' + count + '/' + limit + '</span>';
+
+  // Insert next to assistant input
+  var inputRow = document.getElementById('assistantInput');
+  if (inputRow && inputRow.parentElement) {
+    badge.style.position = 'absolute';
+    badge.style.right = '48px';
+    badge.style.top = '50%';
+    badge.style.transform = 'translateY(-50%)';
+    badge.style.pointerEvents = 'none';
+    var parent = inputRow.parentElement;
+    if (parent.style.position !== 'relative' && parent.style.position !== 'absolute') {
+      parent.style.position = 'relative';
+    }
+    parent.appendChild(badge);
   }
 }
 
