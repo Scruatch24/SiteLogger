@@ -194,7 +194,7 @@ class InvoiceGenerator
         qty: "\u041a\u041e\u041b-\u0412\u041e",
         amount: "\u0421\u0423\u041c\u041c\u0410",
         discount: "\u0421\u041a\u0418\u0414\u041a\u0410",
-        tax: "\u041d\u0430\u043b\u043e\u0433",
+        tax: "\u041d\u0410\u041b\u041e\u0413",
         subtotal: "\u041f\u0440\u043e\u043c\u0435\u0436\u0443\u0442\u043e\u0447\u043d\u044b\u0439 \u0438\u0442\u043e\u0433",
         tax_total: "\u041d\u0430\u043b\u043e\u0433",
         total_due: "\u041a \u041e\u041f\u041b\u0410\u0422\u0415",
@@ -658,13 +658,13 @@ class InvoiceGenerator
     line_leading = 1
     font_name = (@document_language == "ka") ? "NotoSansGeorgian" : "NotoSans"
 
-    desc_array = [ { text: main_text, styles: [ :bold ], size: 9, color: desc_color, font: font_name } ]
+    desc_array = [ { text: main_text, styles: [ :bold ], size: 9, color: desc_color } ]
 
     sub_array = []
     if item[:sub_categories].present?
       cleaned_subs = item[:sub_categories].map { |s| s.to_s.strip }.reject(&:blank?)
       sub_block = "\n" + cleaned_subs.map { |s| "• #{s}" }.join("\n")
-      sub_array = [ { text: sub_block, size: 9, color: (is_credit ? "DC2626" : @mid_gray), font: font_name } ]
+      sub_array = [ { text: sub_block, size: 9, color: (is_credit ? "DC2626" : @mid_gray) } ]
     end
 
     # 2. Accurate Height Calculation
