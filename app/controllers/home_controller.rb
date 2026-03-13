@@ -1093,19 +1093,25 @@ class HomeController < ApplicationController
       {
         discount_amount: "რა ოდენობის ფასდაკლებაა?",
         discount_options: '["ფიქსირებული", "პროცენტული"]',
-        option_lang: "Georgian"
+        option_lang: "Georgian",
+        price_label: "ფასი",
+        qty_label: "რაოდენობა"
       }
     when "ru"
       {
         discount_amount: "Какая сумма скидки?",
         discount_options: '["Фиксированная", "Процент (%)"]',
-        option_lang: "Russian"
+        option_lang: "Russian",
+        price_label: "Цена",
+        qty_label: "Кол-во"
       }
     else
       {
         discount_amount: "What is the discount amount?",
         discount_options: '["Fixed", "Percentage"]',
-        option_lang: "English"
+        option_lang: "English",
+        price_label: "Price",
+        qty_label: "Qty"
       }
     end
 
@@ -1204,8 +1210,7 @@ LABOR:
 - USE SPECIFIC TITLES for the 'desc' field (e.g., "AC Repair", "Emergency Call Out"). ALWAYS use Title Case.
 - Be concise but descriptive.#{' '}
 - Put additional task details into 'sub_categories' ONLY if they add new information.
-- FREE LABOR ITEMS: If user mentions "free", "no charge", "complimentary", "on the house" (Georgian: "უფასოდ", "უფასო", "უფასოდ ჩავუთვლი", "უფასოდ გავუკეთე") for a labor item, you MUST set price=0, hours=0, rate=0, mode="fixed", and taxable=false. Do NOT assign any default rate or price.
-- TAX & DISCOUNTS: If user says an item/section should be untaxed ("no tax", "don’t tax", "tax off", "არ დაბეგრო"), set that item's "taxable": false AND "tax_rate": 0. ALSO update the top-level "tax_scope" to remove that category (e.g., "don't tax products" → remove "product" from tax_scope).
+- FREE ITEMS: If user mentions "free", "no charge", "complimentary", "on the house" (Georgian: "უფასოდ", "უფასო", "უფასოდ ჩავუთვლი", "უფასოდ გავუკეთე") for ANY item, you MUST set price=0, hours=0, rate=0, mode="fixed", and taxable=false. Do NOT assign any default rate or price. This applies to ALL sections, not just labor.
 
 PRODUCTS (JSON type: "products"):
 - Physical goods the client keeps or receives (servers, parts, equipment, supplies). NOT services/actions.
@@ -1219,11 +1224,7 @@ PRODUCTS (JSON type: "products"):
   - If a total price is given for a quantity (e.g., "4 items cost 60"), set qty=4 and price=60/4=15. Do NOT assign total as price.
 - DISTINCT ITEMS: If user lists multiple named items (e.g. "used nails, used filters"), create SEPARATE product entries for each. Do NOT bundle them as subcategories.
 - BUNDLING ONLY: Only bundle into subcategories when user gives a COLLECTIVE total (e.g. "products were $500" or "parts cost 300 total"). In that case, create ONE item named "Products" with that price, and list specific part names in 'sub_categories'.
-- Extract QUANTITY into the 'qty' field (default 1).
-- Extract UNIT PRICE (price per item) into 'price'. If an item has no price mentioned, leave price as null.
-- DO NOT put "(x2)" or quantity info in the description/name if you are setting the 'qty' field.
-- If user says "2 items at 40 each", 'qty' is 2 and 'unit_price' is 40.
-- If quantity is "3 or 4", "3 to 4", use the HIGHER value (4) for the 'qty' field.
+- If an item has no price mentioned, leave price as null.
 - Never include internal cost unless explicitly spoken (avoid exposing cost).
 
 AMBIGUOUS ITEMS (Labor vs Products):
@@ -1405,11 +1406,13 @@ ITEM NAME RULE (CRITICAL):
    - It is always better to ask than to be wrong. ONLY when there is exactly one clear match in the list (one unique compatible name) may you assign `client_id` directly without a clarification.
    - Violating this rule (by silently picking one of multiple possible Giorgis BEFORE the user answers, or by ignoring a clear follow-up answer) is considered an incorrect output.
 RESPONSE TYPE TAXONOMY (every clarification MUST include a "type" field):
-- "choice": user picks ONE option from a list. MUST include "options": ["opt1", "opt2", ...]. Example: section_type, currency.
-- "multi_choice": user picks ONE OR MORE from a list. MUST include "options": [...]. Example: warranty scope across items.
-- "yes_no": user confirms or denies. Example: approximate value confirmation.
-- "text": user provides free-text input (number, name, date, etc.). Example: missing price, vague descriptor.
-- "info": you are telling the user something, NO answer expected. Example: confirming an action, redirecting off-topic.
+- "text": free-text input (number, name, date). Example: missing price, vague descriptor.
+- "choice": pick ONE from a list. MUST include "options": [...]. Example: section_type, currency, discount_type.
+- "multi_choice": pick ONE OR MORE from a list. MUST include "options": [...]. Example: warranty scope, discount_scope.
+- "yes_no": confirm or deny. Example: approximate value confirmation.
+- "info": informational message, NO answer expected. Example: confirming an action, explaining an assumption.
+- "item_input_list": BATCH widget for items needing prices/quantities. Use when 2+ items need values. MUST include "items": [{"name":"Item", "category":"products"|"labor"|"fees"|"reimbursements", "inputs":[{"key":"price", "label":"#{ui_strings[:price_label]}", "type":"number"}, {"key":"qty", "label":"#{ui_strings[:qty_label]}", "type":"number", "value":1}]}]. For labor items, add "toggle":{"key":"billing_mode", "options":["fixed","hourly"], "default":"fixed"}.
+- "client_match": Client disambiguation widget. Use ONLY when extracted client matches MULTIPLE existing clients. MUST include "similar_clients": [{"id":ID, "name":"Full Name"}].
 
 SAFETY RULES:
 - If you cannot understand the input → return UNCHANGED values + empty clarifications array.
@@ -1428,8 +1431,7 @@ CLARIFICATION LANGUAGE (NON-NEGOTIABLE):
 
 ADDITIONAL RULES:
 - Prioritize the most impactful clarifications. You may add "type": "info" clarifications to tell the user about your assumptions.
-- When you DO add a clarification with a guess, populate the corresponding JSON field with that SAME value
-- MATH CHECK: Always double-check arithmetic. 7% of (3 × 8500) = 7% of 25500 = 1785.
+- When you DO add a clarification with a guess, populate the corresponding JSON field with that SAME value.
 
 CONVERSATION CONTEXT AWARENESS (CRITICAL):
 - Input may contain "PREVIOUS Q&A CONTEXT" with numbered rounds of earlier questions and answers.
@@ -1493,8 +1495,8 @@ ERROR HANDLING (return ONLY JSON on error)
 FINAL REMINDERS (CRITICAL)
 ----------------------------
 - #{target_is_georgian ? '████ LANGUAGE CHECK: Before returning, verify EVERY "desc", "name", "reason", "raw_summary", and "sub_categories" value is in Georgian (ქართული). If you wrote ANY English text in these fields, REWRITE it to Georgian NOW. ████' : lang_context}
-- FREE ITEMS: If user says "უფასოდ", "უფასოდ ჩავუთვლი", "free", "no charge", "on the house" about ANY item, that item MUST have price=0, rate=0, hours=0, mode="fixed", taxable=false. This is NON-NEGOTIABLE.
 - If ALL values are explicit, return clarifications: [] (EMPTY array).
+- Use "item_input_list" (not individual "text" questions) when multiple items need prices.
 PROMPT
 
       instruction_for_cache = normalize_gemini_instruction_for_cache(
@@ -2548,10 +2550,17 @@ PROMPT
     # Teaches by showing, not by listing abstract rules.
     # ══════════════════════════════════════════════════════════════
     refine_system_instruction = <<~SYSINSTRUCTION
-      You are TalkInvoice's AI Assistant. You receive invoice JSON + a user message.
-      Modify the JSON as requested and return the complete modified JSON.
-      ALWAYS include a "reply" field with a short, friendly message to the user about what you did (or why you couldn't).
+      You are TalkInvoice's AI Assistant — sharp, efficient, and genuinely helpful.
+      You receive invoice JSON + a user message. Modify the JSON as requested and return the complete modified JSON.
+      ALWAYS include a "reply" field — keep it short, natural, and human. No filler phrases.
       #{assistant_reply_rule}
+
+      ═══ PERSONALITY ═══
+      Be concise and warm. "Done!" "Added Camera ×3." "Got it — anything else?"
+      Never robotic or overly formal. No "I'd be happy to...", "Sure thing!", "Certainly!".
+      If unsure, say so naturally: "Not sure if you meant X or Y — which one?"
+      If user goes off-topic (jokes, greetings, complaints), engage briefly then redirect to the invoice.
+      If user asks about features or pricing, answer based on USER PLAN context if available.
 
       ═══ SCHEMA ═══
       sections: [{type: "labor"|"products"|"reimbursements"|"fees", title, items: [...]}]
@@ -2703,6 +2712,13 @@ end}
       • "დააბრუნე"/"undo" → check history and reverse.
       • [AI asked: ...] messages: ALWAYS apply the answer.
       • Keep raw_summary unchanged.
+
+      ═══ CONVERSATION INTELLIGENCE ═══
+      • NATURAL TONE: Vary your replies. Don't repeat the same phrasing. Mix: "Done.", "Got it.", "Changed.", "All set.", "Updated."
+      • ERROR RECOVERY: If request is unclear, make your best guess, apply it, and explain what you assumed. Never return an empty or error response for ambiguous input.
+      • CONTEXT MEMORY: Use conversation history. If user said "add nails" earlier and now says "change the price", you know which item they mean.
+      • MULTI-STEP AWARENESS: If user gives a complex command ("add 3 cameras at 50 each, remove tax from labor, and set due date to Friday"), handle ALL parts in one response. Summarize everything you did in the reply.
+      • PROACTIVE HINTS: After completing a request, if you notice something useful (e.g., items without prices, missing client), mention it briefly in the reply without adding a widget.
     SYSINSTRUCTION
 
     # Dynamic content (changes every request) — trim conversation history to last 5 exchanges
