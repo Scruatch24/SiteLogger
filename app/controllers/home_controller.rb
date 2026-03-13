@@ -1078,6 +1078,7 @@ class HomeController < ApplicationController
     # IMPORTANT: Section titles should match the SYSTEM LANGUAGE (UI), NOT the Transcript Language
     # The Transcript Language only affects item names/descriptions, not category titles
     ui_locale = I18n.locale.to_s
+    ui_is_georgian = (ui_locale == "ka" || ui_locale == "ge")
     sec_labels = case ui_locale
     when "ka"
       { labor: "პროფესიონალური მომსახურება", products: "პროდუქტები", reimbursements: "ანაზღაურებები", fees: "მოსაკრებლები" }
@@ -1769,11 +1770,11 @@ PROMPT
       end
 
       effective_tax_scope =
-        json["tax_scope"].to_s.strip.presence ||
+        (json["tax_scope"].to_s.strip.presence ||
           @profile.tax_scope.to_s.strip.presence ||
-          "total"
+          "total").split(',').map(&:strip).map(&:downcase)
 
-      json["tax_scope"] = effective_tax_scope
+      json["tax_scope"] = effective_tax_scope.join(",")
 
       # Use AI-detected billing_mode if provided, otherwise fall back to profile
       effective_mode = json["billing_mode"].to_s.strip.presence || mode
