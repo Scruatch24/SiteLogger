@@ -194,7 +194,7 @@ class InvoiceGenerator
         qty: "\u041a\u041e\u041b-\u0412\u041e",
         amount: "\u0421\u0423\u041c\u041c\u0410",
         discount: "\u0421\u041a\u0418\u0414\u041a\u0410",
-        tax: "\u041d\u0410\u041b\u041e\u0413",
+        tax: "НАЛОГ",
         subtotal: "\u041f\u0440\u043e\u043c\u0435\u0436\u0443\u0442\u043e\u0447\u043d\u044b\u0439 \u0438\u0442\u043e\u0433",
         tax_total: "\u041d\u0430\u043b\u043e\u0433",
         total_due: "\u041a \u041e\u041f\u041b\u0410\u0422\u0415",
@@ -265,9 +265,19 @@ class InvoiceGenerator
         tax_id_label: "ID Number",
         valued_client: "VALUED CLIENT",
         invoice_prefix: "INV",
-        num: "NUM"
       }
     end
+  end
+
+  def safe_upcase(text)
+    return text if text.blank?
+    
+    # Check if the string contains any Georgian characters (Unicode range U+10D0 - U+10FF)
+    # If it does, we return the string as-is because forcing an uppercase shift on Georgian
+    # characters can push them into the Mtavruli range, which isn't fully supported by Noto Sans bold.
+    return text if text.match?(/[\u10D0-\u10FF]/)
+    
+    text.upcase
   end
 
   def render
@@ -362,7 +372,7 @@ class InvoiceGenerator
       @pdf.fill_color @dark_charcoal
       @pdf.font(@base_font_name, style: :bold, size: 10) do
         client_name = (@recipient.name.presence || labels[:valued_client])
-        client_name = client_name.upcase unless @document_language == "ka"
+        client_name = safe_upcase(client_name)
         @pdf.text client_name, leading: 2
       end
 
@@ -658,13 +668,13 @@ class InvoiceGenerator
     line_leading = 1
     font_name = (@document_language == "ka") ? "NotoSansGeorgian" : "NotoSans"
 
-    desc_array = [ { text: main_text, styles: [ :bold ], size: 9, color: desc_color } ]
+    desc_array = [ { text: main_text, styles: [ :bold ], size: 9, color: desc_color, font: font_name } ]
 
     sub_array = []
     if item[:sub_categories].present?
       cleaned_subs = item[:sub_categories].map { |s| s.to_s.strip }.reject(&:blank?)
       sub_block = "\n" + cleaned_subs.map { |s| "• #{s}" }.join("\n")
-      sub_array = [ { text: sub_block, size: 9, color: (is_credit ? "DC2626" : @mid_gray) } ]
+      sub_array = [ { text: sub_block, size: 9, color: (is_credit ? "DC2626" : @mid_gray), font: font_name } ]
     end
 
     # 2. Accurate Height Calculation
@@ -758,8 +768,6 @@ class InvoiceGenerator
     border_inset = (@style == "classic") ? 0.5 : 0
     left_edge = 0 + border_inset
     right_edge = total_width - border_inset
-    desc_edge = left_edge + w_desc
-
     # Left vertical (accent)
     @pdf.stroke_color outer_border_color
     @pdf.line_width(1.0)
@@ -1167,12 +1175,12 @@ class InvoiceGenerator
         parts = [
           { text: "#{labels[:page]} მე-", font: "NotoSansGeorgian", styles: [:bold], size: 9, color: @dark_charcoal, character_spacing: 1.2 },
           { text: "#{@pdf.page_number}", font: "NotoSans", styles: [:bold], size: 9, color: @dark_charcoal, character_spacing: 1.2 },
-          { text: "  ·  #{@invoice_number}  ·  #{@sender.business_name.upcase}", font: "NotoSans", styles: [:bold], size: 9, color: @dark_charcoal, character_spacing: 1.2 }
+          { text: "  ·  #{@invoice_number}  ·  #{safe_upcase(@sender.business_name)}", font: "NotoSans", styles: [:bold], size: 9, color: @dark_charcoal, character_spacing: 1.2 }
         ]
         @pdf.formatted_text parts
       else
         @pdf.font(@base_font_name, style: :bold, size: 9) do
-          info_text = "#{labels[:page]} #{@pdf.page_number}  ·  #{@invoice_number}  ·  #{@sender.business_name.upcase}"
+          info_text = "#{labels[:page]} #{@pdf.page_number}  ·  #{@invoice_number}  ·  #{safe_upcase(@sender.business_name)}"
           @pdf.text info_text, character_spacing: 1.2
         end
       end
@@ -1390,7 +1398,7 @@ class InvoiceGenerator
       @pdf.fill_color "000000"
       @pdf.font(@base_font_name, style: :bold, size: 11) do
         bold_client = (@log.client.presence || "VALUED CLIENT")
-        bold_client = bold_client.upcase unless @document_language == "ka"
+        bold_client = safe_upcase(bold_client)
         @pdf.text bold_client, leading: 2
       end
       @pdf.move_down 5
@@ -1409,7 +1417,7 @@ class InvoiceGenerator
       @pdf.move_down 8
       @pdf.fill_color "000000"
       @pdf.font(@base_font_name, style: :bold, size: 10) do
-        @pdf.text @sender.business_name, align: :right, leading: 2
+        @pdf.text safe_upcase(@sender.business_name), align: :right, leading: 2
       end
       @pdf.font(@base_font_name, size: 8) do
         @pdf.fill_color @mid_gray
@@ -1477,7 +1485,7 @@ class InvoiceGenerator
       @pdf.move_down 10
       @pdf.font(@base_font_name, style: :bold, size: 12) do
         modern_client = (@log.client.presence || "CLIENT")
-        modern_client = modern_client.upcase unless @document_language == "ka"
+        modern_client = safe_upcase(modern_client)
         @pdf.text modern_client
       end
       @pdf.move_down 4
@@ -1550,7 +1558,7 @@ class InvoiceGenerator
       @pdf.move_down 5
       @pdf.font(@base_font_name, style: :bold, size: 16) do
         bold_style_client = (@log.client.presence || "CLIENT")
-        bold_style_client = bold_style_client.upcase unless @document_language == "ka"
+        bold_style_client = safe_upcase(bold_style_client)
         @pdf.text bold_style_client, leading: 2
       end
     end
@@ -1600,7 +1608,7 @@ class InvoiceGenerator
       @pdf.font(@base_font_name, style: :bold, size: 10) do
         @pdf.fill_color "000000"
         min_client = (@log.client.presence || "CLIENT")
-        min_client = min_client.upcase unless @document_language == "ka"
+        min_client = safe_upcase(min_client)
         @pdf.text min_client, leading: 2
       end
       @pdf.font(@base_font_name, size: 8) do
@@ -1751,7 +1759,6 @@ class InvoiceGenerator
     border_inset = 0.5
     left_edge = 0 + border_inset
     right_edge = table_width - border_inset
-    width_adjusted = table_width - (border_inset * 2)
     desc_edge = left_edge + (@table_widths[:desc] || 0)
     base_border_color = @charcoal
     k = 0.5522847498
@@ -1824,7 +1831,7 @@ class InvoiceGenerator
 
         @pdf.fill_color @mid_gray
         @pdf.font(@base_font_name, size: 6.5, style: :bold) do
-          @pdf.text_box @sender.business_name.upcase,
+          @pdf.text_box safe_upcase(@sender.business_name),
             at: [ margin, footer_y ], width: 200, align: :left, character_spacing: 0.5
         end
 
