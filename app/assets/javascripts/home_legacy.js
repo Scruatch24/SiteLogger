@@ -3287,6 +3287,12 @@ function updateDueDate(dueDays, dueDate) {
   const dueDateValue = document.getElementById('dueDateValue');
   const dueDaysLabel = document.getElementById('dueDaysLabel');
 
+  // Keep label in sync with current language
+  const dueDateLabelEl = document.getElementById('dueDateLabel');
+  if (dueDateLabelEl && window.APP_LANGUAGES && window.APP_LANGUAGES.due_date_label) {
+    dueDateLabelEl.innerText = window.APP_LANGUAGES.due_date_label;
+  }
+
   let targetDate;
   let daysUntil;
 
@@ -3315,7 +3321,7 @@ function updateDueDate(dueDays, dueDate) {
   // Format the date
   const lang = window.currentSystemLanguage || 'en';
   let formattedDate;
-  if (lang === 'ka') {
+  if (lang !== 'en') {
     const monthsKa = [
       window.APP_LANGUAGES.jan, window.APP_LANGUAGES.feb, window.APP_LANGUAGES.mar,
       window.APP_LANGUAGES.apr, window.APP_LANGUAGES.may, window.APP_LANGUAGES.jun,
@@ -3425,7 +3431,7 @@ function renderCalendar() {
 
   // Update header
   const lang = window.currentSystemLanguage || 'en';
-  if (lang === 'ka') {
+  if (lang !== 'en') {
     const monthsKa = [
       window.APP_LANGUAGES.jan, window.APP_LANGUAGES.feb, window.APP_LANGUAGES.mar,
       window.APP_LANGUAGES.apr, window.APP_LANGUAGES.may, window.APP_LANGUAGES.jun,
@@ -3558,7 +3564,7 @@ function renderMainCalendar() {
   const daysContainer = document.getElementById('mainCalendarDays');
   const lang = window.currentSystemLanguage || 'en';
 
-  if (lang === 'ka') {
+  if (lang !== 'en') {
     const monthsKa = [
       window.APP_LANGUAGES.jan, window.APP_LANGUAGES.feb, window.APP_LANGUAGES.mar,
       window.APP_LANGUAGES.apr, window.APP_LANGUAGES.may, window.APP_LANGUAGES.jun,
@@ -3617,7 +3623,7 @@ function selectMainCalendarDate(dateStr) {
   window.selectedMainDate = selectedDate;
 
   const lang = window.currentSystemLanguage || 'en';
-  if (lang === 'ka') {
+  if (lang !== 'en') {
     const monthsKa = [
       window.APP_LANGUAGES.jan, window.APP_LANGUAGES.feb, window.APP_LANGUAGES.mar,
       window.APP_LANGUAGES.apr, window.APP_LANGUAGES.may, window.APP_LANGUAGES.jun,
@@ -5650,7 +5656,7 @@ function updateUI(data) {
     }
     // Format date display according to system language
     const lang = window.currentSystemLanguage || 'en';
-    if (lang === 'ka') {
+    if (lang !== 'en') {
       const monthsKa = [
         window.APP_LANGUAGES.jan, window.APP_LANGUAGES.feb, window.APP_LANGUAGES.mar,
         window.APP_LANGUAGES.apr, window.APP_LANGUAGES.may, window.APP_LANGUAGES.jun,
@@ -7627,7 +7633,7 @@ function pickCalendarDate(year, month, day) {
   var L = window.APP_LANGUAGES || {};
   var lang = window.currentSystemLanguage || 'en';
   var formatted;
-  if (lang === 'ka') {
+  if (lang !== 'en') {
     var KA_MONTHS = [L.jan || 'იან', L.feb || 'თებ', L.mar || 'მარ', L.apr || 'აპრ', L.may_short || 'მაი', L.jun || 'ივნ', L.jul || 'ივლ', L.aug || 'აგვ', L.sep || 'სექ', L.oct || 'ოქტ', L.nov || 'ნოე', L.dec || 'დეკ'];
     formatted = KA_MONTHS[month] + ' ' + (day < 10 ? '0' + day : day) + ', ' + year;
   } else {
@@ -9945,7 +9951,7 @@ function updateUIWithoutTranscript(data, skipClarifications) {
       if (!isNaN(parsedDate.getTime())) {
         window.selectedMainDate = parsedDate;
         const lang = window.currentSystemLanguage || 'en';
-        if (lang === 'ka') {
+        if (lang !== 'en') {
           const monthsKa = [
             window.APP_LANGUAGES.jan, window.APP_LANGUAGES.feb, window.APP_LANGUAGES.mar,
             window.APP_LANGUAGES.apr, window.APP_LANGUAGES.may, window.APP_LANGUAGES.jun,
