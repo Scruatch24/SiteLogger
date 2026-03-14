@@ -94,7 +94,7 @@
           <label class="text-[12px] font-black text-orange-600 uppercase tracking-widest ml-1"><%= t('company_name') %></label>
           <span class="bg-orange-100 text-orange-600 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-orange-200"><%= t('shows_up_in_invoice') %></span>
         </div>
-        <%= f.text_field :business_name, placeholder: t('business_name_placeholder'), class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", disabled: is_guest %>
+        <%= f.text_field :business_name, placeholder: t('business_name_placeholder'), class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:translate-x-[2px] focus:translate-y-[2px] focus:shadow-none focus:border-orange-500 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", disabled: is_guest %>
       </div>
 
       <div class="space-y-3">
@@ -186,7 +186,7 @@
           </div>
           <span id="payment_instructions_counter" class="hidden text-[9px] font-black uppercase text-gray-400"><%= t('max_chars_per_line') %></span>
         </div>
-        <%= f.text_area :payment_instructions, rows: 3, placeholder: t('payment_instructions_placeholder'), class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-medium text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all resize-none custom-scrollbar disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", onkeydown: "return checkCharLimit(event, this, 50, 8)", oninput: "limitLinesAndChars(this, 50, 8); autoResize(this)", style: "min-height: 120px; max-height: 300px;", disabled: is_guest %>
+        <%= f.text_area :payment_instructions, rows: 3, placeholder: t('payment_instructions_placeholder'), class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-medium text-black focus:translate-x-[2px] focus:translate-y-[2px] focus:shadow-none focus:border-orange-500 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all resize-none custom-scrollbar disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", onkeydown: "return checkCharLimit(event, this, 50, 8)", oninput: "limitLinesAndChars(this, 50, 8); autoResize(this)", style: "min-height: 120px; max-height: 300px;", disabled: is_guest %>
       </div>
 
       <div class="space-y-2">
@@ -197,7 +197,7 @@
           </div>
           <span id="note_counter" class="hidden text-[9px] font-black uppercase text-gray-400"><%= t('max_chars_per_line') %></span>
         </div>
-        <%= f.text_area :note, rows: 2, placeholder: t('invoice_note_placeholder'), class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-medium text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all resize-none custom-scrollbar disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", onkeydown: "return checkCharLimit(event, this, 50, 2)", oninput: "limitLinesAndChars(this, 50, 2); autoResize(this)", style: "min-height: 80px; max-height: 200px;", disabled: is_guest %>
+        <%= f.text_area :note, rows: 2, placeholder: t('invoice_note_placeholder'), class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-medium text-black focus:translate-x-[2px] focus:translate-y-[2px] focus:shadow-none focus:border-orange-500 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all resize-none custom-scrollbar disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", onkeydown: "return checkCharLimit(event, this, 50, 2)", oninput: "limitLinesAndChars(this, 50, 2); autoResize(this)", style: "min-height: 80px; max-height: 200px;", disabled: is_guest %>
       </div>
 
       <div class="space-y-2">
@@ -205,7 +205,7 @@
           <label class="text-[12px] font-black text-black uppercase tracking-widest ml-1"><%= t('email') %></label>
           <span class="bg-orange-100 text-orange-600 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-orange-200"><%= t('shows_up_in_invoice') %></span>
         </div>
-        <%= f.email_field :email, placeholder: t('email_placeholder'), class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", disabled: is_guest %>
+        <%= f.email_field :email, placeholder: t('email_placeholder'), class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:translate-x-[2px] focus:translate-y-[2px] focus:shadow-none focus:border-orange-500 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", disabled: is_guest %>
       </div>
 
       <div class="space-y-2">
@@ -213,7 +213,7 @@
             <label class="text-[12px] font-black text-black uppercase tracking-widest ml-1"><%= t('phone') %></label>
             <span class="bg-orange-100 text-orange-600 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-orange-200"><%= t('shows_up_in_invoice') %></span>
         </div>
-        <%= f.text_field :phone, placeholder: t('phone_placeholder'), class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", disabled: is_guest %>
+        <%= f.text_field :phone, placeholder: t('phone_placeholder'), class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:translate-x-[2px] focus:translate-y-[2px] focus:shadow-none focus:border-orange-500 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", disabled: is_guest %>
       </div>
 
       <div class="space-y-2">
@@ -224,7 +224,7 @@
           </div>
           <span id="address_counter" class="hidden text-[9px] font-black uppercase text-gray-400"><%= t('max_chars_per_line') %></span>
         </div>
-        <%= f.text_area :address, rows: 3, placeholder: t('address_placeholder'), class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-medium text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all resize-none custom-scrollbar disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", onkeydown: "return checkCharLimit(event, this, 50, 3)", oninput: "limitLinesAndChars(this, 50, 3); autoResize(this)", style: "min-height: 100px; max-height: 200px;", disabled: is_guest %>
+        <%= f.text_area :address, rows: 3, placeholder: t('address_placeholder'), class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-medium text-black focus:translate-x-[2px] focus:translate-y-[2px] focus:shadow-none focus:border-orange-500 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all resize-none custom-scrollbar disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", onkeydown: "return checkCharLimit(event, this, 50, 3)", oninput: "limitLinesAndChars(this, 50, 3); autoResize(this)", style: "min-height: 100px; max-height: 200px;", disabled: is_guest %>
       </div>
 
       <div class="space-y-2">
@@ -232,7 +232,7 @@
             <label class="text-[12px] font-black text-black uppercase tracking-widest ml-1"><%= t('tax_id') %></label>
             <span class="bg-orange-100 text-orange-600 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-orange-200"><%= t('shows_up_in_invoice') %></span>
         </div>
-        <%= f.text_field :tax_id, placeholder: t('tax_id_placeholder'), class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:border-orange-500 focus:shadow-[5px_5px_0px_0px_#F97316] focus:-translate-y-0.5 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", disabled: is_guest %>
+        <%= f.text_field :tax_id, placeholder: t('tax_id_placeholder'), class: "w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black focus:translate-x-[2px] focus:translate-y-[2px] focus:shadow-none focus:border-orange-500 outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed", disabled: is_guest %>
       </div>
     <div class="w-full bg-orange-600/40 text-white/60 border-2 border-white/10 font-black py-4 rounded-xl transition-all uppercase text-xs tracking-[0.2em] items-center justify-center gap-3 shadow-none <%= is_guest ? 'flex' : 'hidden' %>">
       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
@@ -241,7 +241,7 @@
       <span><%= t('sign_up_to_save') %></span>
     </div>
 
-    <button type="submit" id="saveProfileBtn" class="<%= is_guest ? 'hidden' : 'flex' %> w-full bg-orange-600 text-white border-2 border-black font-black py-4 rounded-xl shadow-[4px_4px_0px_0px_#000000] active:scale-[0.97] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all uppercase text-xs items-center justify-center gap-3 save-btn-hover">
+    <button type="submit" id="saveProfileBtn" class="<%= is_guest ? 'hidden' : 'flex' %> w-full bg-orange-600 text-white border-2 border-black font-black py-4 rounded-xl shadow-[4px_4px_0px_0px_#000000] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all uppercase text-xs items-center justify-center gap-3 save-btn-hover btn-rise">
       <span id="btnText"><%= t('save_settings') %></span>
       <div id="btnSpinner" class="hidden">
         <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -270,6 +270,8 @@
     }
     .save-btn-hover:hover {
       background-color: #c2410c !important; /* orange-700 */
+      transform: translate(-1px, -1px);
+      box-shadow: 5px 5px 0px 0px rgba(0,0,0,1) !important;
     }
   }
 

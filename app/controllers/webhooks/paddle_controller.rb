@@ -41,6 +41,8 @@ class Webhooks::PaddleController < ActionController::Base
       handle_subscription_event(event)
     when "subscription.canceled", "subscription.paused"
       handle_subscription_status_change(event)
+    when "transaction.payment_failed"
+      handle_payment_failed(event)
     when "address.created", "payment_method.saved"
       # These are supporting events, log but don't process
       Rails.logger.info("Paddle supporting event: #{event['event_type']}")
@@ -83,6 +85,19 @@ class Webhooks::PaddleController < ActionController::Base
     update_attrs[:paddle_subscription_id] = subscription_id if subscription_id.present?
 
     profile.update_columns(update_attrs)
+
+    if profile.user.present?
+      user = profile.user
+      amount = data.dig("details", "totals", "grand_total").to_f / 100.0 rescue 0
+      currency = data.dig("currency_code").presence || profile.currency.presence || "USD"
+      UserMailer.payment_receipt(
+        user,
+        amount: amount,
+        currency: currency,
+        transaction_id: data["id"].to_s,
+        plan_name: "Pro"
+      ).deliver_later
+    end
   end
 
   def handle_subscription_event(event)
@@ -142,6 +157,11 @@ class Webhooks::PaddleController < ActionController::Base
     end
 
     profile.update_columns(update_attrs)
+
+    if scheduled_cancel && profile.user.present?
+      ends_at = cancel_effective_at
+      UserMailer.subscription_canceled(profile.user, ends_at: ends_at).deliver_later
+    end
   end
 
   def handle_subscription_status_change(event)
@@ -186,6 +206,34 @@ class Webhooks::PaddleController < ActionController::Base
     end
 
     profile.update_columns(update_attrs)
+
+    if status == "canceled" && profile.user.present?
+      UserMailer.subscription_canceled(profile.user, ends_at: ends_at).deliver_later
+    end
+  end
+
+  def handle_payment_failed(event)
+    data = event["data"] || {}
+    customer_id = data["customer_id"].presence || data.dig("customer", "id")
+    email = data.dig("customer", "email").presence || data["customer_email"].presence
+
+    profile = find_profile_for_event(
+      customer_id: customer_id,
+      email: email,
+      custom_data: data["custom_data"]
+    )
+    return unless profile&.user.present?
+
+    amount = data.dig("details", "totals", "grand_total").to_f / 100.0 rescue 0
+    currency = data["currency_code"].presence || profile.currency.presence || "USD"
+    next_attempt = parse_paddle_time(data.dig("payments", 0, "next_retried_at"))
+
+    UserMailer.payment_failed(
+      profile.user,
+      amount: amount,
+      currency: currency,
+      next_attempt_at: next_attempt
+    ).deliver_later
   end
 
   def parse_paddle_time(value)

@@ -1785,11 +1785,19 @@ body {
           /* orange-50 */
           border-color: #f97316;
           /* orange-500 */
+          transform: translate(-1px, -1px);
+          box-shadow: 3px 3px 0px 0px rgba(0,0,0,1);
       }
 
       .nav-link-hover:hover svg {
           color: #ea580c;
           /* orange-600 */
+      }
+
+      /* Rise on hover for any btn-rise element */
+      .btn-rise:hover {
+          transform: translate(-1px, -1px);
+          box-shadow: 5px 5px 0px 0px rgba(0,0,0,1) !important;
       }
 
       /* Icon Buttons (Calendar) */
@@ -1870,7 +1878,6 @@ body {
       }
   }
 
-  /* Active states when popups are open (Mobile + Desktop) */
   .pop-active.btn-icon-hover {
       background-color: #fff7ed !important;
       /* orange-50 */
@@ -1915,6 +1922,17 @@ body {
   #discountInputsPanel,
   #addMenuDropup {
       z-index: 1000 !important;
+  }
+
+  /* Active nav page indicator — appears pressed */
+  .nav-active {
+      background-color: #fff7ed !important;
+      border-color: #ea580c !important;
+      transform: translate(2px, 2px) !important;
+      box-shadow: none !important;
+  }
+  .nav-active svg {
+      color: #ea580c !important;
   }
 
   /* Custom Navigation Tooltip */
