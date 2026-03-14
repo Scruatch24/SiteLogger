@@ -1250,7 +1250,6 @@ ka:
     export_csv: "CSV ექსპორტი"
     export_pdf: "PDF ექსპორტი"
     create_report: "ანგარიშის შექმნა"
-    create_report_desc: "აირჩიეთ ფილტრები ანგარიშის მოსარგებად, შემდეგ ჩამოტვირთეთ PDF ან CSV ფორმატში."
     rf_date_range: "თარიღი"
     rf_status: "სტატუსი"
     rf_client: "კლიენტი"

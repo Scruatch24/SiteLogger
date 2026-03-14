@@ -1935,6 +1935,12 @@ body {
   /* Custom Navigation Tooltip */
   .nav-link-hover {
       position: relative;
+      box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+      transition: all 0.15s ease;
+  }
+  .nav-link-hover:active:not(.nav-active) {
+      transform: translate(1px, 1px) !important;
+      box-shadow: none !important;
   }
 
   .nav-tooltip {

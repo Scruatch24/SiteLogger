@@ -4627,14 +4627,20 @@ PROMPT
       to = Date.parse(params[:date_to]) rescue nil
       logs = logs.where("logs.created_at <= ?", to.end_of_day) if to
     end
-    if params[:status].present? && params[:status] != "all"
-      if params[:status] == "overdue"
-        logs = logs.where(
-          "status = 'overdue' OR (status IN ('draft','sent') AND due_date IS NOT NULL AND due_date != '' AND CAST(due_date AS date) < ?)", Date.today
-        )
-      else
-        logs = logs.where(status: params[:status])
+    statuses = Array(params[:statuses].presence || params[:status].presence).map(&:to_s).reject { |s| s.blank? || s == "all" }
+    if statuses.any?
+      conditions = []
+      bind_vals = []
+      regular = statuses - ["overdue"]
+      if regular.any?
+        conditions << "status IN (?)"
+        bind_vals << regular
       end
+      if statuses.include?("overdue")
+        conditions << "status = 'overdue' OR (status IN ('draft','sent') AND due_date IS NOT NULL AND due_date != '' AND CAST(due_date AS date) < ?)"
+        bind_vals << Date.today
+      end
+      logs = logs.where(conditions.join(" OR "), *bind_vals) if conditions.any?
     end
     if params[:clients].present?
       client_names = Array(params[:clients]).map(&:strip).reject(&:blank?)

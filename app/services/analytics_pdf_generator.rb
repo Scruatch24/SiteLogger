@@ -444,10 +444,10 @@ class AnalyticsPdfGenerator
     pdf.repeat(:all) do
       pdf.canvas do
         pdf.fill_color TEXT_MUTED
-        pdf.draw_text "TalkInvoice Analytics Report — #{t('analytics_export.pdf_exported')}: #{@today.strftime('%Y-%m-%d')}",
-                      at: [36, 18], size: 7
-        pdf.draw_text "talkinvoice.online",
-                      at: [pdf.bounds.absolute_right - 130, 18], size: 7
+        pdf.text_box "TalkInvoice Analytics Report — #{t('analytics_export.pdf_exported')}: #{@today.strftime('%Y-%m-%d')}",
+                     at: [36, 24], size: 7, width: 300, height: 14, overflow: :shrink_to_fit, disable_wrap_by_char: true
+        pdf.text_box "talkinvoice.online",
+                     at: [pdf.bounds.absolute_right - 130, 24], size: 7, width: 130, height: 14, align: :right
         pdf.fill_color TEXT_WHITE
       end
     end

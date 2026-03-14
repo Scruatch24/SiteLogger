@@ -887,23 +887,44 @@
     color: rgba(255,255,255,0.25);
     font-weight: 700;
   }
-  .ana-rf-input {
-    flex: 1;
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.15);
-    border-radius: 10px;
+  .ana-rf-date-wrap { position: relative; flex: 1; }
+  .ana-rf-date-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
     padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.7);
     font-size: 12px;
     font-weight: 700;
-    color: #f8fafc;
-    outline: none;
-    transition: all 0.2s ease;
-    color-scheme: dark;
+    cursor: pointer;
+    transition: all 0.15s ease;
   }
-  .ana-rf-input:focus {
-    border-color: #f97316;
-    background: rgba(249,115,22,0.08);
-    box-shadow: 0 0 0 2px rgba(249,115,22,0.15);
+  .ana-rf-date-btn:hover { border-color: rgba(249,115,22,0.4); }
+  .ana-rf-date-btn svg { color: rgba(255,255,255,0.4); }
+
+  /* Custom date picker */
+  .ana-dp { display: none; position: absolute; top: calc(100% + 6px); left: 0; z-index: 60; background: #1a1a1a; border: 1px solid rgba(255,255,255,0.15); border-radius: 14px; padding: 12px; width: 260px; user-select: none; }
+  .ana-dp.open { display: block; }
+  .ana-dp-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .ana-dp-title { font-size: 13px; font-weight: 800; color: rgba(255,255,255,0.8); }
+  .ana-dp-nav { width: 28px; height: 28px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: transparent; color: rgba(255,255,255,0.5); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+  .ana-dp-nav:hover { border-color: #f97316; color: #f97316; }
+  .ana-dp-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-bottom: 4px; }
+  .ana-dp-wd { text-align: center; font-size: 9px; font-weight: 800; text-transform: uppercase; color: rgba(255,255,255,0.3); padding: 4px 0; }
+  .ana-dp-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+  .ana-dp-day { text-align: center; padding: 6px 0; font-size: 12px; font-weight: 700; color: rgba(255,255,255,0.6); border-radius: 8px; cursor: pointer; border: none; background: transparent; transition: all 0.1s; }
+  .ana-dp-day:hover { background: rgba(249,115,22,0.15); color: #f97316; }
+  .ana-dp-day.today { border: 1px solid rgba(249,115,22,0.4); }
+  .ana-dp-day.selected { background: #f97316; color: white; }
+  .ana-dp-day.other-month { color: rgba(255,255,255,0.15); }
+
+  /* Desktop: vertical layout for report filters */
+  @media (min-width: 768px) {
+    .ana-report-filters { max-width: 400px; }
   }
 
   /* Status pills */
@@ -1658,22 +1679,34 @@
 
     <!-- ═══════════════ 7. CREATE A REPORT ═══════════════ -->
     <% if @is_pro %>
+    <% report_locale = (current_user.profile&.system_language.presence || I18n.locale).to_s %>
     <section class="ana-section ana-report-section" id="reportSection">
       <h2 class="ana-section-title"><%= t('analytics_page.create_report') %></h2>
-      <p class="ana-report-desc"><%= t('analytics_page.create_report_desc') %></p>
 
       <div class="ana-report-filters">
         <!-- Date Range -->
         <div class="ana-rf-row">
           <label class="ana-rf-label"><%= t('analytics_page.rf_date_range') %></label>
           <div class="ana-rf-date-row">
-            <input type="date" id="reportDateFrom" class="ana-rf-input" />
+            <div class="ana-rf-date-wrap" id="reportDateFromWrap">
+              <button type="button" class="ana-rf-date-btn" id="reportDateFromBtn" onclick="openReportDatePicker('from')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;flex-shrink:0;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                <span id="reportDateFromText"><%= Date.today.beginning_of_month.strftime(report_locale == 'en' ? '%m/%d/%Y' : '%d/%m/%Y') %></span>
+              </button>
+              <input type="hidden" id="reportDateFrom" value="<%= Date.today.beginning_of_month.strftime('%Y-%m-%d') %>" />
+            </div>
             <span class="ana-rf-date-sep">—</span>
-            <input type="date" id="reportDateTo" class="ana-rf-input" />
+            <div class="ana-rf-date-wrap" id="reportDateToWrap">
+              <button type="button" class="ana-rf-date-btn" id="reportDateToBtn" onclick="openReportDatePicker('to')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;flex-shrink:0;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                <span id="reportDateToText"><%= Date.today.end_of_month.strftime(report_locale == 'en' ? '%m/%d/%Y' : '%d/%m/%Y') %></span>
+              </button>
+              <input type="hidden" id="reportDateTo" value="<%= Date.today.end_of_month.strftime('%Y-%m-%d') %>" />
+            </div>
           </div>
         </div>
 
-        <!-- Status -->
+        <!-- Status (multi-select) -->
         <div class="ana-rf-row">
           <label class="ana-rf-label"><%= t('analytics_page.rf_status') %></label>
           <div class="ana-rf-pills" id="reportStatusPills">
@@ -1713,7 +1746,8 @@
             <div class="ana-rf-dropdown" id="reportCategoryDropdown">
               <button type="button" class="ana-rf-dd-option active" data-category="all" onclick="toggleReportCategory(this)"><%= t('all') %></button>
               <% (current_user.categories.order(:name) rescue []).each do |cat| %>
-                <button type="button" class="ana-rf-dd-option" data-category="<%= cat.name %>" onclick="toggleReportCategory(this)"><%= cat.name %></button>
+                <% cat_display = cat.name.downcase == "favorites" ? t('favorites') : cat.name %>
+                <button type="button" class="ana-rf-dd-option" data-category="<%= cat.name %>" onclick="toggleReportCategory(this)"><%= cat_display %></button>
               <% end %>
             </div>
           </div>
@@ -1721,14 +1755,14 @@
       </div>
 
       <div class="ana-report-actions">
-        <a href="<%= analytics_export_pdf_path %>" id="reportPdfLink" class="ana-report-btn pdf">
+        <a href="<%= analytics_export_pdf_path(date_from: Date.today.beginning_of_month.strftime('%Y-%m-%d'), date_to: Date.today.end_of_month.strftime('%Y-%m-%d')) %>" id="reportPdfLink" class="ana-report-btn pdf">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
           <div class="ana-report-btn-text">
             <span class="ana-report-btn-label"><%= t('analytics_page.download_pdf') %></span>
             <span class="ana-report-btn-hint"><%= t('analytics_page.pdf_hint') %></span>
           </div>
         </a>
-        <a href="<%= analytics_export_path %>" id="reportCsvLink" class="ana-report-btn csv">
+        <a href="<%= analytics_export_path(date_from: Date.today.beginning_of_month.strftime('%Y-%m-%d'), date_to: Date.today.end_of_month.strftime('%Y-%m-%d')) %>" id="reportCsvLink" class="ana-report-btn csv">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           <div class="ana-report-btn-text">
             <span class="ana-report-btn-label"><%= t('analytics_page.download_csv') %></span>
@@ -1792,100 +1826,222 @@
 
 <% if @is_pro %>
 <script>
-  // ── Report Filter JS ──
-  var _reportBasePdf = "<%= analytics_export_pdf_path %>";
-  var _reportBaseCsv = "<%= analytics_export_path %>";
-  var _reportSelectedStatus = "all";
-  var _reportSelectedClients = [];
-  var _reportSelectedCategories = [];
+(function() {
+  var _basePdf = "<%= analytics_export_pdf_path %>";
+  var _baseCsv = "<%= analytics_export_path %>";
+  var _isEn = "<%= (current_user.profile&.system_language.presence || I18n.locale).to_s %>" === "en";
+  var _selectedStatuses = [];
+  var _selectedClients = [];
+  var _selectedCategories = [];
+  var _monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var _weekdays = _isEn ? ['Su','Mo','Tu','We','Th','Fr','Sa'] : ['კვ','ორ','სა','ოთ','ხუ','პა','შა'];
+  var _activePicker = null;
+  var _pickerMonth = null;
+  var _pickerYear = null;
 
-  function updateReportLinks() {
+  function fmtDate(ymd) {
+    if (!ymd) return '';
+    var p = ymd.split('-'); // YYYY-MM-DD
+    return _isEn ? p[1]+'/'+p[2]+'/'+p[0] : p[2]+'/'+p[1]+'/'+p[0];
+  }
+
+  function updateLinks() {
     var params = [];
     var from = document.getElementById('reportDateFrom')?.value;
     var to = document.getElementById('reportDateTo')?.value;
     if (from) params.push('date_from=' + encodeURIComponent(from));
     if (to) params.push('date_to=' + encodeURIComponent(to));
-    if (_reportSelectedStatus !== 'all') params.push('status=' + encodeURIComponent(_reportSelectedStatus));
-    _reportSelectedClients.forEach(function(c) { params.push('clients[]=' + encodeURIComponent(c)); });
-    _reportSelectedCategories.forEach(function(c) { params.push('categories[]=' + encodeURIComponent(c)); });
+    _selectedStatuses.forEach(function(s) { params.push('statuses[]=' + encodeURIComponent(s)); });
+    _selectedClients.forEach(function(c) { params.push('clients[]=' + encodeURIComponent(c)); });
+    _selectedCategories.forEach(function(c) { params.push('categories[]=' + encodeURIComponent(c)); });
     var qs = params.length ? '?' + params.join('&') : '';
     var pdfLink = document.getElementById('reportPdfLink');
     var csvLink = document.getElementById('reportCsvLink');
-    if (pdfLink) pdfLink.href = _reportBasePdf + qs;
-    if (csvLink) csvLink.href = _reportBaseCsv + qs;
+    if (pdfLink) pdfLink.href = _basePdf + qs;
+    if (csvLink) csvLink.href = _baseCsv + qs;
   }
 
-  // Date inputs
-  document.getElementById('reportDateFrom')?.addEventListener('change', updateReportLinks);
-  document.getElementById('reportDateTo')?.addEventListener('change', updateReportLinks);
+  // ── Multi-select Status Pills ──
+  var statusPills = document.querySelectorAll('#reportStatusPills .ana-rf-pill');
+  var allPill = document.querySelector('#reportStatusPills .ana-rf-pill[data-val="all"]');
+  var specificPills = document.querySelectorAll('#reportStatusPills .ana-rf-pill:not([data-val="all"])');
 
-  // Status pills
-  document.querySelectorAll('#reportStatusPills .ana-rf-pill').forEach(function(pill) {
+  function syncStatusState() {
+    var activeCount = 0;
+    specificPills.forEach(function(p) { if (p.classList.contains('active')) activeCount++; });
+    if (activeCount === specificPills.length || activeCount === 0) {
+      specificPills.forEach(function(p) { p.classList.remove('active'); });
+      allPill?.classList.add('active');
+      _selectedStatuses = [];
+    } else {
+      allPill?.classList.remove('active');
+      _selectedStatuses = [];
+      specificPills.forEach(function(p) { if (p.classList.contains('active')) _selectedStatuses.push(p.dataset.val); });
+    }
+    updateLinks();
+  }
+
+  statusPills.forEach(function(pill) {
     pill.addEventListener('click', function() {
-      document.querySelectorAll('#reportStatusPills .ana-rf-pill').forEach(function(p) { p.classList.remove('active'); });
-      pill.classList.add('active');
-      _reportSelectedStatus = pill.dataset.val;
-      updateReportLinks();
+      if (pill.dataset.val === 'all') {
+        specificPills.forEach(function(p) { p.classList.remove('active'); });
+        allPill?.classList.add('active');
+        _selectedStatuses = [];
+        updateLinks();
+      } else {
+        pill.classList.toggle('active');
+        syncStatusState();
+      }
     });
   });
 
-  // Client dropdown
-  function toggleReportDropdown(type) {
-    var wrap = document.getElementById('report' + type.charAt(0).toUpperCase() + type.slice(1) + 'Wrap');
-    if (!wrap) return;
-    var wasOpen = wrap.classList.contains('open');
-    document.querySelectorAll('.ana-rf-multi-wrap').forEach(function(w) { w.classList.remove('open'); });
-    if (!wasOpen) wrap.classList.add('open');
+  // ── Custom Date Picker ──
+  function openReportDatePicker(which) {
+    closeAllPickers();
+    _activePicker = which;
+    var wrap = document.getElementById(which === 'from' ? 'reportDateFromWrap' : 'reportDateToWrap');
+    var existing = wrap?.querySelector('.ana-dp');
+    if (existing) { existing.remove(); return; }
+    var currentVal = document.getElementById(which === 'from' ? 'reportDateFrom' : 'reportDateTo')?.value || '';
+    var parts = currentVal.split('-');
+    _pickerYear = parseInt(parts[0]) || new Date().getFullYear();
+    _pickerMonth = parseInt(parts[1]) - 1;
+    if (isNaN(_pickerMonth)) _pickerMonth = new Date().getMonth();
+    var dp = document.createElement('div');
+    dp.className = 'ana-dp open';
+    dp.onclick = function(e) { e.stopPropagation(); };
+    renderPicker(dp, currentVal);
+    wrap?.appendChild(dp);
   }
+  window.openReportDatePicker = openReportDatePicker;
+
+  function renderPicker(dp, selectedYmd) {
+    var html = '<div class="ana-dp-header">';
+    html += '<button type="button" class="ana-dp-nav" onclick="dpNav(-1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:14px;height:14px;"><path d="M15 18l-6-6 6-6"/></svg></button>';
+    html += '<span class="ana-dp-title">' + _monthNames[_pickerMonth] + ' ' + _pickerYear + '</span>';
+    html += '<button type="button" class="ana-dp-nav" onclick="dpNav(1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:14px;height:14px;"><path d="M9 18l6-6-6-6"/></svg></button>';
+    html += '</div><div class="ana-dp-weekdays">';
+    _weekdays.forEach(function(w) { html += '<div class="ana-dp-wd">' + w + '</div>'; });
+    html += '</div><div class="ana-dp-days">';
+    var first = new Date(_pickerYear, _pickerMonth, 1);
+    var startDay = first.getDay();
+    var daysInMonth = new Date(_pickerYear, _pickerMonth + 1, 0).getDate();
+    var today = new Date(); today.setHours(0,0,0,0);
+    var prevDays = new Date(_pickerYear, _pickerMonth, 0).getDate();
+    for (var i = startDay - 1; i >= 0; i--) {
+      var d = prevDays - i;
+      var pm = _pickerMonth - 1 < 0 ? 11 : _pickerMonth - 1;
+      var py = pm === 11 ? _pickerYear - 1 : _pickerYear;
+      var ymd = py + '-' + String(pm+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+      html += '<button type="button" class="ana-dp-day other-month" data-ymd="' + ymd + '" onclick="dpSelect(this)">' + d + '</button>';
+    }
+    for (var d = 1; d <= daysInMonth; d++) {
+      var ymd = _pickerYear + '-' + String(_pickerMonth+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+      var cls = 'ana-dp-day';
+      if (ymd === selectedYmd) cls += ' selected';
+      var dd = new Date(_pickerYear, _pickerMonth, d);
+      if (dd.getTime() === today.getTime()) cls += ' today';
+      html += '<button type="button" class="' + cls + '" data-ymd="' + ymd + '" onclick="dpSelect(this)">' + d + '</button>';
+    }
+    var totalCells = startDay + daysInMonth;
+    var remaining = (7 - (totalCells % 7)) % 7;
+    for (var d = 1; d <= remaining; d++) {
+      var nm = _pickerMonth + 1 > 11 ? 0 : _pickerMonth + 1;
+      var ny = nm === 0 ? _pickerYear + 1 : _pickerYear;
+      var ymd = ny + '-' + String(nm+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+      html += '<button type="button" class="ana-dp-day other-month" data-ymd="' + ymd + '" onclick="dpSelect(this)">' + d + '</button>';
+    }
+    html += '</div>';
+    dp.innerHTML = html;
+  }
+
+  window.dpNav = function(dir) {
+    _pickerMonth += dir;
+    if (_pickerMonth > 11) { _pickerMonth = 0; _pickerYear++; }
+    if (_pickerMonth < 0) { _pickerMonth = 11; _pickerYear--; }
+    var wrap = document.getElementById(_activePicker === 'from' ? 'reportDateFromWrap' : 'reportDateToWrap');
+    var dp = wrap?.querySelector('.ana-dp');
+    var currentVal = document.getElementById(_activePicker === 'from' ? 'reportDateFrom' : 'reportDateTo')?.value || '';
+    if (dp) renderPicker(dp, currentVal);
+  };
+
+  window.dpSelect = function(btn) {
+    var ymd = btn.dataset.ymd;
+    var inputId = _activePicker === 'from' ? 'reportDateFrom' : 'reportDateTo';
+    var textId = _activePicker === 'from' ? 'reportDateFromText' : 'reportDateToText';
+    var input = document.getElementById(inputId);
+    var text = document.getElementById(textId);
+    if (input) input.value = ymd;
+    if (text) text.textContent = fmtDate(ymd);
+    closeAllPickers();
+    updateLinks();
+  };
+
+  function closeAllPickers() {
+    document.querySelectorAll('.ana-dp').forEach(function(dp) { dp.remove(); });
+  }
+
   document.addEventListener('click', function(e) {
+    if (!e.target.closest('.ana-rf-date-wrap') && !e.target.closest('.ana-dp')) closeAllPickers();
     if (!e.target.closest('.ana-rf-multi-wrap')) {
       document.querySelectorAll('.ana-rf-multi-wrap').forEach(function(w) { w.classList.remove('open'); });
     }
   });
 
-  function toggleReportClient(btn) {
+  // ── Client/Category Dropdowns ──
+  window.toggleReportDropdown = function(type) {
+    var wrap = document.getElementById('report' + type.charAt(0).toUpperCase() + type.slice(1) + 'Wrap');
+    if (!wrap) return;
+    var wasOpen = wrap.classList.contains('open');
+    document.querySelectorAll('.ana-rf-multi-wrap').forEach(function(w) { w.classList.remove('open'); });
+    closeAllPickers();
+    if (!wasOpen) wrap.classList.add('open');
+  };
+
+  window.toggleReportClient = function(btn) {
     var val = btn.dataset.client;
     if (val === 'all') {
-      _reportSelectedClients = [];
+      _selectedClients = [];
       document.querySelectorAll('#reportClientDropdown .ana-rf-dd-option').forEach(function(o) { o.classList.remove('active'); });
       btn.classList.add('active');
     } else {
       document.querySelector('#reportClientDropdown .ana-rf-dd-option[data-client="all"]')?.classList.remove('active');
       btn.classList.toggle('active');
-      _reportSelectedClients = [];
+      _selectedClients = [];
       document.querySelectorAll('#reportClientDropdown .ana-rf-dd-option.active:not([data-client="all"])').forEach(function(o) {
-        _reportSelectedClients.push(o.dataset.client);
+        _selectedClients.push(o.dataset.client);
       });
-      if (_reportSelectedClients.length === 0) {
+      if (_selectedClients.length === 0) {
         document.querySelector('#reportClientDropdown .ana-rf-dd-option[data-client="all"]')?.classList.add('active');
       }
     }
-    var txt = document.getElementById('reportClientText');
-    if (txt) txt.textContent = _reportSelectedClients.length ? _reportSelectedClients.join(', ') : '<%= t("all") %>';
-    updateReportLinks();
-  }
+    document.getElementById('reportClientText').textContent = _selectedClients.length ? _selectedClients.join(', ') : '<%= t("all") %>';
+    updateLinks();
+  };
 
-  function toggleReportCategory(btn) {
+  window.toggleReportCategory = function(btn) {
     var val = btn.dataset.category;
     if (val === 'all') {
-      _reportSelectedCategories = [];
+      _selectedCategories = [];
       document.querySelectorAll('#reportCategoryDropdown .ana-rf-dd-option').forEach(function(o) { o.classList.remove('active'); });
       btn.classList.add('active');
     } else {
       document.querySelector('#reportCategoryDropdown .ana-rf-dd-option[data-category="all"]')?.classList.remove('active');
       btn.classList.toggle('active');
-      _reportSelectedCategories = [];
+      _selectedCategories = [];
       document.querySelectorAll('#reportCategoryDropdown .ana-rf-dd-option.active:not([data-category="all"])').forEach(function(o) {
-        _reportSelectedCategories.push(o.dataset.category);
+        _selectedCategories.push(o.dataset.category);
       });
-      if (_reportSelectedCategories.length === 0) {
+      if (_selectedCategories.length === 0) {
         document.querySelector('#reportCategoryDropdown .ana-rf-dd-option[data-category="all"]')?.classList.add('active');
       }
     }
-    var txt = document.getElementById('reportCategoryText');
-    if (txt) txt.textContent = _reportSelectedCategories.length ? _reportSelectedCategories.join(', ') : '<%= t("all") %>';
-    updateReportLinks();
-  }
+    document.getElementById('reportCategoryText').textContent = _selectedCategories.length ? _selectedCategories.join(', ') : '<%= t("all") %>';
+    updateLinks();
+  };
+
+  updateLinks();
+})();
 </script>
 <% end %>
 

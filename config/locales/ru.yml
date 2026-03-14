@@ -1129,7 +1129,6 @@ ru:
     export_csv: "Экспорт CSV"
     export_pdf: "Экспорт PDF"
     create_report: "Создать отчёт"
-    create_report_desc: "Выберите фильтры для настройки отчёта, затем скачайте в формате PDF или CSV."
     rf_date_range: "Период"
     rf_status: "Статус"
     rf_client: "Клиент"
