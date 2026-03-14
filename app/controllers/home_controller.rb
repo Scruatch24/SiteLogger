@@ -202,13 +202,14 @@ class HomeController < ApplicationController
     today = Date.today
 
     I18n.with_locale(locale) do
-      data = compute_invoice_analytics(current_user, profile, today)
+      filtered_logs = filtered_export_logs(current_user, profile)
+      data = compute_invoice_analytics(current_user, profile, today, logs_scope: filtered_logs)
       currency_code = profile.currency.presence || "USD"
       currency_sym = currency_symbol_for(currency_code)
 
       # ── Build per-invoice rows (filtered) ──
       invoice_rows = []
-      filtered_export_logs(current_user, profile).find_each do |log|
+      filtered_logs.find_each do |log|
         totals = helpers.calculate_log_totals(log, profile)
         amount = totals[:total_due].to_f.round(2)
         effective_status = log.current_status
@@ -331,14 +332,15 @@ class HomeController < ApplicationController
     today = Date.today
 
     I18n.with_locale(locale) do
-      data = compute_invoice_analytics(current_user, profile, today)
+      filtered_logs = filtered_export_logs(current_user, profile)
+      data = compute_invoice_analytics(current_user, profile, today, logs_scope: filtered_logs)
       alerts = build_alerts(data, profile)
       currency_code = profile.currency.presence || "USD"
       currency_sym = currency_symbol_for(currency_code)
 
       # Build invoice rows for PDF (filtered)
       invoice_rows = []
-      filtered_export_logs(current_user, profile).find_each do |log|
+      filtered_logs.find_each do |log|
         totals = helpers.calculate_log_totals(log, profile)
         amount = totals[:total_due].to_f.round(2)
         effective_status = log.current_status
@@ -4117,7 +4119,7 @@ PROMPT
   end
 
   # ── Single-pass invoice analytics (all aggregates in one loop) ──
-  def compute_invoice_analytics(user, profile, today)
+  def compute_invoice_analytics(user, profile, today, logs_scope: nil)
     total_invoiced = 0.0
     total_outstanding = 0.0
     total_overdue_amount = 0.0
@@ -4161,7 +4163,7 @@ PROMPT
     client_data = Hash.new { |h, k| h[k] = { total: 0.0, outstanding: 0.0, count: 0, overdue_count: 0, last_at: nil } }
     all_client_first_seen = {}
 
-    user.logs.kept.find_each do |log|
+    (logs_scope || user.logs.kept).find_each do |log|
       totals = helpers.calculate_log_totals(log, profile)
       amount = totals[:total_due].to_f
       total_invoiced += amount
