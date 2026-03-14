@@ -457,6 +457,15 @@
         .hf-dd { position: relative; flex: 1; min-width: 0; }
         .hf-dd-label-above { display: flex; align-items: center; gap: 3px; font-size: 8px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; color: #9ca3af; margin-bottom: 4px; padding-left: 2px; }
         .hf-label-icon { width: 9px; height: 9px; flex-shrink: 0; }
+        [data-dropdown="status"] .hf-dd-label-above { color: #16a34a; }
+        [data-dropdown="status"] .hf-dd-trigger { border-color: #16a34a; }
+        [data-dropdown="status"] .hf-dd-trigger { box-shadow: 2px 2px 0px 0px #16a34a; }
+        [data-dropdown="duein"] .hf-dd-label-above { color: #2563eb; }
+        [data-dropdown="duein"] .hf-dd-trigger { border-color: #2563eb; box-shadow: 2px 2px 0px 0px #2563eb; }
+        [data-dropdown="overduefor"] .hf-dd-label-above { color: #dc2626; }
+        [data-dropdown="overduefor"] .hf-dd-trigger { border-color: #dc2626; box-shadow: 2px 2px 0px 0px #dc2626; }
+        [data-dropdown="sort"] .hf-dd-label-above { color: #ea580c; }
+        [data-dropdown="sort"] .hf-dd-trigger { border-color: #ea580c; box-shadow: 2px 2px 0px 0px #ea580c; }
         .hf-dd.disabled .hf-dd-label-above { opacity: 0.35; }
         .hf-dd.disabled .hf-dd-trigger { opacity: 0.35; pointer-events: none; cursor: not-allowed; border-color: #d1d5db; background: #f9fafb; }
         .hf-dd-sub-row { display: flex; gap: 0.5rem; flex: 2; min-width: 0; }
@@ -467,9 +476,11 @@
           padding: 8px 12px; border-radius: 12px; font-size: 9px; font-weight: 900;
           text-transform: uppercase; letter-spacing: 0.08em; cursor: pointer;
           border: 2px solid black; background: #fff; color: #000;
+          box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
           transition: all 0.15s ease; white-space: nowrap;
         }
         .hf-dd-trigger:hover { background: #f9fafb; }
+        .hf-dd-trigger.open { transform: translate(2px, 2px); box-shadow: none; }
         .hf-dd-trigger.active-default { background: #fff7ed; border-color: #fb923c; color: #ea580c; }
         .hf-dd-trigger.active-gray { background: #f3f4f6; border-color: #9ca3af; color: #6b7280; }
         .hf-dd-trigger.active-blue { background: #eff6ff; border-color: #60a5fa; color: #2563eb; }
@@ -1243,10 +1254,10 @@
     <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-10"><%= t('delete_category_hint') %></p>
 
     <div class="flex flex-col gap-3">
-      <button id="finalDeleteBtn" class="w-full py-4 bg-red-600 text-white rounded-xl font-black uppercase tracking-widest hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-red-700 transition-all active:scale-95">
+      <button id="finalDeleteBtn" class="w-full py-4 bg-red-600 text-white rounded-xl font-black uppercase tracking-widest border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-red-700 transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none">
         <%= t('delete_permanently') %>
       </button>
-      <button onclick="closeDeleteModal()" class="w-full py-4 bg-gray-100 text-black rounded-xl font-black uppercase tracking-widest hover:bg-gray-200 transition-all active:scale-95">
+      <button onclick="closeDeleteModal()" class="w-full py-4 bg-gray-100 text-black rounded-xl font-black uppercase tracking-widest border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-gray-200 transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none">
         <%= t('go_back') %>
       </button>
     </div>
@@ -1270,11 +1281,11 @@
         <input type="hidden" name="_method" value="delete">
         <input type="hidden" name="authenticity_token" value="<%= form_authenticity_token %>">
         <input type="hidden" name="session_id" id="deleteLogSessionId" value="">
-        <button type="submit" class="w-full py-4 bg-red-600 text-white rounded-xl font-black uppercase tracking-widest hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-red-700 transition-all active:scale-95">
+        <button type="submit" class="w-full py-4 bg-red-600 text-white rounded-xl font-black uppercase tracking-widest border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-red-700 transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none">
           <%= t('delete_permanently') %>
         </button>
       </form>
-      <button onclick="closeDeleteLogModal()" class="w-full py-4 bg-gray-100 text-black rounded-xl font-black uppercase tracking-widest hover:bg-gray-200 transition-all active:scale-95">
+      <button onclick="closeDeleteLogModal()" class="w-full py-4 bg-gray-100 text-black rounded-xl font-black uppercase tracking-widest border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-gray-200 transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none">
         <%= t('go_back') %>
       </button>
     </div>
@@ -1294,10 +1305,10 @@
     <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-10"><%= t('delete_selected_hint') %></p>
 
     <div class="flex flex-col gap-3">
-      <button onclick="performBulkDelete()" class="w-full py-4 bg-red-600 text-white rounded-xl font-black uppercase tracking-widest hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-red-700 transition-all active:scale-95">
+      <button onclick="performBulkDelete()" class="w-full py-4 bg-red-600 text-white rounded-xl font-black uppercase tracking-widest border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-red-700 transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none">
         <%= t('delete_permanently') %>
       </button>
-      <button onclick="closeBulkDeleteModal()" class="w-full py-4 bg-gray-100 text-black rounded-xl font-black uppercase tracking-widest hover:bg-gray-200 transition-all active:scale-95">
+      <button onclick="closeBulkDeleteModal()" class="w-full py-4 bg-gray-100 text-black rounded-xl font-black uppercase tracking-widest border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-gray-200 transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none">
         <%= t('go_back') %>
       </button>
     </div>
@@ -1318,10 +1329,10 @@
     <p class="text-xs text-gray-500 mb-6"><%= sanitize(t('mark_as_paid_hint').split('<br>').first, tags: []) %></p>
 
     <div class="flex flex-col gap-2.5">
-      <button id="finalConfirmPaidBtn" class="w-full py-4 bg-green-600 text-white rounded-xl font-black uppercase tracking-widest hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-green-700 transition-all active:scale-95">
+      <button id="finalConfirmPaidBtn" class="w-full py-4 bg-green-600 text-white rounded-xl font-black uppercase tracking-widest border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-green-700 transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none">
         <%= t('confirm_payment') %>
       </button>
-      <button onclick="closeConfirmPaidModal()" class="w-full py-3.5 bg-gray-100 text-black rounded-xl font-black uppercase tracking-widest hover:bg-gray-200 transition-all active:scale-95 text-[10px]">
+      <button onclick="closeConfirmPaidModal()" class="w-full py-3.5 bg-gray-100 text-black rounded-xl font-black uppercase tracking-widest border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-gray-200 transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none text-[10px]">
         <%= t('wait_go_back') %>
       </button>
     </div>
@@ -1342,16 +1353,16 @@
     
     <div class="mb-5">
       <input type="number" id="manualOverdueDaysInput" min="0" max="9999" value="0" 
-             class="w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-center text-2xl font-black text-black focus:border-red-500 focus:shadow-[4px_4px_0px_0px_#EF4444] outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all"
+             class="w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-center text-2xl font-black text-black focus:border-red-500 focus:translate-x-[2px] focus:translate-y-[2px] focus:shadow-none outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all"
              placeholder="0">
       <p class="text-[10px] text-gray-400 font-bold mt-2 uppercase tracking-widest"><%= t('manual_overdue_days_label', default: '0 = overdue as of today') %></p>
     </div>
 
     <div class="flex flex-col gap-2.5">
-      <button id="finalConfirmOverdueBtn" class="w-full py-4 bg-red-600 text-white rounded-xl font-black uppercase tracking-widest hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-red-700 transition-all active:scale-95">
+      <button id="finalConfirmOverdueBtn" class="w-full py-4 bg-red-600 text-white rounded-xl font-black uppercase tracking-widest border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-red-700 transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none">
         <%= t('confirm_overdue', default: 'Mark as Overdue') %>
       </button>
-      <button onclick="closeManualOverdueModal()" class="w-full py-3.5 bg-gray-100 text-black rounded-xl font-black uppercase tracking-widest hover:bg-gray-200 transition-all active:scale-95 text-[10px]">
+      <button onclick="closeManualOverdueModal()" class="w-full py-3.5 bg-gray-100 text-black rounded-xl font-black uppercase tracking-widest border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-gray-200 transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none text-[10px]">
         <%= t('cancel') %>
       </button>
     </div>
@@ -1409,7 +1420,7 @@
       </div>
     </div>
 
-    <button id="saveClientBtn" onclick="saveClient()" class="w-full mt-6 py-4 bg-black text-white rounded-xl font-black uppercase tracking-widest hover:shadow-[4px_4px_0px_0px_rgba(234,88,12,1)] hover:bg-orange-600 transition-all active:scale-[0.98]">
+    <button id="saveClientBtn" onclick="saveClient()" class="w-full mt-6 py-4 bg-black text-white rounded-xl font-black uppercase tracking-widest border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-600 transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none">
       <%= t('save_client') %>
     </button>
   </div>
@@ -1430,10 +1441,10 @@
     <input type="hidden" id="deleteClientId" value="">
 
     <div class="flex flex-col gap-3">
-      <button onclick="performDeleteClient()" class="w-full py-4 bg-red-600 text-white rounded-xl font-black uppercase tracking-widest hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-red-700 transition-all active:scale-95">
+      <button onclick="performDeleteClient()" class="w-full py-4 bg-red-600 text-white rounded-xl font-black uppercase tracking-widest border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-red-700 transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none">
         <%= t('delete_permanently') %>
       </button>
-      <button onclick="closeDeleteClientModal()" class="w-full py-4 bg-gray-100 text-black rounded-xl font-black uppercase tracking-widest hover:bg-gray-200 transition-all active:scale-95">
+      <button onclick="closeDeleteClientModal()" class="w-full py-4 bg-gray-100 text-black rounded-xl font-black uppercase tracking-widest border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-gray-200 transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none">
         <%= t('go_back') %>
       </button>
     </div>

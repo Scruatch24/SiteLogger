@@ -881,6 +881,22 @@
   }
   
   // Toggle Currency Menu
+  function setDropdownPressed(btnId, pressed) {
+    var btn = document.getElementById(btnId);
+    if (!btn) return;
+    if (pressed) {
+      btn.style.transform = 'translate(2px, 2px)';
+      btn.style.boxShadow = 'none';
+      btn.style.borderColor = '#f97316';
+      btn.style.background = '#fff7ed';
+    } else {
+      btn.style.transform = '';
+      btn.style.boxShadow = '';
+      btn.style.borderColor = '';
+      btn.style.background = '';
+    }
+  }
+
   window.toggleCurrencyMenu = function(e) {
     if (e) e.stopPropagation();
     const menu = document.getElementById('currencyMenu');
@@ -889,10 +905,14 @@
     
     // Close other menus
     document.getElementById('systemLanguageMenu')?.classList.add('hidden');
+    setDropdownPressed('systemLanguageSelectBtn', false);
     document.getElementById('documentLanguageMenu')?.classList.add('hidden');
+    setDropdownPressed('documentLanguageSelectBtn', false);
 
     menu.classList.toggle('hidden');
-    if (!menu.classList.contains('hidden') && search) {
+    var isOpen = !menu.classList.contains('hidden');
+    setDropdownPressed('currencySelectBtn', isOpen);
+    if (isOpen && search) {
       search.value = "";
       renderCurrencyList("");
       search.focus();
@@ -906,9 +926,12 @@
 
     // Close other menus
     document.getElementById('currencyMenu')?.classList.add('hidden');
+    setDropdownPressed('currencySelectBtn', false);
     document.getElementById('documentLanguageMenu')?.classList.add('hidden');
+    setDropdownPressed('documentLanguageSelectBtn', false);
 
     menu.classList.toggle('hidden');
+    setDropdownPressed('systemLanguageSelectBtn', !menu.classList.contains('hidden'));
   };
 
   window.toggleDocumentLanguageMenu = function(e) {
@@ -918,9 +941,12 @@
 
     // Close other menus
     document.getElementById('currencyMenu')?.classList.add('hidden');
+    setDropdownPressed('currencySelectBtn', false);
     document.getElementById('systemLanguageMenu')?.classList.add('hidden');
+    setDropdownPressed('systemLanguageSelectBtn', false);
 
     menu.classList.toggle('hidden');
+    setDropdownPressed('documentLanguageSelectBtn', !menu.classList.contains('hidden'));
   };
 
   window.selectSystemLanguage = function(code) {
@@ -928,6 +954,7 @@
     if (hiddenField) hiddenField.value = code;
     updateSystemLanguageDisplay(code);
     document.getElementById('systemLanguageMenu')?.classList.add('hidden');
+    setDropdownPressed('systemLanguageSelectBtn', false);
     
     // Auto-apply for everyone via session
     saveSystemLanguageSession(code);
@@ -1059,8 +1086,11 @@
 
   document.addEventListener('click', () => {
     document.getElementById('currencyMenu')?.classList.add('hidden');
+    setDropdownPressed('currencySelectBtn', false);
     document.getElementById('systemLanguageMenu')?.classList.add('hidden');
+    setDropdownPressed('systemLanguageSelectBtn', false);
     document.getElementById('documentLanguageMenu')?.classList.add('hidden');
+    setDropdownPressed('documentLanguageSelectBtn', false);
   });
 
   // PDF Modal — reuse preview iframe URL for instant open

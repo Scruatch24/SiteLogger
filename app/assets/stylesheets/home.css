@@ -255,6 +255,10 @@ body {
     transform: translate(-1px, -1px);
     box-shadow: 3px 3px 0px 0px rgba(0,0,0,1);
   }
+  .site-auth-signin:active {
+    transform: translate(2px, 2px);
+    box-shadow: none;
+  }
   .site-auth-signup {
     background: #ea580c;
     color: white;
@@ -264,6 +268,10 @@ body {
     background: #c2410c;
     transform: translate(-1px, -1px);
     box-shadow: 3px 3px 0px 0px rgba(0,0,0,1);
+  }
+  .site-auth-signup:active {
+    transform: translate(2px, 2px);
+    box-shadow: none;
   }
   .site-auth-logout {
     background: white;
@@ -275,6 +283,10 @@ body {
     color: #dc2626;
     border-color: #dc2626;
     box-shadow: 2px 2px 0px 0px #dc2626;
+  }
+  .site-auth-logout:active {
+    transform: translate(2px, 2px);
+    box-shadow: none;
   }
 
   /* Hamburger — mobile only */
@@ -405,6 +417,10 @@ body {
   .site-mobile-auth-btn.site-auth-logout {
     background: white;
     color: black;
+  }
+  .site-mobile-auth-btn:active {
+    transform: translate(2px, 2px);
+    box-shadow: none !important;
   }
 
   /* ============================================ */
@@ -617,8 +633,11 @@ body {
     background: #fff7ed;
     border: 2px solid black;
     border-radius: 20px;
-    /* box-shadow removed */
+    box-shadow: 3px 3px 0px 0px rgba(0,0,0,1);
     display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
   }
   .contact-title {
     font-size: 2rem;
@@ -669,12 +688,16 @@ body {
     border: 2px solid black;
     border-radius: 14px;
     text-decoration: none;
-    /* box-shadow removed */
+    box-shadow: 3px 3px 0px 0px rgba(0,0,0,1);
     transition: all 0.2s ease;
   }
   .contact-email-link:hover {
     transform: translate(-1px, -1px);
     box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);
+  }
+  .contact-email-link:active {
+    transform: translate(2px, 2px);
+    box-shadow: none;
   }
   .contact-response-time {
     font-size: 11px;
@@ -699,8 +722,9 @@ body {
   }
 
   .industrial-input:focus {
-      box-shadow: 5px 5px 0px 0px #F97316;
-      transform: translate(-2px, -2px);
+      transform: translate(2px, 2px);
+      box-shadow: none;
+      border-color: #f97316;
   }
 
   input::-webkit-outer-spin-button,
@@ -1430,7 +1454,9 @@ body {
   }
 
   #globalCurrencyBtn.pop-active {
-      /* inherit base pop-active transform; keep width-specific feel if needed later */
+      /* inherit base pop-active transform */
+      transform: translate(1px, 1px) scale(0.97);
+      opacity: 1; /* added placeholder property */
   }
 
   #discountToggleBtn.pop-active {

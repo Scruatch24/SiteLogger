@@ -290,6 +290,28 @@ class InvoiceGenerator
     text.match?(/[\u10D0-\u10FF]/) ? "NotoSansGeorgian" : @base_font_name
   end
 
+  def bold_mixed_segments(text, color: nil)
+    return [] if text.blank?
+    seg_color = color || @dark_charcoal
+    latin_font = @pdf.font_families.has_key?("NotoSans") ? "NotoSans" : @base_font_name
+    segments = []
+    current_chars = ""
+    current_geo = nil
+    text.each_char do |ch|
+      is_geo = ch.match?(/[\u10D0-\u10FF]/)
+      if current_geo.nil? || is_geo == current_geo
+        current_chars << ch
+        current_geo = is_geo
+      else
+        segments << { text: current_chars, font: current_geo ? "NotoSansGeorgian" : latin_font, styles: [:bold], color: seg_color }
+        current_chars = ch
+        current_geo = is_geo
+      end
+    end
+    segments << { text: current_chars, font: current_geo ? "NotoSansGeorgian" : latin_font, styles: [:bold], color: seg_color } unless current_chars.empty?
+    segments
+  end
+
   def render
     case @style
     when "professional"
@@ -382,8 +404,8 @@ class InvoiceGenerator
       @pdf.fill_color @dark_charcoal
       client_name = (@recipient.name.presence || labels[:valued_client])
       client_name = safe_upcase(client_name)
-      @pdf.font(font_for(client_name), style: :bold, size: 10) do
-        @pdf.text client_name, leading: 2
+      @pdf.font(@base_font_name, size: 10) do
+        @pdf.formatted_text bold_mixed_segments(client_name, color: @dark_charcoal), leading: 2
       end
 
       # Recipient address
@@ -1409,8 +1431,8 @@ class InvoiceGenerator
       @pdf.fill_color "000000"
       bold_client = (@log.client.presence || "VALUED CLIENT")
       bold_client = safe_upcase(bold_client)
-      @pdf.font(font_for(bold_client), style: :bold, size: 11) do
-        @pdf.text bold_client, leading: 2
+      @pdf.font(@base_font_name, size: 11) do
+        @pdf.formatted_text bold_mixed_segments(bold_client, color: "000000"), leading: 2
       end
       @pdf.move_down 5
       @pdf.fill_color @mid_gray
@@ -1497,8 +1519,8 @@ class InvoiceGenerator
       @pdf.move_down 10
       modern_client = (@log.client.presence || "CLIENT")
       modern_client = safe_upcase(modern_client)
-      @pdf.font(font_for(modern_client), style: :bold, size: 12) do
-        @pdf.text modern_client
+      @pdf.font(@base_font_name, size: 12) do
+        @pdf.formatted_text bold_mixed_segments(modern_client, color: "000000")
       end
       @pdf.move_down 4
       @pdf.font(@base_font_name, size: 9) do
@@ -1571,8 +1593,8 @@ class InvoiceGenerator
       @pdf.move_down 5
       bold_style_client = (@log.client.presence || "CLIENT")
       bold_style_client = safe_upcase(bold_style_client)
-      @pdf.font(font_for(bold_style_client), style: :bold, size: 16) do
-        @pdf.text bold_style_client, leading: 2
+      @pdf.font(@base_font_name, size: 16) do
+        @pdf.formatted_text bold_mixed_segments(bold_style_client, color: "000000"), leading: 2
       end
     end
 
@@ -1621,9 +1643,9 @@ class InvoiceGenerator
       @pdf.move_down 5
       min_client = (@log.client.presence || "CLIENT")
       min_client = safe_upcase(min_client)
-      @pdf.font(font_for(min_client), style: :bold, size: 10) do
+      @pdf.font(@base_font_name, size: 10) do
         @pdf.fill_color "000000"
-        @pdf.text min_client, leading: 2
+        @pdf.formatted_text bold_mixed_segments(min_client, color: "000000"), leading: 2
       end
       @pdf.font(@base_font_name, size: 8) do
         @pdf.fill_color @mid_gray
