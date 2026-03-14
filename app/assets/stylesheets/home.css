@@ -1900,6 +1900,22 @@ body {
       transition: all 0.15s ease;
   }
 
+  /* ── Global Input Focus: orange border, remove shadow ── */
+  input[type="text"]:focus,
+  input[type="email"]:focus,
+  input[type="tel"]:focus,
+  input[type="number"]:focus,
+  input[type="password"]:focus,
+  input[type="url"]:focus,
+  input[type="date"]:focus,
+  input[type="search"]:focus,
+  textarea:focus,
+  select:focus {
+      border-color: #f97316 !important;
+      box-shadow: none !important;
+      outline: none !important;
+  }
+
   .pop-active.btn-icon-hover {
       background-color: #fff7ed !important;
       /* orange-50 */
