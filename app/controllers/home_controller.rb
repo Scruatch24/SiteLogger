@@ -93,15 +93,27 @@ class HomeController < ApplicationController
 
     user_id = current_user.id
     profile = @profile || current_user.profile || Profile.new
-    logs = current_user.logs.kept
     today = Date.today
 
-    # ── Single-pass invoice analytics (cached) ──
-    analytics_ttl = (ENV["ANALYTICS_CACHE_TTL"].to_i.positive? ? ENV["ANALYTICS_CACHE_TTL"].to_i : 600).seconds
-    cache_key = "analytics/v3/#{user_id}/#{logs.maximum(:updated_at).to_i}"
-    analytics_data = Rails.cache.fetch(cache_key, expires_in: analytics_ttl) do
-      compute_invoice_analytics(current_user, profile, today)
+    # ── Apply dashboard filters if present ──
+    has_filters = params[:date_from].present? || params[:date_to].present? || params[:statuses].present? || params[:clients].present? || params[:categories].present?
+    if has_filters
+      filtered_logs = filtered_export_logs(current_user, profile)
+      analytics_data = compute_invoice_analytics(current_user, profile, today, logs_scope: filtered_logs)
+      @analytics_filtered = true
+    else
+      logs = current_user.logs.kept
+      analytics_ttl = (ENV["ANALYTICS_CACHE_TTL"].to_i.positive? ? ENV["ANALYTICS_CACHE_TTL"].to_i : 600).seconds
+      cache_key = "analytics/v3/#{user_id}/#{logs.maximum(:updated_at).to_i}"
+      analytics_data = Rails.cache.fetch(cache_key, expires_in: analytics_ttl) do
+        compute_invoice_analytics(current_user, profile, today)
+      end
+      @analytics_filtered = false
     end
+
+    # ── Available filter options ──
+    @available_clients = current_user.logs.kept.where.not(client: [nil, ""]).distinct.pluck(:client).sort
+    @available_categories = current_user.categories.order(:name)
 
     @total_invoiced       = analytics_data[:total_invoiced]
     @total_outstanding    = analytics_data[:total_outstanding]

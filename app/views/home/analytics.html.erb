@@ -843,6 +843,70 @@
     font-weight: 500;
   }
 
+  /* ── Dashboard Filter Bar ── */
+  .ana-dash-filters {
+    margin-bottom: 1rem;
+    padding: 0.6rem 0.8rem;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+  }
+  .ana-df-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .ana-df-select {
+    flex: 1;
+    min-width: 100px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 10px;
+    padding: 7px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.7);
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(255,255,255,0.3)'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 26px;
+    transition: all 0.15s;
+  }
+  .ana-df-select:focus {
+    border-color: #f97316;
+    outline: none;
+  }
+  .ana-df-select option {
+    background: #1a1a1a;
+    color: #f8fafc;
+  }
+  .ana-df-clear {
+    padding: 7px 14px;
+    border-radius: 10px;
+    background: rgba(239,68,68,0.12);
+    border: 1px solid rgba(239,68,68,0.3);
+    color: #f87171;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: all 0.15s;
+  }
+  .ana-df-clear:hover {
+    background: rgba(239,68,68,0.2);
+    border-color: rgba(239,68,68,0.5);
+  }
+  @media (max-width: 640px) {
+    .ana-df-row { flex-direction: column; }
+    .ana-df-select { width: 100%; min-width: auto; }
+  }
+
   /* ── Create a Report Section ── */
   .ana-report-section {
     border-color: rgba(249,115,22,0.25);
@@ -1314,10 +1378,42 @@
     <header class="analytics-header" style="text-align:center;">
       <h1 class="analytics-title"><%= t('analytics_page.title_prefix') %> <span class="accent"><%= t('analytics_page.title_accent') %></span></h1>
     </header>
-    <% if @analytics_cached_at %>
+    <% if @analytics_cached_at && !@analytics_filtered %>
       <div style="text-align:center; margin-bottom: 1rem;">
         <span class="ana-last-updated"><%= t('analytics_page.last_updated', time: time_ago_in_words(@analytics_cached_at)) %></span>
       </div>
+    <% end %>
+
+    <% if @is_pro %>
+    <% dash_locale = (current_user.profile&.system_language.presence || I18n.locale).to_s %>
+    <!-- ═══════════════ DASHBOARD FILTERS ═══════════════ -->
+    <div class="ana-dash-filters" id="dashFilters">
+      <div class="ana-df-row">
+        <select id="dfStatus" class="ana-df-select" onchange="applyDashFilters()">
+          <option value=""><%= t('all') %> — <%= t('analytics_page.rf_status') %></option>
+          <option value="paid" <%= 'selected' if params[:statuses]&.include?('paid') %>><%= t('paid') %></option>
+          <option value="sent" <%= 'selected' if params[:statuses]&.include?('sent') %>><%= t('sent') %></option>
+          <option value="overdue" <%= 'selected' if params[:statuses]&.include?('overdue') %>><%= t('overdue') %></option>
+          <option value="draft" <%= 'selected' if params[:statuses]&.include?('draft') %>><%= t('draft') %></option>
+        </select>
+        <select id="dfClient" class="ana-df-select" onchange="applyDashFilters()">
+          <option value=""><%= t('all') %> — <%= t('analytics_page.rf_client') %></option>
+          <% @available_clients.each do |c| %>
+            <option value="<%= c %>" <%= 'selected' if params[:clients]&.include?(c) %>><%= c %></option>
+          <% end %>
+        </select>
+        <select id="dfCategory" class="ana-df-select" onchange="applyDashFilters()">
+          <option value=""><%= t('all') %> — <%= t('analytics_page.rf_category') %></option>
+          <% @available_categories.each do |cat| %>
+            <% cat_label = cat.name.downcase == "favorites" ? t('favorites') : cat.name %>
+            <option value="<%= cat.name %>" <%= 'selected' if params[:categories]&.include?(cat.name) %>><%= cat_label %></option>
+          <% end %>
+        </select>
+        <% if @analytics_filtered %>
+          <a href="<%= analytics_path %>" class="ana-df-clear"><%= t('analytics_page.clear_filters', default: 'Clear') %></a>
+        <% end %>
+      </div>
+    </div>
     <% end %>
 
     <!-- ═══════════════ 0. FINANCIAL HEALTH SCORE ═══════════════ -->
@@ -2042,6 +2138,22 @@
 
   updateLinks();
 })();
+</script>
+<% end %>
+
+<% if @is_pro %>
+<script>
+  function applyDashFilters() {
+    var params = [];
+    var status = document.getElementById('dfStatus')?.value;
+    var client = document.getElementById('dfClient')?.value;
+    var category = document.getElementById('dfCategory')?.value;
+    if (status) params.push('statuses[]=' + encodeURIComponent(status));
+    if (client) params.push('clients[]=' + encodeURIComponent(client));
+    if (category) params.push('categories[]=' + encodeURIComponent(category));
+    var qs = params.length ? '?' + params.join('&') : '';
+    window.location.href = '<%= analytics_path %>' + qs;
+  }
 </script>
 <% end %>
 
