@@ -129,7 +129,7 @@
           <div class="relative">
             <%= f.hidden_field :system_language, id: "system_language_hidden_field", value: I18n.locale.to_s %>
             
-            <button type="button" id="systemLanguageSelectBtn" onclick="toggleSystemLanguageMenu(event)" class="w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black text-left flex justify-between items-center shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:outline-none transition-all hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none z-10">
+            <button type="button" id="systemLanguageSelectBtn" onclick="toggleSystemLanguageMenu(event)" class="w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black text-left flex justify-between items-center shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:outline-none transition-all hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none z-10">
               <span id="selectedSystemLanguageDisplay" class="flex items-center gap-2">
                 <span class="fi <%= I18n.locale == :ka ? 'fi-ge' : (I18n.locale == :ru ? 'fi-ru' : 'fi-us') %> rounded-sm shadow-sm" id="systemLangFlag"></span> 
                 <span class="ml-1 font-black uppercase tracking-widest" id="systemLangText"><%= I18n.locale == :ka ? "ქართული" : (I18n.locale == :ru ? "Русский" : "English") %></span>
@@ -168,7 +168,7 @@
           <div class="relative">
             <%= f.hidden_field :document_language, id: "document_language_hidden_field", value: @profile.try(:document_language) || "en" %>
             
-            <button type="button" id="documentLanguageSelectBtn" onclick="toggleDocumentLanguageMenu(event)" class="w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black text-left flex justify-between items-center shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:outline-none transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none z-10 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed" <%= 'disabled' if is_guest %>>
+            <button type="button" id="documentLanguageSelectBtn" onclick="toggleDocumentLanguageMenu(event)" class="w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black text-left flex justify-between items-center shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:outline-none transition-all hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none z-10 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed" <%= 'disabled' if is_guest %>>
               <span id="selectedDocumentLanguageDisplay" class="flex items-center gap-2">
                 <% doc_lang = @profile.try(:document_language) || "en" %>
                 <span class="fi <%= doc_lang == "ka" ? 'fi-ge' : (doc_lang == "ru" ? 'fi-ru' : 'fi-us') %> rounded-sm shadow-sm" id="documentLangFlag"></span> 
@@ -219,7 +219,7 @@
                 <% is_active = (@profile.invoice_style.presence || "classic") == style %>
                 <% style_locked = is_design_locked && style != "classic" %>
                 <div onclick="<%= @profile.guest? ? '' : (style_locked ? 'if(window.showPremiumModal) window.showPremiumModal(\"design\")' : "selectInvoiceStyle('#{style}')") %>" id="style_btn_<%= style %>" 
-                     class="invoice-style-btn border-2 border-black rounded-xl p-4 flex items-center justify-between transition-all <%= is_active ? 'bg-orange-600 text-white shadow-none' : 'bg-white text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50' %> <%= 'opacity-50 cursor-not-allowed pointer-events-none' if @profile.guest? %> <%= 'opacity-50 cursor-pointer' if style_locked %>">
+                     class="invoice-style-btn border-2 border-black rounded-xl p-4 flex items-center justify-between transition-all cursor-pointer <%= is_active ? 'bg-orange-600 text-white shadow-none translate-x-[2px] translate-y-[2px]' : 'bg-white text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]' %> <%= 'opacity-50 cursor-not-allowed pointer-events-none' if @profile.guest? %> <%= 'opacity-50 cursor-pointer' if style_locked %>">
                    <div class="flex items-center gap-2">
                      <span class="text-xs font-black uppercase"><%= t(style) %></span>
                      <% if style_locked %>
@@ -297,7 +297,7 @@
         <div class="relative">
           <%= f.hidden_field :currency, id: "currency_hidden_field", value: @profile.currency.presence || "USD" %>
           
-          <button type="button" id="currencySelectBtn" onclick="toggleCurrencyMenu(event)" class="w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black text-left flex justify-between items-center shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:outline-none transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none z-10 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed" <%= 'disabled' if @profile.guest? %>>
+          <button type="button" id="currencySelectBtn" onclick="toggleCurrencyMenu(event)" class="w-full bg-white border-2 border-black rounded-xl py-4 px-4 text-sm font-bold text-black text-left flex justify-between items-center shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:outline-none transition-all hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none z-10 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed" <%= 'disabled' if @profile.guest? %>>
             <% current_currency = currencies_data.find { |c| c[:c] == (@profile.currency.presence || "USD") } || currencies_data.first %>
             <span id="selectedCurrencyDisplay" class="flex items-center gap-2">
               <span class="fi fi-<%= current_currency[:i] %> rounded-sm shadow-sm"></span> 
@@ -325,13 +325,13 @@
         <div class="flex gap-2 h-12">
           <%= f.label :billing_mode_hourly, class: "flex-1 h-full cursor-pointer #{@profile.guest? ? 'pointer-events-none' : ''}" do %>
             <%= f.radio_button :billing_mode, "hourly", class: "peer hidden", checked: @profile.billing_mode != "fixed", disabled: @profile.guest?, onchange: "updateRateLabel()" %>
-            <div class="h-full border-2 border-black rounded-xl flex items-center justify-center text-[10px] font-black uppercase transition-all peer-checked:bg-orange-600 peer-checked:text-white peer-checked:shadow-none peer-checked:translate-x-[2px] peer-checked:translate-y-[2px] peer-checked:hover:bg-orange-600 peer-checked:hover:text-white bg-white text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 peer-disabled:bg-gray-50 peer-disabled:text-gray-400">
+            <div class="h-full border-2 border-black rounded-xl flex items-center justify-center text-[10px] font-black uppercase transition-all peer-checked:bg-orange-600 peer-checked:text-white peer-checked:shadow-none peer-checked:translate-x-[2px] peer-checked:translate-y-[2px] peer-checked:hover:bg-orange-600 peer-checked:hover:text-white bg-white text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] peer-disabled:bg-gray-50 peer-disabled:text-gray-400 save-btn-hover btn-rise">
               <%= t('hourly') %>
             </div>
           <% end %>
           <%= f.label :billing_mode_fixed, class: "flex-1 h-full cursor-pointer #{@profile.guest? ? 'pointer-events-none' : ''}" do %>
             <%= f.radio_button :billing_mode, "fixed", class: "peer hidden", checked: @profile.billing_mode == "fixed", disabled: @profile.guest?, onchange: "updateRateLabel()" %>
-            <div class="h-full border-2 border-black rounded-xl flex items-center justify-center text-[10px] font-black uppercase transition-all peer-checked:bg-orange-600 peer-checked:text-white peer-checked:shadow-none peer-checked:translate-x-[2px] peer-checked:translate-y-[2px] peer-checked:hover:bg-orange-600 peer-checked:hover:text-white bg-white text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 peer-disabled:bg-gray-50 peer-disabled:text-gray-400">
+            <div class="h-full border-2 border-black rounded-xl flex items-center justify-center text-[10px] font-black uppercase transition-all peer-checked:bg-orange-600 peer-checked:text-white peer-checked:shadow-none peer-checked:translate-x-[2px] peer-checked:translate-y-[2px] peer-checked:hover:bg-orange-600 peer-checked:hover:text-white bg-white text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] peer-disabled:bg-gray-50 peer-disabled:text-gray-400 save-btn-hover btn-rise">
               <%= t('fixed') %>
             </div>
           <% end %>
@@ -372,26 +372,26 @@
         <div class="space-y-3">
           <%# Row 1: All 4 category toggles on one line %>
           <div class="flex gap-2 h-12">
-            <button type="button" data-scope="labor" onclick="<%= @profile.guest? ? '' : 'toggleScopeToken(this)' %>" class="flex-1 flex items-center justify-center text-[10px] font-black uppercase transition-all border-2 border-black rounded-xl scope-toggle bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 <%= 'opacity-50 cursor-not-allowed pointer-events-none' if @profile.guest? %>">
+            <button type="button" data-scope="labor" onclick="<%= @profile.guest? ? '' : 'toggleScopeToken(this)' %>" class="flex-1 flex items-center justify-center text-[10px] font-black uppercase transition-all border-2 border-black rounded-xl scope-toggle bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] <%= 'opacity-50 cursor-not-allowed pointer-events-none' if @profile.guest? %>">
               <span class="hidden md:inline"><%= t('labor') %></span><span class="md:hidden"><%= t('labor_short') %></span>
             </button>
-            <button type="button" data-scope="products_only" onclick="<%= @profile.guest? ? '' : 'toggleScopeToken(this)' %>" class="flex-1 flex items-center justify-center text-[10px] font-black uppercase transition-all border-2 border-black rounded-xl scope-toggle bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 <%= 'opacity-50 cursor-not-allowed pointer-events-none' if @profile.guest? %>">
+            <button type="button" data-scope="products_only" onclick="<%= @profile.guest? ? '' : 'toggleScopeToken(this)' %>" class="flex-1 flex items-center justify-center text-[10px] font-black uppercase transition-all border-2 border-black rounded-xl scope-toggle bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] <%= 'opacity-50 cursor-not-allowed pointer-events-none' if @profile.guest? %>">
               <span class="hidden md:inline"><%= t('products_only') %></span><span class="md:hidden"><%= t('products_only_short') %></span>
             </button>
-            <button type="button" data-scope="reimbursements_only" onclick="<%= @profile.guest? ? '' : 'toggleScopeToken(this)' %>" class="flex-1 flex items-center justify-center text-[10px] font-black uppercase transition-all border-2 border-black rounded-xl scope-toggle bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 <%= 'opacity-50 cursor-not-allowed pointer-events-none' if @profile.guest? %>">
+            <button type="button" data-scope="reimbursements_only" onclick="<%= @profile.guest? ? '' : 'toggleScopeToken(this)' %>" class="flex-1 flex items-center justify-center text-[10px] font-black uppercase transition-all border-2 border-black rounded-xl scope-toggle bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] <%= 'opacity-50 cursor-not-allowed pointer-events-none' if @profile.guest? %>">
               <span class="hidden md:inline"><%= t('reimbursement') %></span><span class="md:hidden"><%= t('reimbursement_short') %></span>
             </button>
-            <button type="button" data-scope="fees_only" onclick="<%= @profile.guest? ? '' : 'toggleScopeToken(this)' %>" class="flex-1 flex items-center justify-center text-[10px] font-black uppercase transition-all border-2 border-black rounded-xl scope-toggle bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 <%= 'opacity-50 cursor-not-allowed pointer-events-none' if @profile.guest? %>">
+            <button type="button" data-scope="fees_only" onclick="<%= @profile.guest? ? '' : 'toggleScopeToken(this)' %>" class="flex-1 flex items-center justify-center text-[10px] font-black uppercase transition-all border-2 border-black rounded-xl scope-toggle bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] <%= 'opacity-50 cursor-not-allowed pointer-events-none' if @profile.guest? %>">
               <span class="hidden md:inline"><%= t('fee') %></span><span class="md:hidden"><%= t('fee_short') %></span>
             </button>
           </div>
 
           <%# Row 3: The Helpers (All/None) %>
           <div class="flex gap-2 h-12">
-            <button type="button" id="scope_all_btn" onclick="<%= @profile.guest? ? '' : 'setScopeAll()' %>" class="flex-1 flex items-center justify-center text-[10px] font-black uppercase transition-all border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 <%= 'opacity-50 cursor-not-allowed pointer-events-none' if @profile.guest? %>">
+            <button type="button" id="scope_all_btn" onclick="<%= @profile.guest? ? '' : 'setScopeAll()' %>" class="flex-1 flex items-center justify-center text-[10px] font-black uppercase transition-all border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] <%= 'opacity-50 cursor-not-allowed pointer-events-none' if @profile.guest? %>">
               <%= t('all') %>
             </button>
-            <button type="button" id="scope_none_btn" onclick="<%= @profile.guest? ? '' : 'setScopeNone()' %>" class="flex-1 flex items-center justify-center text-[10px] font-black uppercase transition-all border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 <%= 'opacity-50 cursor-not-allowed pointer-events-none' if @profile.guest? %>">
+            <button type="button" id="scope_none_btn" onclick="<%= @profile.guest? ? '' : 'setScopeNone()' %>" class="flex-1 flex items-center justify-center text-[10px] font-black uppercase transition-all border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] <%= 'opacity-50 cursor-not-allowed pointer-events-none' if @profile.guest? %>">
               <%= t('none') %>
             </button>
           </div>

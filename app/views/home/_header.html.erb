@@ -60,7 +60,7 @@
           d && s != "paid" && s != "overdue" && d >= Date.today && d <= Date.today + 7
         }.first(5)
         _recently_paid = _notif_logs.select { |l|
-          l.current_status == "paid" && l.paid_date.present? && l.paid_date >= 7.days.ago.to_date
+          l.current_status == "paid" && l.paid_at.present? && l.paid_at >= 7.days.ago
         }.first(3)
         _sub_profile = current_user.profile
         _sub_events = []
@@ -128,7 +128,7 @@
                   <div class="min-w-0 flex-1">
                     <p class="text-[10px] font-black text-green-700 uppercase"><%= t('payment_received', default: 'Payment Received') %></p>
                     <p class="text-xs font-bold text-gray-800 truncate">INV-<%= log.display_number %> · <%= log.client.to_s.strip.presence || t('unknown_client') %></p>
-                    <p class="text-[9px] font-bold text-gray-400"><%= log.paid_date&.strftime("%b %d") %></p>
+                    <p class="text-[9px] font-bold text-gray-400"><%= log.paid_at&.strftime("%b %d") %></p>
                   </div>
                 </div>
               <% end %>
