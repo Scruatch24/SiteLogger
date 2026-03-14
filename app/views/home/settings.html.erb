@@ -325,13 +325,13 @@
         <div class="flex gap-2 h-12">
           <%= f.label :billing_mode_hourly, class: "flex-1 h-full cursor-pointer #{@profile.guest? ? 'pointer-events-none' : ''}" do %>
             <%= f.radio_button :billing_mode, "hourly", class: "peer hidden", checked: @profile.billing_mode != "fixed", disabled: @profile.guest?, onchange: "updateRateLabel()" %>
-            <div class="h-full border-2 border-black rounded-xl flex items-center justify-center text-[10px] font-black uppercase transition-all peer-checked:bg-orange-600 peer-checked:text-white peer-checked:shadow-none peer-checked:translate-x-[2px] peer-checked:translate-y-[2px] peer-checked:hover:bg-orange-600 peer-checked:hover:text-white bg-white text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] peer-disabled:bg-gray-50 peer-disabled:text-gray-400 save-btn-hover btn-rise">
+            <div class="h-full border-2 border-black rounded-xl flex items-center justify-center text-[10px] font-black uppercase transition-all peer-checked:bg-orange-600 peer-checked:text-white peer-checked:shadow-none peer-checked:translate-x-[2px] peer-checked:translate-y-[2px] peer-checked:hover:bg-orange-600 peer-checked:hover:text-white peer-checked:hover:translate-x-[2px] peer-checked:hover:translate-y-[2px] peer-checked:hover:shadow-none bg-white text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] peer-disabled:bg-gray-50 peer-disabled:text-gray-400">
               <%= t('hourly') %>
             </div>
           <% end %>
           <%= f.label :billing_mode_fixed, class: "flex-1 h-full cursor-pointer #{@profile.guest? ? 'pointer-events-none' : ''}" do %>
             <%= f.radio_button :billing_mode, "fixed", class: "peer hidden", checked: @profile.billing_mode == "fixed", disabled: @profile.guest?, onchange: "updateRateLabel()" %>
-            <div class="h-full border-2 border-black rounded-xl flex items-center justify-center text-[10px] font-black uppercase transition-all peer-checked:bg-orange-600 peer-checked:text-white peer-checked:shadow-none peer-checked:translate-x-[2px] peer-checked:translate-y-[2px] peer-checked:hover:bg-orange-600 peer-checked:hover:text-white bg-white text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] peer-disabled:bg-gray-50 peer-disabled:text-gray-400 save-btn-hover btn-rise">
+            <div class="h-full border-2 border-black rounded-xl flex items-center justify-center text-[10px] font-black uppercase transition-all peer-checked:bg-orange-600 peer-checked:text-white peer-checked:shadow-none peer-checked:translate-x-[2px] peer-checked:translate-y-[2px] peer-checked:hover:bg-orange-600 peer-checked:hover:text-white peer-checked:hover:translate-x-[2px] peer-checked:hover:translate-y-[2px] peer-checked:hover:shadow-none bg-white text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] peer-disabled:bg-gray-50 peer-disabled:text-gray-400">
               <%= t('fixed') %>
             </div>
           <% end %>
@@ -372,26 +372,26 @@
         <div class="space-y-3">
           <%# Row 1: All 4 category toggles on one line %>
           <div class="flex gap-2 h-12">
-            <button type="button" data-scope="labor" onclick="<%= @profile.guest? ? '' : 'toggleScopeToken(this)' %>" class="flex-1 flex items-center justify-center text-[10px] font-black uppercase transition-all border-2 border-black rounded-xl scope-toggle bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] <%= 'opacity-50 cursor-not-allowed pointer-events-none' if @profile.guest? %>">
+            <button type="button" data-scope="labor" onclick="<%= @profile.guest? ? '' : 'toggleScopeToken(this)' %>" class="flex-1 flex items-center justify-center text-[10px] font-black uppercase transition-all border-2 border-black rounded-xl scope-toggle bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] <%= 'opacity-50 cursor-not-allowed pointer-events-none' if @profile.guest? %>">
               <span class="hidden md:inline"><%= t('labor') %></span><span class="md:hidden"><%= t('labor_short') %></span>
             </button>
-            <button type="button" data-scope="products_only" onclick="<%= @profile.guest? ? '' : 'toggleScopeToken(this)' %>" class="flex-1 flex items-center justify-center text-[10px] font-black uppercase transition-all border-2 border-black rounded-xl scope-toggle bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] <%= 'opacity-50 cursor-not-allowed pointer-events-none' if @profile.guest? %>">
+            <button type="button" data-scope="products_only" onclick="<%= @profile.guest? ? '' : 'toggleScopeToken(this)' %>" class="flex-1 flex items-center justify-center text-[10px] font-black uppercase transition-all border-2 border-black rounded-xl scope-toggle bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] <%= 'opacity-50 cursor-not-allowed pointer-events-none' if @profile.guest? %>">
               <span class="hidden md:inline"><%= t('products_only') %></span><span class="md:hidden"><%= t('products_only_short') %></span>
             </button>
-            <button type="button" data-scope="reimbursements_only" onclick="<%= @profile.guest? ? '' : 'toggleScopeToken(this)' %>" class="flex-1 flex items-center justify-center text-[10px] font-black uppercase transition-all border-2 border-black rounded-xl scope-toggle bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] <%= 'opacity-50 cursor-not-allowed pointer-events-none' if @profile.guest? %>">
+            <button type="button" data-scope="reimbursements_only" onclick="<%= @profile.guest? ? '' : 'toggleScopeToken(this)' %>" class="flex-1 flex items-center justify-center text-[10px] font-black uppercase transition-all border-2 border-black rounded-xl scope-toggle bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] <%= 'opacity-50 cursor-not-allowed pointer-events-none' if @profile.guest? %>">
               <span class="hidden md:inline"><%= t('reimbursement') %></span><span class="md:hidden"><%= t('reimbursement_short') %></span>
             </button>
-            <button type="button" data-scope="fees_only" onclick="<%= @profile.guest? ? '' : 'toggleScopeToken(this)' %>" class="flex-1 flex items-center justify-center text-[10px] font-black uppercase transition-all border-2 border-black rounded-xl scope-toggle bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] <%= 'opacity-50 cursor-not-allowed pointer-events-none' if @profile.guest? %>">
+            <button type="button" data-scope="fees_only" onclick="<%= @profile.guest? ? '' : 'toggleScopeToken(this)' %>" class="flex-1 flex items-center justify-center text-[10px] font-black uppercase transition-all border-2 border-black rounded-xl scope-toggle bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] <%= 'opacity-50 cursor-not-allowed pointer-events-none' if @profile.guest? %>">
               <span class="hidden md:inline"><%= t('fee') %></span><span class="md:hidden"><%= t('fee_short') %></span>
             </button>
           </div>
 
           <%# Row 3: The Helpers (All/None) %>
           <div class="flex gap-2 h-12">
-            <button type="button" id="scope_all_btn" onclick="<%= @profile.guest? ? '' : 'setScopeAll()' %>" class="flex-1 flex items-center justify-center text-[10px] font-black uppercase transition-all border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] <%= 'opacity-50 cursor-not-allowed pointer-events-none' if @profile.guest? %>">
+            <button type="button" id="scope_all_btn" onclick="<%= @profile.guest? ? '' : 'setScopeAll()' %>" class="flex-1 flex items-center justify-center text-[10px] font-black uppercase transition-all border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] <%= 'opacity-50 cursor-not-allowed pointer-events-none' if @profile.guest? %>">
               <%= t('all') %>
             </button>
-            <button type="button" id="scope_none_btn" onclick="<%= @profile.guest? ? '' : 'setScopeNone()' %>" class="flex-1 flex items-center justify-center text-[10px] font-black uppercase transition-all border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] <%= 'opacity-50 cursor-not-allowed pointer-events-none' if @profile.guest? %>">
+            <button type="button" id="scope_none_btn" onclick="<%= @profile.guest? ? '' : 'setScopeNone()' %>" class="flex-1 flex items-center justify-center text-[10px] font-black uppercase transition-all border-2 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] <%= 'opacity-50 cursor-not-allowed pointer-events-none' if @profile.guest? %>">
               <%= t('none') %>
             </button>
           </div>
@@ -648,10 +648,10 @@
       const token = btn.dataset.scope;
       if (activeTokens.includes(token)) {
         btn.classList.add('bg-orange-600', 'text-white', 'shadow-none', 'translate-x-[2px]', 'translate-y-[2px]');
-        btn.classList.remove('bg-white', 'text-black', 'shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]', 'hover:bg-orange-50');
+        btn.classList.remove('bg-white', 'text-black', 'shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]', 'hover:-translate-x-[1px]', 'hover:-translate-y-[1px]', 'hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]');
       } else {
         btn.classList.remove('bg-orange-600', 'text-white', 'shadow-none', 'translate-x-[2px]', 'translate-y-[2px]');
-        btn.classList.add('bg-white', 'text-black', 'shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]', 'hover:bg-orange-50');
+        btn.classList.add('bg-white', 'text-black', 'shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]', 'hover:-translate-x-[1px]', 'hover:-translate-y-[1px]', 'hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]');
       }
     });
 
@@ -662,10 +662,10 @@
       const allActive = activeTokens.length === 4;
       if (allActive) {
         scopeAllBtn.classList.add('bg-orange-600', 'text-white', 'shadow-none', 'translate-x-[2px]', 'translate-y-[2px]');
-        scopeAllBtn.classList.remove('bg-white', 'text-black', 'shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]', 'hover:bg-orange-50');
+        scopeAllBtn.classList.remove('bg-white', 'text-black', 'shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]', 'hover:-translate-x-[1px]', 'hover:-translate-y-[1px]', 'hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]');
       } else {
         scopeAllBtn.classList.remove('bg-orange-600', 'text-white', 'shadow-none', 'translate-x-[2px]', 'translate-y-[2px]');
-        scopeAllBtn.classList.add('bg-white', 'text-black', 'shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]', 'hover:bg-orange-50');
+        scopeAllBtn.classList.add('bg-white', 'text-black', 'shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]', 'hover:-translate-x-[1px]', 'hover:-translate-y-[1px]', 'hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]');
       }
     }
     
@@ -673,10 +673,10 @@
       const noneActive = activeTokens.length === 0;
       if (noneActive) {
         scopeNoneBtn.classList.add('bg-orange-600', 'text-white', 'shadow-none', 'translate-x-[2px]', 'translate-y-[2px]');
-        scopeNoneBtn.classList.remove('bg-white', 'text-black', 'shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]', 'hover:bg-orange-50');
+        scopeNoneBtn.classList.remove('bg-white', 'text-black', 'shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]', 'hover:-translate-x-[1px]', 'hover:-translate-y-[1px]', 'hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]');
       } else {
         scopeNoneBtn.classList.remove('bg-orange-600', 'text-white', 'shadow-none', 'translate-x-[2px]', 'translate-y-[2px]');
-        scopeNoneBtn.classList.add('bg-white', 'text-black', 'shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]', 'hover:bg-orange-50');
+        scopeNoneBtn.classList.add('bg-white', 'text-black', 'shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]', 'hover:-translate-x-[1px]', 'hover:-translate-y-[1px]', 'hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]');
       }
     }
   }
