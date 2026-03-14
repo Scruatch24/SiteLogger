@@ -1800,28 +1800,28 @@ body {
       /* Icon Buttons (Calendar) */
       .btn-icon-hover:hover {
           background-color: #fff7ed;
-          /* orange-50 */
+          transform: translate(-1px, -1px);
+          box-shadow: 3px 3px 0px 0px rgba(0,0,0,1) !important;
       }
 
       .btn-icon-hover:hover svg {
           color: #ea580c;
-          /* orange-600 */
       }
 
       /* Discount Button */
       .discount-btn-hover:hover {
           border-color: #22c55e;
-          /* green-500 */
           color: #16a34a;
-          /* green-600 */
           background-color: #f0fdf4;
-          /* green-50 */
+          transform: translate(-1px, -1px);
+          box-shadow: 3px 3px 0px 0px rgba(0,0,0,1) !important;
       }
 
       /* Apply Button */
       .apply-btn-hover:hover {
           background-color: #ea580c;
-          /* orange-600 */
+          transform: translate(-1px, -1px);
+          box-shadow: 3px 3px 0px 0px rgba(0,0,0,1) !important;
       }
 
       .apply-btn-hover:hover svg {
@@ -1831,15 +1831,14 @@ body {
       /* Labor Group Collapsed Hover */
       .labor-group-hover:hover {
           background-color: #fff7ed !important;
-          /* orange-50 */
           border-color: #f97316 !important;
-          /* orange-500 */
+          transform: translate(-1px, -1px);
+          box-shadow: 3px 3px 0px 0px rgba(0,0,0,0.15) !important;
       }
 
       /* Labor Text Color on Hover */
       .group:hover .group-hover-text-orange {
           color: #ea580c;
-          /* orange-600 */
       }
 
       /* Reveal/Hide on Hover */
@@ -1850,29 +1849,55 @@ body {
       /* Add/Remove Buttons */
       .btn-add-labor-hover:hover {
           background-color: #c2410c;
-          /* orange-700 */
+          transform: translate(-1px, -1px);
+          box-shadow: 3px 3px 0px 0px rgba(0,0,0,0.3) !important;
       }
 
       .btn-add-credit-hover:hover {
           background-color: #b91c1c;
-          /* red-700 */
+          transform: translate(-1px, -1px);
+          box-shadow: 3px 3px 0px 0px rgba(0,0,0,0.3) !important;
       }
 
       .btn-remove-section-hover:hover {
           background-color: #1f2937;
-          /* gray-800 */
+          transform: translate(-1px, -1px);
       }
 
       .btn-remove-item-hover:hover {
           color: #ef4444;
-          /* red-500 */
       }
 
       /* Hamburger Menu */
       .btn-hamburger-hover:hover {
           background-color: #f9fafb;
-          /* gray-50 */
+          transform: translate(-1px, -1px);
+          box-shadow: 3px 3px 0px 0px rgba(0,0,0,0.15) !important;
       }
+  }
+
+  /* ── Global interactive element effects ── */
+
+  /* Pressed state for icon/discount/apply buttons */
+  .btn-icon-hover:active,
+  .discount-btn-hover:active,
+  .apply-btn-hover:active,
+  .btn-add-labor-hover:active,
+  .btn-add-credit-hover:active,
+  .btn-hamburger-hover:active {
+      transform: translate(1px, 1px) !important;
+      box-shadow: none !important;
+  }
+
+  /* Transition for all interactive hover buttons */
+  .btn-icon-hover,
+  .discount-btn-hover,
+  .apply-btn-hover,
+  .btn-add-labor-hover,
+  .btn-add-credit-hover,
+  .btn-remove-section-hover,
+  .btn-hamburger-hover {
+      transition: all 0.15s ease;
   }
 
   .pop-active.btn-icon-hover {
