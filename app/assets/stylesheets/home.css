@@ -212,7 +212,6 @@ body {
     color: #ea580c;
     background: #fff7ed;
     border-color: #ea580c;
-    transform: translate(2px, 2px);
     box-shadow: 2px 2px 0px 0px rgba(234,88,12,1);
   }
   .site-nav-pricing {
