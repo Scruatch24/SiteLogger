@@ -735,27 +735,6 @@
     color: rgba(255,255,255,0.3);
     letter-spacing: 0.02em;
   }
-  .ana-export-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 10px;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: rgba(255,255,255,0.5);
-    text-decoration: none;
-    padding: 6px 12px;
-    border-radius: 8px;
-    border: 1px solid rgba(255,255,255,0.12);
-    background: rgba(255,255,255,0.03);
-    transition: all 0.2s ease;
-  }
-  .ana-export-btn:hover {
-    color: #f97316;
-    border-color: rgba(249,115,22,0.4);
-    background: rgba(249,115,22,0.08);
-  }
 
   /* Due Soon Detail List */
   .ana-due-soon-list {
@@ -864,52 +843,131 @@
     font-weight: 500;
   }
 
-  /* Export Buttons */
-  .ana-export-buttons {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    margin-top: 1.2rem;
-    max-width: 480px;
-    margin-left: auto;
-    margin-right: auto;
+  /* ── Create a Report Section ── */
+  .ana-report-section {
+    border-color: rgba(249,115,22,0.25);
+    background: rgba(249,115,22,0.03);
   }
-  .ana-export-btn {
+  .ana-report-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  .ana-report-icon {
+    width: 48px;
+    height: 48px;
+    flex-shrink: 0;
+    border-radius: 14px;
+    background: rgba(249,115,22,0.12);
+    border: 1px solid rgba(249,115,22,0.3);
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    flex: 1;
-    padding: 14px 20px;
-    border-radius: 16px;
+  }
+  .ana-report-icon svg {
+    width: 24px;
+    height: 24px;
+    color: #f97316;
+  }
+  .ana-report-title-wrap { flex: 1; min-width: 0; }
+  .ana-report-desc {
+    margin: 6px 0 0;
     font-size: 12px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.45);
+    line-height: 1.5;
+  }
+
+  .ana-report-preview {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+    padding: 0.85rem 1rem;
+    margin-bottom: 1rem;
+  }
+  .ana-report-preview-label {
+    font-size: 9px;
     font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.1em;
+    color: rgba(255,255,255,0.35);
+  }
+  .ana-report-includes {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 16px;
+    margin-top: 8px;
+  }
+  .ana-report-include-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.6);
+  }
+  .ana-report-include-item svg {
+    color: #4ade80;
+  }
+
+  .ana-report-actions {
+    display: flex;
+    gap: 10px;
+  }
+  .ana-report-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px;
+    border-radius: 16px;
     text-decoration: none;
     transition: all 0.2s ease;
     cursor: pointer;
   }
-  .ana-export-btn.csv {
-    border: 1px solid rgba(249,115,22,0.35);
-    background: rgba(249,115,22,0.08);
-    color: #f97316;
+  .ana-report-btn svg {
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
   }
-  .ana-export-btn.csv:hover {
-    background: rgba(249,115,22,0.15);
-    border-color: rgba(249,115,22,0.55);
-    box-shadow: 0 4px 16px rgba(249,115,22,0.15);
+  .ana-report-btn-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
   }
-  .ana-export-btn.pdf {
+  .ana-report-btn-label {
+    font-size: 13px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .ana-report-btn-hint {
+    font-size: 10px;
+    font-weight: 600;
+    opacity: 0.55;
+  }
+  .ana-report-btn.pdf {
     border: 1px solid rgba(96,165,250,0.35);
-    background: rgba(96,165,250,0.08);
+    background: rgba(96,165,250,0.06);
     color: #60a5fa;
   }
-  .ana-export-btn.pdf:hover {
-    background: rgba(96,165,250,0.15);
+  .ana-report-btn.pdf:hover {
+    background: rgba(96,165,250,0.14);
     border-color: rgba(96,165,250,0.55);
-    box-shadow: 0 4px 16px rgba(96,165,250,0.15);
+    box-shadow: 0 6px 24px rgba(96,165,250,0.12);
+    transform: translateY(-1px);
+  }
+  .ana-report-btn.csv {
+    border: 1px solid rgba(249,115,22,0.35);
+    background: rgba(249,115,22,0.06);
+    color: #f97316;
+  }
+  .ana-report-btn.csv:hover {
+    background: rgba(249,115,22,0.14);
+    border-color: rgba(249,115,22,0.55);
+    box-shadow: 0 6px 24px rgba(249,115,22,0.12);
+    transform: translateY(-1px);
   }
 
   /* Footer */
@@ -959,7 +1017,8 @@
     .ana-chart-wrap { height: 220px; }
     .ana-health-banner { flex-wrap: wrap; }
     .ana-health-metrics { width: 100%; justify-content: space-around; margin-top: 0.5rem; }
-    .ana-export-buttons { max-width: 100%; flex-direction: column; }
+    .ana-report-actions { flex-direction: column; }
+    .ana-report-includes { grid-template-columns: 1fr; }
     .ana-aging-expand-header { flex-direction: column; align-items: flex-start; }
   }
   @media (max-width: 400px) {
@@ -1497,18 +1556,60 @@
       </div>
     </section>
 
-    <!-- ═══════════════ EXPORT BUTTONS ═══════════════ -->
+    <!-- ═══════════════ 7. CREATE A REPORT ═══════════════ -->
     <% if @is_pro %>
-    <div class="ana-export-buttons">
-      <a href="<%= analytics_export_path %>" class="ana-export-btn csv">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        <%= t('analytics_page.export_csv') %>
-      </a>
-      <a href="<%= analytics_export_pdf_path %>" class="ana-export-btn pdf">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-        <%= t('analytics_page.export_pdf') %>
-      </a>
-    </div>
+    <section class="ana-section ana-report-section">
+      <div class="ana-report-header">
+        <div class="ana-report-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        </div>
+        <div class="ana-report-title-wrap">
+          <h2 class="ana-section-title" style="margin:0;padding-bottom:0;"><%= t('analytics_page.create_report') %></h2>
+          <p class="ana-report-desc"><%= t('analytics_page.create_report_desc') %></p>
+        </div>
+      </div>
+
+      <div class="ana-report-preview">
+        <div class="ana-report-preview-row">
+          <span class="ana-report-preview-label"><%= t('analytics_page.report_includes') %></span>
+        </div>
+        <div class="ana-report-includes">
+          <div class="ana-report-include-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>
+            <%= t('analytics_page.report_inc_summary') %>
+          </div>
+          <div class="ana-report-include-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>
+            <%= t('analytics_page.report_inc_invoices') %>
+          </div>
+          <div class="ana-report-include-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>
+            <%= t('analytics_page.report_inc_clients') %>
+          </div>
+          <div class="ana-report-include-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>
+            <%= t('analytics_page.report_inc_health') %>
+          </div>
+        </div>
+      </div>
+
+      <div class="ana-report-actions">
+        <a href="<%= analytics_export_pdf_path %>" class="ana-report-btn pdf">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          <div class="ana-report-btn-text">
+            <span class="ana-report-btn-label"><%= t('analytics_page.download_pdf') %></span>
+            <span class="ana-report-btn-hint"><%= t('analytics_page.pdf_hint') %></span>
+          </div>
+        </a>
+        <a href="<%= analytics_export_path %>" class="ana-report-btn csv">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <div class="ana-report-btn-text">
+            <span class="ana-report-btn-label"><%= t('analytics_page.download_csv') %></span>
+            <span class="ana-report-btn-hint"><%= t('analytics_page.csv_hint') %></span>
+          </div>
+        </a>
+      </div>
+    </section>
     <% end %>
 
     <div class="ana-footer">
