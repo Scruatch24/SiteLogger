@@ -534,6 +534,7 @@
   .onb-s3-visual {
     display: flex;
     align-items: center;
+    justify-content: center;
     margin-bottom: 2.5rem;
   }
 
@@ -601,6 +602,8 @@
     position: relative;
     opacity: 0;
     transition: opacity 0.6s ease;
+    align-self: center;
+    margin-bottom: 24px;
   }
   .onb-screen.active .onb-conn-1 { opacity: 1; transition-delay: 0.3s; }
   .onb-screen.active .onb-conn-2 { opacity: 1; transition-delay: 0.6s; }
@@ -1468,11 +1471,6 @@
           <div class="onb-cat-tab onb-cat-2"></div>
           <div class="onb-cat-tab onb-cat-3"></div>
         </div>
-        <div class="onb-pin">
-          <svg viewBox="0 0 24 24" fill="currentColor" stroke="none">
-            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/>
-          </svg>
-        </div>
         <div class="onb-status-badge onb-sb-paid"><%= t('onboarding.badge_paid') %></div>
         <div class="onb-status-badge onb-sb-pending"><%= t('onboarding.badge_pending') %></div>
         <div class="onb-status-badge onb-sb-draft"><%= t('onboarding.badge_draft') %></div>
@@ -1487,7 +1485,6 @@
         <div class="onb-ana-glow"></div>
         <!-- Bar chart -->
         <div class="onb-ana-chart">
-          <div class="onb-ana-baseline"></div>
           <div class="onb-ana-bar onb-ab-1"></div>
           <div class="onb-ana-bar onb-ab-2"></div>
           <div class="onb-ana-bar onb-ab-3"></div>
@@ -1680,8 +1677,12 @@
     var overlay = document.getElementById('onboardingOverlay');
     if (!overlay) return;
     overlay.classList.add('onb-exit');
-    document.body.classList.remove('overflow-hidden');
+    document.body.classList.remove('overflow-hidden', 'touch-none');
     document.documentElement.classList.remove('overflow-hidden');
+    document.body.style.overflow = '';
+    document.body.style.overflowY = '';
+    document.documentElement.style.overflow = '';
+    document.documentElement.style.overflowY = '';
     if (window._onbPreventScroll) {
       document.removeEventListener('touchmove', window._onbPreventScroll);
       window._onbPreventScroll = null;
