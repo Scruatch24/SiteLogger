@@ -1593,7 +1593,7 @@
     document.body.classList.add('overflow-hidden');
     document.documentElement.classList.add('overflow-hidden');
     window._onbPreventScroll = function(e) { e.preventDefault(); };
-    document.addEventListener('touchmove', window._onbPreventScroll, { passive: false });
+    overlay.addEventListener('touchmove', window._onbPreventScroll, { passive: false });
 
     // Touch/swipe
     overlay.addEventListener('touchstart', function(e) {
@@ -1679,7 +1679,8 @@
     document.documentElement.style.overflow = '';
     document.documentElement.style.overflowY = '';
     if (window._onbPreventScroll) {
-      document.removeEventListener('touchmove', window._onbPreventScroll);
+      var ol = document.getElementById('onboardingOverlay');
+      if (ol) ol.removeEventListener('touchmove', window._onbPreventScroll);
       window._onbPreventScroll = null;
     }
     setTimeout(function() {
