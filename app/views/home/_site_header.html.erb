@@ -79,7 +79,7 @@
           _notif_count = _overdue_notifs.size + _due_soon_notifs.size + _recently_paid.size + _sub_events.size
         %>
         <div class="relative" id="notifWrap">
-          <button type="button" onclick="toggleNotifDropdown()" class="site-auth-btn" style="position:relative;">
+          <button type="button" onclick="toggleNotifDropdown()" class="site-auth-btn site-auth-notif" style="position:relative;">
             <span class="inline-flex items-center gap-1.5">
               <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -124,7 +124,7 @@
                     <div class="min-w-0 flex-1">
                       <p class="text-[10px] font-black text-amber-700 uppercase"><%= t('due_soon_label', default: 'Due Soon') %></p>
                       <p class="text-xs font-bold text-gray-800 truncate">INV-<%= log.display_number %> · <%= log.client.to_s.strip.presence || t('unknown_client') %></p>
-                      <p class="text-[9px] font-bold text-gray-400"><%= log.parsed_due_date&.strftime("%b %d") %></p>
+                      <p class="text-[9px] font-bold text-gray-400"><%= log.parsed_due_date ? I18n.l(log.parsed_due_date, format: '%b %d') : '' %></p>
                     </div>
                   </div>
                 <% end %>
@@ -136,7 +136,7 @@
                     <div class="min-w-0 flex-1">
                       <p class="text-[10px] font-black text-green-700 uppercase"><%= t('payment_received', default: 'Payment Received') %></p>
                       <p class="text-xs font-bold text-gray-800 truncate">INV-<%= log.display_number %> · <%= log.client.to_s.strip.presence || t('unknown_client') %></p>
-                      <p class="text-[9px] font-bold text-gray-400"><%= log.paid_at&.strftime("%b %d") %></p>
+                      <p class="text-[9px] font-bold text-gray-400"><%= log.paid_at ? I18n.l(log.paid_at.to_date, format: '%b %d') : '' %></p>
                     </div>
                   </div>
                 <% end %>

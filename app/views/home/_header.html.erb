@@ -116,7 +116,7 @@
                   <div class="min-w-0 flex-1">
                     <p class="text-[10px] font-black text-amber-700 uppercase"><%= t('due_soon_label', default: 'Due Soon') %></p>
                     <p class="text-xs font-bold text-gray-800 truncate">INV-<%= log.display_number %> · <%= log.client.to_s.strip.presence || t('unknown_client') %></p>
-                    <p class="text-[9px] font-bold text-gray-400"><%= log.parsed_due_date&.strftime("%b %d") %></p>
+                    <p class="text-[9px] font-bold text-gray-400"><%= log.parsed_due_date ? I18n.l(log.parsed_due_date, format: '%b %d') : '' %></p>
                   </div>
                 </div>
               <% end %>
@@ -128,7 +128,7 @@
                   <div class="min-w-0 flex-1">
                     <p class="text-[10px] font-black text-green-700 uppercase"><%= t('payment_received', default: 'Payment Received') %></p>
                     <p class="text-xs font-bold text-gray-800 truncate">INV-<%= log.display_number %> · <%= log.client.to_s.strip.presence || t('unknown_client') %></p>
-                    <p class="text-[9px] font-bold text-gray-400"><%= log.paid_at&.strftime("%b %d") %></p>
+                    <p class="text-[9px] font-bold text-gray-400"><%= log.paid_at ? I18n.l(log.paid_at.to_date, format: '%b %d') : '' %></p>
                   </div>
                 </div>
               <% end %>
