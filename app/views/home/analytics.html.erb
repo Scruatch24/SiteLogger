@@ -857,9 +857,17 @@
     align-items: center;
     flex-wrap: wrap;
   }
-  .ana-df-select {
+  .ana-df-custom-select {
+    position: relative;
     flex: 1;
     min-width: 100px;
+  }
+  .ana-df-trigger {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
     background: rgba(255,255,255,0.06);
     border: 1px solid rgba(255,255,255,0.12);
     border-radius: 10px;
@@ -868,21 +876,79 @@
     font-weight: 700;
     color: rgba(255,255,255,0.7);
     cursor: pointer;
-    appearance: none;
-    -webkit-appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(255,255,255,0.3)'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 10px center;
-    padding-right: 26px;
     transition: all 0.15s;
+    text-align: left;
   }
-  .ana-df-select:focus {
+  .ana-df-trigger:hover {
+    border-color: rgba(249,115,22,0.4);
+    background: rgba(255,255,255,0.08);
+  }
+  .ana-df-custom-select.open .ana-df-trigger {
     border-color: #f97316;
-    outline: none;
+    background: rgba(249,115,22,0.08);
   }
-  .ana-df-select option {
-    background: #1a1a1a;
-    color: #f8fafc;
+  .ana-df-trigger-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ana-df-chevron {
+    width: 12px;
+    height: 12px;
+    flex-shrink: 0;
+    stroke: rgba(255,255,255,0.3);
+    transition: transform 0.2s;
+  }
+  .ana-df-custom-select.open .ana-df-chevron {
+    transform: rotate(180deg);
+    stroke: #f97316;
+  }
+  .ana-df-dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    z-index: 100;
+    background: #1e1e3a;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    max-height: 200px;
+    overflow-y: auto;
+  }
+  .ana-df-custom-select.open .ana-df-dropdown {
+    display: block;
+    animation: dfFadeIn 0.15s ease;
+  }
+  @keyframes dfFadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .ana-df-option {
+    display: block;
+    width: 100%;
+    padding: 8px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.6);
+    background: transparent;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.1s;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .ana-df-option:last-child { border-bottom: none; }
+  .ana-df-option:hover {
+    background: rgba(249,115,22,0.12);
+    color: #f97316;
+  }
+  .ana-df-option.active {
+    background: rgba(249,115,22,0.15);
+    color: #f97316;
+    font-weight: 800;
   }
   .ana-df-clear {
     padding: 7px 14px;
@@ -904,7 +970,7 @@
   }
   @media (max-width: 640px) {
     .ana-df-row { flex-direction: column; }
-    .ana-df-select { width: 100%; min-width: auto; }
+    .ana-df-custom-select { width: 100%; min-width: auto; }
   }
 
   /* ── Create a Report Section ── */
@@ -986,9 +1052,9 @@
   .ana-dp-day.selected { background: #f97316; color: white; }
   .ana-dp-day.other-month { color: rgba(255,255,255,0.15); }
 
-  /* Desktop: vertical layout for report filters */
+  /* Desktop: report filters layout */
   @media (min-width: 768px) {
-    .ana-report-filters { max-width: 400px; }
+    .ana-report-filters { }
   }
 
   /* Status pills */
@@ -1389,26 +1455,57 @@
     <!-- ═══════════════ DASHBOARD FILTERS ═══════════════ -->
     <div class="ana-dash-filters" id="dashFilters">
       <div class="ana-df-row">
-        <select id="dfStatus" class="ana-df-select" onchange="applyDashFilters()">
-          <option value=""><%= t('all') %> — <%= t('analytics_page.rf_status') %></option>
-          <option value="paid" <%= 'selected' if params[:statuses]&.include?('paid') %>><%= t('paid') %></option>
-          <option value="sent" <%= 'selected' if params[:statuses]&.include?('sent') %>><%= t('sent') %></option>
-          <option value="overdue" <%= 'selected' if params[:statuses]&.include?('overdue') %>><%= t('overdue') %></option>
-          <option value="draft" <%= 'selected' if params[:statuses]&.include?('draft') %>><%= t('draft') %></option>
-        </select>
-        <select id="dfClient" class="ana-df-select" onchange="applyDashFilters()">
-          <option value=""><%= t('all') %> — <%= t('analytics_page.rf_client') %></option>
-          <% @available_clients.each do |c| %>
-            <option value="<%= c %>" <%= 'selected' if params[:clients]&.include?(c) %>><%= c %></option>
-          <% end %>
-        </select>
-        <select id="dfCategory" class="ana-df-select" onchange="applyDashFilters()">
-          <option value=""><%= t('all') %> — <%= t('analytics_page.rf_category') %></option>
-          <% @available_categories.each do |cat| %>
-            <% cat_label = cat.name.downcase == "favorites" ? t('favorites') : cat.name %>
-            <option value="<%= cat.name %>" <%= 'selected' if params[:categories]&.include?(cat.name) %>><%= cat_label %></option>
-          <% end %>
-        </select>
+        <%# Custom Status Dropdown %>
+        <% _df_status_val = params[:statuses]&.first.to_s %>
+        <% _df_status_options = [["", "#{t('all')} — #{t('analytics_page.rf_status')}"], ["paid", t('paid')], ["sent", t('sent')], ["overdue", t('overdue')], ["draft", t('draft')]] %>
+        <% _df_status_label = _df_status_options.find { |v, _| v == _df_status_val }&.last || _df_status_options.first.last %>
+        <div class="ana-df-custom-select" id="dfStatusWrap">
+          <input type="hidden" id="dfStatus" value="<%= _df_status_val %>">
+          <button type="button" class="ana-df-trigger" onclick="toggleDfDropdown('dfStatusWrap')">
+            <span class="ana-df-trigger-text"><%= _df_status_label %></span>
+            <svg class="ana-df-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div class="ana-df-dropdown">
+            <% _df_status_options.each do |val, label| %>
+              <button type="button" class="ana-df-option<%= ' active' if val == _df_status_val %>" data-value="<%= val %>" onclick="selectDfOption('dfStatusWrap', this)"><%= label %></button>
+            <% end %>
+          </div>
+        </div>
+
+        <%# Custom Client Dropdown %>
+        <% _df_client_val = params[:clients]&.first.to_s %>
+        <% _df_client_options = [["", "#{t('all')} — #{t('analytics_page.rf_client')}"]] + @available_clients.map { |c| [c, c] } %>
+        <% _df_client_label = _df_client_options.find { |v, _| v == _df_client_val }&.last || _df_client_options.first.last %>
+        <div class="ana-df-custom-select" id="dfClientWrap">
+          <input type="hidden" id="dfClient" value="<%= _df_client_val %>">
+          <button type="button" class="ana-df-trigger" onclick="toggleDfDropdown('dfClientWrap')">
+            <span class="ana-df-trigger-text"><%= _df_client_label %></span>
+            <svg class="ana-df-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div class="ana-df-dropdown">
+            <% _df_client_options.each do |val, label| %>
+              <button type="button" class="ana-df-option<%= ' active' if val == _df_client_val %>" data-value="<%= val %>" onclick="selectDfOption('dfClientWrap', this)"><%= label %></button>
+            <% end %>
+          </div>
+        </div>
+
+        <%# Custom Category Dropdown %>
+        <% _df_cat_val = params[:categories]&.first.to_s %>
+        <% _df_cat_options = [["", "#{t('all')} — #{t('analytics_page.rf_category')}"]] + @available_categories.map { |cat| [cat.name, cat.name.downcase == "favorites" ? t('favorites') : cat.name] } %>
+        <% _df_cat_label = _df_cat_options.find { |v, _| v == _df_cat_val }&.last || _df_cat_options.first.last %>
+        <div class="ana-df-custom-select" id="dfCategoryWrap">
+          <input type="hidden" id="dfCategory" value="<%= _df_cat_val %>">
+          <button type="button" class="ana-df-trigger" onclick="toggleDfDropdown('dfCategoryWrap')">
+            <span class="ana-df-trigger-text"><%= _df_cat_label %></span>
+            <svg class="ana-df-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div class="ana-df-dropdown">
+            <% _df_cat_options.each do |val, label| %>
+              <button type="button" class="ana-df-option<%= ' active' if val == _df_cat_val %>" data-value="<%= val %>" onclick="selectDfOption('dfCategoryWrap', this)"><%= label %></button>
+            <% end %>
+          </div>
+        </div>
+
         <% if @analytics_filtered %>
           <a href="<%= analytics_path %>" class="ana-df-clear"><%= t('analytics_page.clear_filters', default: 'Clear') %></a>
         <% end %>
@@ -1477,6 +1574,30 @@
           <div class="ana-card-trend"><%= t('analytics_page.per_invoice') %></div>
         </div>
       </div>
+
+      <% if @currency_totals.keys.size > 1 %>
+        <div style="margin-top: 0.75rem; padding: 0.6rem 0.8rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px;">
+          <div style="font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.35); margin-bottom: 0.5rem;"><%= t('analytics_page.currency_breakdown', default: 'By Currency') %></div>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            <% @currency_totals.sort_by { |_, v| -v[:total_invoiced] }.each do |code, data| %>
+              <% csym = currency_symbol_for(code) %>
+              <div style="flex: 1; min-width: 140px; padding: 8px 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px;">
+                <div style="font-size: 11px; font-weight: 800; color: rgba(255,255,255,0.7); margin-bottom: 4px;"><%= code %></div>
+                <div style="font-size: 14px; font-weight: 800; color: #f8fafc;"><%= csym %><%= number_with_delimiter(data[:total_invoiced]) %></div>
+                <div style="display: flex; gap: 8px; margin-top: 4px;">
+                  <% if data[:total_paid] > 0 %>
+                    <span style="font-size: 9px; font-weight: 700; color: #4ade80;"><%= t('paid') %>: <%= csym %><%= number_with_delimiter(data[:total_paid]) %></span>
+                  <% end %>
+                  <% if data[:total_outstanding] > 0 %>
+                    <span style="font-size: 9px; font-weight: 700; color: #facc15;"><%= t('analytics_page.outstanding') %>: <%= csym %><%= number_with_delimiter(data[:total_outstanding]) %></span>
+                  <% end %>
+                </div>
+                <div style="font-size: 9px; font-weight: 700; color: rgba(255,255,255,0.3); margin-top: 2px;"><%= data[:count] %> <%= t('analytics_page.invoice_singular') %></div>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
     </section>
 
     <!-- ═══════════════ 2. ALERTS ═══════════════ -->
@@ -2143,6 +2264,26 @@
 
 <% if @is_pro %>
 <script>
+  function toggleDfDropdown(wrapId) {
+    var wrap = document.getElementById(wrapId);
+    if (!wrap) return;
+    var isOpen = wrap.classList.contains('open');
+    // Close all
+    document.querySelectorAll('.ana-df-custom-select.open').forEach(function(el) { el.classList.remove('open'); });
+    if (!isOpen) wrap.classList.add('open');
+  }
+  function selectDfOption(wrapId, btn) {
+    var wrap = document.getElementById(wrapId);
+    if (!wrap) return;
+    var val = btn.getAttribute('data-value');
+    var label = btn.textContent;
+    wrap.querySelector('input[type=hidden]').value = val;
+    wrap.querySelector('.ana-df-trigger-text').textContent = label;
+    wrap.querySelectorAll('.ana-df-option').forEach(function(o) { o.classList.remove('active'); });
+    btn.classList.add('active');
+    wrap.classList.remove('open');
+    applyDashFilters();
+  }
   function applyDashFilters() {
     var params = [];
     var status = document.getElementById('dfStatus')?.value;
@@ -2154,6 +2295,12 @@
     var qs = params.length ? '?' + params.join('&') : '';
     window.location.href = '<%= analytics_path %>' + qs;
   }
+  // Close dropdowns on outside click
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.ana-df-custom-select')) {
+      document.querySelectorAll('.ana-df-custom-select.open').forEach(function(el) { el.classList.remove('open'); });
+    }
+  });
 </script>
 <% end %>
 

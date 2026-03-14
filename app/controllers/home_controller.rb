@@ -1,5 +1,6 @@
 class HomeController < ApplicationController
   helper :logs
+  helper_method :currency_symbol_for
   # Force sync comment
   require "net/http"
   require "uri"
@@ -145,6 +146,7 @@ class HomeController < ApplicationController
     @top_client_share     = analytics_data[:top_client_share]
     @top_client_name      = analytics_data[:top_client_name]
     @outstanding_trend    = analytics_data[:outstanding_trend]
+    @currency_totals      = analytics_data[:currency_totals] || {}
 
     # ── Cache timestamp for "Last updated" display ──
     @analytics_cached_at = analytics_data[:cached_at]
@@ -4175,10 +4177,18 @@ PROMPT
     client_data = Hash.new { |h, k| h[k] = { total: 0.0, outstanding: 0.0, count: 0, overdue_count: 0, last_at: nil } }
     all_client_first_seen = {}
 
+    # Per-currency totals for display grouping
+    currency_totals = Hash.new { |h, k| h[k] = { total_invoiced: 0.0, total_outstanding: 0.0, total_overdue: 0.0, total_paid: 0.0, count: 0 } }
+
     (logs_scope || user.logs.kept).find_each do |log|
       totals = helpers.calculate_log_totals(log, profile)
       amount = totals[:total_due].to_f
       total_invoiced += amount
+
+      # Track per-currency
+      log_currency = (log.currency.presence || profile.currency.presence || "USD").upcase
+      currency_totals[log_currency][:total_invoiced] += amount
+      currency_totals[log_currency][:count] += 1
 
       effective_status = log.current_status
       status_counts[effective_status.to_sym] = (status_counts[effective_status.to_sym] || 0) + 1
@@ -4197,6 +4207,7 @@ PROMPT
       when "paid"
         total_paid_amount += amount
         total_sent_amount += amount
+        currency_totals[log_currency][:total_paid] += amount
         # Avg days to pay
         if log.paid_at && log.created_at
           days_took = ((log.paid_at - log.created_at) / 1.day).round(1)
@@ -4219,6 +4230,8 @@ PROMPT
         total_overdue_amount += amount
         total_sent_amount += amount
         overdue_count += 1
+        currency_totals[log_currency][:total_outstanding] += amount
+        currency_totals[log_currency][:total_overdue] += amount
         _inv_detail = { id: log.id, client: log.client.to_s.strip.presence || "—", amount: amount.round(2), days: 0, due_date: parsed_due&.strftime("%b %d, %Y") || "—", display_number: log.display_number }
         if parsed_due
           days_overdue = (today - parsed_due).to_i
@@ -4249,6 +4262,7 @@ PROMPT
       when "sent"
         total_outstanding += amount
         total_sent_amount += amount
+        currency_totals[log_currency][:total_outstanding] += amount
         # Outstanding trend
         if created >= month_start.to_time
           this_month_outstanding_created += amount
@@ -4288,6 +4302,7 @@ PROMPT
         end
       when "draft"
         total_outstanding += amount
+        currency_totals[log_currency][:total_outstanding] += amount
         # Outstanding trend
         if created >= month_start.to_time
           this_month_outstanding_created += amount
@@ -4448,6 +4463,9 @@ PROMPT
       top_client_share: top_client_share,
       top_client_name: top_client_name,
       outstanding_trend: outstanding_trend,
+      currency_totals: currency_totals.transform_values { |v|
+        v.transform_values { |n| n.is_a?(Numeric) && !n.is_a?(Integer) ? n.round(2) : n }
+      },
       cached_at: Time.current
     }
   end

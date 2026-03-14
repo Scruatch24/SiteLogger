@@ -5,7 +5,7 @@
     <label data-nosnippet class="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1"><%= t('currency') %></label>
     <div class="relative">
       <button type="button" id="globalCurrencyBtn" onclick="toggleGlobalCurrencyMenu(event)" 
-              class="w-full h-11 bg-white border-2 border-black rounded-xl px-3 text-xs font-black text-black text-left flex justify-between items-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:outline-none transition-all active:translate-x-[1px] active:translate-y-[1px] active:shadow-none">
+              class="w-full h-11 bg-white border-2 border-black rounded-xl px-3 text-xs font-black text-black text-left flex justify-between items-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-orange-50 focus:outline-none transition-all active:translate-x-[1px] active:translate-y-[1px] active:shadow-none">
         <% current_profile_currency = currencies_data.find { |c| c[:c] == (@profile.currency.presence || "USD") } || currencies_data.first %>
         <span id="globalCurrencyDisplay" class="flex items-center gap-2">
           <span class="fi fi-<%= current_profile_currency[:i] %> rounded-sm shadow-sm scale-90"></span> 
@@ -28,15 +28,15 @@
     <label data-nosnippet class="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1"><%= t('billing_model') %></label>
     <div class="flex gap-2 h-11">
        <button type="button" id="billingModelHourly" onclick="setGlobalBillingMode('hourly')" 
-               class="flex-1 text-[9px] font-black uppercase tracking-widest transition-all border-2 border-black rounded-xl <%= @profile.billing_mode == 'hourly' || @profile.billing_mode.nil? ? 'bg-orange-600 text-white shadow-none translate-x-[2px] translate-y-[2px]' : 'bg-white text-black hover:bg-orange-50 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]' %>">
+               class="flex-1 text-[9px] font-black uppercase tracking-widest transition-all border-2 border-black rounded-xl <%= @profile.billing_mode == 'hourly' || @profile.billing_mode.nil? ? 'bg-orange-600 text-white shadow-none translate-x-[2px] translate-y-[2px]' : 'bg-white text-black hover:bg-orange-50 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]' %>">
           <%= t('hourly') %>
        </button>
        <button type="button" id="billingModelFixed" onclick="setGlobalBillingMode('fixed')" 
-               class="flex-1 text-[9px] font-black uppercase tracking-widest transition-all border-2 border-black rounded-xl <%= @profile.billing_mode == 'fixed' ? 'bg-orange-600 text-white shadow-none translate-x-[2px] translate-y-[2px]' : 'bg-white text-black hover:bg-orange-50 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]' %>">
+               class="flex-1 text-[9px] font-black uppercase tracking-widest transition-all border-2 border-black rounded-xl <%= @profile.billing_mode == 'fixed' ? 'bg-orange-600 text-white shadow-none translate-x-[2px] translate-y-[2px]' : 'bg-white text-black hover:bg-orange-50 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]' %>">
           <%= t('fixed') %>
        </button>
        <button type="button" id="billingModelMixed" onclick="setGlobalBillingMode('mixed')" 
-               class="flex-1 text-[9px] font-black uppercase tracking-widest transition-all border-2 border-black rounded-xl <%= @profile.billing_mode == 'mixed' ? 'bg-orange-600 text-white shadow-none translate-x-[2px] translate-y-[2px]' : 'bg-white text-black hover:bg-orange-50 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]' %>">
+               class="flex-1 text-[9px] font-black uppercase tracking-widest transition-all border-2 border-black rounded-xl <%= @profile.billing_mode == 'mixed' ? 'bg-orange-600 text-white shadow-none translate-x-[2px] translate-y-[2px]' : 'bg-white text-black hover:bg-orange-50 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]' %>">
           <%= t('mixed') %>
        </button>
     </div>

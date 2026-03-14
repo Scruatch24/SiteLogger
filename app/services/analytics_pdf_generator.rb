@@ -142,7 +142,7 @@ class AnalyticsPdfGenerator
     pdf.text title, size: 20, style: :bold, align: :center
     pdf.move_down 4
     pdf.fill_color TEXT_MUTED
-    pdf.text subtitle, size: 9, align: :center
+    pdf.text subtitle, size: 9, style: :bold, align: :center
     pdf.move_down 16
     pdf.fill_color TEXT_WHITE
   end
@@ -447,7 +447,7 @@ class AnalyticsPdfGenerator
         pdf.text_box "TalkInvoice Analytics Report — #{t('analytics_export.pdf_exported')}: #{@today.strftime('%Y-%m-%d')}",
                      at: [36, 24], size: 7, width: 300, height: 14, overflow: :shrink_to_fit, disable_wrap_by_char: true
         pdf.text_box "talkinvoice.online",
-                     at: [pdf.bounds.absolute_right - 130, 24], size: 7, width: 130, height: 14, align: :right
+                     at: [pdf.bounds.absolute_right - 166, 24], size: 7, width: 130, height: 14, align: :right
         pdf.fill_color TEXT_WHITE
       end
     end
