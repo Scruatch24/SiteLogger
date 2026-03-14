@@ -19,7 +19,7 @@
       <div>
         <label class="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5"><%= t('company_name') %></label>
         <input type="text" id="fromBusinessName"
-               class="w-full px-4 py-3 bg-white border-2 border-black rounded-xl font-bold focus:outline-none focus:border-orange-500 focus:shadow-[4px_4px_0px_0px_#F97316] transition-all"
+               class="modal-input"
                placeholder="<%= t('business_name_placeholder') %>">
       </div>
 
@@ -29,7 +29,7 @@
         <textarea id="fromPaymentInstructions" rows="3"
                   onkeydown="return checkFromCharLimit(event, this, 50, 8)"
                   oninput="limitFromLinesAndChars(this, 50, 8)"
-                  class="w-full px-4 py-3 bg-white border-2 border-black rounded-xl font-medium focus:outline-none focus:border-orange-500 focus:shadow-[4px_4px_0px_0px_#F97316] transition-all resize-none"
+                  class="modal-input resize-none"
                   style="overflow: hidden; field-sizing: content;"
                   placeholder="<%= t('payment_instructions_placeholder') %>"></textarea>
       </div>
@@ -40,7 +40,7 @@
         <textarea id="fromNote" rows="2"
                   onkeydown="return checkFromCharLimit(event, this, 50, 2)"
                   oninput="limitFromLinesAndChars(this, 50, 2)"
-                  class="w-full px-4 py-3 bg-white border-2 border-black rounded-xl font-medium focus:outline-none focus:border-orange-500 focus:shadow-[4px_4px_0px_0px_#F97316] transition-all resize-none"
+                  class="modal-input resize-none"
                   style="overflow: hidden; field-sizing: content;"
                   placeholder="<%= t('invoice_note_placeholder') %>"></textarea>
       </div>
@@ -49,7 +49,7 @@
       <div>
         <label class="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5"><%= t('email') %></label>
         <input type="email" id="fromEmail"
-               class="w-full px-4 py-3 bg-white border-2 border-black rounded-xl font-bold focus:outline-none focus:border-orange-500 focus:shadow-[4px_4px_0px_0px_#F97316] transition-all"
+               class="modal-input"
                placeholder="<%= t('email_placeholder') %>">
       </div>
 
@@ -57,7 +57,7 @@
       <div>
         <label class="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5"><%= t('phone') %></label>
         <input type="tel" id="fromPhone"
-               class="w-full px-4 py-3 bg-white border-2 border-black rounded-xl font-bold focus:outline-none focus:border-orange-500 focus:shadow-[4px_4px_0px_0px_#F97316] transition-all"
+               class="modal-input"
                placeholder="<%= t('phone_placeholder') %>">
       </div>
 
@@ -67,7 +67,7 @@
         <textarea id="fromAddress" rows="3"
                   onkeydown="return checkFromCharLimit(event, this, 50, 3)"
                   oninput="limitFromLinesAndChars(this, 50, 3)"
-                  class="w-full px-4 py-3 bg-white border-2 border-black rounded-xl font-medium focus:outline-none focus:border-orange-500 focus:shadow-[4px_4px_0px_0px_#F97316] transition-all resize-none"
+                  class="modal-input resize-none"
                   style="overflow: hidden; field-sizing: content;"
                   placeholder="<%= t('address_placeholder') %>"></textarea>
       </div>
@@ -76,7 +76,7 @@
       <div>
         <label class="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5"><%= t('tax_id') %></label>
         <input type="text" id="fromTaxId"
-               class="w-full px-4 py-3 bg-white border-2 border-black rounded-xl font-bold focus:outline-none focus:border-orange-500 focus:shadow-[4px_4px_0px_0px_#F97316] transition-all"
+               class="modal-input"
                placeholder="<%= t('tax_id_placeholder') %>">
       </div>
     </div>

@@ -21,7 +21,7 @@
         </svg>
         <input type="text" id="billedToSearch"
                oninput="searchBilledToClients(this.value)"
-               class="w-full pl-10 pr-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl font-bold text-sm focus:outline-none focus:border-orange-500 focus:bg-white transition-all"
+               class="modal-input pl-10 bg-gray-50 border-gray-200"
                placeholder="<%= t('search_clients') %>"
                autocomplete="off">
       </div>
@@ -50,7 +50,7 @@
           <%= t('client_name') %> <span class="text-red-500">*</span>
         </label>
         <input type="text" id="billedToName"
-               class="w-full px-4 py-3 bg-white border-2 border-black rounded-xl font-bold focus:outline-none focus:border-orange-500 focus:shadow-[4px_4px_0px_0px_#F97316] transition-all"
+               class="modal-input"
                placeholder="<%= t('client_placeholder') %>">
         <p id="billedToNameError" class="hidden text-red-500 text-[10px] font-bold mt-1"><%= t('please_fill_field') %></p>
       </div>
@@ -59,7 +59,7 @@
       <div>
         <label class="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5"><%= t('client_email_label') %></label>
         <input type="email" id="billedToEmail"
-               class="w-full px-4 py-3 bg-white border-2 border-black rounded-xl font-bold focus:outline-none focus:border-orange-500 focus:shadow-[4px_4px_0px_0px_#F97316] transition-all"
+               class="modal-input"
                placeholder="<%= t('email_placeholder') %>">
       </div>
 
@@ -67,7 +67,7 @@
       <div>
         <label class="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5"><%= t('client_phone_label', default: t('phone')) %></label>
         <input type="tel" id="billedToPhone"
-               class="w-full px-4 py-3 bg-white border-2 border-black rounded-xl font-bold focus:outline-none focus:border-orange-500 focus:shadow-[4px_4px_0px_0px_#F97316] transition-all"
+               class="modal-input"
                placeholder="<%= t('phone_placeholder') %>">
       </div>
 
@@ -77,7 +77,7 @@
         <textarea id="billedToAddress" rows="3"
                   onkeydown="return checkFromCharLimit(event, this, 50, 3)"
                   oninput="limitFromLinesAndChars(this, 50, 3)"
-                  class="w-full px-4 py-3 bg-white border-2 border-black rounded-xl font-medium focus:outline-none focus:border-orange-500 focus:shadow-[4px_4px_0px_0px_#F97316] transition-all resize-none"
+                  class="modal-input resize-none"
                   style="overflow: hidden; field-sizing: content;"
                   placeholder="<%= t('client_address_placeholder', default: t('address_placeholder')) %>"></textarea>
       </div>
@@ -86,7 +86,7 @@
       <div id="billedToNotesGroup">
         <label class="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5"><%= t('client_notes_label', default: 'Notes') %></label>
         <textarea id="billedToNotes" rows="2"
-                  class="w-full px-4 py-3 bg-white border-2 border-black rounded-xl font-medium focus:outline-none focus:border-orange-500 focus:shadow-[4px_4px_0px_0px_#F97316] transition-all resize-none"
+                  class="modal-input resize-none"
                   placeholder="<%= t('client_notes_placeholder', default: 'Internal notes...') %>"></textarea>
       </div>
     </div>

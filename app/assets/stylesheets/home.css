@@ -2296,3 +2296,30 @@ body {
       padding: 2rem 1rem;
     }
   }
+
+  /* ============================================ */
+  /* MODAL INPUT FIELDS                           */
+  /* ============================================ */
+  .modal-input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background: white;
+    border: 2px solid black;
+    border-radius: 0.75rem;
+    font-weight: 700;
+    box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+    transition: all 0.15s ease;
+    outline: none;
+  }
+  .modal-input:focus {
+    border-color: #f97316;
+    box-shadow: none;
+    transform: translate(2px, 2px);
+  }
+  .modal-input::placeholder {
+    font-weight: 500;
+    color: #9ca3af;
+  }
+  .modal-input.resize-none {
+    resize: none;
+  }
