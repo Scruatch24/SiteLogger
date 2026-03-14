@@ -840,6 +840,12 @@
 
         var stopEqualizer = startRandomEqualizer();
 
+        // Lock scroll while splash is visible
+        document.body.style.overflow = 'hidden';
+        document.documentElement.style.overflow = 'hidden';
+        var _splashPreventScroll = function(e) { e.preventDefault(); };
+        splash.addEventListener('touchmove', _splashPreventScroll, { passive: false });
+
         var hidden = false;
         function hideSplash() {
           if (hidden) return;
@@ -848,6 +854,10 @@
             stopEqualizer();
             stopEqualizer = null;
           }
+          // Unlock scroll
+          document.body.style.overflow = '';
+          document.documentElement.style.overflow = '';
+          splash.removeEventListener('touchmove', _splashPreventScroll);
           splash.classList.add('pwa-launch-splash-exit');
           setTimeout(function() {
             if (splash && splash.parentNode) splash.parentNode.removeChild(splash);
