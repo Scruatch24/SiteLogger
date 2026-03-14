@@ -458,14 +458,14 @@
         .hf-dd-label-above { display: flex; align-items: center; gap: 3px; font-size: 8px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; color: #9ca3af; margin-bottom: 4px; padding-left: 2px; }
         .hf-label-icon { width: 9px; height: 9px; flex-shrink: 0; }
         [data-dropdown="status"] .hf-dd-label-above { color: #16a34a; }
-        [data-dropdown="status"] .hf-dd-trigger { border-color: #16a34a; }
+        [data-dropdown="status"] .hf-dd-trigger { border-color: black; }
         [data-dropdown="status"] .hf-dd-trigger { box-shadow: 2px 2px 0px 0px rgba(0,0,0,1); }
         [data-dropdown="duein"] .hf-dd-label-above { color: #2563eb; }
-        [data-dropdown="duein"] .hf-dd-trigger { border-color: #2563eb; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1); }
+        [data-dropdown="duein"] .hf-dd-trigger { border-color: black; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1); }
         [data-dropdown="overduefor"] .hf-dd-label-above { color: #dc2626; }
-        [data-dropdown="overduefor"] .hf-dd-trigger { border-color: #dc2626; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1); }
+        [data-dropdown="overduefor"] .hf-dd-trigger { border-color: black; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1); }
         [data-dropdown="sort"] .hf-dd-label-above { color: #ea580c; }
-        [data-dropdown="sort"] .hf-dd-trigger { border-color: #ea580c; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1); }
+        [data-dropdown="sort"] .hf-dd-trigger { border-color: black; box-shadow: 2px 2px 0px 0px rgba(0,0,0,1); }
         .hf-dd.disabled .hf-dd-label-above { opacity: 0.35; }
         .hf-dd.disabled .hf-dd-trigger { opacity: 0.35; pointer-events: none; cursor: not-allowed; border-color: #d1d5db; background: #f9fafb; }
         .hf-dd-sub-row { display: flex; gap: 0.5rem; flex: 2; min-width: 0; }
@@ -491,7 +491,7 @@
         .hf-dd-trigger .hf-dd-chevron { width: 12px; height: 12px; flex-shrink: 0; transition: transform 0.2s; }
         .hf-dd-trigger.open .hf-dd-chevron { transform: rotate(180deg); }
         .hf-dd-menu {
-          position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 200;
+          position: absolute; top: calc(100% + 4px); left: 50%; transform: translateX(-50%); z-index: 200;
           background: #fff; border: 2px solid black; border-radius: 12px;
           overflow: hidden; display: none; min-width: 140px;
         }

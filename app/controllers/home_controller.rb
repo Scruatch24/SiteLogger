@@ -206,9 +206,9 @@ class HomeController < ApplicationController
       currency_code = profile.currency.presence || "USD"
       currency_sym = currency_symbol_for(currency_code)
 
-      # ── Build per-invoice rows ──
+      # ── Build per-invoice rows (filtered) ──
       invoice_rows = []
-      current_user.logs.kept.find_each do |log|
+      filtered_export_logs(current_user, profile).find_each do |log|
         totals = helpers.calculate_log_totals(log, profile)
         amount = totals[:total_due].to_f.round(2)
         effective_status = log.current_status
@@ -336,9 +336,9 @@ class HomeController < ApplicationController
       currency_code = profile.currency.presence || "USD"
       currency_sym = currency_symbol_for(currency_code)
 
-      # Build invoice rows for PDF
+      # Build invoice rows for PDF (filtered)
       invoice_rows = []
-      current_user.logs.kept.find_each do |log|
+      filtered_export_logs(current_user, profile).find_each do |log|
         totals = helpers.calculate_log_totals(log, profile)
         amount = totals[:total_due].to_f.round(2)
         effective_status = log.current_status
@@ -4616,6 +4616,37 @@ PROMPT
   end
 
   private
+
+  def filtered_export_logs(user, profile)
+    logs = user.logs.kept
+    if params[:date_from].present?
+      from = Date.parse(params[:date_from]) rescue nil
+      logs = logs.where("logs.created_at >= ?", from.beginning_of_day) if from
+    end
+    if params[:date_to].present?
+      to = Date.parse(params[:date_to]) rescue nil
+      logs = logs.where("logs.created_at <= ?", to.end_of_day) if to
+    end
+    if params[:status].present? && params[:status] != "all"
+      if params[:status] == "overdue"
+        logs = logs.where(
+          "status = 'overdue' OR (status IN ('draft','sent') AND due_date IS NOT NULL AND due_date != '' AND CAST(due_date AS date) < ?)", Date.today
+        )
+      else
+        logs = logs.where(status: params[:status])
+      end
+    end
+    if params[:clients].present?
+      client_names = Array(params[:clients]).map(&:strip).reject(&:blank?)
+      logs = logs.where(client: client_names) if client_names.any?
+    end
+    if params[:categories].present?
+      cat_names = Array(params[:categories]).map(&:strip).reject(&:blank?)
+      cat_ids = user.categories.where(name: cat_names).pluck(:id)
+      logs = logs.joins(:log_category_assignments).where(log_category_assignments: { category_id: cat_ids }) if cat_ids.any?
+    end
+    logs
+  end
 
   # ── Auto-upgrade AI clarifications into 4 ordered groups:
   #    1. Ambiguity (item type/description)  →  item_input_list with text inputs

@@ -848,67 +848,166 @@
     border-color: rgba(249,115,22,0.25);
     background: rgba(249,115,22,0.03);
   }
-  .ana-report-header {
-    display: flex;
-    align-items: flex-start;
-    gap: 1rem;
-    margin-bottom: 1rem;
-  }
-  .ana-report-icon {
-    width: 48px;
-    height: 48px;
-    flex-shrink: 0;
-    border-radius: 14px;
-    background: rgba(249,115,22,0.12);
-    border: 1px solid rgba(249,115,22,0.3);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .ana-report-icon svg {
-    width: 24px;
-    height: 24px;
-    color: #f97316;
-  }
-  .ana-report-title-wrap { flex: 1; min-width: 0; }
   .ana-report-desc {
-    margin: 6px 0 0;
+    margin: 0 0 1rem;
     font-size: 12px;
     font-weight: 600;
     color: rgba(255,255,255,0.45);
     line-height: 1.5;
   }
 
-  .ana-report-preview {
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 14px;
-    padding: 0.85rem 1rem;
+  /* ── Report Filter Controls ── */
+  .ana-report-filters {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
     margin-bottom: 1rem;
   }
-  .ana-report-preview-label {
-    font-size: 9px;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: rgba(255,255,255,0.35);
-  }
-  .ana-report-includes {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 6px 16px;
-    margin-top: 8px;
-  }
-  .ana-report-include-item {
+  .ana-rf-row {
     display: flex;
     align-items: center;
+    gap: 0.75rem;
+  }
+  .ana-rf-label {
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(255,255,255,0.4);
+    min-width: 80px;
+    flex-shrink: 0;
+  }
+  .ana-rf-date-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+  }
+  .ana-rf-date-sep {
+    color: rgba(255,255,255,0.25);
+    font-weight: 700;
+  }
+  .ana-rf-input {
+    flex: 1;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #f8fafc;
+    outline: none;
+    transition: all 0.2s ease;
+    color-scheme: dark;
+  }
+  .ana-rf-input:focus {
+    border-color: #f97316;
+    background: rgba(249,115,22,0.08);
+    box-shadow: 0 0 0 2px rgba(249,115,22,0.15);
+  }
+
+  /* Status pills */
+  .ana-rf-pills {
+    display: flex;
+    flex-wrap: wrap;
     gap: 6px;
+    flex: 1;
+  }
+  .ana-rf-pill {
+    padding: 6px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.04);
+    color: rgba(255,255,255,0.55);
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .ana-rf-pill:hover {
+    border-color: rgba(249,115,22,0.4);
+    color: rgba(255,255,255,0.8);
+  }
+  .ana-rf-pill.active {
+    background: rgba(249,115,22,0.15);
+    border-color: #f97316;
+    color: #f97316;
+  }
+
+  /* Multi-select dropdown */
+  .ana-rf-multi-wrap {
+    position: relative;
+    flex: 1;
+  }
+  .ana-rf-multi-trigger {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.7);
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .ana-rf-multi-trigger:hover {
+    border-color: rgba(249,115,22,0.4);
+  }
+  .ana-rf-chevron {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    transition: transform 0.2s;
+  }
+  .ana-rf-multi-wrap.open .ana-rf-chevron {
+    transform: rotate(180deg);
+  }
+  .ana-rf-dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    z-index: 50;
+    background: #1a1a1a;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 12px;
+    overflow: hidden;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+  .ana-rf-multi-wrap.open .ana-rf-dropdown {
+    display: block;
+  }
+  .ana-rf-dd-option {
+    width: 100%;
+    display: block;
+    padding: 8px 14px;
     font-size: 11px;
     font-weight: 700;
     color: rgba(255,255,255,0.6);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.1s;
   }
-  .ana-report-include-item svg {
-    color: #4ade80;
+  .ana-rf-dd-option:hover {
+    background: rgba(249,115,22,0.1);
+  }
+  .ana-rf-dd-option.active {
+    background: rgba(249,115,22,0.12);
+    color: #f97316;
+  }
+  .ana-rf-dd-option + .ana-rf-dd-option {
+    border-top: 1px solid rgba(255,255,255,0.06);
   }
 
   .ana-report-actions {
@@ -1018,7 +1117,8 @@
     .ana-health-banner { flex-wrap: wrap; }
     .ana-health-metrics { width: 100%; justify-content: space-around; margin-top: 0.5rem; }
     .ana-report-actions { flex-direction: column; }
-    .ana-report-includes { grid-template-columns: 1fr; }
+    .ana-rf-row { flex-direction: column; align-items: stretch; }
+    .ana-rf-label { min-width: auto; }
     .ana-aging-expand-header { flex-direction: column; align-items: flex-start; }
   }
   @media (max-width: 400px) {
@@ -1558,50 +1658,77 @@
 
     <!-- ═══════════════ 7. CREATE A REPORT ═══════════════ -->
     <% if @is_pro %>
-    <section class="ana-section ana-report-section">
-      <div class="ana-report-header">
-        <div class="ana-report-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-        </div>
-        <div class="ana-report-title-wrap">
-          <h2 class="ana-section-title" style="margin:0;padding-bottom:0;"><%= t('analytics_page.create_report') %></h2>
-          <p class="ana-report-desc"><%= t('analytics_page.create_report_desc') %></p>
-        </div>
-      </div>
+    <section class="ana-section ana-report-section" id="reportSection">
+      <h2 class="ana-section-title"><%= t('analytics_page.create_report') %></h2>
+      <p class="ana-report-desc"><%= t('analytics_page.create_report_desc') %></p>
 
-      <div class="ana-report-preview">
-        <div class="ana-report-preview-row">
-          <span class="ana-report-preview-label"><%= t('analytics_page.report_includes') %></span>
+      <div class="ana-report-filters">
+        <!-- Date Range -->
+        <div class="ana-rf-row">
+          <label class="ana-rf-label"><%= t('analytics_page.rf_date_range') %></label>
+          <div class="ana-rf-date-row">
+            <input type="date" id="reportDateFrom" class="ana-rf-input" />
+            <span class="ana-rf-date-sep">—</span>
+            <input type="date" id="reportDateTo" class="ana-rf-input" />
+          </div>
         </div>
-        <div class="ana-report-includes">
-          <div class="ana-report-include-item">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>
-            <%= t('analytics_page.report_inc_summary') %>
+
+        <!-- Status -->
+        <div class="ana-rf-row">
+          <label class="ana-rf-label"><%= t('analytics_page.rf_status') %></label>
+          <div class="ana-rf-pills" id="reportStatusPills">
+            <button type="button" class="ana-rf-pill active" data-val="all"><%= t('all') %></button>
+            <button type="button" class="ana-rf-pill" data-val="paid"><%= t('paid') %></button>
+            <button type="button" class="ana-rf-pill" data-val="sent"><%= t('sent') %></button>
+            <button type="button" class="ana-rf-pill" data-val="overdue"><%= t('overdue') %></button>
+            <button type="button" class="ana-rf-pill" data-val="draft"><%= t('draft') %></button>
           </div>
-          <div class="ana-report-include-item">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>
-            <%= t('analytics_page.report_inc_invoices') %>
+        </div>
+
+        <!-- Client -->
+        <div class="ana-rf-row">
+          <label class="ana-rf-label"><%= t('analytics_page.rf_client') %></label>
+          <div class="ana-rf-multi-wrap" id="reportClientWrap">
+            <button type="button" class="ana-rf-multi-trigger" id="reportClientTrigger" onclick="toggleReportDropdown('client')">
+              <span id="reportClientText"><%= t('all') %></span>
+              <svg class="ana-rf-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+            <div class="ana-rf-dropdown" id="reportClientDropdown">
+              <button type="button" class="ana-rf-dd-option active" data-client="all" onclick="toggleReportClient(this)"><%= t('all') %></button>
+              <% @client_insights.each do |c| %>
+                <button type="button" class="ana-rf-dd-option" data-client="<%= c[:name] %>" onclick="toggleReportClient(this)"><%= c[:name] %></button>
+              <% end %>
+            </div>
           </div>
-          <div class="ana-report-include-item">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>
-            <%= t('analytics_page.report_inc_clients') %>
-          </div>
-          <div class="ana-report-include-item">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>
-            <%= t('analytics_page.report_inc_health') %>
+        </div>
+
+        <!-- Category -->
+        <div class="ana-rf-row">
+          <label class="ana-rf-label"><%= t('analytics_page.rf_category') %></label>
+          <div class="ana-rf-multi-wrap" id="reportCategoryWrap">
+            <button type="button" class="ana-rf-multi-trigger" id="reportCategoryTrigger" onclick="toggleReportDropdown('category')">
+              <span id="reportCategoryText"><%= t('all') %></span>
+              <svg class="ana-rf-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+            <div class="ana-rf-dropdown" id="reportCategoryDropdown">
+              <button type="button" class="ana-rf-dd-option active" data-category="all" onclick="toggleReportCategory(this)"><%= t('all') %></button>
+              <% (current_user.categories.order(:name) rescue []).each do |cat| %>
+                <button type="button" class="ana-rf-dd-option" data-category="<%= cat.name %>" onclick="toggleReportCategory(this)"><%= cat.name %></button>
+              <% end %>
+            </div>
           </div>
         </div>
       </div>
 
       <div class="ana-report-actions">
-        <a href="<%= analytics_export_pdf_path %>" class="ana-report-btn pdf">
+        <a href="<%= analytics_export_pdf_path %>" id="reportPdfLink" class="ana-report-btn pdf">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
           <div class="ana-report-btn-text">
             <span class="ana-report-btn-label"><%= t('analytics_page.download_pdf') %></span>
             <span class="ana-report-btn-hint"><%= t('analytics_page.pdf_hint') %></span>
           </div>
         </a>
-        <a href="<%= analytics_export_path %>" class="ana-report-btn csv">
+        <a href="<%= analytics_export_path %>" id="reportCsvLink" class="ana-report-btn csv">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           <div class="ana-report-btn-text">
             <span class="ana-report-btn-label"><%= t('analytics_page.download_csv') %></span>
@@ -1660,6 +1787,105 @@
     }
   });
 })();
+</script>
+<% end %>
+
+<% if @is_pro %>
+<script>
+  // ── Report Filter JS ──
+  var _reportBasePdf = "<%= analytics_export_pdf_path %>";
+  var _reportBaseCsv = "<%= analytics_export_path %>";
+  var _reportSelectedStatus = "all";
+  var _reportSelectedClients = [];
+  var _reportSelectedCategories = [];
+
+  function updateReportLinks() {
+    var params = [];
+    var from = document.getElementById('reportDateFrom')?.value;
+    var to = document.getElementById('reportDateTo')?.value;
+    if (from) params.push('date_from=' + encodeURIComponent(from));
+    if (to) params.push('date_to=' + encodeURIComponent(to));
+    if (_reportSelectedStatus !== 'all') params.push('status=' + encodeURIComponent(_reportSelectedStatus));
+    _reportSelectedClients.forEach(function(c) { params.push('clients[]=' + encodeURIComponent(c)); });
+    _reportSelectedCategories.forEach(function(c) { params.push('categories[]=' + encodeURIComponent(c)); });
+    var qs = params.length ? '?' + params.join('&') : '';
+    var pdfLink = document.getElementById('reportPdfLink');
+    var csvLink = document.getElementById('reportCsvLink');
+    if (pdfLink) pdfLink.href = _reportBasePdf + qs;
+    if (csvLink) csvLink.href = _reportBaseCsv + qs;
+  }
+
+  // Date inputs
+  document.getElementById('reportDateFrom')?.addEventListener('change', updateReportLinks);
+  document.getElementById('reportDateTo')?.addEventListener('change', updateReportLinks);
+
+  // Status pills
+  document.querySelectorAll('#reportStatusPills .ana-rf-pill').forEach(function(pill) {
+    pill.addEventListener('click', function() {
+      document.querySelectorAll('#reportStatusPills .ana-rf-pill').forEach(function(p) { p.classList.remove('active'); });
+      pill.classList.add('active');
+      _reportSelectedStatus = pill.dataset.val;
+      updateReportLinks();
+    });
+  });
+
+  // Client dropdown
+  function toggleReportDropdown(type) {
+    var wrap = document.getElementById('report' + type.charAt(0).toUpperCase() + type.slice(1) + 'Wrap');
+    if (!wrap) return;
+    var wasOpen = wrap.classList.contains('open');
+    document.querySelectorAll('.ana-rf-multi-wrap').forEach(function(w) { w.classList.remove('open'); });
+    if (!wasOpen) wrap.classList.add('open');
+  }
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.ana-rf-multi-wrap')) {
+      document.querySelectorAll('.ana-rf-multi-wrap').forEach(function(w) { w.classList.remove('open'); });
+    }
+  });
+
+  function toggleReportClient(btn) {
+    var val = btn.dataset.client;
+    if (val === 'all') {
+      _reportSelectedClients = [];
+      document.querySelectorAll('#reportClientDropdown .ana-rf-dd-option').forEach(function(o) { o.classList.remove('active'); });
+      btn.classList.add('active');
+    } else {
+      document.querySelector('#reportClientDropdown .ana-rf-dd-option[data-client="all"]')?.classList.remove('active');
+      btn.classList.toggle('active');
+      _reportSelectedClients = [];
+      document.querySelectorAll('#reportClientDropdown .ana-rf-dd-option.active:not([data-client="all"])').forEach(function(o) {
+        _reportSelectedClients.push(o.dataset.client);
+      });
+      if (_reportSelectedClients.length === 0) {
+        document.querySelector('#reportClientDropdown .ana-rf-dd-option[data-client="all"]')?.classList.add('active');
+      }
+    }
+    var txt = document.getElementById('reportClientText');
+    if (txt) txt.textContent = _reportSelectedClients.length ? _reportSelectedClients.join(', ') : '<%= t("all") %>';
+    updateReportLinks();
+  }
+
+  function toggleReportCategory(btn) {
+    var val = btn.dataset.category;
+    if (val === 'all') {
+      _reportSelectedCategories = [];
+      document.querySelectorAll('#reportCategoryDropdown .ana-rf-dd-option').forEach(function(o) { o.classList.remove('active'); });
+      btn.classList.add('active');
+    } else {
+      document.querySelector('#reportCategoryDropdown .ana-rf-dd-option[data-category="all"]')?.classList.remove('active');
+      btn.classList.toggle('active');
+      _reportSelectedCategories = [];
+      document.querySelectorAll('#reportCategoryDropdown .ana-rf-dd-option.active:not([data-category="all"])').forEach(function(o) {
+        _reportSelectedCategories.push(o.dataset.category);
+      });
+      if (_reportSelectedCategories.length === 0) {
+        document.querySelector('#reportCategoryDropdown .ana-rf-dd-option[data-category="all"]')?.classList.add('active');
+      }
+    }
+    var txt = document.getElementById('reportCategoryText');
+    if (txt) txt.textContent = _reportSelectedCategories.length ? _reportSelectedCategories.join(', ') : '<%= t("all") %>';
+    updateReportLinks();
+  }
 </script>
 <% end %>
 

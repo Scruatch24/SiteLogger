@@ -1779,19 +1779,16 @@ body {
   /* Safe Hover States (Desktop Only) */
   @media (hover: hover) {
 
-      /* Header Navigation Links */
-      .nav-link-hover:hover {
-          background-color: #fff7ed;
-          /* orange-50 */
-          border-color: #f97316;
-          /* orange-500 */
-          transform: translate(-1px, -1px);
-          box-shadow: 3px 3px 0px 0px rgba(0,0,0,1);
+      /* Header Navigation Links — rise on hover */
+      .nav-link-hover:not(.nav-active):hover {
+          background-color: #fff7ed !important;
+          border-color: #f97316 !important;
+          transform: translate(-1px, -1px) !important;
+          box-shadow: 3px 3px 0px 0px rgba(0,0,0,1) !important;
       }
 
-      .nav-link-hover:hover svg {
-          color: #ea580c;
-          /* orange-600 */
+      .nav-link-hover:not(.nav-active):hover svg {
+          color: #ea580c !important;
       }
 
       /* Rise on hover for any btn-rise element */
