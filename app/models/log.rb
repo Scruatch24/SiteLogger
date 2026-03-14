@@ -119,22 +119,19 @@ class Log < ApplicationRecord
     self.invoice_number ||= self.class.next_display_number(user, ip_address, session_id)
   end
 
-  # Retry on unique constraint violation (race condition: two concurrent saves)
+  # Retry on unique constraint violation (DB-enforced via unique index)
   after_validation :retry_invoice_number_on_conflict
 
   def retry_invoice_number_on_conflict
     return unless new_record? && invoice_number.present?
 
     retries = 0
-    begin
-      # Test uniqueness before save by checking if the number already exists
-      scope = user ? self.class.where(user_id: user.id) : self.class.where(user_id: nil)
-      while scope.exists?(invoice_number: invoice_number) && retries < 5
-        self.invoice_number = self.class.next_display_number(user, ip_address, session_id)
-        retries += 1
-      end
-    rescue StandardError => e
-      Rails.logger.warn("Log#retry_invoice_number_on_conflict: #{e.message}")
+    scope = user ? self.class.where(user_id: user.id) : self.class.where(user_id: nil)
+    while scope.exists?(invoice_number: invoice_number) && retries < 5
+      self.invoice_number = self.class.next_display_number(user, ip_address, session_id)
+      retries += 1
     end
+  rescue StandardError => e
+    Rails.logger.warn("Log#retry_invoice_number_on_conflict: #{e.message}")
   end
 end

@@ -54,11 +54,13 @@ class ApplicationController < ActionController::Base
 
     ip = client_ip
     return nil if ip.blank? || ip == "127.0.0.1" || ip == "::1" || ip.start_with?("192.168.", "10.", "172.")
+    # SECURITY: Validate IP format to prevent SSRF via crafted X-Forwarded-For
+    return nil unless ip.match?(/\A[\d.]+\z/) || ip.match?(/\A[0-9a-fA-F:]+\z/)
 
     # Try real IP lookup via ip-api.com (free, no key required)
     begin
       # Fields: 2 (status), 16384 (countryCode)
-      response = HTTP.timeout(1.5).get("http://ip-api.com/json/#{ip}?fields=16386")
+      response = HTTP.timeout(1.5).get("http://ip-api.com/json/#{CGI.escape(ip)}?fields=16386")
       if response.status.success?
         json = JSON.parse(response.body.to_s)
         if json["status"] == "success"

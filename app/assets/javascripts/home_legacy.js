@@ -1,3 +1,11 @@
+/* ── SECURITY: HTML escape helper for innerHTML XSS prevention ── */
+function escapeHtml(str) {
+  if (str == null) return '';
+  var div = document.createElement('div');
+  div.textContent = String(str);
+  return div.innerHTML;
+}
+
 /* ── Typewriter effect for textarea fields ── */
 window._typewriterTimer = null;
 function typewriterFill(textarea, text, speed) {

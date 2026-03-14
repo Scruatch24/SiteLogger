@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_03_10_111807) do
+ActiveRecord::Schema[8.0].define(version: 2026_03_14_064337) do
   create_schema "auth"
   create_schema "neon_auth"
   create_schema "pgrst"
@@ -143,6 +143,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_03_10_111807) do
     t.index ["client_id"], name: "index_logs_on_client_id"
     t.index ["deleted_at"], name: "index_logs_on_deleted_at"
     t.index ["status"], name: "index_logs_on_status"
+    t.index ["user_id", "invoice_number"], name: "idx_logs_user_invoice_number_unique", unique: true, where: "((user_id IS NOT NULL) AND (invoice_number IS NOT NULL))"
     t.index ["user_id", "invoice_number"], name: "index_logs_on_user_id_and_invoice_number", unique: true
     t.index ["user_id", "status", "created_at"], name: "idx_logs_user_status_created"
     t.index ["user_id", "status", "deleted_at"], name: "idx_logs_user_status_kept"

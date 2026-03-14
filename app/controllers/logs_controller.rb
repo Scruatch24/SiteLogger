@@ -536,9 +536,6 @@ class LogsController < ApplicationController
     end
 
     def generate_preview
-      # Ensure schema is fresh to avoid missing column errors
-      Log.reset_column_information
-
       begin
         p = log_params.to_h
         p[:tasks] = JSON.parse(p[:tasks]) rescue p[:tasks] if p[:tasks].is_a?(String)
@@ -554,7 +551,7 @@ class LogsController < ApplicationController
         if limit.present?
           # Calculate hash of invoice data (excluding transient fields)
           data_to_hash = p.except(:session_id).to_h.sort.to_h
-          invoice_hash = Digest::MD5.hexdigest(data_to_hash.to_json)
+          invoice_hash = Digest::SHA256.hexdigest(data_to_hash.to_json)
 
           ip = client_ip
           session_id = params[:session_id]

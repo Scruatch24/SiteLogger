@@ -11,6 +11,7 @@ class HomeController < ApplicationController
 
 
 
+  before_action :enforce_ai_budget, only: [:process_audio, :refine_invoice, :enhance_transcript_text]
   skip_before_action :enforce_single_session, only: :session_check
 
   def session_check
@@ -477,6 +478,12 @@ class HomeController < ApplicationController
   end
 
   def send_contact
+    # SECURITY: Honeypot field — bots fill hidden fields, humans don't
+    if params[:website].present?
+      flash[:notice] = t("contact_page.success")
+      redirect_to contact_path and return
+    end
+
     email = params[:email].to_s.strip
     subject = params[:subject].to_s.strip
     description = params[:description].to_s.strip
@@ -486,7 +493,16 @@ class HomeController < ApplicationController
       redirect_to contact_path and return
     end
 
+    # SECURITY: Per-IP rate limit — max 3 contact submissions per hour
+    recent_contacts = UsageEvent.where(event_type: "contact_form", ip_address: client_ip)
+                                .where("created_at >= ?", 1.hour.ago).count
+    if recent_contacts >= 3
+      flash[:alert] = t("rate_limit_reached", limit: 3)
+      redirect_to contact_path and return
+    end
+
     begin
+      UsageEvent.create(event_type: "contact_form", ip_address: client_ip, session_id: session.id.to_s)
       ContactMailer.notify_admin(email: email, subject: subject, description: description).deliver_later
       ContactMailer.confirm_user(email: email, locale: I18n.locale).deliver_later
       flash[:notice] = t("contact_page.success")
@@ -2323,8 +2339,7 @@ PROMPT
     # ── Shortcut: direct client change without calling AI (widget click path) ──
     if client_change_only
       begin
-        input_parsed = current_json.is_a?(String) ? (JSON.parse(current_json) rescue {}) : (current_json.respond_to?(:to_unsafe_h) ? current_json.to_unsafe_h : current_json.to_h)
-        input_parsed = input_parsed.deep_stringify_keys
+        input_parsed = safe_parse_invoice_json(current_json)
       rescue
         return render json: { error: t("processing_error") }, status: 500
       end
@@ -2372,8 +2387,7 @@ PROMPT
     # short name/ordinal (e.g. "გიორგი ბერიძე", "ბერიძე", "პირველი"), resolve that intent
     # deterministically against the already-suggested similar_clients without re-asking AI.
     begin
-      parsed_for_match = current_json.is_a?(String) ? (JSON.parse(current_json) rescue {}) : (current_json.respond_to?(:to_unsafe_h) ? current_json.to_unsafe_h : current_json.to_h)
-      parsed_for_match = parsed_for_match.deep_stringify_keys
+      parsed_for_match = safe_parse_invoice_json(current_json)
     rescue
       parsed_for_match = {}
     end
@@ -2518,7 +2532,7 @@ PROMPT
 
     # Serialize current_json properly - it arrives as a hash from params
     # Strip old clarifications before sending to AI — backend generates them fresh each time
-    json_for_ai = current_json.is_a?(String) ? (JSON.parse(current_json) rescue {}) : (current_json.respond_to?(:to_unsafe_h) ? current_json.to_unsafe_h.deep_stringify_keys : current_json.to_h.deep_stringify_keys)
+    json_for_ai = safe_parse_invoice_json(current_json)
     json_for_ai.delete("clarifications")
     json_text = json_for_ai.to_json
 
@@ -2696,7 +2710,7 @@ PROMPT
 
       # ── Comprehensive AI logging ──
       ai_log = { ts: Time.current.iso8601, action: "refine_invoice", model: gemini_model, user_message: user_message.truncate(2000), user_id: current_user&.id }
-      input_parsed = current_json.is_a?(String) ? (JSON.parse(current_json) rescue {}) : (current_json.respond_to?(:to_unsafe_h) ? current_json.to_unsafe_h : current_json.to_h).deep_stringify_keys
+      input_parsed = safe_parse_invoice_json(current_json)
       ai_log[:input_client] = input_parsed["client"]
       ai_log[:input_dates] = { date: input_parsed["date"], due: input_parsed["due_date"] }.compact
       ai_log[:input_global_discount] = { flat: input_parsed["global_discount_flat"], pct: input_parsed["global_discount_percent"] }.compact.presence
@@ -2778,7 +2792,7 @@ PROMPT
           # Return original invoice data with the AI's reply
           Rails.logger.info("REFINE REPLY-ONLY (#{model}): #{parsed["reply"].truncate(200)}")
           ai_log[:reply_only] = true
-          input_parsed = current_json.is_a?(String) ? (JSON.parse(current_json) rescue {}) : (current_json.respond_to?(:to_unsafe_h) ? current_json.to_unsafe_h : current_json.to_h).deep_stringify_keys
+          input_parsed = safe_parse_invoice_json(current_json)
           reply_only_response = input_parsed.merge(
             "reply" => parsed["reply"],
             "clarifications" => Array(parsed["clarifications"]).select { |c| c.is_a?(Hash) && c["question"].present? }
@@ -3218,6 +3232,61 @@ PROMPT
     [ nil, nil ]
   end
 
+
+  # SECURITY: Whitelist-based JSON parsing for invoice data (replaces to_unsafe_h)
+  ALLOWED_INVOICE_KEYS = %w[
+    client client_id sections tax_scope billing_mode currency hourly_rate
+    labor_tax_rate labor_taxable labor_discount_flat labor_discount_percent
+    global_discount_flat global_discount_percent global_discount_message
+    credits discount_tax_mode date due_date due_days raw_summary
+    clarifications recipient_info sender_info reply time
+    client_email client_phone client_address
+    sender_business_name sender_phone sender_email sender_address sender_tax_id sender_payment_instructions
+  ].freeze
+
+  def safe_parse_invoice_json(current_json)
+    raw = if current_json.is_a?(String)
+      JSON.parse(current_json) rescue {}
+    elsif current_json.respond_to?(:to_unsafe_h)
+      current_json.to_unsafe_h
+    else
+      current_json.to_h
+    end
+    raw.deep_stringify_keys.slice(*ALLOWED_INVOICE_KEYS)
+  end
+
+  # SECURITY: Per-IP (guest) and per-user (authenticated) daily AI call budget
+  AI_DAILY_LIMITS = { "guest" => 5, "free" => 150, "paid" => 500 }.freeze
+
+  def enforce_ai_budget
+    plan = @profile&.plan.presence || "guest"
+    daily_cap = AI_DAILY_LIMITS[plan] || 5
+
+    scope = UsageEvent.where(event_type: "ai_call")
+                      .where("created_at >= ?", Time.current.beginning_of_day)
+
+    if user_signed_in?
+      calls_today = scope.where(user_id: current_user.id).count
+    else
+      calls_today = scope.where(user_id: nil, ip_address: client_ip).count
+    end
+
+    if calls_today >= daily_cap
+      render json: { error: t("daily_limit_reached", limit: daily_cap) }, status: :too_many_requests
+      return
+    end
+
+    # Log the AI call
+    UsageEvent.create(
+      user_id: current_user&.id,
+      ip_address: client_ip,
+      session_id: session.id.to_s,
+      event_type: "ai_call"
+    )
+  rescue => e
+    Rails.logger.warn("enforce_ai_budget error: #{e.message}")
+    # Don't block the request on budget tracking failures
+  end
 
   def clean_num(val)
     return nil if val.blank?
