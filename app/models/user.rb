@@ -43,6 +43,11 @@ class User < ApplicationRecord
     confirm unless confirmed?
   end
 
+  def after_confirmation
+    super
+    UserMailer.welcome(self).deliver_later
+  end
+
   def send_devise_notification(notification, *args)
     # Use the system_language from the profile if available, otherwise default to current locale
     # This ensures emails are sent in the user's preferred language even if triggered from background jobs

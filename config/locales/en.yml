@@ -1226,3 +1226,32 @@ en:
     ios_safari_step4: "Tap \"Add to Home Screen\""
     ios_safari_step5: "Keep \"Open as Web App\" on and tap \"Add\""
     maybe_later: "Maybe later"
+
+  user_mailer:
+    welcome:
+      subject: "Welcome to TalkInvoice!"
+      header: "You're All Set!"
+      tagline: "Your account is confirmed and ready to go"
+      body: "Welcome aboard! TalkInvoice lets you create professional invoices just by speaking. Here's how to get started:"
+      step_1: "Record your first invoice with your voice"
+      step_2: "Review, edit, and download as PDF"
+      step_3: "Track payments in your History dashboard"
+      cta: "Create My First Invoice"
+      help: "Need help? Reply to this email or visit our contact page."
+    overdue_digest:
+      subject:
+        one: "1 Overdue Invoice Needs Attention"
+        other: "%{count} Overdue Invoices Need Attention"
+      header: "Overdue Invoice Reminder"
+      subtitle:
+        one: "%{count} invoice is past due"
+        other: "%{count} invoices are past due"
+      body: "The following invoices are overdue and haven't been marked as paid yet. Consider following up with your clients."
+      col_invoice: "Invoice"
+      col_client: "Client"
+      col_amount: "Amount"
+      col_overdue: "Overdue"
+      days: "days"
+      total: "Total Outstanding: %{amount}"
+      cta: "View Overdue Invoices"
+      footer: "You're receiving this because you have overdue invoices. Manage notifications in Settings."

@@ -1,0 +1,68 @@
+<div style="text-align: center;">
+  <h2 style="margin: 0 0 8px 0; font-family: sans-serif; font-size: 22px; font-weight: 900; text-transform: uppercase; letter-spacing: -0.02em; color: #000000;">
+    <%= I18n.t('user_mailer.overdue_digest.header', locale: @locale) %>
+  </h2>
+
+  <p style="margin: 0 0 28px 0; font-family: sans-serif; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #dc2626;">
+    <%= I18n.t('user_mailer.overdue_digest.subtitle', count: @overdue_logs.size, locale: @locale) %>
+  </p>
+
+  <p style="margin: 0 0 24px 0; font-family: sans-serif; font-size: 16px; line-height: 1.6; color: #374151;">
+    <%= I18n.t('user_mailer.overdue_digest.body', locale: @locale) %>
+  </p>
+
+  <!-- Overdue Invoice Table -->
+  <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="width: 100%; margin: 0 0 28px 0; border: 2px solid #000000; border-radius: 16px; border-collapse: separate; overflow: hidden;">
+    <!-- Table Header -->
+    <tr>
+      <td style="padding: 10px 14px; font-family: sans-serif; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em; color: #6b7280; background: #fef2f2; border-bottom: 2px solid #000000; text-align: left;">
+        <%= I18n.t('user_mailer.overdue_digest.col_invoice', locale: @locale) %>
+      </td>
+      <td style="padding: 10px 14px; font-family: sans-serif; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em; color: #6b7280; background: #fef2f2; border-bottom: 2px solid #000000; text-align: left;">
+        <%= I18n.t('user_mailer.overdue_digest.col_client', locale: @locale) %>
+      </td>
+      <td style="padding: 10px 14px; font-family: sans-serif; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em; color: #6b7280; background: #fef2f2; border-bottom: 2px solid #000000; text-align: right;">
+        <%= I18n.t('user_mailer.overdue_digest.col_amount', locale: @locale) %>
+      </td>
+      <td style="padding: 10px 14px; font-family: sans-serif; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em; color: #6b7280; background: #fef2f2; border-bottom: 2px solid #000000; text-align: right;">
+        <%= I18n.t('user_mailer.overdue_digest.col_overdue', locale: @locale) %>
+      </td>
+    </tr>
+
+    <% @overdue_logs.each_with_index do |log, i| %>
+      <% days_overdue = log[:days_overdue] %>
+      <% urgency_color = days_overdue > 30 ? '#dc2626' : days_overdue > 7 ? '#ea580c' : '#f59e0b' %>
+      <tr style="<%= i.odd? ? 'background: #fafafa;' : '' %>">
+        <td style="padding: 10px 14px; font-family: sans-serif; font-size: 13px; font-weight: 800; color: #000000; border-bottom: 1px solid #f3f4f6;">
+          INV-<%= log[:display_number] %>
+        </td>
+        <td style="padding: 10px 14px; font-family: sans-serif; font-size: 13px; font-weight: 600; color: #374151; border-bottom: 1px solid #f3f4f6;">
+          <%= log[:client].presence || I18n.t('unknown_client', locale: @locale) %>
+        </td>
+        <td style="padding: 10px 14px; font-family: sans-serif; font-size: 13px; font-weight: 800; color: #000000; border-bottom: 1px solid #f3f4f6; text-align: right;">
+          <%= @currency_sym %><%= log[:amount] %>
+        </td>
+        <td style="padding: 10px 14px; font-family: sans-serif; font-size: 12px; font-weight: 900; color: <%= urgency_color %>; border-bottom: 1px solid #f3f4f6; text-align: right;">
+          <%= days_overdue %> <%= I18n.t('user_mailer.overdue_digest.days', locale: @locale) %>
+        </td>
+      </tr>
+    <% end %>
+  </table>
+
+  <% total_overdue = @overdue_logs.sum { |l| l[:amount].to_f } %>
+  <p style="margin: 0 0 28px 0; font-family: sans-serif; font-size: 14px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em; color: #dc2626;">
+    <%= I18n.t('user_mailer.overdue_digest.total', amount: "#{@currency_sym}#{sprintf('%.2f', total_overdue)}", locale: @locale) %>
+  </p>
+
+  <div style="margin: 32px 0;">
+    <a href="<%= root_url %>history" class="btn" style="display: inline-block; padding: 16px 32px; background-color: #dc2626; color: #ffffff; text-decoration: none; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; border: 2px solid #000000; border-radius: 12px; box-shadow: 4px 4px 0px 0px #000000; font-family: sans-serif; font-size: 14px;">
+      <%= I18n.t('user_mailer.overdue_digest.cta', locale: @locale) %>
+    </a>
+  </div>
+
+  <p style="margin: 0 0 8px 0; font-family: sans-serif; font-size: 12px; color: #9ca3af;">
+    <%= I18n.t('user_mailer.overdue_digest.footer', locale: @locale) %>
+  </p>
+
+  <p style="margin: 0; font-family: sans-serif; font-size: 14px; color: #374151;">— <span style="font-weight: 900; color: #000000;">Talk</span><span style="font-weight: 900; color: #ea580c;">Invoice</span> Team</p>
+</div>
