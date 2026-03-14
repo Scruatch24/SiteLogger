@@ -249,12 +249,18 @@
 
   function toggleNotifDropdown() {
     var dd = document.getElementById('notifDropdown');
-    if (dd) dd.classList.toggle('hidden');
+    var btn = document.querySelector('#notifWrap .site-auth-notif');
+    if (!dd) return;
+    var opening = dd.classList.contains('hidden');
+    dd.classList.toggle('hidden');
+    if (btn) btn.classList.toggle('notif-open', opening);
   }
   document.addEventListener('click', function(e) {
     if (!e.target.closest('#notifWrap')) {
       var dd = document.getElementById('notifDropdown');
+      var btn = document.querySelector('#notifWrap .site-auth-notif');
       if (dd) dd.classList.add('hidden');
+      if (btn) btn.classList.remove('notif-open');
     }
   });
 

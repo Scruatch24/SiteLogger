@@ -209,11 +209,11 @@ body {
     box-shadow: none;
   }
   .site-nav-link.site-nav-active {
-    color: black;
+    color: #ea580c;
     background: #fff7ed;
     border-color: #ea580c;
     transform: translate(2px, 2px);
-    box-shadow: none;
+    box-shadow: 2px 2px 0px 0px rgba(234,88,12,1);
   }
   .site-nav-pricing {
     display: inline-flex;
@@ -292,7 +292,8 @@ body {
     transform: translate(-1px, -1px);
     box-shadow: 3px 3px 0px 0px rgba(0,0,0,1);
   }
-  .site-auth-notif:active {
+  .site-auth-notif:active,
+  .site-auth-notif.notif-open {
     transform: translate(2px, 2px);
     box-shadow: none;
   }
@@ -305,7 +306,8 @@ body {
     background: #fef2f2;
     color: #dc2626;
     border-color: #dc2626;
-    box-shadow: 2px 2px 0px 0px #dc2626;
+    transform: translate(-1px, -1px);
+    box-shadow: 3px 3px 0px 0px #dc2626;
   }
   .site-auth-logout:active {
     transform: translate(2px, 2px);
